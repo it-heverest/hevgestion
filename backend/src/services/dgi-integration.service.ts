@@ -318,11 +318,11 @@ export class DGIService {
   }
 
   // ========================================
-  // Process Operations (Use createDeclaration instead)
+  // Process Operations
   // ========================================
 
   /**
-   * Get all processes
+   * Get all declarations (processes)
    */
   async getProcesses(userId: string): Promise<any[]> {
     try {
@@ -331,6 +331,21 @@ export class DGIService {
       return result.records;
     } catch (error: any) {
       console.error("[DGI] Failed to get processes:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get declarations for a specific year
+   * GET /process/:declaration_year
+   */
+  async getProcessesByYear(userId: string, year: string): Promise<any[]> {
+    try {
+      await this.authenticateWithStoredCredentials(userId);
+      const result = await dgiClient.getProcessesByYear(year);
+      return result.records;
+    } catch (error: any) {
+      console.error("[DGI] Failed to get processes by year:", error);
       return [];
     }
   }
