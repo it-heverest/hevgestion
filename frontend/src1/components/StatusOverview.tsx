@@ -1,0 +1,169 @@
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { 
+  CheckCircle2, 
+  Clock, 
+  AlertTriangle,
+  XCircle,
+  TrendingUp,
+  Database,
+  FileCheck,
+  Shield
+} from 'lucide-react';
+
+interface StatusItem {
+  label: string;
+  status: 'success' | 'warning' | 'error' | 'pending';
+  value?: string | number;
+  progress?: number;
+}
+
+interface StatusOverviewProps {
+  companyName: string;
+  currentExercise: number;
+}
+
+export function StatusOverview({ companyName, currentExercise }: StatusOverviewProps) {
+  const statusItems: StatusItem[] = [
+    { 
+      label: 'Balance importée', 
+      status: 'success', 
+      value: '✓ Importée',
+      progress: 100
+    },
+    { 
+      label: 'Conformité SYSCOHADA', 
+      status: 'success', 
+      value: '95%',
+      progress: 95
+    },
+    { 
+      label: 'Traitement', 
+      status: 'warning', 
+      value: 'En cours',
+      progress: 60
+    },
+    { 
+      label: 'États financiers', 
+      status: 'pending', 
+      value: '6/8 générés',
+      progress: 75
+    },
+  ];
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-orange-600" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'pending':
+        return <Clock className="h-4 w-4 text-blue-600" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <Badge variant="default" className="bg-green-600">Complété</Badge>;
+      case 'warning':
+        return <Badge variant="default" className="bg-orange-600">Attention</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Erreur</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">En cours</Badge>;
+      default:
+        return <Badge variant="outline">En attente</Badge>;
+    }
+  };
+
+  const metrics = [
+    {
+      icon: Database,
+      label: 'Comptes traités',
+      value: '247',
+      color: 'text-blue-600'
+    },
+    {
+      icon: FileCheck,
+      label: 'Rapports générés',
+      value: '8',
+      color: 'text-green-600'
+    },
+    {
+      icon: Shield,
+      label: 'Conformité',
+      value: '95%',
+      color: 'text-purple-600'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Performance',
+      value: 'Excellente',
+      color: 'text-orange-600'
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Métriques rapides */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <Card key={index} className="border-2">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Icon className={`h-5 w-5 ${metric.color}`} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold">{metric.value}</p>
+                  <p className="text-xs text-muted-foreground">{metric.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* État détaillé */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-semibold mb-4">État de Traitement</h3>
+          <div className="space-y-4">
+            {statusItems.map((item, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(item.status)}
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{item.value}</span>
+                    {getStatusBadge(item.status)}
+                  </div>
+                </div>
+                {item.progress !== undefined && (
+                  <Progress 
+                    value={item.progress} 
+                    className={`h-2 ${
+                      item.status === 'success' ? '[&>div]:bg-green-600' :
+                      item.status === 'warning' ? '[&>div]:bg-orange-600' :
+                      item.status === 'error' ? '[&>div]:bg-red-600' :
+                      '[&>div]:bg-blue-600'
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

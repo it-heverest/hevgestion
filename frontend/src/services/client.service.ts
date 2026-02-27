@@ -1,0 +1,364 @@
+// services/client.service.ts
+import axios from "axios";
+import { API_CONFIG } from "../config/api";
+import { authService } from "./auth.service";
+
+export interface Country {
+  code: string;
+  name: string;
+  currency: string;
+  timezone: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  country: string;
+  legalForm: string;
+  taxNumber: string;
+  address: string;
+  city: string;
+  phone?: string;
+  email?: string;
+  createdBy: string;
+  currency: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateClientData {
+  name: string;
+  country: string;
+  legalForm: string;
+  clientType?: string;
+  taxNumber: string;
+  address: string;
+  city: string;
+  phone?: string;
+  email?: string;
+}
+
+/**
+ * Simplified Client Service - Only handles API calls
+ * Session management is now handled by AppContext
+ */
+class ClientService {
+  private api = axios.create({
+    baseURL: API_CONFIG.BASE_URL,
+    timeout: 10000,
+    withCredentials: true,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  constructor() {
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors(): void {
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = authService.getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          window.location.href = "/web/user/login";
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // ==================== COUNTRIES API ====================
+
+  async getCountries(): Promise<Country[]> {
+    try {
+      const response = await this.api.get("/clients/countries");
+      return response.data.countries as Country[];
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      throw new Error("Erreur lors du chargement des pays");
+    }
+  }
+
+  // ==================== CLIENTS API ====================
+
+  async getClients(country?: string): Promise<Client[]> {
+    try {
+      const params = country ? { country } : {};
+      const response = await this.api.get("/clients", { params });
+      return response.data.clients as Client[];
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      throw new Error("Erreur lors du chargement des clients");
+    }
+  }
+
+  async createClient(clientData: CreateClientData): Promise<Client> {
+    try {
+      const response = await this.api.post("/clients", clientData);
+      return response.data.client;
+    } catch (error: any) {
+      console.error("Error creating client:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la création du client");
+    }
+  }
+
+  async getClientsByCountry(countryCode: string): Promise<Client[]> {
+    try {
+      const response = await this.api.get("/clients", {
+        params: { country: countryCode },
+      });
+      return response.data.clients as Client[];
+    } catch (error) {
+      console.error("Error fetching clients by country:", error);
+      throw new Error("Erreur lors du filtrage par pays");
+    }
+  }
+
+  async searchClients(query: string, countryCode?: string): Promise<Client[]> {
+    try {
+      const params: any = { q: query };
+      if (countryCode) {
+        params.country = countryCode;
+      }
+
+      const response = await this.api.get("/clients/search", {
+        params,
+      });
+      return response.data.clients as Client[];
+    } catch (error) {
+      console.error("Error searching clients:", error);
+      throw new Error("Erreur lors de la recherche");
+    }
+  }
+
+  async getClientById(clientId: string): Promise<Client> {
+    try {
+      const response = await this.api.get(`/clients/${clientId}`);
+      return response.data.client;
+    } catch (error) {
+      console.error("Error fetching client:", error);
+      throw new Error("Erreur lors du chargement du client");
+    }
+  }
+
+  async updateClient(
+    clientId: string,
+    clientData: Partial<Client>
+  ): Promise<Client> {
+    try {
+      const response = await this.api.put(`/clients/${clientId}`, clientData);
+      return response.data.client;
+    } catch (error: any) {
+      console.error("Error updating client:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la modification du client");
+    }
+  }
+
+  async deleteClient(clientId: string): Promise<void> {
+    try {
+      await this.api.delete(`/clients/${clientId}`);
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      throw new Error("Erreur lors de la suppression du client");
+    }
+  }
+
+  // ==================== BALANCE API ====================
+
+  async uploadBalance(formData: FormData): Promise<any> {
+    try {
+      const response = await this.api.post("/balances/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error uploading balance:", error);
+      console.log("Error response data:", error.response?.data);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw new Error("Erreur lors de l'upload de la balance");
+    }
+  }
+
+  async getBalancesByFolder(folderId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/balances/folder/${folderId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching balances by folder:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la récupération des balances");
+    }
+  }
+
+  async getBalanceById(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/balances/${balanceId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error fetching balance:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la récupération de la balance");
+    }
+  }
+
+  async checkBalanceEquilibrium(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.post(
+        `/balances/${balanceId}/check-equilibrium`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error checking equilibrium:", error);
+      throw new Error("Erreur lors de la vérification d'équilibre");
+    }
+  }
+
+  async performBalanceVentilation(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.post(
+        `/balances/${balanceId}/ventilation`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error performing ventilation:", error);
+      throw new Error("Erreur lors de la ventilation");
+    }
+  }
+
+  async getBalanceIssues(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.get(`/balances/${balanceId}/issues`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching balance issues:", error);
+      throw new Error("Erreur lors de la récupération des problèmes");
+    }
+  }
+
+  async resolveBalanceIssue(
+    balanceId: string,
+    issueId: string,
+    resolution: string
+  ): Promise<any> {
+    try {
+      const response = await this.api.post(
+        `/balances/${balanceId}/resolve-issue`,
+        {
+          issueId,
+          resolution,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error resolving issue:", error);
+      throw new Error("Erreur lors de la résolution du problème");
+    }
+  }
+
+  async deleteBalance(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.delete(`/balances/${balanceId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error deleting balance:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la suppression de la balance");
+    }
+  }
+
+  // ==================== DSF API ====================
+
+  async importDSF(formData: FormData): Promise<any> {
+    try {
+      const response = await this.api.post("/dsf/import", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error importing DSF:", error);
+      console.log("Error response data:", error.response?.data);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw new Error("Erreur lors de l'import du DSF");
+    }
+  }
+
+  /**
+   * Get auth headers for external API calls if needed
+   */
+  getAuthHeaders(): Record<string, string> {
+    return authService.getAuthHeaders();
+  }
+
+  cancelAllRequests(): void {
+    // Implementation would depend on your specific needs
+  }
+}
+
+export const clientService = new ClientService();

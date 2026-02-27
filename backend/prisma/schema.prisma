@@ -1,0 +1,829 @@
+// prisma/schema.prisma - CLEAN VERSION
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== CORE ENTITIES ==========
+model User {
+  id        String   @id @default(uuid())
+  email     String?  @unique
+  phoneCountryCode String?
+  phoneNumber String? @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole
+  isActive  Boolean  @default(true)
+
+  // Assistant management for COMPTABLE users
+  maxAssistants Int @default(0)
+
+  // OTP verification fields
+  otpCode      String?
+  otpExpiry    DateTime?
+  isVerified   Boolean  @default(false)
+
+  // Password reset fields
+  resetToken      String?
+  resetTokenExpiry DateTime?
+
+  // User's folders and assignments
+  ownedFolders    Folder[]           @relation("FolderOwner")
+  assignedFolders FolderAssignment[]
+
+  // Clients created by this user
+  createdClients Client[] @relation("ClientCreator")
+
+  // DSF Config imports
+  dsfConfigImports DSFConfigImport[]
+
+  // DGI Configuration
+  dgiConfig DGIConfig?
+
+  // DSF Configurations
+  dsfComptableConfigs DSFComptableConfig[]
+
+  // DSF reports managed by this user
+  managedDSFs DSF[]
+
+  // DSF Mapping configurations
+  dsfMappingConfigs DSFMappingConfig[]
+
+  // Excel file uploads
+  excelFileUploads ExcelFileUpload[]
+
+  // Audit logs
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id        String     @id @default(cuid())
+  name      String
+  legalForm LegalForm
+  clientType ClientType @default(NORMAL)
+  taxNumber String?
+  address   String?
+  city      String?
+  phone     String?
+  country   CountrySelection
+  currency  String
+  createdBy String
+
+  creator   User?      @relation("ClientCreator", fields: [createdBy], references: [id])
+
+  folders   Folder[]
+  excelFileUploads ExcelFileUpload[]
+  dsfImports DSFImport[]
+
+  // Audit logs
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
+}
+
+model Folder {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  status      FolderStatus @default(DRAFT)
+  isActive    Boolean      @default(false)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  ownerId String
+  owner   User   @relation("FolderOwner", fields: [ownerId], references: [id])
+
+  // Financial period
+  fiscalYear Int
+  startDate  DateTime
+  endDate    DateTime
+
+  // Balance data
+  balances        Balance[]
+  dsf             DSF?
+  dsfImports      DSFImport[]
+  taxDeclarations TaxDeclaration[]
+
+  // DSF Configurations
+  dsfComptableConfigs DSFComptableConfig[]
+
+  // Sharing
+  assignments FolderAssignment[]
+
+  // Excel file uploads
+  excelFileUploads ExcelFileUpload[]
+
+  // Audit logs
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("folders")
+}
+
+model FolderAssignment {
+  id       String         @id @default(uuid())
+  folderId String
+  userId   String
+  role     AssignmentRole @default(VIEWER)
+  
+  folder Folder @relation(fields: [folderId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  
+  assignedAt DateTime @default(now())
+  
+  @@unique([folderId, userId])
+  @@map("folder_assignments")
+}
+
+// ========== BALANCE MANAGEMENT ==========
+model Balance {
+  id     String      @id @default(uuid())
+  type   BalanceType
+  period String
+  
+  folderId String
+  folder   Folder @relation(fields: [folderId], references: [id])
+  
+  // File information
+  fileName     String
+  filePath     String?
+  originalData Json?
+  
+  // Processing status
+  status           BalanceStatus @default(PENDING)
+  validationErrors String?
+  
+  // Processing results
+  equilibrium   BalanceEquilibrium?
+  accountIssues AccountIssue[]
+  fixedAssets   FixedAsset[]
+  
+  importedAt  DateTime?  @default(now())
+  processedAt DateTime?
+  
+  @@map("balances")
+}
+
+model BalanceEquilibrium {
+  id        String @id @default(uuid())
+  balanceId String @unique
+  balance   Balance @relation(fields: [balanceId], references: [id])
+  
+  openingDebit   Float
+  openingCredit  Float
+  movementDebit  Float
+  movementCredit Float
+  closingDebit   Float
+  closingCredit  Float
+  
+  isBalanced Boolean
+  anomalies  String?
+  
+  @@map("balance_equilibriums")
+}
+
+model AccountIssue {
+  id        String    @id @default(uuid())
+  balanceId String
+  balance   Balance   @relation(fields: [balanceId], references: [id])
+  
+  accountNumber String
+  accountName   String
+  issueType     IssueType
+  description   String
+  severity      Severity  @default(WARNING)
+  
+  // Resolution
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+  resolution String?
+  
+  @@map("account_issues")
+}
+
+model FixedAsset {
+  id        String  @id @default(uuid())
+  balanceId String
+  balance   Balance @relation(fields: [balanceId], references: [id])
+  
+  accountNumber String
+  accountName   String
+  grossValue    Float
+  netValue      Float?
+  depreciation  Float?
+  
+  movementType  AssetMovementType?
+  activityType  ActivityType?
+  specifications Json?
+  
+  @@map("fixed_assets")
+}
+
+// ========== DSF & TAX MANAGEMENT ==========
+model DSF {
+  id       String    @id @default(uuid())
+  folderId String    @unique
+  folder   Folder    @relation(fields: [folderId], references: [id])
+  status   DSFStatus @default(DRAFT)
+
+  // Direct user relationship
+  userId   String?
+  user     User?     @relation(fields: [userId], references: [id])
+
+  // Import tracking
+  isImported Boolean   @default(false)
+  importId   String?
+  importedAt DateTime?
+  importedBy String?
+
+  // Report sections as JSON
+  entete  Json?
+  sommaire Json?
+  page_de_garde Json?
+  informations_generales Json?
+  fiche1  Json?
+  fiche2  Json?
+  fiche3  Json?
+  statistiques_et_syntheses Json?
+  grille_analyse_des_notes Json?
+  bilan_paysage Json?
+  compte_de_resultat Json?
+  tableau_des_flux_tresorerie Json?
+  
+  // Notes 1-8
+  note1   Json?
+  note2   Json?
+  note3a  Json?
+  note3b  Json?
+  note3c  Json?
+  note3c_co1 Json?
+  note3d  Json?
+  note3e  Json?
+  note3f  Json?
+  note4   Json?
+  note5   Json?
+  note6   Json?
+  note7   Json?
+  note8   Json?
+  
+  // Additional notes
+  note9   Json?
+  note10  Json?
+  note11  Json?
+  note12  Json?
+  note13  Json?
+  note14  Json?
+  note15a Json?
+  note15b Json?
+  note16a Json?
+  note16b Json?
+  note16b_bis Json?
+  note16c Json?
+  note17  Json?
+  note17_c1 Json?
+  note18  Json?
+  note19  Json?
+  note20  Json?
+  note21  Json?
+  note23  Json?
+  note22  Json?
+  note24  Json?
+  note25 Json?
+  note25_c1 Json?
+  note25_c2 Json?
+  note26  Json?
+  note27a Json?
+  note27b Json?
+  note28  Json?
+  note28_c1 Json?
+  note28_c2 Json?
+  note29  Json?
+  note30  Json?
+  note31  Json?
+  note32  Json?
+  note33  Json?
+  note34  Json?
+  note35  Json?
+  
+  // CF reports
+  cf1 Json?
+  cf1_bis Json?
+  cf1_ter Json?
+  cf1_quater Json?
+  cf2 Json?
+  cf2_bis Json?
+  cf2_ter Json?
+
+  // Controls
+  coherenceControl CoherenceControl?
+  lastGeneratedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folderId])
+  @@index([importId])
+  @@index([isImported])
+  @@map("dsf")
+}
+
+model CoherenceControl {
+  id    String @id @default(uuid())
+  dsfId String @unique
+  dsf   DSF    @relation(fields: [dsfId], references: [id])
+  
+  performedAt DateTime @default(now())
+  isCoherent  Boolean
+  issues      Json?
+  reportPath  String?
+  
+  @@map("coherence_controls")
+}
+
+model TaxDeclaration {
+  id       String            @id @default(uuid())
+  folderId String
+  folder   Folder            @relation(fields: [folderId], references: [id])
+  
+  type   TaxType
+  period String
+  dueDate DateTime
+  status DeclarationStatus @default(PENDING)
+  
+  // E-declaration
+  niuNumber   String?
+  apiPassword String?
+  dsfId       String?
+  
+  // Financials
+  amountDue  Float?
+  amountPaid Float?
+  filedAt    DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("tax_declarations")
+}
+
+// ========== DSF CONFIGURATION MANAGEMENT ==========
+model DSFConfig {
+  id          String @id @default(uuid())
+  category    String @unique
+  description String?
+
+  // Relations
+  comptableConfigs DSFComptableConfig[]
+  systemConfig     DSFSystemConfig?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dsf_configs")
+}
+
+model DSFComptableConfig {
+  id          String @id @default(uuid())
+  configId    String
+  config      DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  // Owner information
+  ownerId     String
+  owner       User   @relation(fields: [ownerId], references: [id])
+  ownerType   ConfigOwnerType @default(ACCOUNTANT)
+
+  // Configuration details
+  codeDsf     String
+  libelle     String
+  operations  String[]
+  destinationCell String?
+
+  // Scope and settings
+  scope       ConfigScope @default(EXERCISE)
+  clientId    String?
+  exerciseId  String?
+  folder      Folder?     @relation(fields: [exerciseId], references: [id])
+
+  // Status
+  isActive    Boolean @default(true)
+  isLocked    Boolean @default(false)
+  isModified  Boolean @default(false)
+  baseConfigId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([configId])
+  @@index([ownerId])
+  @@index([ownerType])
+  @@index([codeDsf])
+  @@index([scope])
+  @@index([exerciseId])
+  @@index([clientId])
+  @@index([isActive])
+  @@unique([configId, ownerId, ownerType, codeDsf, scope, clientId, exerciseId], name: "comptable_config_full_unique")
+
+  @@map("dsf_comptable_configs")
+}
+
+model DSFSystemConfig {
+  id          String @id @default(uuid())
+  configId    String @unique
+  config      DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  // Configuration details
+  codeDsf     String
+  libelle     String
+  operations  String[]
+  destinationCell String?
+
+  // Status
+  isActive    Boolean @default(true)
+  isLocked    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dsf_system_configs")
+}
+
+// ========== DSF CONFIG IMPORT/EXPORT ==========
+model DSFConfigImport {
+  id          String   @id @default(uuid())
+  fileName    String
+  filePath    String?
+  importedBy  String
+  importer    User     @relation(fields: [importedBy], references: [id])
+
+  // Import results
+  totalConfigs Int      @default(0)
+  importedConfigs Int   @default(0)
+  failedConfigs Int     @default(0)
+  errors      String?
+
+  importedAt  DateTime @default(now())
+
+  @@map("dsf_config_imports")
+}
+
+// ========== DGI DECLARATION MANAGEMENT ==========
+model DGIConfig {
+  id          String @id @default(uuid())
+  companyName String
+  niu         String
+  username    String
+  password    String
+  userId      String @unique
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dgi_configs")
+}
+
+// ========== AUDIT & HISTORY MANAGEMENT ==========
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+
+  // Who performed the action
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  // What action was performed
+  action      AuditAction
+  entityType  EntityType
+  entityId    String?
+
+  // Context information
+  folderId    String?
+  folder      Folder?  @relation(fields: [folderId], references: [id])
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+
+  // Action details
+  description String
+  oldValue    Json?
+  newValue    Json?
+  metadata    Json?
+
+  // Change tracking for Excel modifications
+  cellAddress String?
+  worksheet   String?
+  fieldName   String?
+  changeType  ChangeType?
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([folderId])
+  @@index([timestamp])
+  @@index([action])
+
+  @@map("audit_logs")
+}
+
+// ========== DSF IMPORT & MATCHING ==========
+model ExcelFileUpload {
+  id          String   @id @default(uuid())
+  fileName    String
+  filePath    String
+  fileSize    Int
+  uploadedBy  String
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+
+  // Context information
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  folderId    String?
+  folder      Folder?  @relation(fields: [folderId], references: [id])
+
+  // File metadata
+  sheetCount  Int      @default(0)
+  sheets      String[]
+  fileType    String   @default("excel")
+
+  // Status
+  isActive    Boolean  @default(true)
+  uploadedAt  DateTime @default(now())
+
+  @@index([uploadedBy])
+  @@index([clientId])
+  @@index([folderId])
+  @@index([uploadedAt])
+
+  @@map("excel_file_uploads")
+}
+
+model DSFImport {
+  id            String   @id @default(cuid())
+  folderId      String
+  clientId      String
+  fileName      String
+  fileUrl       String
+  exerciseYear  Int
+  importedBy    String
+  importedAt    DateTime @default(now())
+  status        String   @default("processing")
+  totalSheets   Int      @default(0)
+  processedSheets Int    @default(0)
+
+  folder        Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  client        Client   @relation(fields: [clientId], references: [id])
+
+  @@index([folderId])
+  @@index([clientId])
+  @@index([exerciseYear])
+  @@unique([clientId, folderId, fileName], name: "dsf_import_unique_per_client_exercise")
+
+  @@map("dsf_imports")
+}
+
+// ========== DSF MAPPING CONFIGURATION ==========
+model DSFMappingConfig {
+  id              String   @id @default(cuid())
+  noteType        String   @unique
+  sheetNamePatterns String[]
+
+  // Owner and scope
+  ownerId         String?
+  owner           User?   @relation(fields: [ownerId], references: [id])
+  isSystem        Boolean @default(false)
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([noteType])
+  @@index([ownerId])
+
+  @@map("dsf_mapping_configs")
+}
+
+// ========== ENUMS ==========
+enum UserRole {
+  ASSISTANT
+  COMPTABLE
+  ADMIN
+}
+
+enum CountrySelection {
+  BJ
+  BF
+  CI
+  SN
+  CM
+  TG
+}
+
+enum LegalForm {
+  SARL
+  SA
+  SUARL
+  INDIVIDUAL
+  OTHER
+}
+
+enum ClientType {
+  NORMAL
+  ASSURANCE
+  SMT
+}
+
+enum FolderStatus {
+  DRAFT
+  PROCESSING_BALANCE
+  BALANCE_READY
+  DSF_GENERATED
+  DSF_VALIDATED
+  COMPLETED
+}
+
+enum AssignmentRole {
+  VIEWER
+  EDITOR
+  MANAGER
+}
+
+enum BalanceType {
+  CURRENT_YEAR
+  PREVIOUS_YEAR
+}
+
+enum BalanceStatus {
+  PENDING
+  VALIDATING
+  VALID
+  INVALID
+  PROCESSING
+  PROCESSED
+}
+
+enum IssueType {
+  NON_COMPLIANT_ACCOUNT
+  WRONG_BALANCE_POSITION
+  MISSING_SPECIFICATION
+  EQUILIBRIUM_ERROR
+  FIXED_ASSET_ISSUE
+}
+
+enum Severity {
+  INFO
+  WARNING
+  ERROR
+  BLOCKING
+}
+
+enum AssetMovementType {
+  ACQUISITION
+  DISPOSAL
+  TRANSFER
+  REVALUATION
+}
+
+enum ActivityType {
+  ORDINARY
+  EXTRAORDINARY
+}
+
+enum DSFStatus {
+  DRAFT
+  GENERATING
+  GENERATED
+  VALIDATING
+  VALID
+  EXPORTED
+}
+
+enum TaxType {
+  TVA
+  CNPS
+  IS
+  ACCOUNTING
+  DSF
+}
+
+enum DeclarationStatus {
+  PENDING
+  CONFIGURED
+  IN_PROGRESS
+  DECLARED
+  PAID
+  LATE
+}
+
+enum ConfigScope {
+  GLOBAL
+  EXERCISE
+  CLIENT
+}
+
+enum ConfigOwnerType {
+  SYSTEM
+  ACCOUNTANT
+  ADMIN
+}
+
+enum AuditAction {
+  // User Management
+  USER_LOGIN
+  USER_LOGOUT
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+
+  // Client Management
+  CLIENT_CREATED
+  CLIENT_UPDATED
+  CLIENT_DELETED
+
+  // Folder Management
+  FOLDER_CREATED
+  FOLDER_UPDATED
+  FOLDER_DELETED
+  FOLDER_ASSIGNED
+  FOLDER_UNASSIGNED
+
+  // Balance Management
+  BALANCE_UPLOADED
+  BALANCE_PROCESSED
+  BALANCE_VALIDATED
+  BALANCE_CORRECTED
+
+  // DSF Management
+  DSF_GENERATED
+  DSF_VALIDATED
+  DSF_EXPORTED
+  DSF_UPDATED
+
+  // DSF Configuration
+  DSF_CONFIG_CREATED
+  DSF_CONFIG_UPDATED
+  DSF_CONFIG_DELETED
+  DSF_CONFIG_IMPORTED
+  DSF_CONFIG_EXPORTED
+
+  // Excel Modifications
+  EXCEL_CELL_UPDATED
+  EXCEL_RANGE_UPDATED
+  EXCEL_FORMULA_CHANGED
+  EXCEL_SHEET_ADDED
+  EXCEL_SHEET_DELETED
+
+  // Tax Declaration
+  TAX_DECLARATION_SUBMITTED
+  TAX_DECLARATION_UPDATED
+  TAX_DECLARATION_CANCELLED
+
+  // DGI Configuration
+  DGI_CONFIG_UPDATED
+
+  // System Actions
+  SYSTEM_BACKUP
+  SYSTEM_RESTORE
+  DATA_EXPORT
+  DATA_IMPORT
+}
+
+enum EntityType {
+  USER
+  CLIENT
+  FOLDER
+  BALANCE
+  DSF
+  DSF_CONFIG
+  TAX_DECLARATION
+  DGI_CONFIG
+  EXCEL_CELL
+  EXCEL_SHEET
+  SYSTEM
+}
+
+enum ChangeType {
+  CREATED
+  UPDATED
+  DELETED
+  IMPORTED
+  EXPORTED
+  PROCESSED
+  VALIDATED
+  SUBMITTED
+}

@@ -1,0 +1,38 @@
+# 1. Dependencies
+node_modules/
+
+# 2. Compiled Output (Build Artifacts)
+# Replace 'dist' with your tsconfig.json "outDir" if different
+dist/
+build/
+*.tsbuildinfo
+
+# 3. Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+# But allow an example file for collaborators
+!.env.example
+
+# 4. Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# 5. IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 6. Testing & Coverage
+coverage/
+.nyc_output/
+
+# 7. Framework Specific (Optional)
+.next/
+.svelte-kit/
+dist-ssr/
+*.local
