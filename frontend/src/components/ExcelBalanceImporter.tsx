@@ -83,7 +83,7 @@ export function ExcelBalanceImporter({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [importType, setImportType] = useState<"current" | "previous" | null>(
-    null
+    null,
   );
 
   const [storedBalances, setStoredBalances] = useState<{
@@ -139,12 +139,12 @@ export function ExcelBalanceImporter({
     try {
       console.log(
         "Loading balances from backend for client:",
-        selectedFolder.clientId
+        selectedFolder.clientId,
       );
 
       // Get all folders for this client to find balances across all years
       const allFolders = await folderService.getFoldersByClient(
-        selectedFolder.clientId
+        selectedFolder.clientId,
       );
       console.log("All folders for client:", allFolders);
 
@@ -156,7 +156,7 @@ export function ExcelBalanceImporter({
           const folderBalances = response.balances || [];
           console.log(
             `Balances for folder ${folder.id} (${folder.fiscalYear}):`,
-            folderBalances
+            folderBalances,
           );
           allBalances.push(...folderBalances);
         } catch (error) {
@@ -190,7 +190,7 @@ export function ExcelBalanceImporter({
             "Skipping balance with period",
             balancePeriod,
             "for selected year",
-            selectedFiscalYear
+            selectedFiscalYear,
           );
           return;
         }
@@ -240,7 +240,7 @@ export function ExcelBalanceImporter({
     } catch (error) {
       console.error(
         "Erreur lors du chargement des balances depuis le backend:",
-        error
+        error,
       );
       // Don't show error to user, just log it
     }
@@ -256,7 +256,7 @@ export function ExcelBalanceImporter({
   const saveBalanceToStorage = (
     data: BalanceRow[],
     type: "current" | "previous",
-    fileName?: string
+    fileName?: string,
   ) => {
     // Balance data is now managed by backend
     // This function is kept for compatibility but doesn't save to localStorage
@@ -274,14 +274,14 @@ export function ExcelBalanceImporter({
       "Balance sauvegardée",
       `${type === "current" ? "Exercice courant" : "Exercice précédent"} - ${
         data.length
-      } lignes`
+      } lignes`,
     );
   };
 
   const handleFileImport = async (file: File, type: "current" | "previous") => {
     if (!selectedFolder || !selectedFolder.id) {
       alert(
-        "Aucun dossier d'exercice sélectionné. Veuillez d'abord sélectionner un client et un dossier d'exercice."
+        "Aucun dossier d'exercice sélectionné. Veuillez d'abord sélectionner un client et un dossier d'exercice.",
       );
       return;
     }
@@ -320,17 +320,17 @@ export function ExcelBalanceImporter({
 
         // First try to find existing folder for previous year
         const allFolders = await folderService.getFoldersByClient(
-          selectedFolder.clientId
+          selectedFolder.clientId,
         );
         const previousFolder = allFolders.find(
-          (f) => f.fiscalYear === previousYear
+          (f) => f.fiscalYear === previousYear,
         );
 
         if (previousFolder) {
           targetFolderId = previousFolder.id;
           console.log(
             "Using existing previous year folder:",
-            previousFolder.id
+            previousFolder.id,
           );
         } else {
           // Create the previous year folder
@@ -380,7 +380,7 @@ export function ExcelBalanceImporter({
         "Import balance",
         `${
           type === "current" ? "Exercice courant" : "Exercice précédent"
-        } importé: ${file.name}`
+        } importé: ${file.name}`,
       );
 
       // Refresh balances from backend to show the newly uploaded balance
@@ -411,7 +411,7 @@ export function ExcelBalanceImporter({
       navigate(`/web/user/traitement/${userId}/traitement`);
     } else {
       alert(
-        "Les deux balances (courante et précédente) doivent être importées avant de commencer le traitement."
+        "Les deux balances (courante et précédente) doivent être importées avant de commencer le traitement.",
       );
     }
   };
@@ -460,7 +460,7 @@ export function ExcelBalanceImporter({
       window.confirm(
         `Êtes-vous sûr de vouloir supprimer la balance ${
           type === "current" ? "courante" : "précédente"
-        } ?`
+        } ?`,
       )
     ) {
       try {
@@ -511,7 +511,7 @@ export function ExcelBalanceImporter({
     setShowFullEditor(true);
     addToHistory(
       "Visualisation balance",
-      `Balance ${balance.type} chargée dans l'éditeur (${balance.data.length} lignes)`
+      `Balance ${balance.type} chargée dans l'éditeur (${balance.data.length} lignes)`,
     );
   };
 
@@ -549,7 +549,7 @@ export function ExcelBalanceImporter({
 
       addToHistory(
         "Balance modifiée",
-        `Balance ${editorData.balanceType} mise à jour dans l'éditeur (${data.length} lignes)`
+        `Balance ${editorData.balanceType} mise à jour dans l'éditeur (${data.length} lignes)`,
       );
     }
   };
@@ -636,7 +636,7 @@ export function ExcelBalanceImporter({
     setShowFullEditor(true);
     addToHistory(
       "Template interactif",
-      "Template balance ouvert dans l'éditeur"
+      "Template balance ouvert dans l'éditeur",
     );
   };
 
@@ -660,8 +660,8 @@ export function ExcelBalanceImporter({
         !isAvailable
           ? "border-gray-300 bg-gray-50 opacity-60"
           : isImported
-          ? "border-green-200 bg-green-50"
-          : "border-blue-200 bg-blue-50 hover:border-blue-300 cursor-pointer"
+            ? "border-green-200 bg-green-50"
+            : "border-blue-200 bg-blue-50 hover:border-blue-300 cursor-pointer"
       }`}
       onClick={() => !isImported && isAvailable && setImportType(type)}
     >
@@ -673,8 +673,8 @@ export function ExcelBalanceImporter({
                 !isAvailable
                   ? "bg-gray-100 text-gray-400"
                   : isImported
-                  ? "bg-green-100 text-green-600"
-                  : "bg-blue-100 text-blue-600"
+                    ? "bg-green-100 text-green-600"
+                    : "bg-blue-100 text-blue-600"
               }`}
             >
               {!isAvailable ? (
@@ -700,15 +700,15 @@ export function ExcelBalanceImporter({
               !isAvailable
                 ? "text-gray-500"
                 : isImported
-                ? "bg-green-100 text-green-800"
-                : ""
+                  ? "bg-green-100 text-green-800"
+                  : ""
             }
           >
             {!isAvailable
               ? "Indisponible"
               : isImported
-              ? "Importé"
-              : "À importer"}
+                ? "Importé"
+                : "À importer"}
           </Badge>
         </div>
       </CardContent>
@@ -793,7 +793,7 @@ export function ExcelBalanceImporter({
                     <p className="text-xs text-muted-foreground">
                       {storedBalances.current.rowCount} lignes • Importé le{" "}
                       {new Date(
-                        storedBalances.current.timestamp
+                        storedBalances.current.timestamp,
                       ).toLocaleDateString("fr-FR")}
                     </p>
                   </div>
@@ -863,7 +863,7 @@ export function ExcelBalanceImporter({
                     <p className="text-xs text-muted-foreground">
                       {storedBalances.previous.rowCount} lignes • Importé le{" "}
                       {new Date(
-                        storedBalances.previous.timestamp
+                        storedBalances.previous.timestamp,
                       ).toLocaleDateString("fr-FR")}
                     </p>
                   </div>
