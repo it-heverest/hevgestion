@@ -1,4 +1,12 @@
-// Notes components exports
+/**
+ * index.ts — Central export for all DSF report components.
+ *
+ * Import any report like:
+ *   import { Note1, CompteResultat, Ass1, T1 } from "../rapport";
+ */
+
+// ─── Standard Notes ────────────────────────────────────────────────────────
+
 export { default as Note1 } from "../rapport/Note1";
 export { default as Note2 } from "../rapport/Note2";
 export { default as Note3A } from "../rapport/Note3A";
@@ -28,21 +36,33 @@ export { default as Note18 } from "../rapport/Note18";
 export { default as Note19 } from "../rapport/Note19";
 export { default as Note20 } from "../rapport/Note20";
 export { default as Note21 } from "../rapport/Note21";
-export { default as Note32 } from "../rapport/Note32";
-export { default as Note33 } from "../rapport/Note33";
 export { default as Note22 } from "../rapport/Note22";
 export { default as Note23 } from "../rapport/Note23";
 export { default as Note24 } from "../rapport/Note24";
+export { default as Note25 } from "../rapport/Note25";
 export { default as Note26 } from "../rapport/Note26";
 export { default as Note27A } from "../rapport/Note27A";
 export { default as Note27B } from "../rapport/Note27B";
 export { default as Note28 } from "../rapport/Note28";
 export { default as Note29 } from "../rapport/Note29";
 export { default as Note30 } from "../rapport/Note30";
-export { default as Note25 } from "../rapport/Note25";
 export { default as Note31 } from "../rapport/Note31";
+export { default as Note32 } from "../rapport/Note32";
+export { default as Note33 } from "../rapport/Note33";
 export { default as Note34 } from "../rapport/Note34";
+
+// ─── Documents Spéciaux ────────────────────────────────────────────────────
+
 export { default as FicheR3 } from "../rapport/FicheR3";
+export { default as PageDeGarde } from "../rapport/PageDeGarde";
+export { default as Sommaire } from "../rapport/Sommaire";
+export { default as BilanPaysage } from "../rapport/BilanPaysage";
+export { default as CompteResultat } from "../rapport/CompteResultat";
+export { default as TableauFluxTresorerie } from "../rapport/TableauFluxTresorerie";
+export { default as GrilleAnalyseNotes } from "../rapport/GrilleAnalyseNotes";
+
+// ─── Série C ───────────────────────────────────────────────────────────────
+
 export { default as C01Note3C } from "../rapport/C01Note3C";
 export { default as C1Note17 } from "../rapport/C1Note17";
 export { default as C1Note25 } from "../rapport/C1Note25";
@@ -50,19 +70,19 @@ export { default as C1Note27A } from "../rapport/C1Note27A";
 export { default as C1Note28 } from "../rapport/C1Note28";
 export { default as C2Note25 } from "../rapport/C2Note25";
 export { default as C2Note28 } from "../rapport/C2Note28";
+
+// ─── Série CF ──────────────────────────────────────────────────────────────
+
 export { default as CF1 } from "../rapport/CF1";
 export { default as CF1Bis } from "../rapport/CF1Bis";
-export { default as CF1Quater } from "../rapport/CF1Quater";
 export { default as CF1Ter } from "../rapport/CF1Ter";
+export { default as CF1Quater } from "../rapport/CF1Quater";
 export { default as CF2 } from "../rapport/CF2";
 export { default as CF2Bis } from "../rapport/CF2Bis";
 export { default as CF2Ter } from "../rapport/CF2Ter";
-export { default as CompteResultat } from "../rapport/CompteResultat";
-export { default as GrilleAnalyseNotes } from "../rapport/GrilleAnalyseNotes";
-export { default as PageDeGarde } from "../rapport/PageDeGarde";
-export { default as Sommaire } from "../rapport/Sommaire";
-export { default as TableauFluxTresorerie } from "../rapport/TableauFluxTresorerie";
-export { default as BilanPaysage } from "../rapport/BilanPaysage";
+
+// ─── Assurance – Base ──────────────────────────────────────────────────────
+
 export { default as Impot21 } from "../rapport/Assurance/Impot21";
 export { default as Impot22 } from "../rapport/Assurance/Impot22";
 export { default as Fiche1 } from "../rapport/Assurance/Fiche1";
@@ -73,13 +93,15 @@ export { default as Fiche5 } from "../rapport/Assurance/Fiche5";
 export { default as BilanActif } from "../rapport/Assurance/BilanActif";
 export { default as BilanPassif } from "../rapport/Assurance/BilanPassif";
 export { default as Charges } from "../rapport/Assurance/Charges";
+export { default as Produits } from "../rapport/Assurance/Produits";
 export { default as CompteGeneralPertesProfits } from "../rapport/Assurance/CompteGeneralPertesProfits";
 export { default as EtatC4 } from "../rapport/Assurance/EtatC4";
 export { default as EtatC11 } from "../rapport/Assurance/EtatC11";
 export { default as EtatC11Vie } from "../rapport/Assurance/EtatC11Vie";
-export { default as Produits } from "../rapport/Assurance/Produits";
+export { default as Annexe6 } from "../rapport/Assurance/Annexe6";
 
-// Additional Assurance Reports
+// ─── Assurance – Série Ass ─────────────────────────────────────────────────
+
 export { default as Ass1 } from "../rapport/Assurance/Ass1";
 export { default as Ass2 } from "../rapport/Assurance/Ass2";
 export { default as Ass3 } from "../rapport/Assurance/Ass3";
@@ -91,10 +113,16 @@ export { default as Ass8 } from "../rapport/Assurance/Ass8";
 export { default as Ass9 } from "../rapport/Assurance/Ass9";
 export { default as Ass10 } from "../rapport/Assurance/Ass10";
 export { default as Ass11 } from "../rapport/Assurance/Ass11";
+
+// ─── Assurance – Compléments ───────────────────────────────────────────────
+
 export { default as DeclarationAnnuel } from "../rapport/Assurance/DeclarationAnnuel";
 export { default as SommesVerse } from "../rapport/Assurance/SommesVerse";
 export { default as TVA } from "../rapport/Assurance/TVA";
 export { default as Versements } from "../rapport/Assurance/Versements";
+
+// ─── Assurance – Tableaux ──────────────────────────────────────────────────
+
 export { default as Tableau30 } from "../rapport/Assurance/Tableau30";
 export { default as Tableau31 } from "../rapport/Assurance/Tableau31";
 export { default as Tableau32 } from "../rapport/Assurance/Tableau32";
@@ -114,10 +142,8 @@ export { default as Tableau43A } from "../rapport/Assurance/Tableau43A";
 export { default as Tableau43B } from "../rapport/Assurance/Tableau43B";
 export { default as Tableau44A } from "../rapport/Assurance/Tableau44A";
 
-// Additional missing Assurance components
-export { default as Annexe6 } from "../rapport/Assurance/Annexe6";
+// ─── SMT ──────────────────────────────────────────────────────────────────
 
-// SMT Reports
 export { default as GrilleAnalyseNotesSMT } from "../rapport/SMT/GrilleAnalyseNotes";
 export { default as ModBilan } from "../rapport/SMT/ModBilan";
 export { default as Note1Smt } from "../rapport/SMT/Note1Smt";

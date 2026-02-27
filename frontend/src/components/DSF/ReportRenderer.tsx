@@ -39,9 +39,9 @@ interface AllReportsGridProps {
 // Report registry
 // All components are lazy-loaded so only the one(s) actually rendered are
 // ever fetched. This prevents the 130-component eager-import crash.
-// ---------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
-const ALL_REPORTS: ReportDefinition[] = [
+export const ALL_REPORTS: ReportDefinition[] = [
   // ── Notes Standard ────────────────────────────────────────────────────────
   {
     name: "NOTE 1",
@@ -861,6 +861,39 @@ const ALL_REPORTS: ReportDefinition[] = [
 const REPORT_BY_NAME = new Map(
   ALL_REPORTS.map((r) => [r.name.toUpperCase(), r]),
 );
+
+// Build category map for quick lookup
+export const REPORT_CATEGORIES = Object.fromEntries(
+  ALL_REPORTS.reduce<[string, string[]][]>((acc, r) => {
+    const existing = acc.find(([cat]) => cat === r.category);
+    if (existing) {
+      existing[1].push(r.name);
+    } else {
+      acc.push([r.category, [r.name]]);
+    }
+    return acc;
+  }, []).map(([cat, names]) => [cat, names.sort()])
+);
+
+// Build route map for quick lookup
+export const NOTE_ROUTE_MAP = Object.fromEntries(
+  ALL_REPORTS.map((r) => [r.name, r.route])
+);
+
+// Get report by name (case-insensitive)
+export const getReportByName = (name: string): ReportDefinition | undefined => {
+  return REPORT_BY_NAME.get(name.toUpperCase());
+};
+
+// Get route for a note
+export const getNoteRoute = (name: string): string | undefined => {
+  return NOTE_ROUTE_MAP[name.toUpperCase()];
+};
+
+// Get all categories
+export const getCategories = (): string[] => {
+  return [...new Set(ALL_REPORTS.map((r) => r.category))];
+};
 
 // ---------------------------------------------------------------------------
 // Spinner used while a lazy component loads

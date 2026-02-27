@@ -17,8 +17,13 @@ import {
 } from "lucide-react";
 import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate } from "react-router-dom";
-import { AllReportsGrid } from "./ReportRenderer";
-import { NOTES_DATA } from "../../services/noteConfig.tsx";
+import {
+  AllReportsGrid,
+  REPORT_CATEGORIES,
+  getNoteRoute,
+  getCategories,
+  ALL_REPORTS,
+} from "./ReportRenderer";
 
 interface ReportsViewProps {
   extractionResults: ExtractionResult[];
@@ -29,223 +34,8 @@ interface ReportsViewProps {
   checkExistingDSF?: (folderId: string) => Promise<ExtractionResult[] | null>;
 }
 
-// Create a component map from NOTES_DATA
-const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {};
-NOTES_DATA.forEach((note) => {
-  COMPONENT_MAP[note.name.toUpperCase()] = note.component;
-});
-
-// Categories for organizing reports - using categories from NOTES_DATA
-const REPORT_CATEGORIES = {
-  "Notes Standard": NOTES_DATA.filter(
-    (note) => note.reportType === "normal",
-  ).map((note) => note.name.toUpperCase()),
-  "Documents Spéciaux": [
-    "FICHE R3",
-    "PAGE DE GARDE",
-    "SOMMAIRE",
-    "BILAN PAYSAGE",
-    "COMPTE RESULTAT",
-    "TABLEAU FLUX TRESORERIE",
-    "GRILLE ANALYSE NOTES",
-  ],
-  "Série C": [
-    "C01 NOTE 3C",
-    "C1 NOTE 17",
-    "C1 NOTE 25",
-    "C1 NOTE 27A",
-    "C1 NOTE 28",
-    "C2 NOTE 25",
-    "C2 NOTE 28",
-  ],
-  "Série CF": [
-    "CF1",
-    "CF1 BIS",
-    "CF1 TER",
-    "CF1 QUATER",
-    "CF2",
-    "CF2 BIS",
-    "CF2 TER",
-  ],
-  "Assurance - Base": NOTES_DATA.filter(
-    (note) => note.reportType === "assurance" && note.category === "Assurance",
-  ).map((note) => note.name.toUpperCase()),
-  "Assurance - Série Ass": [
-    "ASS 1",
-    "ASS 2",
-    "ASS 3",
-    "ASS 4",
-    "ASS 5",
-    "ASS 6",
-    "ASS 7",
-    "ASS 8",
-    "ASS 9",
-    "ASS 10",
-    "ASS 11",
-  ],
-  "Assurance - Compléments": [
-    "DECLARATION ANNUEL",
-    "SOMMES VERSE",
-    "TVA",
-    "VERSEMENTS",
-  ],
-  "Assurance - Tableaux": NOTES_DATA.filter(
-    (note) => note.name.includes("Tableau") && note.reportType === "assurance",
-  ).map((note) => note.name.toUpperCase()),
-  SMT: NOTES_DATA.filter((note) => note.reportType === "smt").map((note) =>
-    note.name.toUpperCase(),
-  ),
-};
-
-// Map note names to their route paths
-const NOTE_ROUTE_MAP: Record<string, string> = {
-  // Normal reports
-  "NOTE 1": "/rapport/note1",
-  "NOTE 2": "/rapport/note2",
-  "NOTE 3A": "/rapport/note3a",
-  "NOTE 3B": "/rapport/note3b",
-  "NOTE 3C": "/rapport/note3c",
-  "NOTE 3D": "/rapport/note3d",
-  "NOTE 3F": "/rapport/note3f",
-  "NOTE 4": "/rapport/note4",
-  "NOTE 5": "/rapport/note5",
-  "NOTE 6": "/rapport/note6",
-  "NOTE 7": "/rapport/note7",
-  "NOTE 8": "/rapport/note8",
-  "NOTE 9": "/rapport/note9",
-  "NOTE 10": "/rapport/note10",
-  "NOTE 11": "/rapport/note11",
-  "NOTE 12": "/rapport/note12",
-  "NOTE 13": "/rapport/note13",
-  "NOTE 14": "/rapport/note14",
-  "NOTE 15A": "/rapport/note15a",
-  "NOTE 15B": "/rapport/note15b",
-  "NOTE 16A": "/rapport/note16a",
-  "NOTE 16B": "/rapport/note16b",
-  "NOTE 16B BIS": "/rapport/note16bbis",
-  "NOTE 16C": "/rapport/note16c",
-  "NOTE 17": "/rapport/note17",
-  "NOTE 18": "/rapport/note18",
-  "NOTE 19": "/rapport/note19",
-  "NOTE 20": "/rapport/note20",
-  "NOTE 21": "/rapport/note21",
-  "NOTE 22": "/rapport/note22",
-  "NOTE 23": "/rapport/note23",
-  "NOTE 24": "/rapport/note24",
-  "NOTE 25": "/rapport/note25",
-  "NOTE 26": "/rapport/note26",
-  "NOTE 27A": "/rapport/note27a",
-  "NOTE 27B": "/rapport/note27b",
-  "NOTE 28": "/rapport/note28",
-  "NOTE 29": "/rapport/note29",
-  "NOTE 30": "/rapport/note30",
-  "NOTE 31": "/rapport/note31",
-  "NOTE 32": "/rapport/note32",
-  "NOTE 33": "/rapport/note33",
-  "NOTE 34": "/rapport/note34",
-
-  // Special documents
-  "FICHE R3": "/rapport/ficher3",
-  "PAGE DE GARDE": "/rapport/pagedegarde",
-  SOMMAIRE: "/rapport/sommaire",
-  "BILAN PAYSAGE": "/rapport/bilanpaysage",
-  "COMPTE RESULTAT": "/rapport/compteresultat",
-  "TABLEAU FLUX TRESORERIE": "/rapport/tableaufluxtresorerie",
-  "GRILLE ANALYSE NOTES": "/rapport/grilleanalysenotes",
-
-  // Series C
-  "C01 NOTE 3C": "/rapport/c01note3c",
-  "C1 NOTE 17": "/rapport/c1note17",
-  "C1 NOTE 25": "/rapport/c1note25",
-  "C1 NOTE 27A": "/rapport/c1note27a",
-  "C1 NOTE 28": "/rapport/c1note28",
-  "C2 NOTE 25": "/rapport/c2note25",
-  "C2 NOTE 28": "/rapport/c2note28",
-
-  // Series CF
-  CF1: "/rapport/cf1",
-  "CF1 BIS": "/rapport/cf1bis",
-  "CF1 TER": "/rapport/cf1ter",
-  "CF1 QUATER": "/rapport/cf1quater",
-  CF2: "/rapport/cf2",
-  "CF2 BIS": "/rapport/cf2bis",
-  "CF2 TER": "/rapport/cf2ter",
-
-  // Insurance
-  "IMPOT 21": "/rapport/assurance/impot21",
-  "IMPOT 22": "/rapport/assurance/impot22",
-  "FICHE 1": "/rapport/assurance/fiche1",
-  "FICHE 2": "/rapport/assurance/fiche2",
-  "FICHE 3": "/rapport/assurance/fiche3",
-  "FICHE 4": "/rapport/assurance/fiche4",
-  "FICHE 5": "/rapport/assurance/fiche5",
-  "BILAN ACTIF": "/rapport/assurance/bilanactif",
-  "BILAN PASSIF": "/rapport/assurance/bilanpassif",
-  CHARGES: "/rapport/assurance/charges",
-  PRODUITS: "/rapport/assurance/produits",
-  "COMPTE GENERAL PERTES PROFITS":
-    "/rapport/assurance/comptegeneralpertesprofits",
-  "ETAT C4": "/rapport/assurance/etatc4",
-  "ETAT C11": "/rapport/assurance/etatc11",
-  "ETAT C11 VIE": "/rapport/assurance/etatc11vie",
-  "ANNEXE 6": "/rapport/assurance/annexe6",
-  "ASS 1": "/rapport/assurance/ass1",
-  "ASS 2": "/rapport/assurance/ass2",
-  "ASS 3": "/rapport/assurance/ass3",
-  "ASS 4": "/rapport/assurance/ass4",
-  "ASS 5": "/rapport/assurance/ass5",
-  "ASS 6": "/rapport/assurance/ass6",
-  "ASS 7": "/rapport/assurance/ass7",
-  "ASS 8": "/rapport/assurance/ass8",
-  "ASS 9": "/rapport/assurance/ass9",
-  "ASS 10": "/rapport/assurance/ass10",
-  "ASS 11": "/rapport/assurance/ass11",
-  "DECLARATION ANNUEL": "/rapport/assurance/declarationannuel",
-  "SOMMES VERSE": "/rapport/assurance/sommesverse",
-  TVA: "/rapport/assurance/tva",
-  VERSEMENTS: "/rapport/assurance/versements",
-
-  // Insurance tables
-  "TABLEAU 30": "/rapport/assurance/tableau30",
-  "TABLEAU 31": "/rapport/assurance/tableau31",
-  "TABLEAU 32": "/rapport/assurance/tableau32",
-  "TABLEAU 33": "/rapport/assurance/tableau33",
-  "TABLEAU 34": "/rapport/assurance/tableau34",
-  "TABLEAU 35A": "/rapport/assurance/tableau35a",
-  "TABLEAU 35B": "/rapport/assurance/tableau35b",
-  "TABLEAU 36": "/rapport/assurance/tableau36",
-  "TABLEAU 37": "/rapport/assurance/tableau37",
-  "TABLEAU 38": "/rapport/assurance/tableau38",
-  "TABLEAU 39": "/rapport/assurance/tableau39",
-  "TABLEAU 40": "/rapport/assurance/tableau40",
-  "TABLEAU 41A": "/rapport/assurance/tableau41a",
-  "TABLEAU 41B": "/rapport/assurance/tableau41b",
-  "TABLEAU 42": "/rapport/assurance/tableau42",
-  "TABLEAU 43A": "/rapport/assurance/tableau43a",
-  "TABLEAU 43B": "/rapport/assurance/tableau43b",
-  "TABLEAU 44A": "/rapport/assurance/tableau44a",
-
-  // SMT
-  "GRILLE ANALYSE NOTES SMT": "/rapport/smt/grilleanalysenotes",
-  "MOD BILAN": "/rapport/smt/modbilan",
-  "NOTE 1 SMT": "/rapport/smt/note1smt",
-  "NOTE 2 SMT": "/rapport/smt/note2smt",
-  "NOTE 3 SMT": "/rapport/smt/note3smt",
-  "NOTE 4 SMT": "/rapport/smt/note4smt",
-  "NOTE 5 SMT": "/rapport/smt/note5smt",
-  "NOTE 6 SMT": "/rapport/smt/note6smt",
-  T1: "/rapport/smt/t1",
-  "T1 BIS": "/rapport/smt/t1bis",
-  "T1 TER": "/rapport/smt/t1ter",
-  T2: "/rapport/smt/t2",
-  T3: "/rapport/smt/t3",
-  T4: "/rapport/smt/t4",
-  T5: "/rapport/smt/t5",
-  T6: "/rapport/smt/t6",
-  T7: "/rapport/smt/t7",
-  T8: "/rapport/smt/t8",
-  T9: "/rapport/smt/t9",
-};
+// Categories from consolidated source
+const CATEGORY_LIST = getCategories();
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   extractionResults: initialResults,
@@ -311,10 +101,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         .includes(searchQuery.toLowerCase());
       const matchesCategory =
         selectedCategory === "Tous" ||
-        Object.entries(REPORT_CATEGORIES).some(
-          ([cat, notes]) =>
-            cat === selectedCategory &&
-            notes.includes(report.noteName.toUpperCase()),
+        (REPORT_CATEGORIES[selectedCategory] || []).includes(
+          report.noteName.toUpperCase(),
         );
       return matchesSearch && matchesCategory;
     });
@@ -322,9 +110,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     const categorized: Record<string, ExtractionResult[]> = {};
     Object.keys(REPORT_CATEGORIES).forEach((cat) => {
       categorized[cat] = extractionResults.filter((r) =>
-        (REPORT_CATEGORIES as Record<string, string[]>)[cat].includes(
-          r.noteName.toUpperCase(),
-        ),
+        (REPORT_CATEGORIES[cat] || []).includes(r.noteName.toUpperCase()),
       );
     });
 
@@ -337,7 +123,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   const handleEditReport = (report: ExtractionResult) => {
     const normalizedNoteName = report.noteName.toUpperCase().trim();
-    const routePath = NOTE_ROUTE_MAP[normalizedNoteName];
+    const routePath = getNoteRoute(normalizedNoteName);
     if (routePath && folderId) {
       navigate(`${routePath}?folderId=${folderId}`);
     } else {
@@ -599,7 +385,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="Tous">Toutes catégories</option>
-                    {Object.keys(REPORT_CATEGORIES).map((cat) => (
+                    {CATEGORY_LIST.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
