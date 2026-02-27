@@ -157,11 +157,11 @@ export function DSFImporter() {
                   <p className="text-sm text-gray-600">Période</p>
                   <p className="font-semibold">
                     {new Date(selectedFolder.startDate).toLocaleDateString(
-                      "fr-FR"
+                      "fr-FR",
                     )}{" "}
                     -{" "}
                     {new Date(selectedFolder.endDate).toLocaleDateString(
-                      "fr-FR"
+                      "fr-FR",
                     )}
                   </p>
                 </div>
