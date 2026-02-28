@@ -452,6 +452,7 @@ export function SimpleSettings() {
                     }
                     className="h-11"
                     placeholder="Prénom"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -468,6 +469,7 @@ export function SimpleSettings() {
                     }
                     className="h-11"
                     placeholder="Nom"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -482,6 +484,7 @@ export function SimpleSettings() {
                     }
                     className="h-11"
                     placeholder="Email"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -499,6 +502,7 @@ export function SimpleSettings() {
                     }
                     className="h-11"
                     placeholder="Téléphone"
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -541,6 +545,7 @@ export function SimpleSettings() {
                           })
                         }
                         className="h-11 pr-10"
+                        autoComplete="new-password"
                         placeholder="Mot de passe actuel"
                       />
                       <button
@@ -571,6 +576,7 @@ export function SimpleSettings() {
                       }
                       className="h-11"
                       placeholder="Nouveau mot de passe"
+                      autoComplete="new-password"
                     />
                   </div>
 
@@ -590,6 +596,7 @@ export function SimpleSettings() {
                       }
                       className="h-11"
                       placeholder="Confirmer le mot de passe"
+                      autoComplete="new-password"
                     />
                   </div>
 
@@ -765,6 +772,7 @@ export function SimpleSettings() {
                             }
                             placeholder="Jean"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -781,6 +789,7 @@ export function SimpleSettings() {
                             }
                             placeholder="Dupont"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -800,6 +809,7 @@ export function SimpleSettings() {
                             }
                             placeholder="jean.dupont@cabinet.com"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -817,6 +827,7 @@ export function SimpleSettings() {
                             }
                             placeholder="6 99 12 34 56"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -839,6 +850,7 @@ export function SimpleSettings() {
                               }
                               placeholder="Mot de passe temporaire"
                               className="h-11 pr-20"
+                              autoComplete="new-password"
                             />
                             <button
                               type="button"
@@ -966,12 +978,12 @@ export function SimpleSettings() {
                                   </p>
                                   {assistant._count?.assignedFolders !==
                                     undefined && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      <Folder className="h-3 w-3 inline mr-1" />
-                                      {assistant._count.assignedFolders}{" "}
-                                      dossier(s) assigné(s)
-                                    </p>
-                                  )}
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        <Folder className="h-3 w-3 inline mr-1" />
+                                        {assistant._count.assignedFolders}{" "}
+                                        dossier(s) assigné(s)
+                                      </p>
+                                    )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">

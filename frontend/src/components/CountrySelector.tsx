@@ -44,7 +44,7 @@ import {
   User,
 } from "lucide-react";
 import type { Client } from "../services/client.service";
-import Refresher from "./ui/Refresher";
+import Refresher from "./ui/refresher";
 
 export function CountrySelector() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -256,8 +256,8 @@ export function CountrySelector() {
       user?.role === "ADMIN" || user?.role === "COMPTABLE"
         ? countries
         : countries.filter((country) =>
-            accessibleClients.some((client) => client.country === country.code)
-          ),
+          accessibleClients.some((client) => client.country === country.code)
+        ),
     [user?.role, countries, accessibleClients]
   );
 
@@ -510,6 +510,7 @@ export function CountrySelector() {
                               })
                             }
                             placeholder="Ex: Mon Entreprise SARL"
+                            autoComplete="off"
                             className="h-12"
                           />
                         </div>
@@ -580,6 +581,7 @@ export function CountrySelector() {
                               })
                             }
                             placeholder="Numéro fiscal (optionnel)"
+                            autoComplete="off"
                             className="h-12"
                           />
                         </div>
@@ -599,6 +601,7 @@ export function CountrySelector() {
                                 })
                               }
                               placeholder="Ville"
+                              autoComplete="off"
                               className="h-12"
                             />
                           </div>
@@ -616,6 +619,7 @@ export function CountrySelector() {
                                 })
                               }
                               placeholder="Numéro de téléphone"
+                              autoComplete="off"
                               className="h-12"
                             />
                           </div>
@@ -804,6 +808,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, name: e.target.value })
                         }
                         placeholder="Entrez le nom du client"
+                            autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">
@@ -865,6 +870,7 @@ export function CountrySelector() {
                         })
                       }
                       placeholder="Entrez le numéro fiscal"
+                            autoComplete="off"
                     />
                   </div>
 
@@ -892,6 +898,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, city: e.target.value })
                         }
                         placeholder="Entrez la ville"
+                              autoComplete="off"
                       />
                     </div>
                   </div>
@@ -906,6 +913,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, phone: e.target.value })
                         }
                         placeholder="Entrez le numéro de téléphone"
+                              autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1008,11 +1016,11 @@ export function CountrySelector() {
                 <p className="text-muted-foreground mb-4">
                   {searchTerm
                     ? `Aucun client accessible ne correspond à "${searchTerm}" pour ${getCountryName(
-                        selectedCountry
-                      )}`
+                      selectedCountry
+                    )}`
                     : `Aucun client n'est accessible pour ${getCountryName(
-                        selectedCountry
-                      )} avec votre rôle (${user?.role})`}
+                      selectedCountry
+                    )} avec votre rôle (${user?.role})`}
                 </p>
                 {(user?.role === "ADMIN" || user?.role === "COMPTABLE") && (
                   <Button

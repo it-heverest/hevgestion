@@ -118,7 +118,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }, [extractionResults, searchQuery, selectedCategory]);
 
   const handleViewReport = (report: ExtractionResult) => {
-    setSelectedReport(report);
+    // setSelectedReport(report);
+    const normalizedNoteName = report.noteName.toUpperCase().trim();
+    const routePath = getNoteRoute(normalizedNoteName);
+    if (routePath && folderId) {
+      navigate(`${routePath}`);
+      console.log(`${routePath}`);
+    } else {
+      console.warn(`No route found for note: ${report.noteName}`);
+    }
   };
 
   const handleEditReport = (report: ExtractionResult) => {
@@ -271,19 +279,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 folderId={folderId}
                 onViewReport={(name, Component) => {
                   // Open notes in a new tab instead of modal
-                  if (name === "NOTE 1") {
+                  const newTabReports = ["NOTE 1", "NOTE 2", "NOTE 3A", "NOTE 3B", "NOTE 3C", "NOTE 3D", "NOTE 3F"];
+                  if (newTabReports.includes(name)) {
+                    const route = name.toLowerCase().replace(" ", "");
                     window.open(
-                      `/rapport/note1?folderId=${folderId || ""}`,
-                      "_blank",
-                    );
-                  } else if (name === "NOTE 2") {
-                    window.open(
-                      `/rapport/note2?folderId=${folderId || ""}`,
-                      "_blank",
-                    );
-                  } else if (name === "NOTE 3A") {
-                    window.open(
-                      `/rapport/note3A?folderId=${folderId || ""}`,
+                      `/rapport/${route}?folderId=${folderId || ""}`,
                       "_blank",
                     );
                   } else {
@@ -515,11 +515,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-              report.success
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${report.success
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+              }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -557,11 +556,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
             {report.noteName}
           </h3>
           <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
-              report.success
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${report.success
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+              }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -673,21 +671,19 @@ const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode("component")}
-                className={`px-3 py-2 text-sm ${
-                  viewMode === "component"
-                    ? "bg-blue-50 text-blue-600 font-medium"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                className={`px-3 py-2 text-sm ${viewMode === "component"
+                  ? "bg-blue-50 text-blue-600 font-medium"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
               >
                 Composant
               </button>
               <button
                 onClick={() => setViewMode("data")}
-                className={`px-3 py-2 text-sm border-l border-gray-300 ${
-                  viewMode === "data"
-                    ? "bg-blue-50 text-blue-600 font-medium"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                className={`px-3 py-2 text-sm border-l border-gray-300 ${viewMode === "data"
+                  ? "bg-blue-50 text-blue-600 font-medium"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
               >
                 Données
               </button>

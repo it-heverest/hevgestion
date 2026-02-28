@@ -184,6 +184,13 @@ export interface Note3CData {
     diminutionsSorties: number | null;
     cumulAmortissementsCloture: number | null;
   }>;
+  immobilisationsCorporelles: Array<{
+    libelle: string;
+    amortissementsCumulesOuverture: number | null;
+    augmentationsDotationsExercice: number | null;
+    diminutionsSorties: number | null;
+    cumulAmortissementsCloture: number | null;
+  }>;
 }
 
 export interface C01Note3CData {
@@ -241,6 +248,29 @@ export interface Note3FData {
     chargesARepartirMontant: number | null;
     primesRemboursementCompte: string | null;
     primesRemboursementMontant: number | null;
+  }>;
+}
+
+export interface Note3SmtData {
+  entete: {
+    designationEntite: string;
+    numeroIdentification: string;
+    exerciceClosLe: string;
+    dureeMois: string;
+  };
+  creances: Array<{
+    id: number;
+    date: string;
+    nomClient: string;
+    montant31Dec: string;
+    montant1erJan: string;
+  }>;
+  dettes: Array<{
+    id: number;
+    date: string;
+    nomFournisseur: string;
+    montant31Dec: string;
+    montant1erJan: string;
   }>;
 }
 
@@ -837,7 +867,8 @@ export type NoteData =
   | Note32Data
   | Note33Data
   | Note34Data
-  | Note35Data;
+  | Note35Data
+  | Note3SmtData;
 
 // ==================== NOTES SERVICE CLASS ====================
 
@@ -922,7 +953,7 @@ class NotesService {
     if (!section) {
       console.warn(
         `[NotesService] Section "${sectionName}" not found in extracted data. ` +
-          `Available: ${Object.keys(extractedData.sections || {}).join(", ")}`,
+        `Available: ${Object.keys(extractedData.sections || {}).join(", ")}`,
       );
     }
     return section;
@@ -979,16 +1010,12 @@ class NotesService {
   }
 
   transformNote2Data(extractedData: DonneesExtraites): Note2Data {
-    const config = CONFIG_NOTE2;
     return {
       entete: this.extractEntete(extractedData),
-      immobilisations:
-        this.extractSection(extractedData, "immobilisations")?.lignes.map(
-          (ligne: any, index: number) => ({
-            libelle: config.sections.immobilisations.libelles[index] || "",
-            valeur: ligne.valeur,
-          }),
-        ) || [],
+      conformity: "",
+      methods: "",
+      derogations: "",
+      complementary: "",
     };
   }
 
@@ -1071,6 +1098,18 @@ class NotesService {
         )?.lignes.map((ligne: any, index: number) => ({
           libelle:
             config.sections.immobilisationsIncorporelles.libelles[index] || "",
+          amortissementsCumulesOuverture: ligne.amortissementsCumulesOuverture,
+          augmentationsDotationsExercice: ligne.augmentationsDotationsExercice,
+          diminutionsSorties: ligne.diminutionsSorties ?? null,
+          cumulAmortissementsCloture: ligne.cumulAmortissementsCloture ?? null,
+        })) || [],
+      immobilisationsCorporelles:
+        this.extractSection(
+          extractedData,
+          "immobilisationsCorporelles",
+        )?.lignes.map((ligne: any, index: number) => ({
+          libelle:
+            config.sections.immobilisationsCorporelles.libelles[index] || "",
           amortissementsCumulesOuverture: ligne.amortissementsCumulesOuverture,
           augmentationsDotationsExercice: ligne.augmentationsDotationsExercice,
           diminutionsSorties: ligne.diminutionsSorties ?? null,

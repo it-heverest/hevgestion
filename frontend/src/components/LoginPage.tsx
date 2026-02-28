@@ -88,6 +88,7 @@ export function LoginPage({
                     }
                     placeholder="6 67 12 34 56"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -105,6 +106,7 @@ export function LoginPage({
                   onChange={(e) => onLoginChange("password", e.target.value)}
                   placeholder="Votre mot de passe"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="new-password"
                   required
                 />
               </div>
