@@ -62,6 +62,15 @@ import { OtpVerificationPage } from "./components/OtpVerificationPage";
 import DSFConfigInterface from "./components/DSFConfigInterface";
 import { notesService } from "./services/notes.service";
 import type { ExtractionResult } from "./components/DSF/uploadSteps";
+import {
+  Note10,
+  Note4,
+  Note5,
+  Note6,
+  Note7,
+  Note8,
+  Note9,
+} from "./components/Notes";
 
 const navigationItems = [
   {
@@ -400,9 +409,47 @@ function AppRoutes() {
             element={<StepByStepProcessor />}
           />
           <Route path="dsf-import/:folderId" element={<DSFImporter />} />
-          <Route path="rapport/note1" element={<Note1 />} />
-          <Route path="rapport/note2" element={<Note2 />} />
-          <Route path="rapport/note3A" element={<Note3A />} />
+          <Route
+            path="reports/:userId/reports/rapport/note1"
+            element={<Note1 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note2"
+            element={<Note2 />}
+          />
+
+          <Route
+            path="reports/:userId/reports/rapport/note3a"
+            element={<Note3A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note4"
+            element={<Note4 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note5"
+            element={<Note5 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note6"
+            element={<Note6 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note7"
+            element={<Note7 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note8"
+            element={<Note8 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note9"
+            element={<Note9 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note10"
+            element={<Note10 />}
+          />
           <Route
             path="reports/:userId/:actionId?"
             element={

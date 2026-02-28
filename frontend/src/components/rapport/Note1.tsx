@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
+import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
 interface DebtRow {
@@ -31,8 +31,9 @@ interface HeaderData {
 }
 
 const Note1: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const folderId = searchParams.get("folderId");
+  // Get folderId from AppContext instead of URL params
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = selectedFolder?.id;
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -58,6 +59,8 @@ const Note1: React.FC = () => {
       console.warn("No folderId provided");
       return;
     }
+
+    console.log("🔍 Loading note data for folderId:", folderId);
 
     try {
       setIsLoading(true);
@@ -140,6 +143,11 @@ const Note1: React.FC = () => {
         );
       }
 
+      // Set comment if exists
+      if (noteData.comment) {
+        setComment(noteData.comment);
+      }
+
       console.log("✅ Data loaded successfully");
     } catch (error) {
       console.error("❌ Error loading note data:", error);
@@ -154,6 +162,8 @@ const Note1: React.FC = () => {
       alert("Veuillez sélectionner un dossier");
       return;
     }
+
+    console.log("💾 Saving note data for folderId:", folderId);
 
     try {
       setIsSaving(true);
@@ -196,6 +206,8 @@ const Note1: React.FC = () => {
         comment,
       };
 
+      console.log("📤 Sending note data:", noteData);
+
       const saved = await notesService.saveNoteData(folderId, "1", noteData);
 
       if (saved) {
@@ -212,12 +224,24 @@ const Note1: React.FC = () => {
     }
   };
 
-  // Load data on mount
+  // Load data when folder changes
   useEffect(() => {
     if (folderId) {
       loadNoteData();
     }
   }, [folderId]);
+
+  // Auto-populate header from context when available
+  useEffect(() => {
+    if (selectedClient && selectedFolder && !headerInfo.entityName) {
+      setHeaderInfo({
+        entityName: selectedClient.name || "",
+        fiscalYear: selectedFolder.fiscalYear?.toString() || "",
+        idNumber: selectedClient.taxNumber || "",
+        duration: "12",
+      });
+    }
+  }, [selectedClient, selectedFolder]);
 
   // Calculations
   const calculateSum = (data: DebtRow[], field: keyof DebtRow) =>
@@ -408,7 +432,7 @@ const Note1: React.FC = () => {
     );
   }
 
-  if (!folderId) {
+  if (!folderId || !selectedFolder) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
@@ -419,6 +443,11 @@ const Note1: React.FC = () => {
           <p className="text-gray-600">
             Veuillez sélectionner un dossier pour voir la Note 1.
           </p>
+          {selectedClient && (
+            <p className="text-sm text-gray-500 mt-2">
+              Client: {selectedClient.name}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -427,10 +456,15 @@ const Note1: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
-          Note 1 - Dettes Garanties
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 1 - Dettes Garanties
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedClient?.name} - Exercice {selectedFolder?.fiscalYear}
+          </p>
+        </div>
         <div className="flex gap-3">
           {!isEditing ? (
             <button

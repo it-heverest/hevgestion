@@ -125,7 +125,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     const normalizedNoteName = report.noteName.toUpperCase().trim();
     const routePath = getNoteRoute(normalizedNoteName);
     if (routePath && folderId) {
-      navigate(`${routePath}?folderId=${folderId}`);
+      navigate(`${routePath}`);
+      console.log(`${routePath}`);
     } else {
       console.warn(`No route found for note: ${report.noteName}`);
     }
