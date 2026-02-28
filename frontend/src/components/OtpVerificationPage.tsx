@@ -144,6 +144,7 @@ export function OtpVerificationPage() {
                     placeholder="* * * * *"
                     className=" text-lg tracking-widest font-mono"
                     maxLength={6}
+                    autoComplete="off"
                     required
                   />
                   <p className="text-xs  mt-6 h-8 text-muted-foreground ">

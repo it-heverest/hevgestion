@@ -156,6 +156,7 @@ export function RegisterPage({
                     }
                     placeholder="Jean"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -184,6 +185,7 @@ export function RegisterPage({
                     }
                     placeholder="Dupont"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -230,6 +232,7 @@ export function RegisterPage({
                     }
                     placeholder="6 67 12 34 56"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -269,6 +272,7 @@ export function RegisterPage({
                   onChange={(e) => onRegisterChange("email", e.target.value)}
                   placeholder="jean.dupont@entreprise.com"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
                 />
               </div>
               {registerForm.email &&
@@ -563,6 +567,7 @@ export function RegisterPage({
                   onChange={(e) => onRegisterChange("password", e.target.value)}
                   placeholder="VotreMotDePasse123!"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -666,6 +671,7 @@ export function RegisterPage({
                   }
                   placeholder="Confirmez votre mot de passe"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -751,7 +757,8 @@ export function RegisterPage({
                     }
                     placeholder="VotreMotDePasse123!"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-                    required
+                    autoComplete="new-password"
+                  required
                   />
                 </div>
 
@@ -854,7 +861,8 @@ export function RegisterPage({
                     }
                     placeholder="Confirmez votre mot de passe"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-                    required
+                    autoComplete="new-password"
+                  required
                   />
                 </div>
                 {registerForm.confirmPassword &&

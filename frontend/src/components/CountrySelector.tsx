@@ -44,7 +44,7 @@ import {
   User,
 } from "lucide-react";
 import type { Client } from "../services/client.service";
-import Refresher from "./ui/Refresher";
+import Refresher from "./ui/refresher";
 
 export function CountrySelector() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -256,8 +256,8 @@ export function CountrySelector() {
       user?.role === "ADMIN" || user?.role === "COMPTABLE"
         ? countries
         : countries.filter((country) =>
-            accessibleClients.some((client) => client.country === country.code)
-          ),
+          accessibleClients.some((client) => client.country === country.code)
+        ),
     [user?.role, countries, accessibleClients]
   );
 
@@ -1008,11 +1008,11 @@ export function CountrySelector() {
                 <p className="text-muted-foreground mb-4">
                   {searchTerm
                     ? `Aucun client accessible ne correspond à "${searchTerm}" pour ${getCountryName(
-                        selectedCountry
-                      )}`
+                      selectedCountry
+                    )}`
                     : `Aucun client n'est accessible pour ${getCountryName(
-                        selectedCountry
-                      )} avec votre rôle (${user?.role})`}
+                      selectedCountry
+                    )} avec votre rôle (${user?.role})`}
                 </p>
                 {(user?.role === "ADMIN" || user?.role === "COMPTABLE") && (
                   <Button

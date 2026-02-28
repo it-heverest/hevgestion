@@ -118,7 +118,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }, [extractionResults, searchQuery, selectedCategory]);
 
   const handleViewReport = (report: ExtractionResult) => {
-    setSelectedReport(report);
+    // setSelectedReport(report);
+    const normalizedNoteName = report.noteName.toUpperCase().trim();
+    const routePath = getNoteRoute(normalizedNoteName);
+    if (routePath && folderId) {
+      navigate(`${routePath}`);
+      console.log(`${routePath}`);
+    } else {
+      console.warn(`No route found for note: ${report.noteName}`);
+    }
   };
 
   const handleEditReport = (report: ExtractionResult) => {
@@ -515,11 +523,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-              report.success
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${report.success
                 ? "bg-green-100 text-green-800"
                 : "bg-red-100 text-red-800"
-            }`}
+              }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -557,11 +564,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
             {report.noteName}
           </h3>
           <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
-              report.success
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${report.success
                 ? "bg-green-100 text-green-800"
                 : "bg-red-100 text-red-800"
-            }`}
+              }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -673,21 +679,19 @@ const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode("component")}
-                className={`px-3 py-2 text-sm ${
-                  viewMode === "component"
+                className={`px-3 py-2 text-sm ${viewMode === "component"
                     ? "bg-blue-50 text-blue-600 font-medium"
                     : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 Composant
               </button>
               <button
                 onClick={() => setViewMode("data")}
-                className={`px-3 py-2 text-sm border-l border-gray-300 ${
-                  viewMode === "data"
+                className={`px-3 py-2 text-sm border-l border-gray-300 ${viewMode === "data"
                     ? "bg-blue-50 text-blue-600 font-medium"
                     : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 Données
               </button>
