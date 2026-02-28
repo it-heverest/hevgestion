@@ -510,6 +510,7 @@ export function CountrySelector() {
                               })
                             }
                             placeholder="Ex: Mon Entreprise SARL"
+                            autoComplete="off"
                             className="h-12"
                           />
                         </div>
@@ -580,6 +581,7 @@ export function CountrySelector() {
                               })
                             }
                             placeholder="Numéro fiscal (optionnel)"
+                            autoComplete="off"
                             className="h-12"
                           />
                         </div>
@@ -599,6 +601,7 @@ export function CountrySelector() {
                                 })
                               }
                               placeholder="Ville"
+                              autoComplete="off"
                               className="h-12"
                             />
                           </div>
@@ -616,6 +619,7 @@ export function CountrySelector() {
                                 })
                               }
                               placeholder="Numéro de téléphone"
+                              autoComplete="off"
                               className="h-12"
                             />
                           </div>
@@ -804,6 +808,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, name: e.target.value })
                         }
                         placeholder="Entrez le nom du client"
+                            autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">
@@ -865,6 +870,7 @@ export function CountrySelector() {
                         })
                       }
                       placeholder="Entrez le numéro fiscal"
+                            autoComplete="off"
                     />
                   </div>
 
@@ -892,6 +898,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, city: e.target.value })
                         }
                         placeholder="Entrez la ville"
+                              autoComplete="off"
                       />
                     </div>
                   </div>
@@ -906,6 +913,7 @@ export function CountrySelector() {
                           setNewClient({ ...newClient, phone: e.target.value })
                         }
                         placeholder="Entrez le numéro de téléphone"
+                              autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">

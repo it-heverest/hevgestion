@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useApp } from "../../contexts/AppContext";
+import { notesService } from "../../services/notes.service";
 
 // --- Interfaces ---
 
@@ -38,134 +40,166 @@ const Note3B: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
 
-  // État de l'en-tête (standard)
-  const [headerInfo] = useState<HeaderData>({
-    entityName: "NASHSOFT SYSTEMS",
-    fiscalYear: "2024",
-    idNumber: "RC/DLA/2024/B/123",
-    duration: "12",
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = selectedFolder?.id;
+
+  // État de l'en-tête
+  const [headerInfo, setHeaderInfo] = useState<HeaderData>({
+    entityName: "",
+    fiscalYear: "",
+    idNumber: "",
+    duration: "",
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   // État des données
-  const [assetsData, setAssetsData] = useState<LeaseAssetRow[]>([
-    // IMMOBILISATIONS INCORPORELLES
-    {
-      id: "I_HEADER",
-      label: "IMMOBILISATIONS INCORPORELLES",
-      isSubHeader: true,
-      contractType: "",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_1",
-      label: "Brevets, licences, logiciels et droits similaires",
-      contractType: "L",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_2",
-      label: "Fonds commercial et droit de bail",
-      contractType: "M",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_3",
-      label: "Autres immobilisations incorporelles",
-      contractType: "A",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
+  const [assetsData, setAssetsData] = useState<LeaseAssetRow[]>([]);
 
-    // SOUS TOTAL INCORPORELLES (Calculé)
+  // 🔥 Load data from backend
+  const loadNoteData = async () => {
+    if (!folderId) {
+      console.warn("No folderId provided");
+      return;
+    }
 
-    // IMMOBILISATIONS CORPORELLES
-    {
-      id: "C_HEADER",
-      label: "IMMOBILISATIONS CORPORELLES",
-      isSubHeader: true,
-      contractType: "",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_1",
-      label: "Terrains",
-      contractType: "L",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_2",
-      label: "Bâtiments",
-      contractType: "M",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_3",
-      label: "Aménagements, agencements et installations",
-      contractType: "A",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_4",
-      label: "Matériel, mobilier et actifs biologiques",
-      contractType: "L",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_5",
-      label: "Matériel de transport",
-      contractType: "M",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-  ]);
+    try {
+      setIsLoading(true);
+      const noteData = (await notesService.getNoteData(folderId, "3B")) as any;
+
+      if (!noteData) {
+        console.log("No saved data found for Note 3B");
+        return;
+      }
+
+      console.log("✅ Note 3B data loaded successfully", noteData);
+
+      if (noteData.entete) {
+        setHeaderInfo({
+          entityName: noteData.entete.entityName || "",
+          fiscalYear: noteData.entete.fiscalYear || "",
+          idNumber: noteData.entete.idNumber || "",
+          duration: noteData.entete.duration || "",
+        });
+      }
+
+      const buildSection = (data: any[], prefix: string, headerLabel: string): LeaseAssetRow[] => {
+        if (!data || data.length === 0) return [];
+        const rows: LeaseAssetRow[] = [];
+        if (headerLabel) {
+          rows.push({
+            id: `${prefix}_HEADER`,
+            label: headerLabel,
+            isSubHeader: true,
+            contractType: "",
+            openingGross: 0, acquisitions: 0, transfersIn: 0, revaluation: 0, disposals: 0, transfersOut: 0
+          });
+        }
+        data.forEach((row: any, i: number) => {
+          rows.push({
+            id: `${prefix}_${i + 1}`,
+            label: row.libelle || "",
+            contractType: row.natureContrat || "",
+            openingGross: Number(row.montantBrutOuverture) || 0,
+            acquisitions: Number(row.acquisitions) || 0,
+            transfersIn: Number(row.virementsPosteAPoste) || 0,
+            revaluation: Number(row.reevaluation) || 0,
+            disposals: Number(row.cessions) || 0,
+            transfersOut: Number(row.virementsSortie) || 0,
+          });
+        });
+        return rows;
+      };
+
+      const newData = [
+        ...buildSection(noteData.immobilisationsIncorporelles, "I", "IMMOBILISATIONS INCORPORELLES"),
+        ...buildSection(noteData.immobilisationsCorporelles, "C", "IMMOBILISATIONS CORPORELLES"),
+      ];
+
+      setAssetsData(newData);
+      if (noteData.comment) {
+        setComment(noteData.comment);
+      }
+    } catch (error) {
+      console.error("❌ Error loading Note 3B data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🔥 Save data to backend
+  const saveNoteData = async () => {
+    if (!folderId) {
+      alert("Veuillez sélectionner un dossier");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const toApiFormat = (row: LeaseAssetRow) => ({
+        libelle: row.label,
+        natureContrat: row.contractType,
+        montantBrutOuverture: row.openingGross,
+        acquisitions: row.acquisitions,
+        virementsPosteAPoste: row.transfersIn,
+        reevaluation: row.revaluation,
+        cessions: row.disposals,
+        virementsSortie: row.transfersOut,
+        montantBrutCloture: calculateClosingGross(row)
+      });
+
+      const extractSection = (prefix: string) =>
+        assetsData.filter(r => r.id.startsWith(`${prefix}_`) && !r.isSubHeader);
+
+      const noteData = {
+        entete: headerInfo,
+        comment,
+        immobilisationsIncorporelles: extractSection("I").map(toApiFormat),
+        immobilisationsCorporelles: extractSection("C").map(toApiFormat),
+      };
+
+      console.log("📤 Sending Note 3B data:", noteData);
+
+      const saved = await notesService.saveNoteData(
+        folderId,
+        "3B",
+        noteData as any,
+      );
+
+      if (saved) {
+        alert("✅ Données sauvegardées avec succès!");
+        setIsEditing(false);
+      } else {
+        throw new Error("Failed to save");
+      }
+    } catch (error) {
+      console.error("❌ Error saving Note 3B:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load data when folder changes
+  React.useEffect(() => {
+    if (folderId) {
+      loadNoteData();
+    }
+  }, [folderId]);
+
+  // Auto-populate header
+  React.useEffect(() => {
+    if (selectedClient && selectedFolder && !headerInfo.entityName) {
+      setHeaderInfo({
+        entityName: selectedClient.name || "",
+        fiscalYear: selectedFolder.fiscalYear?.toString() || "",
+        idNumber: selectedClient.taxNumber || "",
+        duration: "12",
+      });
+    }
+  }, [selectedClient, selectedFolder]);
 
   // --- Fonctions de Calcul ---
 
@@ -205,9 +239,9 @@ const Note3B: React.FC = () => {
       prev.map((row) =>
         row.id === id
           ? {
-              ...row,
-              [field]: field === "contractType" ? value : Number(value) || 0,
-            }
+            ...row,
+            [field]: field === "contractType" ? value : Number(value) || 0,
+          }
           : row
       )
     );
@@ -242,7 +276,8 @@ const Note3B: React.FC = () => {
     transfersOut: calculateTotal(assetsData, "transfersOut"),
   } as LeaseAssetRow);
 
-  // Handler PDF (réutilisation du code précédent)
+  // --- Actions ---
+
   const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -251,7 +286,7 @@ const Note3B: React.FC = () => {
       setTimeout(async () => {
         const canvas = await html2canvas(reportRef.current!, { scale: 2 });
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("l", "mm", "a4"); // Landscape pour le tableau large
+        const pdf = new jsPDF("l", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -265,9 +300,8 @@ const Note3B: React.FC = () => {
 
   // --- Rendu des Lignes ---
 
-  const renderDataCell = (row: LeaseAssetRow, field: keyof LeaseAssetRow) => {
-    const value = row[field] as string | number;
-    const isCalculated = row.isSubHeader; // Les sous-totaux seront rendus séparément
+  const renderDataCell = (row: LeaseAssetRow, field: keyof LeaseAssetRow | "closingGross") => {
+    const value = field !== "closingGross" ? row[field] : null;
 
     if (row.isSubHeader) {
       return null;
@@ -391,33 +425,93 @@ const Note3B: React.FC = () => {
     );
   };
 
+  const isHeaderIncomplete =
+    !headerInfo.entityName ||
+    !headerInfo.fiscalYear ||
+    !headerInfo.idNumber ||
+    !headerInfo.duration;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!folderId || !selectedFolder) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Aucun dossier sélectionné
+          </h2>
+          <p className="text-gray-600">
+            Veuillez sélectionner un dossier pour voir la Note 3B.
+          </p>
+          {selectedClient && (
+            <p className="text-sm text-gray-500 mt-2">
+              Client: {selectedClient.name}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'outils */}
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
-          Note 3B - Biens Pris en Location Acquisition
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 3B - Biens Pris en Location Acquisition
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedClient?.name} - Exercice {selectedFolder?.fiscalYear}
+          </p>
+        </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
-          </button>
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              <Pencil size={18} /> Éditer
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveNoteData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
+              >
+                {isSaving ? (
+                  <>
+                    <Save size={18} /> Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} /> Sauvegarder
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  loadNoteData();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Annuler
+              </button>
+            </>
+          )}
           <button
             onClick={handleDownloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
@@ -430,42 +524,109 @@ const Note3B: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className="max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
+        {isEditing && (
+          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Pencil size={16} />
+              <span className="font-medium">Mode édition activé</span>
+            </div>
+          </div>
+        )}
+
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de
+              l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-orange-800 underline font-bold"
+              >
+                Mettre à jour l'en-tête
+              </button>
+            )}
+          </div>
+        )}
+
         {/* En-tête */}
         <div className="text-center font-bold text-lg mb-2">11</div>
-        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1">
+        <div className="mb-4 grid grid-cols-2 gap-x-12 gap-y-2 border-b-2 border-transparent pb-4">
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Désignation entité :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.entityName}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.entityName}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.entityName || "-"}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end justify-end">
             <span className="font-bold whitespace-nowrap">
               Exercice clos le 31-12-
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.fiscalYear}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.fiscalYear}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-24 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-24 text-center px-1">
+                {headerInfo.fiscalYear || "-"}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Numéro d'identification :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.idNumber}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.idNumber}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.idNumber || "-"}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end justify-end">
             <span className="font-bold whitespace-nowrap">
               Durée (en mois) :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.duration}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.duration}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
+                {headerInfo.duration || "-"}
+              </span>
+            )}
           </div>
         </div>
 
@@ -529,17 +690,14 @@ const Note3B: React.FC = () => {
               "SOUS TOTAL : IMMOBILISATIONS INCORPORELLES",
               incorporealAssets,
               totalIncorporealOpening,
-              calculateClosingGross(
-                incorporealAssets[0] ||
-                  ({
-                    openingGross: 0,
-                    acquisitions: 0,
-                    transfersIn: 0,
-                    revaluation: 0,
-                    disposals: 0,
-                    transfersOut: 0,
-                  } as LeaseAssetRow)
-              )
+              calculateClosingGross({
+                openingGross: totalIncorporealOpening,
+                acquisitions: calculateTotal(incorporealAssets, "acquisitions"),
+                transfersIn: calculateTotal(incorporealAssets, "transfersIn"),
+                revaluation: calculateTotal(incorporealAssets, "revaluation"),
+                disposals: calculateTotal(incorporealAssets, "disposals"),
+                transfersOut: calculateTotal(incorporealAssets, "transfersOut"),
+              } as LeaseAssetRow)
             )}
 
             {assetsData.filter((row) => row.id.startsWith("C")).map(renderRow)}
@@ -547,21 +705,18 @@ const Note3B: React.FC = () => {
               "SOUS TOTAL : IMMOBILISATIONS CORPORELLES",
               corporealAssets,
               totalCorporealOpening,
-              calculateClosingGross(
-                corporealAssets[0] ||
-                  ({
-                    openingGross: 0,
-                    acquisitions: 0,
-                    transfersIn: 0,
-                    revaluation: 0,
-                    disposals: 0,
-                    transfersOut: 0,
-                  } as LeaseAssetRow)
-              )
+              calculateClosingGross({
+                openingGross: totalCorporealOpening,
+                acquisitions: calculateTotal(corporealAssets, "acquisitions"),
+                transfersIn: calculateTotal(corporealAssets, "transfersIn"),
+                revaluation: calculateTotal(corporealAssets, "revaluation"),
+                disposals: calculateTotal(corporealAssets, "disposals"),
+                transfersOut: calculateTotal(corporealAssets, "transfersOut"),
+              } as LeaseAssetRow)
             )}
 
             {/* TOTAL GENERAL */}
-            <tr className="bg-purple-300 font-bold border-t-2 border-black">
+            <tr className="bg-gray-500 text-black font-bold border-t-2 border-black">
               <td
                 colSpan={3}
                 className="border border-gray-400 p-1 pl-2 uppercase text-center"
@@ -596,7 +751,7 @@ const Note3B: React.FC = () => {
                   "fr-FR"
                 )}
               </td>
-              <td className="border border-gray-400 p-1 text-right">
+              <td className="border border-gray-400 p-1 text-right font-bold">
                 {totalGeneralClosing.toLocaleString("fr-FR")}
               </td>
             </tr>
@@ -604,7 +759,7 @@ const Note3B: React.FC = () => {
         </table>
 
         {/* Légende et Commentaires */}
-        <div className="p-2 pt-4 flex flex-col gap-1">
+        <div className="p-2 pt-4 flex flex-col gap-1 border-t-0 border border-gray-400">
           <div className="text-[10px] italic">
             (*) L : Crédit-bail immobilier; M : Crédit-bail mobilier; A : Autres
             contrats (détailler le poste si montants significatifs).
@@ -631,7 +786,7 @@ const Note3B: React.FC = () => {
         </div>
 
         {/* Footer Numéro de page simulé */}
-        <div className="mt-auto text-center text-sm pt-2">
+        <div className="mt-auto text-center text-sm pt-4">
           <span className="font-bold">Feuille : </span> 17
         </div>
       </div>

@@ -66,6 +66,8 @@ const Note3A: React.FC = () => {
       });
     }
   }, [selectedClient, selectedFolder]);
+  // État des données
+  const [assetsData, setAssetsData] = useState<AssetMovementRow[]>([]);
 
   // 🔥 Load data from backend
   const loadNoteData = async () => {
@@ -74,21 +76,84 @@ const Note3A: React.FC = () => {
       return;
     }
 
-    console.log("🔍 Loading Note 3A data for folderId:", folderId);
-
     try {
       setIsLoading(true);
       const noteData = (await notesService.getNoteData(folderId, "3A")) as any;
-
-      console.log("📥 Loaded Note 3A data:", noteData);
 
       if (!noteData) {
         console.log("No saved data found for Note 3A");
         return;
       }
 
-      // Apply data to state if saved data exists
-      console.log("✅ Note 3A data loaded successfully");
+      console.log("✅ Note 3A data loaded successfully", noteData);
+
+      if (noteData.entete) {
+        setHeaderInfo({
+          entityName: noteData.entete.entityName || "",
+          fiscalYear: noteData.entete.fiscalYear || "",
+          idNumber: noteData.entete.idNumber || "",
+          duration: noteData.entete.duration || "",
+        });
+      }
+
+      const buildSection = (data: any[], prefix: string, headerLabel: string, totalLabel: string): AssetMovementRow[] => {
+        if (!data || data.length === 0) return [];
+        const rows: AssetMovementRow[] = [];
+        if (headerLabel) {
+          rows.push({
+            id: `${prefix}_HEADER`,
+            label: headerLabel,
+            isSubHeader: true,
+            openingGross: 0, acquisitions: 0, transfersIn: 0, revaluation: 0, disposals: 0, transfersOut: 0
+          });
+        }
+        data.forEach((row: any, i: number) => {
+          rows.push({
+            id: `${prefix}_${i + 1}`,
+            label: row.libelle || "",
+            openingGross: Number(row.montantBrutOuverture) || 0,
+            acquisitions: Number(row.acquisitions) || 0,
+            transfersIn: Number(row.virementsPosteAPoste) || 0,
+            revaluation: Number(row.reevaluation) || 0,
+            disposals: Number(row.cessions) || 0,
+            transfersOut: Number(row.virementsSortie) || 0,
+          });
+        });
+        if (totalLabel) {
+          rows.push({
+            id: `${prefix}_TOTAL`,
+            label: totalLabel,
+            isTotal: true,
+            openingGross: 0, acquisitions: 0, transfersIn: 0, revaluation: 0, disposals: 0, transfersOut: 0
+          });
+        }
+        return rows;
+      };
+
+      const newData = [
+        ...buildSection(noteData.immobilisationsIncorporelles, "I", "IMMOBILISATIONS INCORPORELLES", "TOTAL I"),
+        ...buildSection(noteData.immobilisationsCorporelles, "C", "IMMOBILISATIONS CORPORELLES", "TOTAL II"),
+        ...buildSection(noteData.avancesAcomptes, "ADV", "AVANCES ET ACOMPTES VERSEES SUR IMMOBILISATIONS", "TOTAL III"),
+        ...buildSection(noteData.immobilisationsFinancieres, "F", "IMMOBILISATIONS FINANCIÈRES", "TOTAL IV"),
+        {
+          id: "GRAND_TOTAL",
+          label: "TOTAL GÉNÉRAL (I + II + III + IV)",
+          isSubHeader: false,
+          isTotal: true,
+          openingGross: 0,
+          acquisitions: 0,
+          transfersIn: 0,
+          revaluation: 0,
+          disposals: 0,
+          transfersOut: 0,
+        }
+      ];
+
+      setAssetsData(newData);
+      if (noteData.comment) {
+        setComment(noteData.comment);
+      }
+
     } catch (error) {
       console.error("❌ Error loading Note 3A data:", error);
     } finally {
@@ -103,15 +168,30 @@ const Note3A: React.FC = () => {
       return;
     }
 
-    console.log("💾 Saving Note 3A data for folderId:", folderId);
-
     try {
       setIsSaving(true);
 
-      // Prepare data in the format expected by backend
+      const toApiFormat = (row: AssetMovementRow) => ({
+        libelle: row.label,
+        montantBrutOuverture: row.openingGross,
+        acquisitions: row.acquisitions,
+        virementsPosteAPoste: row.transfersIn,
+        reevaluation: row.revaluation,
+        cessions: row.disposals,
+        virementsSortie: row.transfersOut,
+        montantBrutCloture: calculateClosingGross(row)
+      });
+
+      const extractSection = (prefix: string) =>
+        assetsData.filter(r => r.id.startsWith(`${prefix}_`) && !r.isSubHeader && !r.isTotal);
+
       const noteData = {
         entete: headerInfo,
-        // Add asset data serialization here when needed
+        comment,
+        immobilisationsIncorporelles: extractSection("I").map(toApiFormat),
+        immobilisationsCorporelles: extractSection("C").map(toApiFormat),
+        avancesAcomptes: extractSection("ADV").map(toApiFormat),
+        immobilisationsFinancieres: extractSection("F").map(toApiFormat),
       };
 
       console.log("📤 Sending Note 3A data:", noteData);
@@ -168,224 +248,6 @@ const Note3A: React.FC = () => {
       return acc + (Number(row[field]) || 0);
     }, 0);
   };
-
-  // État des données
-  const [assetsData, setAssetsData] = useState<AssetMovementRow[]>([
-    // IMMOBILISATIONS INCORPORELLES
-    {
-      id: "I_HEADER",
-      label: "IMMOBILISATIONS INCORPORELLES",
-      isSubHeader: true,
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_1",
-      label: "Frais de développement et de prospection",
-      openingGross: 10000,
-      acquisitions: 2000,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_2",
-      label: "Brevets, licences, logiciels et droits similaires",
-      openingGross: 5000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 500,
-      transfersOut: 0,
-    },
-    {
-      id: "I_3",
-      label: "Fonds commercial et droit de bail",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "I_4",
-      label: "Autres immobilisations incorporelles",
-      openingGross: 2000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-
-    // IMMOBILISATIONS CORPORELLES
-    {
-      id: "C_HEADER",
-      label: "IMMOBILISATIONS CORPORELLES",
-      isSubHeader: true,
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_1",
-      label: "Terrains hors immeubles de placement",
-      openingGross: 50000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 5000,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_2",
-      label: "Terrains - immeubles de placement",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_3",
-      label: "Bâtiments hors immeubles de placement",
-      openingGross: 80000,
-      acquisitions: 10000,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_4",
-      label: "Bâtiments - immeubles de placement",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_5",
-      label: "Aménagements, agencements et installations",
-      openingGross: 15000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 1000,
-      transfersOut: 0,
-    },
-    {
-      id: "C_6",
-      label: "Matériel, mobilier et actif biologiques",
-      openingGross: 30000,
-      acquisitions: 5000,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "C_7",
-      label: "Matériel de transport",
-      openingGross: 25000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 2000,
-      transfersOut: 0,
-    },
-
-    // AVANCES ET ACOMPTES VERSEES SUR IMMOBILISATIONS
-    {
-      id: "ADV_HEADER",
-      label: "AVANCES ET ACOMPTES VERSEES SUR IMMOBILISATIONS",
-      isSubHeader: true,
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "ADV_1",
-      label: "Immobilisations incorporelles",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "ADV_2",
-      label: "Immobilisations corporelles",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-
-    // IMMOBILISATIONS FINANCIÈRES
-    {
-      id: "F_HEADER",
-      label: "IMMOBILISATIONS FINANCIÈRES",
-      isSubHeader: true,
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "F_1",
-      label: "Titres de participation",
-      openingGross: 5000,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-    {
-      id: "F_2",
-      label: "Autres immobilisations financières",
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-
-    // TOTAL GENERAL
-    {
-      id: "TOTAL",
-      label: "TOTAL GENERAL",
-      isTotal: true,
-      openingGross: 0,
-      acquisitions: 0,
-      transfersIn: 0,
-      revaluation: 0,
-      disposals: 0,
-      transfersOut: 0,
-    },
-  ]);
 
   // Handler pour la mise à jour des chiffres
   const handleValueChange = (
@@ -454,6 +316,44 @@ const Note3A: React.FC = () => {
     }
   };
 
+  const isHeaderIncomplete =
+    !headerInfo.entityName ||
+    !headerInfo.fiscalYear ||
+    !headerInfo.idNumber ||
+    !headerInfo.duration;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!folderId || !selectedFolder) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Aucun dossier sélectionné
+          </h2>
+          <p className="text-gray-600">
+            Veuillez sélectionner un dossier pour voir la Note 3A.
+          </p>
+          {selectedClient && (
+            <p className="text-sm text-gray-500 mt-2">
+              Client: {selectedClient.name}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // --- Rendu des Lignes ---
 
   const renderDataCell = (
@@ -473,9 +373,8 @@ const Note3A: React.FC = () => {
     if (field === "closingGross") {
       return (
         <td
-          className={`border border-gray-400 p-1 text-right font-bold ${
-            row.isTotal ? "bg-gray-300" : "bg-gray-100"
-          }`}
+          className={`border border-gray-400 p-1 text-right font-bold ${row.isTotal ? "bg-gray-300" : "bg-gray-100"
+            }`}
         >
           {calculateClosingGross(row).toLocaleString("fr-FR")}
         </td>
@@ -485,9 +384,8 @@ const Note3A: React.FC = () => {
     // Les autres montants sont éditables ou calculés si c'est la ligne Total
     return (
       <td
-        className={`border border-gray-400 p-1 text-right ${
-          isCalculated ? "bg-gray-300 font-bold" : ""
-        }`}
+        className={`border border-gray-400 p-1 text-right ${isCalculated ? "bg-gray-300 font-bold" : ""
+          }`}
       >
         {isEditing && !isCalculated ? (
           <input
@@ -531,9 +429,8 @@ const Note3A: React.FC = () => {
     return (
       <tr key={row.id} className={row.isTotal ? "bg-gray-300 font-bold" : ""}>
         <td
-          className={`border border-gray-400 p-1 pl-2 ${
-            row.isTotal ? "bg-gray-300 uppercase" : ""
-          }`}
+          className={`border border-gray-400 p-1 pl-2 ${row.isTotal ? "bg-gray-300 uppercase" : ""
+            }`}
         >
           {row.label}
         </td>
@@ -605,64 +502,164 @@ const Note3A: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className="max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
-        {/* En-tête (simple pour ce rapport) */}
-        <div className="text-right text-sm mb-4">
-          <span className="font-bold">Désignation entité :</span>{" "}
-          {headerInfo.entityName} |
-          <span className="font-bold"> Exercice clos le 31-12-</span>{" "}
-          {headerInfo.fiscalYear}
+        {isEditing && (
+          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Pencil size={16} />
+              <span className="font-medium">Mode édition activé</span>
+            </div>
+          </div>
+        )}
+
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de
+              l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-orange-800 underline font-bold"
+              >
+                Mettre à jour l'en-tête
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* En-tête du document */}
+        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">
+              Désignation entité :
+            </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.entityName}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.entityName || "-"}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">
+              Exercice clos le 31-12-
+            </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.fiscalYear}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">
+                {headerInfo.fiscalYear || "-"}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">
+              Numéro d'identification :
+            </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.idNumber}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.idNumber || "-"}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">
+              Durée (en mois) :
+            </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.duration}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
+                {headerInfo.duration || "-"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Titre Principal */}
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-0 text-sm">
-          IMMOBILISATIONS BRUTES
+        <div className="bg-gray-300 border border-gray-400 py-2 text-center font-bold mb-1 text-xs">
+          NOTE 3A <br /> TABLEAU DES IMMOBILISATIONS : IMMOBILISATIONS BRUTES
         </div>
 
         {/* Tableau Principal */}
-        <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
-          <thead>
-            <tr className="bg-gray-300">
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[28%]">
-                RUBRIQUES
-              </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[12%]">
-                MONTANT BRUT À L'OUVERTURE DE L'EXERCICE
-              </th>
-              <th colSpan={4} className="border border-gray-400 p-1">
-                SITUATIONS ET MOUVEMENTS
-              </th>
-              <th colSpan={2} className="border border-gray-400 p-1">
-                DIMINUTIONS
-              </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[12%]">
-                MONTANT BRUT À LA CLÔTURE
-              </th>
-            </tr>
-            <tr className="bg-gray-300">
-              <th className="border border-gray-400 p-1 w-[9%]">
-                ACQUISITIONS/APPORTS/CREATIONS
-              </th>
-              <th className="border border-gray-400 p-1 w-[7%]">
-                VIREMENTS DE POSTE A POSTE (ENTRÉES)
-              </th>
-              <th className="border border-gray-400 p-1 w-[11%]">
-                SUITE A UNE REEVALUATION PRATIQUEE AU COURS DE L'EXERCICE
-              </th>
-              <th className="border border-gray-400 p-1 w-[9%]">CESSIONS</th>
-              <th className="border border-gray-400 p-1 w-[7%]">
-                VIREMENTS DE POSTE A POSTE (SORTIES)
-              </th>
-            </tr>
-          </thead>
-          <tbody>{assetsData.map(renderRow)}</tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
+            <thead>
+              <tr className="bg-gray-700 text-white">
+                <th rowSpan={2} className="border border-gray-600 p-1 w-[28%] font-bold">
+                  RUBRIQUES
+                </th>
+                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold">
+                  MONTANT BRUT À L'OUVERTURE DE L'EXERCICE
+                </th>
+                <th colSpan={4} className="border border-gray-600 p-1 font-bold">
+                  SITUATIONS ET MOUVEMENTS
+                </th>
+                <th colSpan={2} className="border border-gray-600 p-1 font-bold">
+                  DIMINUTIONS
+                </th>
+                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold">
+                  MONTANT BRUT À LA CLÔTURE
+                </th>
+              </tr>
+              <tr className="bg-gray-700 text-white">
+                <th className="border border-gray-600 p-1 w-[9%] font-bold">
+                  ACQUISITIONS/APPORTS/CREATIONS
+                </th>
+                <th className="border border-gray-600 p-1 w-[7%] font-bold">
+                  VIREMENTS DE POSTE A POSTE (ENTRÉES)
+                </th>
+                <th className="border border-gray-600 p-1 w-[11%] font-bold">
+                  SUITE A UNE REEVALUATION PRATIQUEE AU COURS DE L'EXERCICE
+                </th>
+                <th className="border border-gray-600 p-1 w-[9%] font-bold font-bold">CESSIONS</th>
+                <th className="border border-gray-600 p-1 w-[7%] font-bold">
+                  VIREMENTS DE POSTE A POSTE (SORTIES)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {assetsData.map(renderRow)}
+              {/* Le total est déjà géré par assetsData.map(renderRow) s'il est présent */}
+            </tbody>
+          </table>
+        </div>
 
         {/* Commentaires */}
-        <div className="border border-gray-400 border-t-0 p-2 bg-white flex flex-col mt-4">
-          <div className="font-bold underline text-sm mb-1">Commentaires:</div>
-          <ul className="list-disc pl-5 italic text-[10px] text-gray-600 mb-2">
+        <div className="border border-gray-400 p-3 bg-white mt-4">
+          <div className="font-bold underline text-xs mb-2 uppercase">Commentaires :</div>
+          <ul className="list-disc pl-5 italic text-[9px] text-gray-500 mb-2">
             <li>Toute variation significative doit être commentée.</li>
             <li>
               Détailler les éléments constitutifs de fonds commercial et
@@ -688,7 +685,7 @@ const Note3A: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="mt-auto text-center text-sm pt-2">
+        <div className="mt-auto text-center text-sm pt-6">
           <span className="font-bold">Feuille : </span> 16
         </div>
       </div>
