@@ -63,13 +63,46 @@ import DSFConfigInterface from "./components/DSFConfigInterface";
 import { notesService } from "./services/notes.service";
 import type { ExtractionResult } from "./components/DSF/uploadSteps";
 import {
-  Note10,
+  Note3B,
+  Note3C,
+  Note3D,
+  Note3F,
   Note4,
   Note5,
   Note6,
   Note7,
   Note8,
   Note9,
+  Note10,
+  Note11,
+  Note12,
+  Note13,
+  Note14,
+  Note15A,
+  Note15B,
+  Note16A,
+  Note16B,
+  Note16Bbis,
+  Note16C,
+  Note17,
+  Note18,
+  Note19,
+  Note20,
+  Note21,
+  Note22,
+  Note23,
+  Note24,
+  Note25,
+  Note26,
+  Note27A,
+  Note27B,
+  Note28,
+  Note29,
+  Note30,
+  Note31,
+  Note32,
+  Note33,
+  Note34,
 } from "./components/Notes";
 
 const navigationItems = [
@@ -423,6 +456,22 @@ function AppRoutes() {
             element={<Note3A />}
           />
           <Route
+            path="reports/:userId/reports/rapport/note3b"
+            element={<Note3B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note3c"
+            element={<Note3C />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note3d"
+            element={<Note3D />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note3f"
+            element={<Note3F />}
+          />
+          <Route
             path="reports/:userId/reports/rapport/note4"
             element={<Note4 />}
           />
@@ -449,6 +498,122 @@ function AppRoutes() {
           <Route
             path="reports/:userId/reports/rapport/note10"
             element={<Note10 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note11"
+            element={<Note11 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note12"
+            element={<Note12 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note13"
+            element={<Note13 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note14"
+            element={<Note14 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note15a"
+            element={<Note15A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note15b"
+            element={<Note15B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note16a"
+            element={<Note16A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note16b"
+            element={<Note16B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note16bbis"
+            element={<Note16Bbis />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note16c"
+            element={<Note16C />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note17"
+            element={<Note17 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note18"
+            element={<Note18 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note19"
+            element={<Note19 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note20"
+            element={<Note20 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note21"
+            element={<Note21 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note22"
+            element={<Note22 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note23"
+            element={<Note23 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note24"
+            element={<Note24 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note25"
+            element={<Note25 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note26"
+            element={<Note26 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note27a"
+            element={<Note27A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note27b"
+            element={<Note27B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note28"
+            element={<Note28 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note29"
+            element={<Note29 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note30"
+            element={<Note30 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note31"
+            element={<Note31 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note32"
+            element={<Note32 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note33"
+            element={<Note33 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note34"
+            element={<Note34 />}
           />
           <Route
             path="reports/:userId/:actionId?"
