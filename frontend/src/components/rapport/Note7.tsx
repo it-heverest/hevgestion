@@ -1,402 +1,282 @@
-import React, { useState, useRef, useMemo } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { notesService } from "../../services/notes.service";
+import { useApp } from "../../contexts/AppContext";
 
-// --- Interfaces ---
+// --- Types et Interfaces ---
 
 interface ClientRow {
   id: string;
   label: string;
-  yearN: number; // Année N
-  yearNMinus1: number; // Année N-1
-  oneYearOrLess: number; // Créances à un an au plus
-  oneToTwoYears: number; // Créances à plus d'un an et à deux ans au plus
-  moreThanTwoYears: number; // Créances à plus de deux ans
+  yearN: string;
+  yearN1: string;
+  oneYearOrLess: string;
+  oneToTwoYears: string;
+  moreThanTwoYears: string;
 }
 
 interface CreditorRow {
   id: string;
   label: string;
-  amount: number;
+  amount: string;
 }
 
 interface HeaderData {
   entityName: string;
-  idNumber: string;
   fiscalYear: string;
+  idNumber: string;
   duration: string;
 }
 
 // --- Composant Principal ---
 
-const Note7Clients: React.FC = () => {
+const Note7: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [comment, setComment] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { selectedFolder } = useApp();
 
-  // En-tête (Initialisation par défaut)
-  const [headerInfo, setHeaderInfo] = useState<HeaderData>({
-    entityName: "NASHSOFT SYSTEMS",
-    fiscalYear: "2025",
-    idNumber: "RC/DLA/2024/B/123",
+  // État pour l'en-tête (Standardized)
+  const [entete, setEntete] = useState<HeaderData>({
+    entityName: "",
+    fiscalYear: "",
+    idNumber: "",
     duration: "12",
   });
 
-  // --- Données (État initial basé sur l'image Note 7) ---
+  // État pour le commentaire
+  const [comment, setComment] = useState("");
 
-  // Section Créances Clients (Lignes 14 à 21)
+  // État pour les Créances Clients
   const [clientReceivables, setClientReceivables] = useState<ClientRow[]>([
-    {
-      id: "14",
-      label: "Clients (hors réserves de propriété Groupe)",
-      yearN: 150000,
-      yearNMinus1: 140000,
-      oneYearOrLess: 80000,
-      oneToTwoYears: 50000,
-      moreThanTwoYears: 20000,
-    },
-    {
-      id: "15",
-      label: "Clients effets à recevoir (hors réserves de propriété Groupe)",
-      yearN: 50000,
-      yearNMinus1: 45000,
-      oneYearOrLess: 30000,
-      oneToTwoYears: 15000,
-      moreThanTwoYears: 5000,
-    },
-    {
-      id: "16",
-      label: "Clients et effets à recevoir avec réserves de propriété",
-      yearN: 20000,
-      yearNMinus1: 18000,
-      oneYearOrLess: 10000,
-      oneToTwoYears: 8000,
-      moreThanTwoYears: 2000,
-    },
-    {
-      id: "17",
-      label: "Clients et effets à recevoir Groupe",
-      yearN: 10000,
-      yearNMinus1: 12000,
-      oneYearOrLess: 6000,
-      oneToTwoYears: 3000,
-      moreThanTwoYears: 1000,
-    },
-    {
-      id: "18",
-      label: "Créances sur cession d'immobilisations",
-      yearN: 5000,
-      yearNMinus1: 6000,
-      oneYearOrLess: 5000,
-      oneToTwoYears: 0,
-      moreThanTwoYears: 0,
-    },
-    {
-      id: "19",
-      label: "Clients effets escomptés et non échus",
-      yearN: 10000,
-      yearNMinus1: 8000,
-      oneYearOrLess: 10000,
-      oneToTwoYears: 0,
-      moreThanTwoYears: 0,
-    },
-    {
-      id: "20",
-      label: "Créances litigieuses ou douteuses",
-      yearN: 8000,
-      yearNMinus1: 7000,
-      oneYearOrLess: 8000,
-      oneToTwoYears: 0,
-      moreThanTwoYears: 0,
-    },
-    {
-      id: "21",
-      label: "Clients produits à recevoir",
-      yearN: 12000,
-      yearNMinus1: 10000,
-      oneYearOrLess: 12000,
-      oneToTwoYears: 0,
-      moreThanTwoYears: 0,
-    },
+    { id: "14", label: "Clients (hors réserves de propriété Groupe)", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "15", label: "Clients effets à recevoir (hors réserves de propriété Groupe)", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "16", label: "Clients et effets à recevoir avec réserves de propriété", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "17", label: "Clients et effets à recevoir Groupe", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "18", label: "Créances sur cession d'immobilisations", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "19", label: "Clients effets escomptés et non échus", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "20", label: "Créances litigieuses ou douteuses", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
+    { id: "21", label: "Clients produits à recevoir", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
   ]);
 
-  // Dépréciations et Total Net
-  const [depreciations, setDepreciations] = useState<number>(15000); // Ligne 24
+  // Dépréciations
+  const [depreciations, setDepreciations] = useState("");
 
-  // Créanciers Clients (Lignes 28 à 30)
+  // Clients Créditeurs
   const [clientCreditors, setClientCreditors] = useState<CreditorRow[]>([
-    {
-      id: "28",
-      label: "Clients, avances reçues hors groupe",
-      amount: 10000,
-    },
-    {
-      id: "29",
-      label: "Clients, avances reçues groupe",
-      amount: 5000,
-    },
-    {
-      id: "30",
-      label: "Autres clients créditeurs",
-      amount: 3000,
-    },
+    { id: "28", label: "Clients, avances reçues hors groupe", amount: "" },
+    { id: "29", label: "Clients, avances reçues groupe", amount: "" },
+    { id: "30", label: "Autres clients créditeurs", amount: "" },
   ]);
 
-  // --- Helpers de calcul ---
+  const folderId = selectedFolder?.id;
 
-  const calculateTotal = (data: ClientRow[], field: keyof ClientRow) => {
-    return data.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+  useEffect(() => {
+    if (folderId) {
+      loadNoteData();
+    }
+  }, [folderId]);
+
+  const loadNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "NOTE7") as any;
+      if (noteData) {
+        setEntete(noteData.entete || noteData.headerInfo || entete);
+        // Map backend keys → frontend state
+        if (noteData.creancesClients) {
+          setClientReceivables(
+            noteData.creancesClients.map((r: any, i: number) => ({
+              id: clientReceivables[i]?.id || String(14 + i),
+              label: r.libelle || clientReceivables[i]?.label || "",
+              yearN: String(r.anneeN ?? ""),
+              yearN1: String(r.anneeN1 ?? ""),
+              oneYearOrLess: String(r.creancesUnAnAuPlus ?? ""),
+              oneToTwoYears: String(r.creancesPlusUnAnDeuxAns ?? ""),
+              moreThanTwoYears: String(r.creancesPlusDeuxAns ?? ""),
+            }))
+          );
+        } else if (noteData.clientReceivables) {
+          setClientReceivables(noteData.clientReceivables);
+        }
+        setDepreciations(noteData.depreciations || "");
+        setClientCreditors(noteData.clientCreditors || clientCreditors);
+        setComment(noteData.comment || "");
+      }
+    } catch (error) {
+      console.error("Error loading Note 7 data:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const calculateCreditorTotal = (data: CreditorRow[]) => {
-    return data.reduce((acc, row) => acc + (Number(row.amount) || 0), 0);
+  const saveNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsSaving(true);
+      // Map frontend state → backend keys
+      const noteData = {
+        entete,
+        creancesClients: clientReceivables.map((r) => ({
+          libelle: r.label,
+          anneeN: parseFloat(r.yearN) || null,
+          anneeN1: parseFloat(r.yearN1) || null,
+          variationPourcentage: null,
+          creancesUnAnAuPlus: parseFloat(r.oneYearOrLess) || null,
+          creancesPlusUnAnDeuxAns: parseFloat(r.oneToTwoYears) || null,
+          creancesPlusDeuxAns: parseFloat(r.moreThanTwoYears) || null,
+        })),
+        depreciations,
+        clientCreditors,
+        comment,
+      };
+      const success = await notesService.saveNoteData(folderId, "NOTE7", noteData as any);
+      if (success) {
+        alert("Données Note 7 sauvegardées avec succès");
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error("Error saving Note 7 data:", error);
+      alert("Erreur lors de la sauvegarde de la Note 7");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Totaux calculés
-  const totalBrutClients = useMemo(
-    () => calculateTotal(clientReceivables, "yearN"),
-    [clientReceivables]
-  );
-  const totalNetDepreciation = useMemo(
-    () => totalBrutClients - depreciations,
-    [totalBrutClients, depreciations]
-  );
-  const totalYearNMinus1 = useMemo(
-    () => calculateTotal(clientReceivables, "yearNMinus1"),
-    [clientReceivables]
-  );
-  const totalOneYearOrLess = useMemo(
-    () => calculateTotal(clientReceivables, "oneYearOrLess"),
-    [clientReceivables]
-  );
-  const totalOneToTwoYears = useMemo(
-    () => calculateTotal(clientReceivables, "oneToTwoYears"),
-    [clientReceivables]
-  );
-  const totalMoreThanTwoYears = useMemo(
-    () => calculateTotal(clientReceivables, "moreThanTwoYears"),
-    [clientReceivables]
-  );
-  const totalClientsCrediteurs = useMemo(
-    () => calculateCreditorTotal(clientCreditors),
-    [clientCreditors]
-  );
-
-  // --- Handlers ---
-
-  const handleClientChange = (
-    id: string,
-    field: keyof ClientRow,
-    value: string
-  ) => {
+  const handleClientChange = (id: string, field: keyof ClientRow, value: string) => {
     setClientReceivables((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              [field]: field === "label" ? value : Number(value) || 0, // Gérer le cas où la valeur est vide
-            }
-          : row
-      )
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
   };
 
-  const handleCreditorChange = (
-    id: string,
-    field: keyof CreditorRow,
-    value: string
-  ) => {
+  const handleCreditorChange = (id: string, field: keyof CreditorRow, value: string) => {
     setClientCreditors((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? { ...row, [field]: field === "label" ? value : Number(value) || 0 }
-          : row
-      )
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
   };
 
-  const handleDepreciationChange = (value: string) => {
-    setDepreciations(Number(value) || 0);
-  };
-
-  const calculateVariationPercentage = (n: number, nMinus1: number): string => {
-    if (nMinus1 === 0) return n === 0 ? "0.00%" : "N/A";
-    const variation = ((n - nMinus1) / nMinus1) * 100;
-    return `${variation.toFixed(2)}%`;
-  };
-
-  const downloadPDF = async () => {
+  const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
       setIsEditing(false);
-      setTimeout(async () => {
-        // Optionnel: ajouter une petite attente pour s'assurer que le rendu n'est plus en mode édition
+      await new Promise((r) => setTimeout(r, 100));
+
+      try {
         const canvas = await html2canvas(reportRef.current!, { scale: 2 });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF("p", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save("rapport_note_7_clients.pdf");
+        pdf.save("note_7_clients.pdf");
+      } catch (error) {
+        console.error("Erreur PDF Note 7:", error);
+      } finally {
         setIsEditing(wasEditing);
-      }, 100);
+      }
     }
   };
 
-  // --- Rendu des Lignes ---
-
-  const renderClientRow = (row: ClientRow) => {
-    const variation = calculateVariationPercentage(row.yearN, row.yearNMinus1);
-    return (
-      <tr key={row.id}>
-        {/* Libellés */}
-        <td className="border border-gray-400 p-1 pl-2 font-medium bg-gray-50/50">
-          {row.label}
-        </td>
-
-        {/* Année N */}
-        <td className="border border-gray-400 p-1 text-right">
-          {isEditing ? (
-            <input
-              type="number"
-              value={row.yearN}
-              onChange={(e) =>
-                handleClientChange(row.id, "yearN", e.target.value)
-              }
-              className="w-full text-right bg-blue-50 focus:outline-none"
-            />
-          ) : (
-            row.yearN.toLocaleString("fr-FR")
-          )}
-        </td>
-
-        {/* Année N-1 */}
-        <td className="border border-gray-400 p-1 text-right">
-          {isEditing ? (
-            <input
-              type="number"
-              value={row.yearNMinus1}
-              onChange={(e) =>
-                handleClientChange(row.id, "yearNMinus1", e.target.value)
-              }
-              className="w-full text-right bg-blue-50 focus:outline-none"
-            />
-          ) : (
-            row.yearNMinus1.toLocaleString("fr-FR")
-          )}
-        </td>
-
-        {/* Variation en % (Calculée) */}
-        <td className="border border-gray-400 p-1 text-center font-bold text-gray-700 bg-gray-100">
-          {variation}
-        </td>
-
-        {/* Créances à un an au plus */}
-        <td className="border border-gray-400 p-1 text-right">
-          {isEditing ? (
-            <input
-              type="number"
-              value={row.oneYearOrLess}
-              onChange={(e) =>
-                handleClientChange(row.id, "oneYearOrLess", e.target.value)
-              }
-              className="w-full text-right bg-blue-50 focus:outline-none"
-            />
-          ) : (
-            row.oneYearOrLess.toLocaleString("fr-FR")
-          )}
-        </td>
-
-        {/* Créances à plus d'un an et à deux ans au plus */}
-        <td className="border border-gray-400 p-1 text-right">
-          {isEditing ? (
-            <input
-              type="number"
-              value={row.oneToTwoYears}
-              onChange={(e) =>
-                handleClientChange(row.id, "oneToTwoYears", e.target.value)
-              }
-              className="w-full text-right bg-blue-50 focus:outline-none"
-            />
-          ) : (
-            row.oneToTwoYears.toLocaleString("fr-FR")
-          )}
-        </td>
-
-        {/* Créances à plus de deux ans */}
-        <td className="border border-gray-400 p-1 text-right">
-          {isEditing ? (
-            <input
-              type="number"
-              value={row.moreThanTwoYears}
-              onChange={(e) =>
-                handleClientChange(row.id, "moreThanTwoYears", e.target.value)
-              }
-              className="w-full text-right bg-blue-50 focus:outline-none"
-            />
-          ) : (
-            row.moreThanTwoYears.toLocaleString("fr-FR")
-          )}
-        </td>
-      </tr>
+  const renderEditableCell = (
+    value: string | number,
+    onChange: (val: string) => void,
+    className: string = ""
+  ) => {
+    return isEditing ? (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full h-full px-1 bg-blue-50 border-none focus:outline-none ${className}`}
+      />
+    ) : (
+      <span className="px-1">{value?.toLocaleString() || ""}</span>
     );
   };
 
-  const renderCreditorRow = (row: CreditorRow) => (
-    <tr key={row.id}>
-      <td className="border border-gray-400 p-1 pl-2" colSpan={3}>
-        {row.label}
-      </td>
-      <td
-        className="border border-gray-400 p-1 text-right font-bold"
-        colSpan={4}
-      >
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.amount}
-            onChange={(e) =>
-              handleCreditorChange(row.id, "amount", e.target.value)
-            }
-            className="w-full text-right bg-blue-50 focus:outline-none"
-          />
-        ) : (
-          row.amount.toLocaleString("fr-FR")
-        )}
-      </td>
-    </tr>
-  );
+  const calculateTotal = (data: any[], field: string) => {
+    return data.reduce((acc, row) => acc + (parseFloat(row[field]?.toString().replace(/\s/g, "")) || 0), 0);
+  };
+
+  const calculateVariation = (n: string | number, n1: string | number) => {
+    const valN = typeof n === "string" ? parseFloat(n.replace(/\s/g, "")) || 0 : n;
+    const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
+    if (valN1 === 0) return "-";
+    const variation = ((valN - valN1) / valN1) * 100;
+    return variation.toFixed(2) + "%";
+  };
+
+  const totalBrut = useMemo(() => calculateTotal(clientReceivables, "yearN"), [clientReceivables]);
+  const totalN1 = useMemo(() => calculateTotal(clientReceivables, "yearN1"), [clientReceivables]);
+  const totalOneYear = useMemo(() => calculateTotal(clientReceivables, "oneYearOrLess"), [clientReceivables]);
+  const totalOneTwoYears = useMemo(() => calculateTotal(clientReceivables, "oneToTwoYears"), [clientReceivables]);
+  const totalMoreTwoYears = useMemo(() => calculateTotal(clientReceivables, "moreThanTwoYears"), [clientReceivables]);
+  const totalCreditors = useMemo(() => calculateTotal(clientCreditors, "amount"), [clientCreditors]);
+  const totalNet = useMemo(() => totalBrut - (parseFloat(depreciations.replace(/\s/g, "")) || 0), [totalBrut, depreciations]);
+
+  const isHeaderIncomplete =
+    !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-yellow-600" />
-          Note 7 - Clients (Prévisualisation Rapport)
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 7 - Clients
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">Standardization en cours...</p>
+        </div>
         <div className="flex gap-3">
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              <Pencil size={18} /> Éditer
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveNoteData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
+              >
+                {isSaving ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save size={18} />
+                )}
+                Sauvegarder
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  loadNoteData();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Annuler
+              </button>
+            </>
+          )}
           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
-          </button>
-          <button
-            onClick={downloadPDF}
+            onClick={handleDownloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
@@ -407,223 +287,195 @@ const Note7Clients: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
-        {/* En-tête de la note */}
-        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 pb-2 text-sm">
-          <div className="flex gap-2">
-            <span className="font-bold">Désignation entité :</span>
-            {isEditing ? (
-              <input
-                value={headerInfo.entityName}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
-              />
-            ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.entityName}
-              </span>
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center text-sm">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button onClick={() => setIsEditing(true)} className="text-orange-800 underline font-bold">
+                Mettre à jour l'en-tête
+              </button>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Exercice clos le 31-12-</span>
+        )}
+
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">20</span>
+        </div>
+
+        {/* En-tête */}
+        <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-2 pb-4">
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">Désignation entité :</span>
             {isEditing ? (
               <input
-                value={headerInfo.fiscalYear}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1 text-center"
+                value={entete.entityName}
+                onChange={(e) => setEntete({ ...entete, entityName: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.fiscalYear}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.entityName || "-"}</span>
             )}
           </div>
-          <div className="flex gap-2">
-            <span className="font-bold">Numéro d'identification :</span>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">Exercice clos le 31-12-</span>
             {isEditing ? (
               <input
-                value={headerInfo.idNumber}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                value={entete.fiscalYear}
+                onChange={(e) => setEntete({ ...entete, fiscalYear: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.idNumber}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">{entete.fiscalYear || "-"}</span>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Durée (en mois) :</span>
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">Numéro d'identification :</span>
             {isEditing ? (
               <input
-                value={headerInfo.duration}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1 text-center"
+                value={entete.idNumber}
+                onChange={(e) => setEntete({ ...entete, idNumber: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.duration}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.idNumber || "-"}</span>
+            )}
+          </div>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">Durée (en mois) :</span>
+            {isEditing ? (
+              <input
+                value={entete.duration}
+                onChange={(e) => setEntete({ ...entete, duration: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">{entete.duration || "-"}</span>
             )}
           </div>
         </div>
 
-        {/* Titre Principal */}
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold text-sm mb-0">
+        {/* Titre du Tableau */}
+        <div className="bg-[#bfbfbf] border border-gray-600 py-2 text-center font-bold mb-4 text-[12px]">
           NOTE 7 <br /> CLIENTS
         </div>
 
-        {/* Tableau Principal des Créances Clients */}
-        <table className="w-full border-collapse border border-gray-400 text-[10px]">
+        {/* Tableau Principal */}
+        <table className="w-full border-collapse border border-gray-600 text-[10px] mb-4">
           <thead>
-            <tr className="bg-gray-200">
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[25%]">
-                Libellés
-              </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[12%]">
-                Année N
-              </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[12%]">
-                Année N-1
-              </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[8%]">
-                Variation en %
-              </th>
-              <th
-                colSpan={3}
-                className="border border-gray-400 p-1 text-center bg-gray-300"
-              >
-                ÉCHÉANCIER (Année N)
-              </th>
+            <tr className="bg-[#d9d9d9]">
+              <th rowSpan={2} className="border border-gray-600 p-2 w-[25%]">Libellés</th>
+              <th rowSpan={2} className="border border-gray-600 p-2 w-[12%]">Année N</th>
+              <th rowSpan={2} className="border border-gray-600 p-2 w-[12%]">Année N-1</th>
+              <th rowSpan={2} className="border border-gray-600 p-2 w-[8%]">Variation en %</th>
+              <th colSpan={3} className="border border-gray-600 p-2 text-center bg-[#bfbfbf]">ÉCHÉANCIER (Année N)</th>
             </tr>
-            <tr className="bg-gray-200">
-              <th className="border border-gray-400 p-1 w-[14%]">
-                Créances à un an au plus
-              </th>
-              <th className="border border-gray-400 p-1 w-[14%]">
-                Créances à plus d'un an et à deux ans au plus
-              </th>
-              <th className="border border-gray-400 p-1 w-[14%]">
-                Créances à plus de deux ans
-              </th>
+            <tr className="bg-[#d9d9d9]">
+              <th className="border border-gray-600 p-2">À 1 an au plus</th>
+              <th className="border border-gray-600 p-2">De 1 à 2 ans</th>
+              <th className="border border-gray-600 p-2">Plus de 2 ans</th>
             </tr>
           </thead>
           <tbody>
-            {/* Lignes de Créances Clients */}
-            {clientReceivables.map(renderClientRow)}
+            {clientReceivables.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.yearN, (val) => handleClientChange(row.id, "yearN", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.yearN1, (val) => handleClientChange(row.id, "yearN1", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-center bg-gray-50 font-bold">
+                  {calculateVariation(row.yearN, row.yearN1)}
+                </td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.oneYearOrLess, (val) => handleClientChange(row.id, "oneYearOrLess", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.oneToTwoYears, (val) => handleClientChange(row.id, "oneToTwoYears", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.moreThanTwoYears, (val) => handleClientChange(row.id, "moreThanTwoYears", val))}
+                </td>
+              </tr>
+            ))}
 
-            {/* TOTAL BRUT CLIENTS */}
-            <tr className="bg-gray-400 font-bold">
-              <td className="border border-gray-400 p-1 pl-2">
-                TOTAL BRUT CLIENTS
+            {/* TOTAL BRUT */}
+            <tr className="bg-[#e6e6e6] font-bold text-[11px]">
+              <td className="border border-gray-600 p-2">TOTAL BRUT CLIENTS</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+                {calculateVariation(totalBrut, totalN1)}
               </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalBrutClients.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalYearNMinus1.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-center">
-                {calculateVariationPercentage(
-                  totalBrutClients,
-                  totalYearNMinus1
-                )}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalOneYearOrLess.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalOneToTwoYears.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalMoreThanTwoYears.toLocaleString("fr-FR")}
-              </td>
+              <td className="border border-gray-600 p-1 text-right">{totalOneYear.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalOneTwoYears.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalMoreTwoYears.toLocaleString()}</td>
             </tr>
 
-            {/* Dépréciations des comptes clients */}
+            {/* DEPRECIATIONS */}
             <tr>
-              <td className="border border-gray-400 p-1 pl-2">
-                Dépréciations des comptes clients
+              <td className="border border-gray-600 p-2 italic">Dépréciations des comptes clients</td>
+              <td className="border border-gray-600 p-1 text-right bg-red-50">
+                {renderEditableCell(depreciations, (val) => setDepreciations(val))}
               </td>
-              <td className="border border-gray-400 p-1 text-right bg-red-50/50">
-                {isEditing ? (
-                  <input
-                    type="number"
-                    value={depreciations}
-                    onChange={(e) => handleDepreciationChange(e.target.value)}
-                    className="w-full text-right bg-blue-50 focus:outline-none"
-                  />
-                ) : (
-                  depreciations.toLocaleString("fr-FR")
-                )}
-              </td>
-              <td className="border border-gray-400 p-1 text-right bg-white"></td>
-              <td
-                className="border border-gray-400 p-1 text-right bg-white"
-                colSpan={4}
-              ></td>
+              <td colSpan={5} className="border border-gray-600 bg-gray-100"></td>
             </tr>
 
-            {/* TOTAL NET DE DEPRECIATION */}
-            <tr className="bg-gray-500 font-bold text-white">
-              <td className="border border-gray-400 p-1 pl-2">
-                TOTAL NET DE DEPRECIATION
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalNetDepreciation.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right"></td>
-              <td
-                className="border border-gray-400 p-1 text-right"
-                colSpan={4}
-              ></td>
-            </tr>
-
-            {/* Ligne vide pour l'espacement */}
-            <tr>
-              <td className="p-1" colSpan={7}></td>
-            </tr>
-
-            {/* Clients Créditeurs (Regroupement visuel) */}
-            <tr>
-              <td className="font-bold underline p-1 pt-2" colSpan={7}>
-                Clients Créditeurs:
-              </td>
-            </tr>
-            {clientCreditors.map(renderCreditorRow)}
-
-            {/* TOTAL CLIENTS CREDITEURS */}
-            <tr className="bg-gray-400 font-bold">
-              <td className="border border-gray-400 p-1 pl-2" colSpan={3}>
-                TOTAL CLIENTS CREDITEURS
-              </td>
-              <td className="border border-gray-400 p-1 text-right" colSpan={4}>
-                {totalClientsCrediteurs.toLocaleString("fr-FR")}
-              </td>
+            {/* TOTAL NET */}
+            <tr className="bg-[#bfbfbf] font-bold text-[11px]">
+              <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
+              <td colSpan={5} className="border border-gray-600 bg-gray-200"></td>
             </tr>
           </tbody>
         </table>
 
-        {/* Commentaire Footer */}
-        <div className="border border-gray-400 border-t-0 p-2 bg-white flex flex-col gap-1 mt-0">
-          <div className="font-bold underline">Commentaire:</div>
+        {/* Clients Créditeurs */}
+        <div className="font-bold underline mb-2 mt-6">CLIENTS CRÉDITEURS :</div>
+        <table className="w-full border-collapse border border-gray-600 text-[10px] mb-4">
+          <thead>
+            <tr className="bg-[#d9d9d9]">
+              <th className="border border-gray-600 p-2 text-left w-[60%]">Libellés</th>
+              <th className="border border-gray-600 p-2 text-center w-[40%]">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clientCreditors.map((row) => (
+              <tr key={row.id}>
+                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.amount, (val) => handleCreditorChange(row.id, "amount", val))}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-[#e6e6e6] font-bold">
+              <td className="border border-gray-600 p-2">TOTAL CLIENTS CRÉDITEURS</td>
+              <td className="border border-gray-600 p-2 text-right">{totalCreditors.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Section Commentaire */}
+        <div className="border border-gray-600 p-3 bg-white min-h-[120px]">
+          <div className="font-bold underline mb-2">Commentaire :</div>
           {isEditing ? (
             <textarea
-              className="w-full h-16 p-1 border border-blue-300 bg-blue-50 focus:outline-none resize-none"
+              className="w-full h-24 p-2 border border-blue-300 bg-blue-50 text-[11px] focus:outline-none resize-none"
+              placeholder="Saisir votre commentaire ici..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />
           ) : (
-            <div className="min-h-[2rem] whitespace-pre-wrap">{comment}</div>
+            <div className="whitespace-pre-wrap text-[11px] min-h-[2rem]">
+              {comment || "Aucun commentaire."}
+            </div>
           )}
         </div>
       </div>
@@ -631,4 +483,4 @@ const Note7Clients: React.FC = () => {
   );
 };
 
-export default Note7Clients;
+export default Note7;

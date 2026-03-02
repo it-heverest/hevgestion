@@ -47,6 +47,9 @@ import {
   X,
   Trash2,
   Download,
+  FileSpreadsheet,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -55,6 +58,7 @@ import {
   folderService,
   Folder as FolderType,
 } from "../services/folder.service";
+import { dsfTemplateService } from "../services/dsf-template.service";
 
 interface ProfileData {
   firstName: string;
@@ -127,6 +131,16 @@ export function SimpleSettings() {
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
 
+  // DSF Template states
+  const [templateStatus, setTemplateStatus] = useState<{
+    hasTemplate: boolean;
+    fileName?: string;
+    uploadDate?: string;
+    fileSize?: number;
+  }>({ hasTemplate: false });
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateUploading, setTemplateUploading] = useState(false);
+
   // Calculs
   const maxAssistants = Number(user?.maxAssistants) || 0;
   const canCreateMoreAssistants = assistants.length < maxAssistants;
@@ -148,6 +162,13 @@ export function SimpleSettings() {
   useEffect(() => {
     if (user?.role === "COMPTABLE") {
       loadAssistants();
+    }
+  }, [user]);
+
+  // Charger le statut du template DSF
+  useEffect(() => {
+    if (user) {
+      loadTemplateStatus();
     }
   }, [user]);
 
@@ -182,6 +203,44 @@ export function SimpleSettings() {
       console.error("Erreur lors du chargement des dossiers:", error);
     } finally {
       setLoadingFolders(false);
+    }
+  };
+
+  const loadTemplateStatus = async () => {
+    try {
+      setTemplateLoading(true);
+      const status = await dsfTemplateService.getTemplateStatus();
+      setTemplateStatus(status);
+    } catch (error) {
+      console.error("Erreur chargement statut template:", error);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const handleTemplateUpload = async (file: File) => {
+    try {
+      setTemplateUploading(true);
+      const status = await dsfTemplateService.uploadTemplate(file);
+      setTemplateStatus(status);
+      addToHistory("Template DSF", "Template importé avec succès");
+    } catch (error: any) {
+      console.error("Erreur upload template:", error);
+      alert(error.response?.data?.message || error.message || "Erreur lors de l'import");
+    } finally {
+      setTemplateUploading(false);
+    }
+  };
+
+  const handleTemplateDelete = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer le template DSF ?")) return;
+    try {
+      await dsfTemplateService.deleteTemplate();
+      setTemplateStatus({ hasTemplate: false });
+      addToHistory("Template DSF", "Template supprimé");
+    } catch (error: any) {
+      console.error("Erreur suppression template:", error);
+      alert(error.response?.data?.message || error.message);
     }
   };
 
@@ -391,7 +450,7 @@ export function SimpleSettings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-4" : "grid-cols-3"}`}>
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profil
@@ -402,6 +461,10 @@ export function SimpleSettings() {
               Assistants
             </TabsTrigger>
           )}
+          <TabsTrigger value="dsf-template">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Template DSF
+          </TabsTrigger>
           <TabsTrigger value="data">
             <Database className="h-4 w-4 mr-2" />
             Données
@@ -1056,6 +1119,139 @@ export function SimpleSettings() {
             </Card>
           </TabsContent>
         )}
+
+        {/* Onglet Template DSF */}
+        <TabsContent value="dsf-template" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                Template DSF Excel
+              </CardTitle>
+              <CardDescription>
+                Importez votre template Excel DSF (OHADA/SYSCOHADA) pour pouvoir
+                exporter vos notes remplies au format Excel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Status */}
+              {templateLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Chargement...
+                </div>
+              ) : templateStatus.hasTemplate ? (
+                <Alert>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-green-700">
+                        Template importé
+                      </span>
+                      {templateStatus.uploadDate && (
+                        <span className="text-muted-foreground ml-2">
+                          — {new Date(templateStatus.uploadDate).toLocaleDateString("fr-FR", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                      {templateStatus.fileSize && (
+                        <span className="text-muted-foreground ml-2">
+                          ({(templateStatus.fileSize / 1024 / 1024).toFixed(1)} Mo)
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleTemplateDelete}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Aucun template importé. Veuillez importer votre fichier Excel
+                    DSF pour activer l'export Excel des notes.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Upload zone */}
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleTemplateUpload(file);
+                }}
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".xlsx,.xls";
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) handleTemplateUpload(file);
+                  };
+                  input.click();
+                }}
+              >
+                {templateUploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
+                    <p className="text-sm text-muted-foreground">
+                      Import en cours...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="h-10 w-10 text-gray-400" />
+                    <p className="text-sm font-medium">
+                      {templateStatus.hasTemplate
+                        ? "Remplacer le template"
+                        : "Glissez-déposez ou cliquez pour importer"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Fichiers Excel (.xlsx, .xls) uniquement
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                <p className="font-medium mb-1">💡 Comment ça marche ?</p>
+                <ul className="list-disc pl-5 space-y-1 text-xs">
+                  <li>
+                    Importez votre fichier Excel DSF officiel (celui avec les
+                    feuilles Note 1, Note 2, Note 3A, etc.)
+                  </li>
+                  <li>
+                    Ensuite, depuis le menu des Notes, cliquez sur « Télécharger
+                    Excel DSF » pour obtenir le fichier pré-rempli
+                  </li>
+                  <li>
+                    Les données saisies dans chaque note seront automatiquement
+                    insérées dans les bonnes cellules
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Onglet Données */}
         <TabsContent value="data" className="space-y-6">
