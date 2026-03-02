@@ -247,6 +247,23 @@ const Note3B: React.FC = () => {
     );
   };
 
+  // Add a blank row to the given prefix section
+  const addRow = (prefix: string) => {
+    const newRow: LeaseAssetRow = {
+      id: `${prefix}_${Date.now()}`,
+      label: "",
+      contractType: "",
+      openingGross: 0, acquisitions: 0, transfersIn: 0,
+      revaluation: 0, disposals: 0, transfersOut: 0,
+    };
+    setAssetsData(prev => [...prev, newRow]);
+  };
+
+  // Remove a row by id
+  const deleteRow = (id: string) => {
+    setAssetsData(prev => prev.filter(r => r.id !== id));
+  };
+
   // Découper les données en sections
   const incorporealAssets = assetsData.filter(
     (row) => row.id.startsWith("I_") && row.id !== "I_HEADER"
@@ -358,7 +375,7 @@ const Note3B: React.FC = () => {
       return (
         <tr key={row.id}>
           <td
-            colSpan={10}
+            colSpan={isEditing ? 11 : 10}
             className="font-bold p-1 pl-2 bg-gray-100 border-x border-gray-400"
           >
             {row.label}
@@ -381,9 +398,33 @@ const Note3B: React.FC = () => {
 
     return (
       <tr key={row.id}>
-        <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
+        <td className="border border-gray-400 p-1 pl-2">
+          {isEditing ? (
+            <input
+              value={row.label}
+              onChange={(e) =>
+                setAssetsData(prev =>
+                  prev.map(r => r.id === row.id ? { ...r, label: e.target.value } : r)
+                )
+              }
+              className="w-full bg-blue-50 px-1 focus:outline-none border-b border-blue-300"
+              placeholder="Libellé..."
+            />
+          ) : row.label}
+        </td>
         {fields.map((field) =>
           renderDataCell(row, field as keyof LeaseAssetRow)
+        )}
+        {isEditing && (
+          <td className="border border-gray-400 p-1 text-center w-6">
+            <button
+              onClick={() => deleteRow(row.id)}
+              className="text-red-500 hover:text-red-700 font-bold"
+              title="Supprimer"
+            >
+              ×
+            </button>
+          </td>
         )}
       </tr>
     );
@@ -686,6 +727,18 @@ const Note3B: React.FC = () => {
           </thead>
           <tbody>
             {assetsData.filter((row) => row.id.startsWith("I")).map(renderRow)}
+            {isEditing && (
+              <tr>
+                <td colSpan={11} className="border border-gray-400 p-1">
+                  <button
+                    onClick={() => addRow("I")}
+                    className="text-blue-600 hover:text-blue-800 text-[10px] font-medium"
+                  >
+                    + Ajouter une ligne (Incorporelles)
+                  </button>
+                </td>
+              </tr>
+            )}
             {renderSubTotalRow(
               "SOUS TOTAL : IMMOBILISATIONS INCORPORELLES",
               incorporealAssets,
@@ -701,6 +754,18 @@ const Note3B: React.FC = () => {
             )}
 
             {assetsData.filter((row) => row.id.startsWith("C")).map(renderRow)}
+            {isEditing && (
+              <tr>
+                <td colSpan={11} className="border border-gray-400 p-1">
+                  <button
+                    onClick={() => addRow("C")}
+                    className="text-blue-600 hover:text-blue-800 text-[10px] font-medium"
+                  >
+                    + Ajouter une ligne (Corporelles)
+                  </button>
+                </td>
+              </tr>
+            )}
             {renderSubTotalRow(
               "SOUS TOTAL : IMMOBILISATIONS CORPORELLES",
               corporealAssets,

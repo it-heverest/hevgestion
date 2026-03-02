@@ -67,7 +67,7 @@ const C01Note3C: React.FC = () => {
     if (!folderId) return;
     try {
       setIsLoading(true);
-      const noteData = (await notesService.getNoteData(folderId, "C01_3C")) as any;
+      const noteData = (await notesService.getNoteData(folderId, "3C_C01")) as any;
       if (!noteData) return;
 
       if (noteData.entete) {
@@ -110,7 +110,7 @@ const C01Note3C: React.FC = () => {
         })),
       };
 
-      await notesService.saveNoteData(folderId, "C01_3C", noteData as any);
+      await notesService.saveNoteData(folderId, "3C_C01", noteData as any);
       alert("Données sauvegardées avec succès");
       setIsEditing(false);
     } catch (error) {
