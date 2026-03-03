@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
@@ -44,54 +44,58 @@ const Note16B: React.FC = () => {
   const [hypothesisComment, setHypothesisComment] = useState("");
   const [obligationComment, setObligationComment] = useState("");
   const [sensitivityComment, setSensitivityComment] = useState("");
-  const [dsfId, setDsfId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const folderId = selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
-      loadDSFData();
+    if (folderId) {
+      loadNoteData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
-  const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+  const loadNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "16B") as any;
 
-      if (dsf.notes && dsf.notes.note16B) {
-        const data = dsf.notes.note16B;
+      if (noteData) {
+        if (noteData.headerInfo) {
+          setHeaderInfo(noteData.headerInfo);
+        } else if (noteData.entete) {
+          setHeaderInfo(noteData.entete);
+        }
 
-        if (data.headerInfo) setHeaderInfo(data.headerInfo);
-        if (data.hypotheses) setHypotheses(data.hypotheses);
-        if (data.obligations) setObligations(data.obligations);
-        if (data.sensitivity) setSensitivity(data.sensitivity);
-        if (data.comments) {
-          setHypothesisComment(data.comments.hypothesis || "");
-          setObligationComment(data.comments.obligation || "");
-          setSensitivityComment(data.comments.sensitivity || "");
+        if (noteData.hypotheses) setHypotheses(noteData.hypotheses);
+        if (noteData.obligations) setObligations(noteData.obligations);
+        if (noteData.sensitivity) setSensitivity(noteData.sensitivity);
+        if (noteData.comments) {
+          setHypothesisComment(noteData.comments.hypothesis || "");
+          setObligationComment(noteData.comments.obligation || "");
+          setSensitivityComment(noteData.comments.sensitivity || "");
+        } else if (noteData.comment !== undefined) {
+          // Fallback if needed
+          setHypothesisComment(noteData.comment);
         }
       }
     } catch (error) {
-      console.error("Error loading DSF data:", error);
+      console.error("Error loading Note 16B data:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveToBackend = async () => {
-    if (!dsfId) return;
+  const saveNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setSaving(true);
+      setIsSaving(true);
 
-      const note16BData = {
-        headerInfo,
+      const noteData = {
+        entete: headerInfo,
         hypotheses,
         obligations,
         sensitivity,
@@ -102,14 +106,16 @@ const Note16B: React.FC = () => {
         },
       };
 
-      const notes = { note16B: note16BData };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "16B", noteData as any);
+      if (success) {
+        alert("Données Note 16B sauvegardées avec succès");
+        setIsEditing(false);
+      }
     } catch (error) {
-      console.error("Error saving to backend:", error);
+      console.error("Error saving Note 16B data:", error);
       alert("Erreur lors de la sauvegarde");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -259,17 +265,19 @@ const Note16B: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => {
-              if (isEditing) saveToBackend();
-              setIsEditing(!isEditing);
+              if (isEditing) {
+                saveNoteData();
+              } else {
+                setIsEditing(true);
+              }
             }}
-            disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {saving ? (
+            {isSaving ? (
               <>
                 {" "}
                 <Save size={18} /> Sauvegarde...{" "}
@@ -286,6 +294,17 @@ const Note16B: React.FC = () => {
               </>
             )}
           </button>
+          {isEditing && (
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                loadNoteData();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+            >
+              Annuler
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"

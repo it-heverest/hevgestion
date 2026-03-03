@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -7,7 +7,11 @@ import {
   Outlet,
   useNavigate,
   useLocation,
+  useParams,
 } from "react-router-dom";
+import { useLanguageRoute } from "./hooks/useLanguageRoute";
+import { useTranslation } from "./hooks/useTranslation";
+import { TranslationKeys } from "./locales/translations";
 import {
   Sidebar,
   SidebarContent,
@@ -195,6 +199,68 @@ import {
   T9,
 } from "./components/Notes";
 
+/**
+ * Get navigation items with translated labels
+ */
+function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
+  return [
+    {
+      id: "dashboard",
+      label: t("dashboard"),
+      icon: LayoutDashboard,
+      path: "/web/user/dashboard",
+    },
+    {
+      id: "exercise",
+      label: t("exercise"),
+      icon: Calendar,
+      path: "/web/user/exercise",
+    },
+    {
+      id: "import",
+      label: t("importBalance"),
+      icon: Upload,
+      path: "/web/user/import",
+    },
+    {
+      id: "traitement",
+      label: t("traitement"),
+      icon: Edit3,
+      path: "/web/user/traitement",
+    },
+    {
+      id: "reports",
+      label: t("dsfNotes"),
+      icon: FileText,
+      path: "/web/user/reports",
+    },
+    {
+      id: "history",
+      label: t("history"),
+      icon: History,
+      path: "/web/user/history",
+    },
+    {
+      id: "settings",
+      label: t("settings"),
+      icon: Settings,
+      path: "/web/user/settings",
+    },
+    {
+      id: "televersion",
+      label: t("televersion"),
+      icon: Cloud,
+      path: "/web/user/televersion",
+    },
+    {
+      id: "other",
+      label: t("other"),
+      icon: MoreHorizontal,
+      path: "/web/user/other",
+    },
+  ];
+}
+
 const navigationItems = [
   {
     id: "dashboard",
@@ -252,6 +318,26 @@ const navigationItems = [
   },
 ];
 
+/**
+ * LanguageLayout: Wrapper component that ensures language routing works correctly
+ */
+function LanguageLayout() {
+  const { lang } = useParams<{ lang?: string }>();
+  const { language, setLanguage } = useApp();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Validate and set language from URL
+    if (lang === "en" || lang === "fr") {
+      if (lang !== language) {
+        setLanguage(lang);
+      }
+    }
+  }, [lang, language, setLanguage]);
+
+  return <Outlet />;
+}
+
 export function ProtectedLayout({
   selectedCountry,
   setSelectedCountry,
@@ -270,11 +356,23 @@ export function ProtectedLayout({
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { language } = useApp();
+  const { t } = useTranslation();
+
+  // Get translated navigation items
+  const translatedNavItems = useMemo(() => getNavigationItems(t), [t]);
+
+  // Extract language prefix from URL
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const langPrefix = pathSegments[0] === "en" || pathSegments[0] === "fr"
+    ? pathSegments[0]
+    : "fr";
 
   useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
+    // Skip language prefix and "web/user" parts
     const actionId =
-      parts.length >= 2 ? parts[2] || parts[1] : parts[0] || "dashboard";
+      parts.length >= 4 ? parts[3] || parts[2] : parts[1] || "dashboard";
     setActiveRoute(actionId);
   }, [location.pathname, setActiveRoute]);
 
@@ -290,7 +388,7 @@ export function ProtectedLayout({
               <div>
                 <h1 className="font-semibold">HevGestion DSF</h1>
                 <p className="text-xs text-muted-foreground">
-                  Gestion Comptable OHADA
+                  {t("systemStatusCompliant")}
                 </p>
               </div>
             </div>
@@ -300,18 +398,18 @@ export function ProtectedLayout({
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navigationItems.map((item) => {
+                  {translatedNavItems.map((item) => {
                     const Icon = item.icon;
                     return (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
                           onClick={() => {
                             navigate(
-                              `${item.path}/${user?.id ?? "me"}/${item.id}`,
+                              `/${langPrefix}${item.path}/${user?.id ?? "me"}/${item.id}`,
                             );
                             setActiveRoute(item.id);
                           }}
-                          isActive={location.pathname.startsWith(item.path)}
+                          isActive={location.pathname.includes(item.path)}
                           className="w-full"
                         >
                           <Icon className="h-4 w-4" />
@@ -341,7 +439,7 @@ export function ProtectedLayout({
                         HevGestion DSF
                       </h1>
                       <p className="text-sm text-gray-500">
-                        Bienvenue, {user?.firstName || "Utilisateur"}
+                        {t("welcomeUser")}, {user?.firstName || "User"}
                       </p>
                     </div>
                   </div>
@@ -350,7 +448,7 @@ export function ProtectedLayout({
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
                     <Wifi className="h-3 w-3" />
-                    Connecté
+                    {t("connected")}
                   </div>
 
                   <Button
@@ -374,19 +472,19 @@ export function ProtectedLayout({
                     onClick={() => {
                       setSelectedCountry(null);
                       setSelectedCompany(null);
-                      navigate("/web/user/select-country");
+                      navigate(`/${langPrefix}/web/user/select-country`);
                     }}
                   >
                     <span className="text-sm font-medium truncate">
                       {" "}
-                      {selectedCompany?.name || "Sélectionner entreprise"}
+                      {selectedCompany?.name || t("selectCompany")}
                     </span>
                   </div>
 
                   {selectedExercise && (
                     <div
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() => navigate("/web/user/exercise")}
+                      onClick={() => navigate(`/${langPrefix}/web/user/exercise`)}
                     >
                       <Calendar className="h-4 w-4" />
                       <span className="text-sm font-medium">
@@ -415,7 +513,7 @@ export function ProtectedLayout({
 
           <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white border-t border-gray-200">
             <p className="text-xs text-gray-500 select-none">
-              powered by nashsoft systems
+              {t("poweredBy")}
             </p>
           </footer>
         </main>
@@ -426,6 +524,7 @@ export function ProtectedLayout({
 
 function AppRoutes() {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [activeRoute, setActiveRoute] = useState("dashboard");
@@ -460,7 +559,7 @@ function AppRoutes() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">
-            Initialisation de l'authentification...
+            {t("initializingAuth")}
           </p>
         </div>
       </div>
@@ -470,34 +569,36 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        {/* Public routes */}
-        <Route path="/web/user/login" element={<Login />} />
-        <Route path="/web/user/verify-otp" element={<OtpVerificationPage />} />
-        <Route path="/web/user/forgot-password" element={<ForgotPassword />} />
-        <Route path="/web/user/select-country" element={<CountrySelector />} />
-        <Route
-          path="/web/user/select-company"
-          element={<CompanySelector onSelectCompany={setSelectedCompany} />}
-        />
+        {/* Language-aware routes wrapper */}
+        <Route path="/:lang/*" element={<LanguageLayout />}>
+          {/* Public routes with language prefix */}
+          <Route path="web/user/login" element={<Login />} />
+          <Route path="web/user/verify-otp" element={<OtpVerificationPage />} />
+          <Route path="web/user/forgot-password" element={<ForgotPassword />} />
+          <Route path="web/user/select-country" element={<CountrySelector />} />
+          <Route
+            path="web/user/select-company"
+            element={<CompanySelector onSelectCompany={setSelectedCompany} />}
+          />
 
-        {/* Protected area */}
-        <Route
-          path="/web/user/*"
-          element={
-            isAuthenticated ? (
-              <ProtectedLayout
-                selectedCountry={selectedCountry}
-                setSelectedCountry={setSelectedCountry}
-                selectedCompany={selectedCompany}
-                setSelectedCompany={setSelectedCompany}
-                selectedExercise={selectedFolder}
-                setActiveRoute={setActiveRoute}
-              />
-            ) : (
-              <Navigate to="/web/user/login" replace />
-            )
-          }
-        >
+          {/* Protected area routes with language prefix */}
+          <Route
+            path="web/user/*"
+            element={
+              isAuthenticated ? (
+                <ProtectedLayout
+                  selectedCountry={selectedCountry}
+                  setSelectedCountry={setSelectedCountry}
+                  selectedCompany={selectedCompany}
+                  setSelectedCompany={setSelectedCompany}
+                  selectedExercise={selectedFolder}
+                  setActiveRoute={setActiveRoute}
+                />
+              ) : (
+                <Navigate to="/fr/web/user/login" replace />
+              )
+            }
+          >
           <Route
             index
             element={
@@ -1114,16 +1215,17 @@ function AppRoutes() {
             }
           />
         </Route>
+        </Route>
 
-        {/* Fallback */}
+        {/* Fallback redirect to default language (French) */}
         <Route
           path="*"
           element={
             <Navigate
               to={
                 isAuthenticated
-                  ? `/web/user/dashboard/${user?.id ?? "me"}`
-                  : "/web/user/login"
+                  ? `/fr/web/user/dashboard/${user?.id ?? "me"}`
+                  : "/fr/web/user/login"
               }
               replace
             />

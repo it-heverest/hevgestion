@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -83,6 +84,8 @@ interface AssistantFormData {
 
 export function SimpleSettings() {
   const { addToHistory, theme, setTheme, language, setLanguage } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     user,
     logout,
@@ -736,7 +739,35 @@ export function SimpleSettings() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Langue</Label>
-                    <Select value={language} onValueChange={setLanguage}>
+                    <Select
+                      value={language}
+                      onValueChange={(newLanguage: string) => {
+                        // Change the language
+                        setLanguage(newLanguage as "en" | "fr");
+
+                        // Update the URL to reflect the language change
+                        const pathSegments = location.pathname
+                          .split("/")
+                          .filter(Boolean);
+                        let newPath: string;
+
+                        // Remove existing language prefix if present
+                        const pathWithoutLanguage =
+                          pathSegments[0] === "en" || pathSegments[0] === "fr"
+                            ? pathSegments.slice(1).join("/")
+                            : pathSegments.join("/");
+
+                        // Add new language prefix
+                        newPath = `/${newLanguage}${
+                          pathWithoutLanguage ? "/" + pathWithoutLanguage : ""
+                        }`;
+
+                        navigate(
+                          newPath + location.search + location.hash,
+                          { replace: true }
+                        );
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
