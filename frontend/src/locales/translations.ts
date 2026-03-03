@@ -6,6 +6,13 @@ export interface TranslationKeys {
   exercises: string;
   reports: string;
   settings: string;
+  exercise: string;
+  importBalance: string;
+  traitement: string;
+  dsf: string;
+  history: string;
+  televersion: string;
+  other: string;
 
   // Common
   loading: string;
@@ -27,6 +34,34 @@ export interface TranslationKeys {
   show: string;
   hide: string;
   subAccounts: string;
+  next: string;
+  previous: string;
+  back: string;
+  submit: string;
+  download: string;
+  upload: string;
+
+  // Authentication
+  login: string;
+  logout: string;
+  register: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  country: string;
+  legalForm: string;
+  taxNumber: string;
+  address: string;
+  city: string;
+  phone: string;
+  forgotPassword: string;
+  verifyOTP: string;
+  otpCode: string;
+  signIn: string;
+  createAccount: string;
 
   // Client management
   clientManagement: string;
@@ -37,11 +72,14 @@ export interface TranslationKeys {
   noClientsFound: string;
   noClientSelected: string;
   selectClientFirst: string;
+  selectCompany: string;
+  selectEnterprise: string;
 
   // Exercise management
   exerciseManagement: string;
   addExercise: string;
   exerciseName: string;
+  description: string;
   fiscalYear: string;
   startDate: string;
   endDate: string;
@@ -53,6 +91,7 @@ export interface TranslationKeys {
   duplicateExercise: string;
   selectYear: string;
   selectFolderDescription: string;
+  exerciseNamed: string;
 
   // Balance processing
   balanceProcessing: string;
@@ -63,6 +102,7 @@ export interface TranslationKeys {
   balanceNotEquilibre: string;
   processBalance: string;
   balanceProcessed: string;
+  importBalances: string;
 
   // DSF
   dsfGeneration: string;
@@ -71,6 +111,8 @@ export interface TranslationKeys {
   generateDSF: string;
   validateDSF: string;
   exportDSF: string;
+  dsfImport: string;
+  dsfNotes: string;
 
   // Reports
   allReports: string;
@@ -80,6 +122,17 @@ export interface TranslationKeys {
   notes: string;
   signaletics: string;
 
+  // Settings
+  profileSettings: string;
+  changePassword: string;
+  currentPassword: string;
+  newPassword: string;
+  theme: string;
+  language: string;
+  lightMode: string;
+  darkMode: string;
+  accountSettings: string;
+
   // Messages
   success: string;
   warning: string;
@@ -87,18 +140,40 @@ export interface TranslationKeys {
   confirmDelete: string;
   operationCompleted: string;
   operationFailed: string;
+  welcomeUser: string;
+  connected: string;
+  initializingAuth: string;
 
   // Validation
   requiredField: string;
   invalidDate: string;
   invalidEmail: string;
   duplicateEntry: string;
+  passwordMismatch: string;
 
   // Workflow
   balanceImport: string;
   dsfImport: string;
   selectWorkflow: string;
   workflowDescription: string;
+  chooseWorkflow: string;
+
+  // General UI
+  actions: string;
+  dashboard: string;
+  view: string;
+  edit: string;
+  delete: string;
+  refresh: string;
+  reset: string;
+  validateParameters: string;
+  testCode: string;
+  systemStatusCompliant: string;
+  poweredBy: string;
+  accountMappings: string;
+  dsf: string;
+  dsfNotes: string;
+  dsfConfig: string;
 }
 
 export const translations: Record<string, TranslationKeys> = {
@@ -109,6 +184,13 @@ export const translations: Record<string, TranslationKeys> = {
     exercises: "Exercises",
     reports: "Reports",
     settings: "Settings",
+    exercise: "Exercise",
+    importBalance: "Import Balance",
+    traitement: "Processing",
+    dsf: "DSF",
+    history: "History",
+    televersion: "File Transfer",
+    other: "Other",
 
     // Common
     loading: "Loading...",
@@ -130,6 +212,34 @@ export const translations: Record<string, TranslationKeys> = {
     show: "Show",
     hide: "Hide",
     subAccounts: "sub-accounts",
+    next: "Next",
+    previous: "Previous",
+    back: "Back",
+    submit: "Submit",
+    download: "Download",
+    upload: "Upload",
+
+    // Authentication
+    login: "Login",
+    logout: "Logout",
+    register: "Register",
+    email: "Email",
+    password: "Password",
+    confirmPassword: "Confirm Password",
+    phoneNumber: "Phone Number",
+    firstName: "First Name",
+    lastName: "Last Name",
+    country: "Country",
+    legalForm: "Legal Form",
+    taxNumber: "Tax Number",
+    address: "Address",
+    city: "City",
+    phone: "Phone",
+    forgotPassword: "Forgot Password",
+    verifyOTP: "Verify OTP",
+    otpCode: "OTP Code",
+    signIn: "Sign In",
+    createAccount: "Create Account",
 
     // Client management
     clientManagement: "Client Management",
@@ -140,11 +250,14 @@ export const translations: Record<string, TranslationKeys> = {
     noClientsFound: "No clients found",
     noClientSelected: "No client selected",
     selectClientFirst: "Please select a client first",
+    selectCompany: "Select Company",
+    selectEnterprise: "Select Enterprise",
 
     // Exercise management
     exerciseManagement: "Exercise Management",
     addExercise: "Add Exercise",
     exerciseName: "Exercise Name",
+    description: "Description",
     fiscalYear: "Fiscal Year",
     startDate: "Start Date",
     endDate: "End Date",
@@ -156,6 +269,7 @@ export const translations: Record<string, TranslationKeys> = {
     duplicateExercise: "Duplicate Exercise",
     selectYear: "Select Year",
     selectFolderDescription: "Select, close or reopen your accounting folders",
+    exerciseNamed: "Exercise named",
 
     // Balance processing
     balanceProcessing: "Balance Processing",
@@ -166,6 +280,7 @@ export const translations: Record<string, TranslationKeys> = {
     balanceNotEquilibre: "Balance is not balanced",
     processBalance: "Process Balance",
     balanceProcessed: "Balance processed successfully",
+    importBalances: "Import Balances",
 
     // DSF
     dsfGeneration: "DSF Generation",
@@ -174,6 +289,8 @@ export const translations: Record<string, TranslationKeys> = {
     generateDSF: "Generate DSF",
     validateDSF: "Validate DSF",
     exportDSF: "Export DSF",
+    dsfImport: "Import DSF",
+    dsfNotes: "DSF Notes",
 
     // Reports
     allReports: "All Reports",
@@ -183,6 +300,17 @@ export const translations: Record<string, TranslationKeys> = {
     notes: "Notes",
     signaletics: "Signaletics",
 
+    // Settings
+    profileSettings: "Profile Settings",
+    changePassword: "Change Password",
+    currentPassword: "Current Password",
+    newPassword: "New Password",
+    theme: "Theme",
+    language: "Language",
+    lightMode: "Light Mode",
+    darkMode: "Dark Mode",
+    accountSettings: "Account Settings",
+
     // Messages
     success: "Success",
     warning: "Warning",
@@ -190,18 +318,35 @@ export const translations: Record<string, TranslationKeys> = {
     confirmDelete: "Are you sure you want to delete this item?",
     operationCompleted: "Operation completed successfully",
     operationFailed: "Operation failed",
+    welcomeUser: "Welcome",
+    connected: "Connected",
+    initializingAuth: "Initializing authentication...",
 
     // Validation
     requiredField: "This field is required",
     invalidDate: "Invalid date format",
     invalidEmail: "Invalid email address",
     duplicateEntry: "Duplicate entry",
+    passwordMismatch: "Passwords do not match",
 
     // Workflow
     balanceImport: "Import Balances",
     dsfImport: "Import DSF",
     selectWorkflow: "Select Workflow",
     workflowDescription: "Choose how you want to start this exercise",
+    chooseWorkflow: "Choose workflow",
+
+    // General UI
+    actions: "Actions",
+    view: "View",
+    refresh: "Refresh",
+    reset: "Reset",
+    validateParameters: "Validate Parameters",
+    testCode: "Test Code",
+    systemStatusCompliant: "Compliant with SYSCOHADA standards",
+    poweredBy: "Powered by nashsoft systems",
+    accountMappings: "Account Mappings",
+    dsfConfig: "DSF Configuration",
   },
   fr: {
     // Navigation
@@ -210,6 +355,13 @@ export const translations: Record<string, TranslationKeys> = {
     exercises: "Exercices",
     reports: "Rapports",
     settings: "Paramètres",
+    exercise: "Exercice",
+    importBalance: "Importer Balance",
+    traitement: "Traitement",
+    dsf: "DSF",
+    history: "Historique",
+    televersion: "Téléversion",
+    other: "Autres",
 
     // Common
     loading: "Chargement...",
@@ -231,6 +383,34 @@ export const translations: Record<string, TranslationKeys> = {
     show: "Afficher",
     hide: "Masquer",
     subAccounts: "sous-comptes",
+    next: "Suivant",
+    previous: "Précédent",
+    back: "Retour",
+    submit: "Soumettre",
+    download: "Télécharger",
+    upload: "Téléverser",
+
+    // Authentication
+    login: "Connexion",
+    logout: "Déconnexion",
+    register: "S'enregistrer",
+    email: "E-mail",
+    password: "Mot de passe",
+    confirmPassword: "Confirmer le mot de passe",
+    phoneNumber: "Numéro de téléphone",
+    firstName: "Prénom",
+    lastName: "Nom",
+    country: "Pays",
+    legalForm: "Forme juridique",
+    taxNumber: "Numéro fiscal",
+    address: "Adresse",
+    city: "Ville",
+    phone: "Téléphone",
+    forgotPassword: "Mot de passe oublié",
+    verifyOTP: "Vérifier OTP",
+    otpCode: "Code OTP",
+    signIn: "Se connecter",
+    createAccount: "Créer un compte",
 
     // Client management
     clientManagement: "Gestion des Clients",
@@ -241,11 +421,14 @@ export const translations: Record<string, TranslationKeys> = {
     noClientsFound: "Aucun client trouvé",
     noClientSelected: "Aucun client sélectionné",
     selectClientFirst: "Veuillez d'abord sélectionner un client",
+    selectCompany: "Sélectionner une entreprise",
+    selectEnterprise: "Sélectionner l'entreprise",
 
     // Exercise management
     exerciseManagement: "Gestion des Exercices",
     addExercise: "Ajouter un Exercice",
     exerciseName: "Nom de l'Exercice",
+    description: "Description",
     fiscalYear: "Année Fiscale",
     startDate: "Date de Début",
     endDate: "Date de Fin",
@@ -258,6 +441,7 @@ export const translations: Record<string, TranslationKeys> = {
     selectYear: "Sélectionner l'Année",
     selectFolderDescription:
       "Sélectionnez, clôturez ou réouvrez vos dossiers comptables",
+    exerciseNamed: "Exercice nommé",
 
     // Balance processing
     balanceProcessing: "Traitement des Balances",
@@ -268,6 +452,7 @@ export const translations: Record<string, TranslationKeys> = {
     balanceNotEquilibre: "Balance non équilibrée",
     processBalance: "Traiter la Balance",
     balanceProcessed: "Balance traitée avec succès",
+    importBalances: "Importer les Balances",
 
     // DSF
     dsfGeneration: "Génération DSF",
@@ -276,6 +461,8 @@ export const translations: Record<string, TranslationKeys> = {
     generateDSF: "Générer DSF",
     validateDSF: "Valider DSF",
     exportDSF: "Exporter DSF",
+    dsfImport: "Importer DSF",
+    dsfNotes: "Notes DSF",
 
     // Reports
     allReports: "Tous les Rapports",
@@ -285,6 +472,17 @@ export const translations: Record<string, TranslationKeys> = {
     notes: "Notes",
     signaletics: "Signalétique",
 
+    // Settings
+    profileSettings: "Paramètres du profil",
+    changePassword: "Changer le mot de passe",
+    currentPassword: "Mot de passe actuel",
+    newPassword: "Nouveau mot de passe",
+    theme: "Thème",
+    language: "Langue",
+    lightMode: "Mode clair",
+    darkMode: "Mode sombre",
+    accountSettings: "Paramètres du compte",
+
     // Messages
     success: "Succès",
     warning: "Avertissement",
@@ -292,12 +490,16 @@ export const translations: Record<string, TranslationKeys> = {
     confirmDelete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
     operationCompleted: "Opération terminée avec succès",
     operationFailed: "L'opération a échoué",
+    welcomeUser: "Bienvenue",
+    connected: "Connecté",
+    initializingAuth: "Initialisation de l'authentification...",
 
     // Validation
     requiredField: "Ce champ est obligatoire",
     invalidDate: "Format de date invalide",
     invalidEmail: "Adresse email invalide",
     duplicateEntry: "Entrée en double",
+    passwordMismatch: "Les mots de passe ne correspondent pas",
 
     // Workflow
     balanceImport: "Importer les Balances",
@@ -305,5 +507,18 @@ export const translations: Record<string, TranslationKeys> = {
     selectWorkflow: "Sélectionner le Workflow",
     workflowDescription:
       "Choisissez comment vous souhaitez commencer cet exercice",
+    chooseWorkflow: "Choisir le workflow",
+
+    // General UI
+    actions: "Actions",
+    view: "Voir",
+    refresh: "Actualiser",
+    reset: "Réinitialiser",
+    validateParameters: "Valider les paramètres",
+    testCode: "Code de test",
+    systemStatusCompliant: "Conforme aux normes SYSCOHADA",
+    poweredBy: "Fourni par nashsoft systems",
+    accountMappings: "Mappages des comptes",
+    dsfConfig: "Configuration DSF",
   },
 };

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useTranslation } from "../hooks/useTranslation";
 import {
   Card,
   CardContent,
@@ -41,6 +42,7 @@ export function LoginPage({
   onSwitchToRegister,
 }: LoginPageProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -57,7 +59,7 @@ export function LoginPage({
         </CardHeader>
         <CardContent>
           <form onSubmit={onLoginSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-2">{t("phoneNumber")}
               <Label htmlFor="login-phone">Numéro de téléphone</Label>
               <div className="flex gap-2">
                 <Select
@@ -96,7 +98,7 @@ export function LoginPage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login-password">Mot de passe</Label>
+              <Label htmlFor="login-password">{t("password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -104,7 +106,7 @@ export function LoginPage({
                   type="password"
                   value={loginForm.password}
                   onChange={(e) => onLoginChange("password", e.target.value)}
-                  placeholder="Votre mot de passe"
+                  placeholder={t("password")}
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
                   autoComplete="new-password"
                   required
@@ -119,7 +121,7 @@ export function LoginPage({
                   navigate("/web/user/forgot-password");
                 }}
               >
-                Mot de passe oublié ?
+                {t("forgotPassword")} ?
               </button>
             </div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -134,7 +136,7 @@ export function LoginPage({
                     Connexion...
                   </>
                 ) : (
-                  "Se connecter"
+                  t("signIn")
                 )}
               </Button>
             </motion.div>

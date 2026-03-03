@@ -2,12 +2,14 @@
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
+import { useTranslation } from "../hooks/useTranslation";
 
 interface WelcomePageProps {
   onComplete: () => void;
 }
 
 export function WelcomePage({ onComplete }: WelcomePageProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
@@ -37,8 +39,8 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Bienvenue</h1>
-          <p className="text-gray-600">Chargement de l'application...</p>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{t("welcomeUser")}</h1>
+          <p className="text-gray-600">{t("loading")}</p>
         </motion.div>
       </div>
     </div>

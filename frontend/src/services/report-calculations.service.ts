@@ -1,7 +1,7 @@
 // services/report-calculations.service.ts
 // Calculation service for DSF reports using DSF config mappings
 
-import { DSFData } from "./dsf.service";
+import { dsfService } from "./dsf.service";
 
 export interface BalanceRow {
   accountNumber: string;
@@ -1729,50 +1729,54 @@ export class ReportCalculationsService {
    */
   calculateNote27A(): ReportCalculationResult {
     const mappings = this.getConfigMappings("note27a");
+    const aggregatedValuesN = this.aggregateByDestination(mappings, "current");
+    const aggregatedValuesN1 = this.aggregateByDestination(mappings, "previous");
 
-    let salairesEtTraitementsN = 0,
-      salairesEtTraitementsN1 = 0;
-    let chargesSocialesN = 0,
-      chargesSocialesN1 = 0;
-    let autresChargesN = 0,
-      autresChargesN1 = 0;
+    const rows = [
+      {
+        id: "1",
+        label: "Rémunérations directes versées au personnel",
+        yearN: aggregatedValuesN.get("remunerationsPersonnel") || 0,
+        yearN1: aggregatedValuesN1.get("remunerationsPersonnel") || 0,
+      },
+      {
+        id: "2",
+        label: "Indemnités forfaitaire versées au personnel",
+        yearN: aggregatedValuesN.get("indemnitesPersonnel") || 0,
+        yearN1: aggregatedValuesN1.get("indemnitesPersonnel") || 0,
+      },
+      {
+        id: "3",
+        label: "Charges sociales",
+        yearN: aggregatedValuesN.get("chargesSociales") || 0,
+        yearN1: aggregatedValuesN1.get("chargesSociales") || 0,
+      },
+      {
+        id: "4",
+        label: "Rémunérations et charges sociales de l'exploitant individuel",
+        yearN: aggregatedValuesN.get("remunerationsExploitant") || 0,
+        yearN1: aggregatedValuesN1.get("remunerationsExploitant") || 0,
+      },
+      {
+        id: "5",
+        label: "Rémunération transférée de personnel extérieur",
+        yearN: aggregatedValuesN.get("personnelExterieur") || 0,
+        yearN1: aggregatedValuesN1.get("personnelExterieur") || 0,
+      },
+      {
+        id: "6",
+        label: "Autres charges sociales",
+        yearN: aggregatedValuesN.get("autresChargesSociales") || 0,
+        yearN1: aggregatedValuesN1.get("autresChargesSociales") || 0,
+      },
+    ];
 
-    mappings.forEach((mapping) => {
-      const valueN = this.getAccountValue(
-        mapping.accountNumber,
-        mapping.source,
-        "current"
-      );
-      const valueN1 = this.getAccountValue(
-        mapping.accountNumber,
-        mapping.source,
-        "previous"
-      );
-
-      if (mapping.destination === "salairesEtTraitements") {
-        salairesEtTraitementsN = valueN;
-        salairesEtTraitementsN1 = valueN1;
-      } else if (mapping.destination === "chargesSociales") {
-        chargesSocialesN = valueN;
-        chargesSocialesN1 = valueN1;
-      } else if (mapping.destination === "autresCharges") {
-        autresChargesN = valueN;
-        autresChargesN1 = valueN1;
-      }
-    });
-
-    const totalN = salairesEtTraitementsN + chargesSocialesN + autresChargesN;
-    const totalN1 =
-      salairesEtTraitementsN1 + chargesSocialesN1 + autresChargesN1;
+    const totalN = rows.reduce((acc, r) => acc + r.yearN, 0);
+    const totalN1 = rows.reduce((acc, r) => acc + r.yearN1, 0);
 
     return {
       title: "CHARGES DE PERSONNEL",
-      salairesEtTraitements: {
-        n: salairesEtTraitementsN,
-        n1: salairesEtTraitementsN1,
-      },
-      chargesSociales: { n: chargesSocialesN, n1: chargesSocialesN1 },
-      autresCharges: { n: autresChargesN, n1: autresChargesN1 },
+      rows,
       total: { n: totalN, n1: totalN1 },
     };
   }

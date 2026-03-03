@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useTranslation } from "../hooks/useTranslation";
 import {
   Card,
   CardContent,
@@ -78,6 +79,7 @@ export function RegisterPage({
   onPreviousStep,
   isStepValid,
 }: RegisterPageProps) {
+  const { t } = useTranslation();
   const stepVariants = {
     initial: { opacity: 0, x: 20 },
     animate: { opacity: 1, x: 0 },
@@ -144,7 +146,7 @@ export function RegisterPage({
           >
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="register-firstName">Prénom *</Label>
+                <Label htmlFor="register-firstName">{t("firstName")} *</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -173,7 +175,7 @@ export function RegisterPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="register-lastName">Nom *</Label>
+                <Label htmlFor="register-lastName">{t("lastName")} *</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -202,7 +204,7 @@ export function RegisterPage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-phone">Numéro de téléphone *</Label>
+              <Label htmlFor="register-phone">{t("phoneNumber")} *</Label>
               <div className="flex gap-2">
                 <Select
                   value={registerForm.phoneCountryCode || "+237"}
@@ -262,7 +264,7 @@ export function RegisterPage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-email">Email professionnel</Label>
+              <Label htmlFor="register-email">{t("email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -282,7 +284,7 @@ export function RegisterPage({
                     animate={{ opacity: 1, height: "auto" }}
                     className="text-xs text-red-500"
                   >
-                    Format d'email invalide
+                    {t("invalidEmail")}
                   </motion.p>
                 )}
             </div>
@@ -294,7 +296,7 @@ export function RegisterPage({
                 onClick={onNextStep}
                 disabled={!isStepValid(1)}
               >
-                Suivant
+                {t("next")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </motion.div>
@@ -373,7 +375,7 @@ export function RegisterPage({
                     onClick={onNextStep}
                     disabled={!isStepValid(2)}
                   >
-                    Suivant
+                    {t("next")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -450,7 +452,7 @@ export function RegisterPage({
                     onClick={onNextStep}
                     disabled={!isStepValid(3)}
                   >
-                    Suivant
+                    {t("next")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -536,7 +538,7 @@ export function RegisterPage({
                       onClick={onNextStep}
                       disabled={!isStepValid(4)}
                     >
-                      Suivant
+                      {t("next")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </motion.div>
@@ -722,7 +724,7 @@ export function RegisterPage({
                     ) : (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Créer mon compte
+                        {t("createAccount")}
                       </>
                     )}
                   </Button>
@@ -912,7 +914,7 @@ export function RegisterPage({
                       ) : (
                         <>
                           <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Créer mon compte
+                          {t("createAccount")}
                         </>
                       )}
                     </Button>
@@ -934,7 +936,7 @@ export function RegisterPage({
     >
       <Card className="shadow-lg border-0">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Créer un compte</CardTitle>
+            <CardTitle className="text-xl">{t("createAccount")}</CardTitle>
           <CardDescription>
             Étape {registerStep} sur {totalSteps}
           </CardDescription>

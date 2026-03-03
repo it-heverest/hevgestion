@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
@@ -26,68 +26,68 @@ const Note14: React.FC = () => {
   const { selectedFolder } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
-  const [dsfId, setDsfId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const folderId = selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
-      loadDSFData();
+    if (folderId) {
+      loadNoteData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
-  const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+  const loadNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "14") as any;
 
-      if (dsf.notes && dsf.notes.note14) {
-        const note14Data = dsf.notes.note14;
-
-        if (note14Data.headerInfo) {
-          setHeaderInfo(note14Data.headerInfo);
+      if (noteData) {
+        if (noteData.headerInfo) {
+          setHeaderInfo(noteData.headerInfo);
+        } else if (noteData.entete) {
+          setHeaderInfo(noteData.entete);
         }
 
-        if (note14Data.rows) {
-          setRows(note14Data.rows);
+        if (noteData.rows) {
+          setRows(noteData.rows);
         }
 
-        if (note14Data.comment !== undefined) {
-          setComment(note14Data.comment);
+        if (noteData.comment !== undefined) {
+          setComment(noteData.comment);
         }
       }
     } catch (error) {
-      console.error("Error loading DSF data:", error);
+      console.error("Error loading Note 14 data:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveToBackend = async () => {
-    if (!dsfId) return;
+  const saveNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setSaving(true);
+      setIsSaving(true);
 
-      const note14Data = {
-        headerInfo,
+      const noteData = {
+        entete: headerInfo,
         rows,
         comment,
       };
 
-      const notes = { note14: note14Data };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "14", noteData as any);
+      if (success) {
+        alert("Données Note 14 sauvegardées avec succès");
+        setIsEditing(false);
+      }
     } catch (error) {
-      console.error("Error saving to backend:", error);
+      console.error("Error saving Note 14 data:", error);
       alert("Erreur lors de la sauvegarde");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -178,9 +178,8 @@ const Note14: React.FC = () => {
   const renderRow = (row: ReserveRow, isTotal = false, bgClass = "") => (
     <tr key={row.id} className={bgClass}>
       <td
-        className={`border border-gray-400 p-1 pl-2 ${
-          isTotal ? "font-bold" : ""
-        }`}
+        className={`border border-gray-400 p-1 pl-2 ${isTotal ? "font-bold" : ""
+          }`}
       >
         {row.label}
       </td>
@@ -226,18 +225,18 @@ const Note14: React.FC = () => {
           <button
             onClick={() => {
               if (isEditing) {
-                saveToBackend();
+                saveNoteData();
+              } else {
+                setIsEditing(true);
               }
-              setIsEditing(!isEditing);
             }}
-            disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {saving ? (
+            {isSaving ? (
               <>
                 {" "}
                 <Save size={18} /> Sauvegarde...{" "}
@@ -254,6 +253,17 @@ const Note14: React.FC = () => {
               </>
             )}
           </button>
+          {isEditing && (
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                loadNoteData();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+            >
+              Annuler
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
