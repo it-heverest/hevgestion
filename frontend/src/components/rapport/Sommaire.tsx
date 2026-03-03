@@ -29,27 +29,6 @@ const Sommaire: React.FC = () => {
     }
   };
 
-  const downloadExcel = async () => {
-    if (!folderId) {
-      alert("Veuillez d'abord sélectionner un dossier.");
-      return;
-    }
-
-    try {
-      setExcelLoading(true);
-      await dsfTemplateService.exportFilledExcel(folderId);
-    } catch (error: any) {
-      const message =
-        error.response?.data instanceof Blob
-          ? "Aucun template DSF importé. Allez dans Paramètres → Template DSF pour en importer un."
-          : error.response?.data?.message ||
-          error.message ||
-          "Erreur lors de l'export Excel";
-      alert(message);
-    } finally {
-      setExcelLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
@@ -81,21 +60,6 @@ const Sommaire: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded"
           >
             <Download size={18} /> PDF
-          </button>
-          <button
-            onClick={downloadExcel}
-            disabled={excelLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded"
-          >
-            {excelLoading ? (
-              <>
-                <Loader2 size={18} className="animate-spin" /> Export...
-              </>
-            ) : (
-              <>
-                <FileSpreadsheet size={18} /> Excel DSF
-              </>
-            )}
           </button>
         </div>
       </div>
