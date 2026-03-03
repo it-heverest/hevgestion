@@ -14,9 +14,11 @@ import {
   FileEdit,
   AlertCircle,
   Loader2,
+  FileSpreadsheet,
 } from "lucide-react";
 import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate } from "react-router-dom";
+import { dsfTemplateService } from "../../services/dsf-template.service";
 import {
   AllReportsGrid,
   REPORT_CATEGORIES,
@@ -61,6 +63,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     name: string;
     component: React.ComponentType<any>;
   } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Check for existing DSF on mount
   useEffect(() => {
@@ -137,6 +140,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       console.log(`${routePath}`);
     } else {
       console.warn(`No route found for note: ${report.noteName}`);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!folderId) {
+      alert("Veuillez d'abord sélectionner un dossier.");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      await dsfTemplateService.exportFilledExcel(folderId);
+    } catch (error: any) {
+      const message =
+        error.response?.data instanceof Blob
+          ? "Aucun template DSF importé. Allez dans Profil & Template pour en importer un."
+          : error.response?.data?.message ||
+          error.message ||
+          "Erreur lors de l'export Excel";
+      alert(message);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -351,11 +376,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     Tous les Rapports
                   </button>
                   <button
-                    onClick={onNewUpload}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={handleExportExcel}
+                    disabled={isExporting}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Nouveau Fichier
+                    {isExporting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    )}
+                    Exporter Excel DSF
                   </button>
                   <button
                     onClick={onClose}

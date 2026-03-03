@@ -10,6 +10,7 @@ import {
     deleteTemplate,
     getTemplateBuffer,
 } from "../services/dsf-template.service";
+import { dsfFillerService } from "../services/dsf-filler.service";
 import { NotesService } from "../services/notes.service";
 
 const notesService = new NotesService();
@@ -49,7 +50,7 @@ router.post(
     upload.single("file"),
     async (req: Request, res: Response) => {
         try {
-            const userId = (req as any).user?.id;
+            const userId = (req as any).user?.userId;
             if (!userId) {
                 return res.status(401).json({ success: false, message: "Non authentifié" });
             }
@@ -79,7 +80,7 @@ router.post(
 // GET /api/dsf-template/status — Check if user has a template
 router.get("/status", authenticate, async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
@@ -99,7 +100,7 @@ router.get("/status", authenticate, async (req: Request, res: Response) => {
 // DELETE /api/dsf-template — Remove user's template
 router.delete("/", authenticate, async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
@@ -122,7 +123,7 @@ router.delete("/", authenticate, async (req: Request, res: Response) => {
 // GET /api/dsf-template/download — Download the raw template file
 router.get("/download", authenticate, async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.id;
+        const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
@@ -155,7 +156,7 @@ router.get(
     authenticate,
     async (req: Request, res: Response) => {
         try {
-            const userId = (req as any).user?.id;
+            const userId = (req as any).user?.userId;
             if (!userId) {
                 return res.status(401).json({ success: false, message: "Non authentifié" });
             }
@@ -182,6 +183,43 @@ router.get(
             });
         } catch (error: any) {
             console.error("Error getting export data:", error);
+            return res
+                .status(500)
+                .json({ success: false, message: error.message || "Erreur interne" });
+        }
+    }
+);
+
+// GET /api/dsf-template/export/:folderId — Export filled Excel template
+router.get(
+    "/export/:folderId",
+    authenticate,
+    async (req: Request, res: Response) => {
+        try {
+            const userId = (req as any).user?.userId;
+            if (!userId) {
+                return res.status(401).json({ success: false, message: "Non authentifié" });
+            }
+
+            const { folderId } = req.params;
+            if (!folderId) {
+                return res.status(400).json({ success: false, message: "folderId requis" });
+            }
+
+            const buffer = await dsfFillerService.fillTemplate(userId, folderId);
+
+            res.setHeader(
+                "Content-Type",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            );
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="DSF_Export_${folderId.substring(0, 8)}.xlsx"`
+            );
+
+            return res.send(buffer);
+        } catch (error: any) {
+            console.error("Error exporting DSF template:", error);
             return res
                 .status(500)
                 .json({ success: false, message: error.message || "Erreur interne" });

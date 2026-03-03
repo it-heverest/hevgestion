@@ -35,6 +35,7 @@ import { DSFImporter } from "./components/DSFImporter";
 import { TaxDeadlines } from "./components/TaxDeadlines";
 import { AuditHistory } from "./components/AuditHistory";
 import { OnboardingGuide } from "./components/OnboardingGuide";
+import { ReportNavigation } from "./components/DSF/ReportNavigation";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
 import {
@@ -1135,6 +1136,7 @@ function AppRoutes() {
         onClose={completeOnboarding}
         onComplete={completeOnboarding}
       />
+      {location.pathname.includes("/rapport/") && <ReportNavigation />}
     </>
   );
 }
