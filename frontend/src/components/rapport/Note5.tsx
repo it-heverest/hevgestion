@@ -90,7 +90,7 @@ const Note5: React.FC = () => {
     if (!folderId) return;
     try {
       setIsLoading(true);
-      const noteData = await notesService.getNoteData(folderId, "NOTE5") as any;
+      const noteData = await notesService.getNoteData(folderId, "5") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
         setAssetsData(
@@ -122,7 +122,7 @@ const Note5: React.FC = () => {
         dettesHAO: toBackendRows(liabilitiesData),
         comment,
       };
-      const success = await notesService.saveNoteData(folderId, "NOTE5", noteData as any);
+      const success = await notesService.saveNoteData(folderId, "5", noteData as any);
       if (success) {
         alert("Données Note 5 sauvegardées avec succès");
         setIsEditing(false);

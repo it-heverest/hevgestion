@@ -88,7 +88,7 @@ const Note4: React.FC = () => {
     if (!folderId) return;
     try {
       setIsLoading(true);
-      const noteData = await notesService.getNoteData(folderId, "NOTE4") as any;
+      const noteData = await notesService.getNoteData(folderId, "4") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
         // Map backend keys → frontend state
@@ -159,7 +159,7 @@ const Note4: React.FC = () => {
           resultatDernierExercice: parseFloat(r.lastResult) || null,
         })),
       };
-      const success = await notesService.saveNoteData(folderId, "NOTE4", noteData as any);
+      const success = await notesService.saveNoteData(folderId, "4", noteData as any);
       if (success) {
         alert("Données Note 4 sauvegardées avec succès");
         setIsEditing(false);
