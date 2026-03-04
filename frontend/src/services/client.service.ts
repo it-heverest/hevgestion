@@ -15,7 +15,7 @@ export interface Client {
   name: string;
   country: string;
   legalForm: string;
-  taxNumber: string;
+  taxNumber?: string;
   address: string;
   city: string;
   phone?: string;

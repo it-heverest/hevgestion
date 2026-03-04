@@ -129,7 +129,7 @@ export function useLogin() {
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
-      navigate("/web/user/select-country");
+      navigate("fr/web/user/select-country");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Échec de la connexion";
