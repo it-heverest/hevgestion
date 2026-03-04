@@ -29,7 +29,7 @@ interface LoginPageProps {
     password: string;
   };
   isLoggingIn: boolean;
-  onLoginChange: (field: string, value: string) => void;
+  onLoginChange: (field: keyof any, value: string) => void;
   onLoginSubmit: (e: React.FormEvent) => void;
   onSwitchToRegister: () => void;
 }

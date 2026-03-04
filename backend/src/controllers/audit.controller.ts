@@ -83,7 +83,7 @@ export class AuditController {
               },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { timestamp: "desc" },
           skip,
           take,
         }),
@@ -93,7 +93,7 @@ export class AuditController {
       // Transform logs to match frontend interface
       const transformedLogs = logs.map((log) => ({
         id: log.id,
-        timestamp: log.createdAt.toISOString(),
+        timestamp: log.timestamp.toISOString(),
         userId: log.userId,
         user: log.user,
         action: log.action,
@@ -161,7 +161,7 @@ export class AuditController {
       }
 
       const where: any = {
-        createdAt: {
+        timestamp: {
           gte: startDate,
           lte: endDate,
         },
@@ -172,7 +172,7 @@ export class AuditController {
         where.userId = currentUserId;
       }
 
-      const [totalLogs, actionStats, userStats, entityStats, recentLogs] =
+      const [totalLogs, actionStats, userStatsRaw, entityStats, recentLogs] =
         await Promise.all([
           prisma.auditLog.count({ where }),
 
@@ -187,16 +187,6 @@ export class AuditController {
             by: ["userId"],
             where,
             _count: { id: true },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                },
-              },
-            },
             orderBy: { _count: { id: "desc" } },
           }),
 
@@ -220,7 +210,7 @@ export class AuditController {
                 },
               },
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { timestamp: "desc" },
             take: 10,
           }),
         ]);
@@ -228,7 +218,7 @@ export class AuditController {
       // Transform recent logs
       const transformedRecentLogs = recentLogs.map((log) => ({
         id: log.id,
-        timestamp: log.createdAt.toISOString(),
+        timestamp: log.timestamp.toISOString(),
         userId: log.userId,
         user: log.user,
         action: log.action,
@@ -244,6 +234,26 @@ export class AuditController {
         worksheet: log.worksheet,
         fieldName: log.fieldName,
         changeType: log.changeType,
+      }));
+
+      // Fetch user details for user stats
+      const userIds = userStatsRaw.map((stat) => stat.userId);
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      });
+
+      const userMap = new Map(users.map((u) => [u.id, u]));
+
+      const userStats = userStatsRaw.map((stat) => ({
+        userId: stat.userId,
+        user: userMap.get(stat.userId),
+        _count: stat._count,
       }));
 
       return ResponseBuilder.success(res, {
@@ -317,7 +327,7 @@ export class AuditController {
       // Transform log
       const transformedLog = {
         id: log.id,
-        timestamp: log.createdAt.toISOString(),
+        timestamp: log.timestamp.toISOString(),
         userId: log.userId,
         user: log.user,
         action: log.action,

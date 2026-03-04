@@ -36,31 +36,14 @@ import {
   SelectValue,
 } from "./ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-
-interface RegisterForm {
-  firstName: string;
-  lastName: string;
-  email?: string;
-  phoneCountryCode: string;
-  phoneNumber: string;
-  country: string;
-  role: "ASSISTANT" | "COMPTABLE" | "ADMIN";
-  maxAssistants: number;
-  companyName: string;
-  legalForm: string;
-  taxNumber: string;
-  address: string;
-  city: string;
-  password: string;
-  confirmPassword: string;
-}
+import { RegisterFormData } from "../hooks/useLogin";
 
 interface RegisterPageProps {
-  registerForm: RegisterForm;
+  registerForm: RegisterFormData;
   registerStep: number;
   registerProgress: number;
   isRegistering: boolean;
-  onRegisterChange: (field: keyof RegisterForm, value: string | number) => void;
+  onRegisterChange: (field: keyof RegisterFormData, value: string | number) => void;
   onRegisterSubmit: (e: React.FormEvent) => void;
   onNextStep: () => void;
   onPreviousStep: () => void;
