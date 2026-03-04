@@ -83,6 +83,7 @@ app.use((req: Request, res: Response) => {
 
 const PORT = config.port || 5000;
 
+
 console.log(`🔑 JWT Secret loaded: ${config.jwt.secret ? "YES" : "NO"}`);
 console.log(
   `🔄 Refresh Secret loaded: ${config.jwt.refreshSecret ? "YES" : "NO"}`,
