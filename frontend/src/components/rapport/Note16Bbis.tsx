@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
@@ -36,73 +36,73 @@ const Note16Bbis: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [comment1, setComment1] = useState("");
   const [comment2, setComment2] = useState("");
-  const [dsfId, setDsfId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const folderId = selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
-      loadDSFData();
+    if (folderId) {
+      loadNoteData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
-  const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+  const loadNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "16B bis") as any;
 
-      if (dsf.notes && dsf.notes.note16Bbis) {
-        const data = dsf.notes.note16Bbis;
-
-        if (data.headerInfo) {
-          setHeaderInfo(data.headerInfo);
+      if (noteData) {
+        if (noteData.headerInfo) {
+          setHeaderInfo(noteData.headerInfo);
+        } else if (noteData.entete) {
+          setHeaderInfo(noteData.entete);
         }
 
-        if (data.actifPassif) {
-          setActifPassif(data.actifPassif);
+        if (noteData.actifPassif) {
+          setActifPassif(noteData.actifPassif);
         }
 
-        if (data.actifRegime) {
-          setActifRegime(data.actifRegime);
+        if (noteData.actifRegime) {
+          setActifRegime(noteData.actifRegime);
         }
 
-        if (data.comment1 !== undefined) setComment1(data.comment1);
-        if (data.comment2 !== undefined) setComment2(data.comment2);
+        if (noteData.comment1 !== undefined) setComment1(noteData.comment1);
+        if (noteData.comment2 !== undefined) setComment2(noteData.comment2);
       }
     } catch (error) {
-      console.error("Error loading DSF data:", error);
+      console.error("Error loading Note 16B bis data:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveToBackend = async () => {
-    if (!dsfId) return;
+  const saveNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setSaving(true);
+      setIsSaving(true);
 
-      const note16BbisData = {
-        headerInfo,
+      const noteData = {
+        entete: headerInfo,
         actifPassif,
         actifRegime,
         comment1,
         comment2,
       };
 
-      const notes = { note16Bbis: note16BbisData };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "16B bis", noteData as any);
+      if (success) {
+        alert("Données Note 16B bis sauvegardées avec succès");
+        setIsEditing(false);
+      }
     } catch (error) {
-      console.error("Error saving to backend:", error);
+      console.error("Error saving Note 16B bis data:", error);
       alert("Erreur lors de la sauvegarde");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -333,17 +333,19 @@ const Note16Bbis: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => {
-              if (isEditing) saveToBackend();
-              setIsEditing(!isEditing);
+              if (isEditing) {
+                saveNoteData();
+              } else {
+                setIsEditing(true);
+              }
             }}
-            disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {saving ? (
+            {isSaving ? (
               <>
                 {" "}
                 <Save size={18} /> Sauvegarde...{" "}
@@ -360,6 +362,17 @@ const Note16Bbis: React.FC = () => {
               </>
             )}
           </button>
+          {isEditing && (
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                loadNoteData();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+            >
+              Annuler
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
@@ -36,78 +36,78 @@ const Note12: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [commentConversion, setCommentConversion] = useState("");
   const [commentTransfer, setCommentTransfer] = useState("");
-  const [dsfId, setDsfId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const folderId = selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
-      loadDSFData();
+    if (folderId) {
+      loadNoteData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
-  const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+  const loadNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "12") as any;
 
-      if (dsf.notes && dsf.notes.note12) {
-        const note12Data = dsf.notes.note12;
-
-        if (note12Data.headerInfo) {
-          setHeaderInfo(note12Data.headerInfo);
+      if (noteData) {
+        if (noteData.headerInfo) {
+          setHeaderInfo(noteData.headerInfo);
+        } else if (noteData.entete) {
+          setHeaderInfo(noteData.entete);
         }
 
-        if (note12Data.conversionRows) {
-          setConversionRows(note12Data.conversionRows);
+        if (noteData.conversionRows) {
+          setConversionRows(noteData.conversionRows);
         }
 
-        if (note12Data.transferRows) {
-          setTransferRows(note12Data.transferRows);
+        if (noteData.transferRows) {
+          setTransferRows(noteData.transferRows);
         }
 
-        if (note12Data.commentConversion !== undefined) {
-          setCommentConversion(note12Data.commentConversion);
+        if (noteData.commentConversion !== undefined) {
+          setCommentConversion(noteData.commentConversion);
         }
 
-        if (note12Data.commentTransfer !== undefined) {
-          setCommentTransfer(note12Data.commentTransfer);
+        if (noteData.commentTransfer !== undefined) {
+          setCommentTransfer(noteData.commentTransfer);
         }
       }
     } catch (error) {
-      console.error("Error loading DSF data:", error);
+      console.error("Error loading Note 12 data:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveToBackend = async () => {
-    if (!dsfId) return;
+  const saveNoteData = async () => {
+    if (!folderId) return;
 
     try {
-      setSaving(true);
+      setIsSaving(true);
 
-      const note12Data = {
-        headerInfo,
+      const noteData = {
+        entete: headerInfo,
         conversionRows,
         transferRows,
         commentConversion,
         commentTransfer,
       };
 
-      const notes = { note12: note12Data };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "12", noteData as any);
+      if (success) {
+        alert("Données Note 12 sauvegardées avec succès");
+        setIsEditing(false);
+      }
     } catch (error) {
-      console.error("Error saving to backend:", error);
+      console.error("Error saving Note 12 data:", error);
       alert("Erreur lors de la sauvegarde");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -195,14 +195,14 @@ const Note12: React.FC = () => {
       prev.map((row) =>
         row.id === id
           ? {
-              ...row,
-              [field]:
-                field === "label"
-                  ? value
-                  : field === "currency"
+            ...row,
+            [field]:
+              field === "label"
+                ? value
+                : field === "currency"
                   ? value
                   : Number(value) || 0,
-            }
+          }
           : row
       )
     );
@@ -249,18 +249,18 @@ const Note12: React.FC = () => {
           <button
             onClick={() => {
               if (isEditing) {
-                saveToBackend();
+                saveNoteData();
+              } else {
+                setIsEditing(true);
               }
-              setIsEditing(!isEditing);
             }}
-            disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {saving ? (
+            {isSaving ? (
               <>
                 {" "}
                 <Save size={18} /> Sauvegarde...{" "}
@@ -277,6 +277,17 @@ const Note12: React.FC = () => {
               </>
             )}
           </button>
+          {isEditing && (
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                loadNoteData();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+            >
+              Annuler
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
@@ -498,7 +509,7 @@ const Note12: React.FC = () => {
                     (acc, row) =>
                       acc +
                       row.amountInCurrency *
-                        (row.closingRate - row.acquisitionRate),
+                      (row.closingRate - row.acquisitionRate),
                     0
                   )
                   .toLocaleString("fr-FR")}

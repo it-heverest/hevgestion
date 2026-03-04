@@ -3,11 +3,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLogin } from "../hooks/useLogin";
+import { useTranslation } from "../hooks/useTranslation";
 import { WelcomePage } from "./WelcomePage";
 import { LoginPage } from "./LoginPage";
 import { RegisterPage } from "./RegisterPage";
 
 export function Login() {
+  const { t } = useTranslation();
   const [showWelcome, setShowWelcome] = useState(true);
   const {
     activeTab,
@@ -73,10 +75,8 @@ export function Login() {
           >
             <BarChart3 className="h-8 w-8 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-br from-blue-600 to-blue-800 bg-clip-text text-transparent">
-            FinanceERP Pro
-          </h1>
-          <p className="text-muted-foreground">Gestion Comptable OHADA</p>
+          <h1 className="text-3xl font-bold text-gray-900">HevGestion DSF</h1>
+          <p className="text-muted-foreground">{t("systemStatusCompliant")}</p>
         </motion.div>
 
         <Tabs
@@ -89,13 +89,13 @@ export function Login() {
               value="login"
               className="transition-all duration-200 data-[state=active]:shadow-sm"
             >
-              Connexion
+              {t("login")}
             </TabsTrigger>
             <TabsTrigger
               value="register"
               className="transition-all duration-200 data-[state=active]:shadow-sm"
             >
-              Inscription
+              {t("register")}
             </TabsTrigger>
           </TabsList>
 
@@ -104,7 +104,7 @@ export function Login() {
             <LoginPage
               loginForm={loginForm}
               isLoggingIn={isLoggingIn}
-              onLoginChange={handleLoginChange}
+              onLoginChange={handleLoginChange as any}
               onLoginSubmit={handleLoginSubmit}
               onSwitchToRegister={() => setActiveTab("register")}
             />
@@ -133,8 +133,8 @@ export function Login() {
           transition={{ delay: 0.6 }}
           className="mt-6 text-center text-xs text-muted-foreground"
         >
-          <p>Conforme aux normes SYSCOHADA révisé</p>
-          <p className="mt-1 opacity-50">Powered by nashsoft systems</p>
+          <p>{t("systemStatusCompliant")}</p>
+          <p className="mt-1 opacity-50">{t("poweredBy")}</p>
         </motion.div>
       </motion.div>
     </div>

@@ -1,7 +1,9 @@
-import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useApp } from "../../contexts/AppContext";
+import { notesService } from "../../services/notes.service";
 
 // --- Interfaces ---
 
@@ -25,34 +27,99 @@ interface HeaderData {
 const C01Note3C: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = selectedFolder?.id;
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // État de l'en-tête (standard)
-  const [headerInfo] = useState<HeaderData>({
-    entityName: "NASHSOFT SYSTEMS",
-    fiscalYear: "2024",
-    idNumber: "RC/DLA/2024/B/123",
-    duration: "12",
+  const [headerInfo, setHeaderInfo] = useState<HeaderData>({
+    entityName: "",
+    fiscalYear: "",
+    idNumber: "",
+    duration: "",
   });
 
   // État des données
   const [amortizationData, setAmortizationData] = useState<
     DeferredAmortizationRow[]
-  >([
-    {
-      id: "1",
-      label: "Immobilisations corporelles",
-      reportOpening: 1000,
-      deferredAmortization: 500,
-      imputation: 100,
-    },
-    {
-      id: "2",
-      label: "Immobilisations incorporelles",
-      reportOpening: 500,
-      deferredAmortization: 200,
-      imputation: 50,
-    },
-  ]);
+  >([]);
+
+  useEffect(() => {
+    if (folderId) {
+      loadNoteData();
+    }
+  }, [folderId]);
+
+  useEffect(() => {
+    if (selectedClient && selectedFolder && !headerInfo.entityName) {
+      setHeaderInfo({
+        entityName: selectedClient.name || "",
+        fiscalYear: selectedFolder.fiscalYear?.toString() || "",
+        idNumber: selectedClient.taxNumber || "",
+        duration: "12",
+      });
+    }
+  }, [selectedClient, selectedFolder]);
+
+  const loadNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const noteData = (await notesService.getNoteData(folderId, "3C_C01")) as any;
+      if (!noteData) return;
+
+      if (noteData.entete) {
+        setHeaderInfo({
+          entityName: noteData.entete.entityName || "",
+          fiscalYear: noteData.entete.fiscalYear || "",
+          idNumber: noteData.entete.idNumber || "",
+          duration: noteData.entete.duration || "",
+        });
+      }
+
+      const rawData = noteData.amortissementsDifferes || [];
+      const rows: DeferredAmortizationRow[] = rawData.map((row: any, i: number) => ({
+        id: (i + 1).toString(),
+        label: row.libelle || "",
+        reportOpening: Number(row.reportAmortissementsAnterieurs) || 0,
+        deferredAmortization: Number(row.amortissementsDifferesExercice) || 0,
+        imputation: Number(row.imputationExercice) || 0,
+      }));
+      setAmortizationData(rows);
+    } catch (error) {
+      console.error("Error loading C01Note3C:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsSaving(true);
+      const noteData = {
+        entete: headerInfo,
+        amortissementsDifferes: amortizationData.map((row) => ({
+          libelle: row.label,
+          reportAmortissementsAnterieurs: row.reportOpening,
+          amortissementsDifferesExercice: row.deferredAmortization,
+          imputationExercice: row.imputation,
+          totalReportNonImputes: calculateTotalClosing(row),
+        })),
+      };
+
+      await notesService.saveNoteData(folderId, "3C_C01", noteData as any);
+      alert("Données sauvegardées avec succès");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving C01Note3C:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // --- Fonctions de Calcul ---
 
@@ -174,14 +241,24 @@ const C01Note3C: React.FC = () => {
         </h1>
         <div className="flex gap-3">
           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            onClick={() => {
+              if (isEditing) {
+                saveNoteData();
+              } else {
+                setIsEditing(true);
+              }
+            }}
+            disabled={isSaving || isLoading}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-blue-600 hover:bg-blue-700"
+              } ${(isSaving || isLoading) ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {isEditing ? (
+            {isSaving ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
+              </>
+            ) : isEditing ? (
               <>
                 <Save size={18} /> Sauvegarder
               </>
@@ -193,12 +270,20 @@ const C01Note3C: React.FC = () => {
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            disabled={isSaving || isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-50"
           >
             <Download size={18} /> Télécharger PDF
           </button>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="max-w-[210mm] mx-auto mb-6 bg-blue-50 p-4 rounded border border-blue-200 text-blue-700 flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          Chargement des données...
+        </div>
+      )}
 
       {/* Feuille A4 */}
       <div

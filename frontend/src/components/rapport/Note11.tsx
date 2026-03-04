@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 import {
   reportCalculationsService,
@@ -11,12 +11,13 @@ import {
 import { clientService } from "../../services/client.service";
 import { dsfConfigService } from "../../services/dsf-config.service";
 
-// --- Interfaces ---
+// --- Types et Interfaces ---
+
 interface AvailabilityRow {
   id: string;
   label: string;
-  yearN: number;
-  yearN1: number;
+  yearN: string;
+  yearN1: string;
 }
 
 interface HeaderData {
@@ -27,157 +28,155 @@ interface HeaderData {
 }
 
 // --- Composant Principal ---
+
 const Note11: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
-  const { selectedFolder, selectedClient } = useApp();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { selectedFolder, selectedClient } = useApp();
+
+  // État pour l'en-tête
+  const [entete, setEntete] = useState<HeaderData>({
+    entityName: "",
+    fiscalYear: "",
+    idNumber: "",
+    duration: "12",
+  });
+
+  // État pour le commentaire
   const [comment, setComment] = useState("");
-  const [dsfId, setDsfId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [totalBrut, setTotalBrut] = useState(0);
-  const [totalDepreciation, setTotalDepreciation] = useState(0);
-  const [totalNet, setTotalNet] = useState(0);
 
-  // Load DSF data and balance data on component mount
+  // État pour les Disponibilités
+  const [availabilities, setAvailabilities] = useState<AvailabilityRow[]>([
+    { id: "1", label: "Banques, chèques postaux et caisse / Siège", yearN: "", yearN1: "" },
+    { id: "2", label: "Banques, chèques postaux et caisse / Succursales", yearN: "", yearN1: "" },
+    { id: "3", label: "Caisse", yearN: "", yearN1: "" },
+    { id: "4", label: "Instruments de monnaie électronique", yearN: "", yearN1: "" },
+    { id: "5", label: "Autres disponibilités", yearN: "", yearN1: "" },
+  ]);
+
+  const folderId = selectedFolder?.id;
+
   useEffect(() => {
-    if (selectedFolder?.id) {
-      loadData();
+    if (folderId) {
+      loadNoteData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
-  const loadData = async () => {
-    if (!selectedFolder?.id) return;
-
+  const loadNoteData = async () => {
+    if (!folderId) return;
     try {
-      setLoading(true);
+      setIsLoading(true);
+      const noteData = await notesService.getNoteData(folderId, "11") as any;
+      if (noteData) {
+        setEntete(noteData.entete || noteData.headerInfo || entete);
+        // Map backend keys → frontend state
+        if (noteData.disponibilites) {
+          setAvailabilities(
+            noteData.disponibilites.map((r: any, i: number) => ({
+              id: String(i + 1),
+              label: r.libelle || availabilities[i]?.label || "",
+              yearN: String(r.anneeN ?? ""),
+              yearN1: String(r.anneeN1 ?? ""),
+            }))
+          );
+        } else if (noteData.availabilities) {
+          setAvailabilities(noteData.availabilities);
+        }
+        setComment(noteData.comment || "");
+      } else {
+        // Fallback or Initial calculation if no saved data
+        await refreshCalculations();
+      }
+    } catch (error) {
+      console.error("Error loading Note 11 data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // Load DSF data
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
-
-      // Load balance data
-      const balancesResponse = await clientService.getBalancesByFolder(
-        selectedFolder.id
-      );
-      const currentBalance = balancesResponse.balances?.find(
-        (b: any) => b.type === "CURRENT_YEAR"
-      );
-      const previousBalance = balancesResponse.balances?.find(
-        (b: any) => b.type === "PREVIOUS_YEAR"
-      );
+  const refreshCalculations = async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const balancesResponse = await clientService.getBalancesByFolder(folderId);
+      const currentBalance = balancesResponse.balances?.find((b: any) => b.type === "CURRENT_YEAR");
+      const previousBalance = balancesResponse.balances?.find((b: any) => b.type === "PREVIOUS_YEAR");
 
       if (currentBalance?.originalData) {
-        // Get DSF configs for note11
-        const dsfConfigs = await dsfConfigService.getConfigsByFolder(
-          selectedFolder.id,
-          "note11"
-        );
-
-        // Update calculation service with input data
+        const dsfConfigs = await dsfConfigService.getConfigsByFolder(folderId, "note11");
         reportCalculationsService.updateInput({
           balanceData: currentBalance.originalData as BalanceData,
           previousBalanceData: previousBalance?.originalData as BalanceData,
           dsfConfigs: dsfConfigs || [],
         });
+        const calculated = reportCalculationsService.calculateNote11();
 
-        // Calculate note 11 data
-        const calculatedData = reportCalculationsService.calculateNote11();
+        // Map calculated data to our state
+        const mapped = calculated.availabilities.map((a: any) => ({
+          id: a.id,
+          label: a.label,
+          yearN: a.yearN.toString(),
+          yearN1: a.yearN1.toString(),
+        }));
+        setAvailabilities(mapped);
 
-        // Update header info with real data
-        setHeaderInfo({
-          entityName: selectedClient?.name || "Company Name",
-          fiscalYear: selectedFolder?.fiscalYear?.toString() || "2024",
-          idNumber: selectedClient?.taxNumber || "Tax Number",
+        setEntete({
+          entityName: selectedClient?.name || "",
+          fiscalYear: selectedFolder?.fiscalYear?.toString() || "",
+          idNumber: selectedClient?.taxNumber || "",
           duration: "12",
         });
-
-        // Set calculated availabilities
-        setAvailabilities(calculatedData.availabilities);
-
-        // Update totals from calculated data
-        setTotalBrut(calculatedData.totals.totalBrut);
-        setTotalDepreciation(calculatedData.totals.totalDepreciation);
-        setTotalNet(calculatedData.totals.totalNet);
-      }
-
-      // Load saved comment from DSF if exists
-      if (dsf.notes && dsf.notes.note11?.comment !== undefined) {
-        setComment(dsf.notes.note11.comment);
       }
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error refreshing calculations:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveToBackend = async () => {
-    if (!dsfId) return;
-
+  const saveNoteData = async () => {
+    if (!folderId) return;
     try {
-      setSaving(true);
-
-      const note11Data = {
-        headerInfo,
-        availabilities,
-        totals: {
-          totalBrut,
-          totalDepreciation,
-          totalNet,
-        },
+      setIsSaving(true);
+      // Map frontend state → backend keys
+      const noteData = {
+        entete,
+        disponibilites: availabilities.map((r) => ({
+          libelle: r.label,
+          anneeN: parseFloat(r.yearN) || null,
+          anneeN1: parseFloat(r.yearN1) || null,
+          variationPourcentage: null,
+        })),
         comment,
       };
-
-      const notes = { note11: note11Data };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "11", noteData as any);
+      if (success) {
+        alert("Données Note 11 sauvegardées avec succès");
+        setIsEditing(false);
+      }
     } catch (error) {
-      console.error("Error saving to backend:", error);
-      alert("Erreur lors de la sauvegarde");
+      console.error("Error saving Note 11 data:", error);
+      alert("Erreur lors de la sauvegarde de la Note 11");
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
-  // En-tête
-  const [headerInfo, setHeaderInfo] = useState<HeaderData>({
-    entityName: "",
-    fiscalYear: "2024",
-    idNumber: "",
-    duration: "12",
-  });
-
-  // Données Disponibilités (calculées depuis les données comptables)
-  const [availabilities, setAvailabilities] = useState<AvailabilityRow[]>([]);
-
-  // Helper function to calculate sum
-  const calculateSum = (field: "yearN" | "yearN1") => {
-    return availabilities.reduce(
-      (acc, row) => acc + (Number(row[field]) || 0),
-      0
-    );
-  };
-
-  // Handlers
-  const handleChange = (
-    id: string,
-    field: "yearN" | "yearN1",
-    value: string
-  ) => {
+  const handleAvailabilityChange = (id: string, field: "yearN" | "yearN1", value: string) => {
     setAvailabilities((prev) =>
-      prev.map((row) =>
-        row.id === id ? { ...row, [field]: Number(value) || 0 } : row
-      )
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
   };
 
-  const downloadPDF = async () => {
+  const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
       setIsEditing(false);
-      setTimeout(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+
+      try {
         const canvas = await html2canvas(reportRef.current!, { scale: 2 });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF("p", "mm", "a4");
@@ -185,84 +184,110 @@ const Note11: React.FC = () => {
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
         pdf.save("note_11_disponibilites.pdf");
+      } catch (error) {
+        console.error("Erreur PDF Note 11:", error);
+      } finally {
         setIsEditing(wasEditing);
-      }, 100);
+      }
     }
   };
 
-  const renderRow = (row: AvailabilityRow) => (
-    <tr key={row.id}>
-      <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.yearN}
-            onChange={(e) => handleChange(row.id, "yearN", e.target.value)}
-            className="w-full text-right bg-blue-50"
-          />
-        ) : (
-          row.yearN.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.yearN1}
-            onChange={(e) => handleChange(row.id, "yearN1", e.target.value)}
-            className="w-full text-right bg-blue-50"
-          />
-        ) : (
-          row.yearN1.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {(((row.yearN - row.yearN1) / (row.yearN1 || 1)) * 100).toFixed(2)}%
-      </td>
-    </tr>
-  );
+  const renderEditableCell = (
+    value: string,
+    onChange: (val: string) => void,
+    className: string = ""
+  ) => {
+    return isEditing ? (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full h-full px-1 bg-blue-50 border-none focus:outline-none ${className}`}
+      />
+    ) : (
+      <span className="px-1">{value || ""}</span>
+    );
+  };
+
+  const calculateTotal = (data: any[], field: string) => {
+    return data.reduce((acc, row) => acc + (parseFloat(row[field]?.toString().replace(/\s/g, "")) || 0), 0);
+  };
+
+  const calculateVariation = (n: string | number, n1: string | number) => {
+    const valN = typeof n === "string" ? parseFloat(n.replace(/\s/g, "")) || 0 : n;
+    const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
+    if (valN1 === 0) return "-";
+    const variation = ((valN - valN1) / valN1) * 100;
+    return variation.toFixed(2) + "%";
+  };
+
+  const totalN = useMemo(() => calculateTotal(availabilities, "yearN"), [availabilities]);
+  const totalN1 = useMemo(() => calculateTotal(availabilities, "yearN1"), [availabilities]);
+
+  const isHeaderIncomplete =
+    !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
-      <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
-          Note 11 - Disponibilités
-        </h1>
+      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 11 - Disponibilités
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">Standardization en cours...</p>
+        </div>
         <div className="flex gap-3">
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              <Pencil size={18} /> Éditer
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveNoteData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
+              >
+                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+                Sauvegarder
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  loadNoteData();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Annuler
+              </button>
+            </>
+          )}
           <button
-            onClick={() => {
-              if (isEditing) {
-                saveToBackend();
-              }
-              setIsEditing(!isEditing);
-            }}
-            disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+            onClick={refreshCalculations}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+            title="Recalculer à partir de la balance"
           >
-            {saving ? (
-              <>
-                <Save size={18} /> Sauvegarde...
-              </>
-            ) : isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} /> Actualiser
           </button>
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            onClick={handleDownloadPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -272,179 +297,151 @@ const Note11: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center text-sm">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button onClick={() => setIsEditing(true)} className="text-orange-800 underline font-bold">
+                Mettre à jour l'en-tête
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Numéro de page */}
-        <div className="text-center font-bold mb-2 text-lg">24</div>
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">24</span>
+        </div>
 
         {/* En-tête */}
-        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
-          <div className="flex gap-2">
-            <span className="font-bold">Désignation entité :</span>
+        <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-2 pb-4 text-sm">
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">Désignation entité :</span>
             {isEditing ? (
               <input
-                value={headerInfo.entityName}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                value={entete.entityName}
+                onChange={(e) => setEntete({ ...entete, entityName: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.entityName}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.entityName || "-"}</span>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Exercice clos le 31-12-</span>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">Exercice clos le 31-12-</span>
             {isEditing ? (
               <input
-                value={headerInfo.fiscalYear}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-20 px-1"
+                value={entete.fiscalYear}
+                onChange={(e) => setEntete({ ...entete, fiscalYear: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-20 text-center">
-                {headerInfo.fiscalYear}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">{entete.fiscalYear || "-"}</span>
             )}
           </div>
-          <div className="flex gap-2">
-            <span className="font-bold">Numéro d'identification :</span>
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">Numéro d'identification :</span>
             {isEditing ? (
               <input
-                value={headerInfo.idNumber}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                value={entete.idNumber}
+                onChange={(e) => setEntete({ ...entete, idNumber: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.idNumber}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.idNumber || "-"}</span>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Durée (en mois) :</span>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">Durée (en mois) :</span>
             {isEditing ? (
               <input
-                value={headerInfo.duration}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                value={entete.duration}
+                onChange={(e) => setEntete({ ...entete, duration: e.target.value })}
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.duration}
-              </span>
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">{entete.duration || "-"}</span>
             )}
           </div>
         </div>
 
-        {/* Titre Principal */}
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-4">
-          NOTE 11
-          <br />
-          DISPONIBILITES
+        {/* Titre du Tableau */}
+        <div className="bg-[#bfbfbf] border border-gray-600 py-2 text-center font-bold mb-4 text-[12px]">
+          NOTE 11 <br /> DISPONIBILITES
         </div>
 
-        {/* Tableau */}
-        <table className="w-full border-collapse border border-gray-400 text-[11px]">
+        {/* Tableau Principal */}
+        <table className="w-full border-collapse border border-gray-600 text-[11px] mb-4">
           <thead>
-            <tr className="bg-gray-300">
-              <th
-                rowSpan={2}
-                className="border border-gray-400 p-1 pl-2 w-[50%] text-left"
-              >
-                Libellés
-              </th>
-              <th className="border border-gray-400 p-1">Année N</th>
-              <th className="border border-gray-400 p-1">Année N-1</th>
-              <th rowSpan={2} className="border border-gray-400 p-1">
-                Variation en %
-              </th>
+            <tr className="bg-[#d9d9d9]">
+              <th className="border border-gray-600 p-2 text-center w-[45%]">Libellés</th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N</th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N-1</th>
+              <th className="border border-gray-600 p-2 text-center w-[15%]">Variation en %</th>
             </tr>
           </thead>
           <tbody>
-            {availabilities.map((row) => renderRow(row))}
+            {availabilities.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.yearN, (val) => handleAvailabilityChange(row.id, "yearN", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-right">
+                  {renderEditableCell(row.yearN1, (val) => handleAvailabilityChange(row.id, "yearN1", val))}
+                </td>
+                <td className="border border-gray-600 p-1 text-center bg-gray-50 font-bold">
+                  {calculateVariation(row.yearN, row.yearN1)}
+                </td>
+              </tr>
+            ))}
 
-            {/* Total Brut */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border border-gray-400 p-1 pl-2 uppercase">
-                TOTAL BRUT DISPONIBILITES
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {totalBrut.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {calculateSum("yearN1").toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-1 text-right">
-                {(
-                  ((totalBrut - calculateSum("yearN1")) /
-                    (calculateSum("yearN1") || 1)) *
-                  100
-                ).toFixed(2)}
-                %
+            {/* TOTAL BRUT */}
+            <tr className="bg-[#e6e6e6] font-bold text-[11px]">
+              <td className="border border-gray-600 p-2">TOTAL BRUT DISPONIBILITES</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+                {calculateVariation(totalN, totalN1)}
               </td>
             </tr>
 
-            {/* Dépréciations (vide pour cette note) */}
-            <tr>
-              <td className="border border-gray-400 p-1 pl-2">Dépréciations</td>
-              <td className="border border-gray-400 p-1 text-right">0</td>
-              <td className="border border-gray-400 p-1 text-right">0</td>
-              <td className="border border-gray-400 p-1 text-right">-</td>
-            </tr>
-
-            {/* Total Net */}
-            <tr className="bg-gray-500 text-white font-bold">
-              <td className="border border-gray-400 p-2 pl-2">
-                TOTAL NET DE DEPRECIATION
-              </td>
-              <td className="border border-gray-400 p-2 text-right">
-                {totalNet.toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-2 text-right">
-                {calculateSum("yearN1").toLocaleString("fr-FR")}
-              </td>
-              <td className="border border-gray-400 p-2 text-right">
-                {(
-                  ((totalNet - calculateSum("yearN1")) /
-                    (calculateSum("yearN1") || 1)) *
-                  100
-                ).toFixed(2)}
-                %
+            {/* TOTAL NET */}
+            <tr className="bg-[#bfbfbf] font-bold text-[11px]">
+              <td className="border border-gray-600 p-2 font-bold">TOTAL NET DE DEPRECIATION</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+                {calculateVariation(totalN, totalN1)}
               </td>
             </tr>
           </tbody>
         </table>
 
-        {/* Commentaire */}
-        <div className="mt-8 border border-gray-400 p-2 bg-white flex flex-col gap-1">
-          <div className="font-bold underline">Commentaire :</div>
+        {/* Section Commentaire */}
+        <div className="border border-gray-600 p-3 bg-white min-h-[150px]">
+          <div className="font-bold underline mb-3 text-[11px]">Commentaire :</div>
+          <div className="text-[9px] text-gray-600 mb-4 space-y-1 italic">
+            <p>• Indiquer la date de rapprochement des comptes bancaires.</p>
+            <p>• Indiquer la date d'inventaire de la caisse et des instruments de monnaie électronique.</p>
+          </div>
           {isEditing ? (
             <textarea
-              className="w-full h-32 p-1 border border-blue-300 bg-blue-50 focus:outline-none resize-none"
+              className="w-full h-32 p-2 border border-blue-300 bg-blue-50 text-[11px] focus:outline-none resize-none"
+              placeholder="Saisir votre commentaire ici..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />
           ) : (
-            <div className="min-h-[8rem] whitespace-pre-wrap">{comment}</div>
+            <div className="whitespace-pre-wrap text-[11px] min-h-[2rem]">
+              {comment || "Aucun commentaire."}
+            </div>
           )}
-        </div>
-
-        {/* Notes de bas de page (optionnel) */}
-        <div className="mt-4 text-[10px] text-gray-600">
-          <p>Indiquer la date de rapprochement des comptes bancaires.</p>
-          <p>
-            Indiquer la date d'inventaire de la caisse et des instruments de
-            monnaie électronique.
-          </p>
         </div>
       </div>
     </div>

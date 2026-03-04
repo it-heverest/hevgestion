@@ -74,13 +74,13 @@ export function ForgotPassword({
       if (result.success) {
         setSuccessMessage(
           result.message ||
-            "Un lien de réinitialisation a été envoyé à votre adresse email."
+          "Un lien de réinitialisation a été envoyé à votre adresse email."
         );
         setEmailSent(true);
       } else {
         setError(
           result.error ||
-            "Une erreur est survenue lors de l'envoi du lien de réinitialisation."
+          "Une erreur est survenue lors de l'envoi du lien de réinitialisation."
         );
       }
     } catch (err: any) {
@@ -175,6 +175,7 @@ export function ForgotPassword({
                         onChange={(e) => handleEmailChange(e.target.value)}
                         placeholder="votre@email.com"
                         className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        autoComplete="off"
                         required
                         disabled={isLoading}
                       />

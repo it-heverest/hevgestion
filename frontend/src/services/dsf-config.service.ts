@@ -20,6 +20,9 @@ export interface DSFConfig {
   category: string;
   createdAt: string;
   updatedAt: string;
+  config?: {
+    accountMappings: any[];
+  };
 }
 
 export interface DSFConfigFilters {

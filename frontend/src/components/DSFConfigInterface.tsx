@@ -748,28 +748,46 @@ const DSF_TEMPLATE = [
 
   // Note 27A - Personnel Charges
   {
-    accountNumber: "661",
-    libelle: "Salaires, appointements",
+    accountNumber: "6611",
+    libelle: "Rémunérations directes versées au personnel",
     source: "SD",
-    destination: "salairesEtTraitements",
+    destination: "remunerationsPersonnel",
     reportType: "note27A",
     status: "active",
     scope: "EXERCISE",
   },
   {
-    accountNumber: "662",
-    libelle: "Commissions et courtages",
+    accountNumber: "6613",
+    libelle: "Indemnités forfaitaire versées au personnel",
     source: "SD",
-    destination: "salairesEtTraitements",
+    destination: "indemnitesPersonnel",
     reportType: "note27A",
     status: "active",
     scope: "EXERCISE",
   },
   {
-    accountNumber: "665",
-    libelle: "Charges sociales",
+    accountNumber: "664",
+    libelle: "Charges sociales sur rémunérations",
     source: "SD",
     destination: "chargesSociales",
+    reportType: "note27A",
+    status: "active",
+    scope: "EXERCISE",
+  },
+  {
+    accountNumber: "6612",
+    libelle: "Rémunérations de l'exploitant individuel",
+    source: "SD",
+    destination: "remunerationsExploitant",
+    reportType: "note27A",
+    status: "active",
+    scope: "EXERCISE",
+  },
+  {
+    accountNumber: "667",
+    libelle: "Rémunération du personnel extérieur",
+    source: "SD",
+    destination: "personnelExterieur",
     reportType: "note27A",
     status: "active",
     scope: "EXERCISE",
@@ -778,11 +796,32 @@ const DSF_TEMPLATE = [
     accountNumber: "668",
     libelle: "Autres charges sociales",
     source: "SD",
-    destination: "autresCharges",
+    destination: "autresChargesSociales",
     reportType: "note27A",
     status: "active",
     scope: "EXERCISE",
   },
+
+  // Note 27B - Personnel Headcount
+  {
+    accountNumber: "661",
+    libelle: "Masse salariale / Cadres (pour réf)",
+    source: "SD",
+    destination: "cadres",
+    reportType: "note27B",
+    status: "active",
+    scope: "EXERCISE",
+  },
+  {
+    accountNumber: "662",
+    libelle: "Masse salariale / Employés (pour réf)",
+    source: "SD",
+    destination: "employes",
+    reportType: "note27B",
+    status: "active",
+    scope: "EXERCISE",
+  },
+
 
   // ===== CF REPORTS =====
   // CF1 - Tax Table 1
@@ -962,10 +1001,10 @@ export default function DSFConfigInterface() {
 
   const currentUser = user
     ? {
-        id: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        type: user.role,
-      }
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      type: user.role,
+    }
     : null;
 
   // Filter mappings based on selected report type
@@ -1345,8 +1384,7 @@ export default function DSFConfigInterface() {
       await loadMappings();
 
       alert(
-        `Modèle DSF chargé avec succès!\n\n${
-          DSF_TEMPLATE.length
+        `Modèle DSF chargé avec succès!\n\n${DSF_TEMPLATE.length
         } mappings créés pour ${Object.keys(templateByReport).length} rapports.`,
       );
     } catch (err: any) {
@@ -1407,19 +1445,17 @@ export default function DSFConfigInterface() {
 
       // Show test results
       const message = `
-Test de Configuration ${
-        selectedReportType === "all" ? "Tous les rapports" : selectedReportType
-      }:
+Test de Configuration ${selectedReportType === "all" ? "Tous les rapports" : selectedReportType
+        }:
 
 ✅ Mappings valides: ${testResults.validMappings}
 ❌ Mappings invalides: ${testResults.invalidMappings}
 📊 Total: ${testResults.totalMappings}
 
-${
-  testResults.issues.length > 0
-    ? `Problèmes détectés:\n${testResults.issues.join("\n")}`
-    : "Aucun problème détecté!"
-}
+${testResults.issues.length > 0
+          ? `Problèmes détectés:\n${testResults.issues.join("\n")}`
+          : "Aucun problème détecté!"
+        }
       `;
 
       alert(message);
@@ -1692,7 +1728,7 @@ ${
                     <tr key={mapping.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-mono text-gray-900">
                         {editingCell?.rowIndex === index &&
-                        editingCell?.field === "accountNumber" ? (
+                          editingCell?.field === "accountNumber" ? (
                           <input
                             type="text"
                             value={mapping.accountNumber}
@@ -1746,7 +1782,7 @@ ${
 
                       <td className="px-4 py-3 text-sm font-mono text-blue-600">
                         {editingCell?.rowIndex === index &&
-                        editingCell?.field === "source" ? (
+                          editingCell?.field === "source" ? (
                           <select
                             value={mapping.source}
                             onChange={(e) =>
@@ -1777,7 +1813,7 @@ ${
 
                       <td className="px-4 py-3 text-sm font-mono text-green-600">
                         {editingCell?.rowIndex === index &&
-                        editingCell?.field === "destination" ? (
+                          editingCell?.field === "destination" ? (
                           <input
                             type="text"
                             value={mapping.destination}

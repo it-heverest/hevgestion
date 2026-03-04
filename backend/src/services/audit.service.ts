@@ -355,6 +355,207 @@ export class AuditService {
       newValue: balanceData,
     });
   }
+
+  async logBalanceValidated(
+    userId: string,
+    folderId: string,
+    balanceId: string,
+    validationResult: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.BALANCE_VALIDATED,
+      entityType: EntityType.FOLDER,
+      entityId: balanceId,
+      folderId,
+      description: "Validation des balances effectuée",
+      newValue: validationResult,
+    });
+  }
+
+  async logBalanceCorrected(
+    userId: string,
+    folderId: string,
+    balanceId: string,
+    oldData: any,
+    newData: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.BALANCE_CORRECTED,
+      entityType: EntityType.FOLDER,
+      entityId: balanceId,
+      folderId,
+      description: "Correction des balances effectuée",
+      oldValue: oldData,
+      newValue: newData,
+    });
+  }
+
+  /**
+   * Log folder deletion and status changes
+   */
+  async logFolderDeleted(
+    userId: string,
+    folderId: string,
+    folderData: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.FOLDER_DELETED,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      clientId: folderData.clientId,
+      description: `Suppression du dossier: ${folderData.name}`,
+      oldValue: folderData,
+    });
+  }
+
+  async logFolderStatusChanged(
+    userId: string,
+    folderId: string,
+    oldStatus: string,
+    newStatus: string,
+    folderData?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.FOLDER_STATUS_CHANGED,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: `Changement du statut du dossier: ${oldStatus} → ${newStatus}`,
+      oldValue: { status: oldStatus },
+      newValue: { status: newStatus },
+      metadata: folderData,
+    });
+  }
+
+  /**
+   * Log DSF operations
+   */
+  async logDSFValidated(
+    userId: string,
+    folderId: string,
+    validationResult: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.DSF_VALIDATED,
+      entityType: EntityType.DSF,
+      entityId: folderId,
+      folderId,
+      description: "Validation DSF effectuée",
+      newValue: validationResult,
+    });
+  }
+
+  async logDSFImported(
+    userId: string,
+    folderId: string,
+    sourceFile: string,
+    importData?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.DSF_IMPORTED,
+      entityType: EntityType.DSF,
+      entityId: folderId,
+      folderId,
+      description: `Import DSF depuis: ${sourceFile}`,
+      newValue: importData,
+    });
+  }
+
+  async logDSFUpdated(
+    userId: string,
+    folderId: string,
+    dsfId: string,
+    oldData: any,
+    newData: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.DSF_UPDATED,
+      entityType: EntityType.DSF,
+      entityId: dsfId,
+      folderId,
+      description: "Mise à jour DSF effectuée",
+      oldValue: oldData,
+      newValue: newData,
+    });
+  }
+
+  /**
+   * Log report and export operations
+   */
+  async logReportGenerated(
+    userId: string,
+    folderId: string,
+    reportType: string,
+    reportData?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.REPORT_GENERATED,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: `Génération du rapport: ${reportType}`,
+      newValue: reportData,
+    });
+  }
+
+  async logReportViewed(
+    userId: string,
+    folderId: string,
+    reportType: string
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.USER_ACTION,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: `Consultation du rapport: ${reportType}`,
+    });
+  }
+
+  async logReportExported(
+    userId: string,
+    folderId: string,
+    reportType: string,
+    format: string
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.DATA_EXPORT,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: `Export du rapport ${reportType} en format: ${format}`,
+      metadata: { format, reportType },
+    });
+  }
+
+  /**
+   * Generic action logging for view/read operations
+   */
+  async logUserAction(
+    userId: string,
+    action: string,
+    description: string,
+    metadata?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.USER_ACTION,
+      entityType: EntityType.SYSTEM,
+      description,
+      metadata,
+    });
+  }
 }
 
 export const auditService = new AuditService();

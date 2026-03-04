@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -7,7 +7,11 @@ import {
   Outlet,
   useNavigate,
   useLocation,
+  useParams,
 } from "react-router-dom";
+import { useLanguageRoute } from "./hooks/useLanguageRoute";
+import { useTranslation } from "./hooks/useTranslation";
+import { TranslationKeys } from "./locales/translations";
 import {
   Sidebar,
   SidebarContent,
@@ -28,9 +32,6 @@ import { CompanySelector } from "./components/CompanySelector";
 import { DashboardGrid } from "./components/DashboardGrid";
 import { ExerciseSelector } from "./components/ExerciseSelector";
 import { AllReports } from "./components/AllReports";
-import Note1 from "./components/rapport/Note1";
-import Note2 from "./components/rapport/Note2";
-import Note3A from "./components/rapport/Note3A";
 import { SimpleSettings } from "./components/SimpleSettings";
 import { ExcelBalanceImporter } from "./components/ExcelBalanceImporter";
 import { StepByStepProcessor } from "./components/StepByStepProcessor";
@@ -38,6 +39,7 @@ import { DSFImporter } from "./components/DSFImporter";
 import { TaxDeadlines } from "./components/TaxDeadlines";
 import { AuditHistory } from "./components/AuditHistory";
 import { OnboardingGuide } from "./components/OnboardingGuide";
+import { ReportNavigation } from "./components/DSF/ReportNavigation";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
 import {
@@ -63,6 +65,9 @@ import DSFConfigInterface from "./components/DSFConfigInterface";
 import { notesService } from "./services/notes.service";
 import type { ExtractionResult } from "./components/DSF/uploadSteps";
 import {
+  Note1,
+  Note2,
+  Note3A,
   Note3B,
   Note3C,
   Note3D,
@@ -103,7 +108,158 @@ import {
   Note32,
   Note33,
   Note34,
+  FicheR3,
+  PageDeGarde,
+  Sommaire,
+  BilanPaysage,
+  CompteResultat,
+  TableauFluxTresorerie,
+  GrilleAnalyseNotes,
+  C01Note3C,
+  C1Note17,
+  C1Note25,
+  C1Note27A,
+  C1Note28,
+  C2Note25,
+  C2Note28,
+  CF1,
+  CF1Bis,
+  CF1Ter,
+  CF1Quater,
+  CF2,
+  CF2Bis,
+  CF2Ter,
+  Impot21,
+  Impot22,
+  Fiche1,
+  Fiche2,
+  Fiche3,
+  Fiche4,
+  Fiche5,
+  BilanActif,
+  BilanPassif,
+  Charges,
+  Produits,
+  CompteGeneralPertesProfits,
+  EtatC4,
+  EtatC11,
+  EtatC11Vie,
+  Annexe6,
+  Ass1,
+  Ass2,
+  Ass3,
+  Ass4,
+  Ass5,
+  Ass6,
+  Ass7,
+  Ass8,
+  Ass9,
+  Ass10,
+  Ass11,
+  DeclarationAnnuel,
+  SommesVerse,
+  TVA,
+  Versements,
+  Tableau30,
+  Tableau31,
+  Tableau32,
+  Tableau33,
+  Tableau34,
+  Tableau35A,
+  Tableau35B,
+  Tableau36,
+  Tableau37,
+  Tableau38,
+  Tableau39,
+  Tableau40,
+  Tableau41A,
+  Tableau41B,
+  Tableau42,
+  Tableau43A,
+  Tableau43B,
+  Tableau44A,
+  GrilleAnalyseNotesSMT,
+  ModBilan,
+  Note1Smt,
+  Note2Smt,
+  Note3Smt,
+  Note4Smt,
+  Note5Smt,
+  Note6Smt,
+  T1,
+  T1Bis,
+  T1Ter,
+  T2,
+  T3,
+  T4,
+  T5,
+  T6,
+  T7,
+  T8,
+  T9,
 } from "./components/Notes";
+
+/**
+ * Get navigation items with translated labels
+ */
+function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
+  return [
+    {
+      id: "dashboard",
+      label: t("dashboard"),
+      icon: LayoutDashboard,
+      path: "/web/user/dashboard",
+    },
+    {
+      id: "exercise",
+      label: t("exercise"),
+      icon: Calendar,
+      path: "/web/user/exercise",
+    },
+    {
+      id: "import",
+      label: t("importBalance"),
+      icon: Upload,
+      path: "/web/user/import",
+    },
+    {
+      id: "traitement",
+      label: t("traitement"),
+      icon: Edit3,
+      path: "/web/user/traitement",
+    },
+    {
+      id: "reports",
+      label: t("dsfNotes"),
+      icon: FileText,
+      path: "/web/user/reports",
+    },
+    {
+      id: "history",
+      label: t("history"),
+      icon: History,
+      path: "/web/user/history",
+    },
+    {
+      id: "settings",
+      label: t("settings"),
+      icon: Settings,
+      path: "/web/user/settings",
+    },
+    {
+      id: "televersion",
+      label: t("televersion"),
+      icon: Cloud,
+      path: "/web/user/televersion",
+    },
+    {
+      id: "other",
+      label: t("other"),
+      icon: MoreHorizontal,
+      path: "/web/user/other",
+    },
+  ];
+}
 
 const navigationItems = [
   {
@@ -162,6 +318,26 @@ const navigationItems = [
   },
 ];
 
+/**
+ * LanguageLayout: Wrapper component that ensures language routing works correctly
+ */
+function LanguageLayout() {
+  const { lang } = useParams<{ lang?: string }>();
+  const { language, setLanguage } = useApp();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Validate and set language from URL
+    if (lang === "en" || lang === "fr") {
+      if (lang !== language) {
+        setLanguage(lang);
+      }
+    }
+  }, [lang, language, setLanguage]);
+
+  return <Outlet />;
+}
+
 export function ProtectedLayout({
   selectedCountry,
   setSelectedCountry,
@@ -180,11 +356,23 @@ export function ProtectedLayout({
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { language } = useApp();
+  const { t } = useTranslation();
+
+  // Get translated navigation items
+  const translatedNavItems = useMemo(() => getNavigationItems(t), [t]);
+
+  // Extract language prefix from URL
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const langPrefix = pathSegments[0] === "en" || pathSegments[0] === "fr"
+    ? pathSegments[0]
+    : "fr";
 
   useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
+    // Skip language prefix and "web/user" parts
     const actionId =
-      parts.length >= 2 ? parts[2] || parts[1] : parts[0] || "dashboard";
+      parts.length >= 4 ? parts[3] || parts[2] : parts[1] || "dashboard";
     setActiveRoute(actionId);
   }, [location.pathname, setActiveRoute]);
 
@@ -200,7 +388,7 @@ export function ProtectedLayout({
               <div>
                 <h1 className="font-semibold">HevGestion DSF</h1>
                 <p className="text-xs text-muted-foreground">
-                  Gestion Comptable OHADA
+                  {t("systemStatusCompliant")}
                 </p>
               </div>
             </div>
@@ -210,18 +398,18 @@ export function ProtectedLayout({
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navigationItems.map((item) => {
+                  {translatedNavItems.map((item) => {
                     const Icon = item.icon;
                     return (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
                           onClick={() => {
                             navigate(
-                              `${item.path}/${user?.id ?? "me"}/${item.id}`,
+                              `/${langPrefix}${item.path}/${user?.id ?? "me"}/${item.id}`,
                             );
                             setActiveRoute(item.id);
                           }}
-                          isActive={location.pathname.startsWith(item.path)}
+                          isActive={location.pathname.includes(item.path)}
                           className="w-full"
                         >
                           <Icon className="h-4 w-4" />
@@ -251,7 +439,7 @@ export function ProtectedLayout({
                         HevGestion DSF
                       </h1>
                       <p className="text-sm text-gray-500">
-                        Bienvenue, {user?.firstName || "Utilisateur"}
+                        {t("welcomeUser")}, {user?.firstName || "User"}
                       </p>
                     </div>
                   </div>
@@ -260,7 +448,7 @@ export function ProtectedLayout({
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
                     <Wifi className="h-3 w-3" />
-                    Connecté
+                    {t("connected")}
                   </div>
 
                   <Button
@@ -284,19 +472,19 @@ export function ProtectedLayout({
                     onClick={() => {
                       setSelectedCountry(null);
                       setSelectedCompany(null);
-                      navigate("/web/user/select-country");
+                      navigate(`/${langPrefix}/web/user/select-country`);
                     }}
                   >
                     <span className="text-sm font-medium truncate">
                       {" "}
-                      {selectedCompany?.name || "Sélectionner entreprise"}
+                      {selectedCompany?.name || t("selectCompany")}
                     </span>
                   </div>
 
                   {selectedExercise && (
                     <div
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() => navigate("/web/user/exercise")}
+                      onClick={() => navigate(`/${langPrefix}/web/user/exercise`)}
                     >
                       <Calendar className="h-4 w-4" />
                       <span className="text-sm font-medium">
@@ -325,7 +513,7 @@ export function ProtectedLayout({
 
           <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white border-t border-gray-200">
             <p className="text-xs text-gray-500 select-none">
-              powered by nashsoft systems
+              {t("poweredBy")}
             </p>
           </footer>
         </main>
@@ -336,6 +524,7 @@ export function ProtectedLayout({
 
 function AppRoutes() {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [activeRoute, setActiveRoute] = useState("dashboard");
@@ -370,7 +559,7 @@ function AppRoutes() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">
-            Initialisation de l'authentification...
+            {t("initializingAuth")}
           </p>
         </div>
       </div>
@@ -380,34 +569,36 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        {/* Public routes */}
-        <Route path="/web/user/login" element={<Login />} />
-        <Route path="/web/user/verify-otp" element={<OtpVerificationPage />} />
-        <Route path="/web/user/forgot-password" element={<ForgotPassword />} />
-        <Route path="/web/user/select-country" element={<CountrySelector />} />
-        <Route
-          path="/web/user/select-company"
-          element={<CompanySelector onSelectCompany={setSelectedCompany} />}
-        />
+        {/* Language-aware routes wrapper */}
+        <Route path="/:lang/*" element={<LanguageLayout />}>
+          {/* Public routes with language prefix */}
+          <Route path="web/user/login" element={<Login />} />
+          <Route path="web/user/verify-otp" element={<OtpVerificationPage />} />
+          <Route path="web/user/forgot-password" element={<ForgotPassword />} />
+          <Route path="web/user/select-country" element={<CountrySelector />} />
+          <Route
+            path="web/user/select-company"
+            element={<CompanySelector onSelectCompany={setSelectedCompany} />}
+          />
 
-        {/* Protected area */}
-        <Route
-          path="/web/user/*"
-          element={
-            isAuthenticated ? (
-              <ProtectedLayout
-                selectedCountry={selectedCountry}
-                setSelectedCountry={setSelectedCountry}
-                selectedCompany={selectedCompany}
-                setSelectedCompany={setSelectedCompany}
-                selectedExercise={selectedFolder}
-                setActiveRoute={setActiveRoute}
-              />
-            ) : (
-              <Navigate to="/web/user/login" replace />
-            )
-          }
-        >
+          {/* Protected area routes with language prefix */}
+          <Route
+            path="web/user/*"
+            element={
+              isAuthenticated ? (
+                <ProtectedLayout
+                  selectedCountry={selectedCountry}
+                  setSelectedCountry={setSelectedCountry}
+                  selectedCompany={selectedCompany}
+                  setSelectedCompany={setSelectedCompany}
+                  selectedExercise={selectedFolder}
+                  setActiveRoute={setActiveRoute}
+                />
+              ) : (
+                <Navigate to="/fr/web/user/login" replace />
+              )
+            }
+          >
           <Route
             index
             element={
@@ -435,7 +626,7 @@ function AppRoutes() {
           />
           <Route
             path="import/:userId/:actionId?"
-            element={<ExcelBalanceImporter onComplete={() => {}} />}
+            element={<ExcelBalanceImporter onComplete={() => { }} />}
           />
           <Route
             path="traitement/:userId/:actionId?"
@@ -450,7 +641,6 @@ function AppRoutes() {
             path="reports/:userId/reports/rapport/note2"
             element={<Note2 />}
           />
-
           <Route
             path="reports/:userId/reports/rapport/note3a"
             element={<Note3A />}
@@ -616,6 +806,363 @@ function AppRoutes() {
             element={<Note34 />}
           />
           <Route
+            path="reports/:userId/reports/rapport/ficher3"
+            element={<FicheR3 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/pagedegarde"
+            element={<PageDeGarde />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/sommaire"
+            element={<Sommaire />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/bilanpaysage"
+            element={<BilanPaysage />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/compteresultat"
+            element={<CompteResultat />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableaufluxtresorerie"
+            element={<TableauFluxTresorerie />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/grilleanalysenotes"
+            element={<GrilleAnalyseNotes />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c01note3c"
+            element={<C01Note3C />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c1note17"
+            element={<C1Note17 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c1note25"
+            element={<C1Note25 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c1note27a"
+            element={<C1Note27A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c1note28"
+            element={<C1Note28 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c2note25"
+            element={<C2Note25 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/c2note28"
+            element={<C2Note28 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf1"
+            element={<CF1 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf1bis"
+            element={<CF1Bis />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf1ter"
+            element={<CF1Ter />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf1quater"
+            element={<CF1Quater />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf2"
+            element={<CF2 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf2bis"
+            element={<CF2Bis />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/cf2ter"
+            element={<CF2Ter />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/impot21"
+            element={<Impot21 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/impot22"
+            element={<Impot22 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/fiche1"
+            element={<Fiche1 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/fiche2"
+            element={<Fiche2 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/fiche3"
+            element={<Fiche3 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/fiche4"
+            element={<Fiche4 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/fiche5"
+            element={<Fiche5 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/bilanactif"
+            element={<BilanActif />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/bilanpassif"
+            element={<BilanPassif />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/charges"
+            element={<Charges />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/produits"
+            element={<Produits />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/comptegeneralpertesprofits"
+            element={<CompteGeneralPertesProfits />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/etatc4"
+            element={<EtatC4 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/etatc11"
+            element={<EtatC11 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/etatc11vie"
+            element={<EtatC11Vie />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/annexe6"
+            element={<Annexe6 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass1"
+            element={<Ass1 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass2"
+            element={<Ass2 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass3"
+            element={<Ass3 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass4"
+            element={<Ass4 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass5"
+            element={<Ass5 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass6"
+            element={<Ass6 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass7"
+            element={<Ass7 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass8"
+            element={<Ass8 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass9"
+            element={<Ass9 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass10"
+            element={<Ass10 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/ass11"
+            element={<Ass11 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/declarationannuel"
+            element={<DeclarationAnnuel />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/sommesverse"
+            element={<SommesVerse />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tva"
+            element={<TVA />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/versements"
+            element={<Versements />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau30"
+            element={<Tableau30 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau31"
+            element={<Tableau31 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau32"
+            element={<Tableau32 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau33"
+            element={<Tableau33 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau34"
+            element={<Tableau34 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau35a"
+            element={<Tableau35A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau35b"
+            element={<Tableau35B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau36"
+            element={<Tableau36 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau37"
+            element={<Tableau37 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau38"
+            element={<Tableau38 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau39"
+            element={<Tableau39 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau40"
+            element={<Tableau40 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau41a"
+            element={<Tableau41A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau41b"
+            element={<Tableau41B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau42"
+            element={<Tableau42 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau43a"
+            element={<Tableau43A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau43b"
+            element={<Tableau43B />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/tableau44a"
+            element={<Tableau44A />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/grilleanalysenotessmt"
+            element={<GrilleAnalyseNotesSMT />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/modbilan"
+            element={<ModBilan />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note1smt"
+            element={<Note1Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note2smt"
+            element={<Note2Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note3smt"
+            element={<Note3Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note4smt"
+            element={<Note4Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note5smt"
+            element={<Note5Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/note6smt"
+            element={<Note6Smt />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t1"
+            element={<T1 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t1bis"
+            element={<T1Bis />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t1ter"
+            element={<T1Ter />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t2"
+            element={<T2 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t3"
+            element={<T3 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t4"
+            element={<T4 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t5"
+            element={<T5 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t6"
+            element={<T6 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t7"
+            element={<T7 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t8"
+            element={<T8 />}
+          />
+          <Route
+            path="reports/:userId/reports/rapport/t9"
+            element={<T9 />}
+
+          />
+          <Route
             path="reports/:userId/:actionId?"
             element={
               <AllReports
@@ -668,16 +1215,17 @@ function AppRoutes() {
             }
           />
         </Route>
+        </Route>
 
-        {/* Fallback */}
+        {/* Fallback redirect to default language (French) */}
         <Route
           path="*"
           element={
             <Navigate
               to={
                 isAuthenticated
-                  ? `/web/user/dashboard/${user?.id ?? "me"}`
-                  : "/web/user/login"
+                  ? `/fr/web/user/dashboard/${user?.id ?? "me"}`
+                  : "/fr/web/user/login"
               }
               replace
             />
@@ -690,6 +1238,7 @@ function AppRoutes() {
         onClose={completeOnboarding}
         onComplete={completeOnboarding}
       />
+      {location.pathname.includes("/rapport/") && <ReportNavigation />}
     </>
   );
 }

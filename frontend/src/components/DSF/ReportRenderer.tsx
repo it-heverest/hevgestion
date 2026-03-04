@@ -941,19 +941,34 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
 
   // ── Browse mode: show categorised grid of all reports ─────────────────────
 
-  const handleView = (report: ReportDefinition) => {
-    if (report.name === "NOTE 1") {
-      window.open(`/rapport/note1?folderId=${folderId ?? ""}`, "_blank");
-      return;
+  const openReportInNewTab = (reportName: string) => {
+    const routeMap: Record<string, string> = {
+      "NOTE 1": "/rapport/note1",
+      "NOTE 2": "/rapport/note2",
+      "NOTE 3A": "/rapport/note3a",
+      "NOTE 3B": "/rapport/note3b",
+      "NOTE 3C": "/rapport/note3c",
+      "C01 NOTE 3C": "/rapport/c01note3c",
+      "NOTE 3D": "/rapport/note3d",
+      "NOTE 3F": "/rapport/note3f",
+      "NOTE 3 SMT": "/rapport/note3smt",
+    };
+
+    const route = routeMap[reportName];
+    if (route) {
+      window.open(`${route}?folderId=${folderId ?? ""}`, "_blank");
+      return true;
     }
+    return false;
+  };
+
+  const handleView = (report: ReportDefinition) => {
+    if (openReportInNewTab(report.name)) return;
     onViewReport?.(report.name, report.component);
   };
 
   const handleEdit = (report: ReportDefinition) => {
-    if (report.name === "NOTE 1") {
-      window.open(`/rapport/note1?folderId=${folderId ?? ""}`, "_blank");
-      return;
-    }
+    if (openReportInNewTab(report.name)) return;
     navigate(folderId ? `${report.route}?folderId=${folderId}` : report.route);
   };
 

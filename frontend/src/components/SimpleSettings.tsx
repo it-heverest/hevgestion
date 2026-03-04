@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -47,6 +48,9 @@ import {
   X,
   Trash2,
   Download,
+  FileSpreadsheet,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -55,6 +59,7 @@ import {
   folderService,
   Folder as FolderType,
 } from "../services/folder.service";
+import { dsfTemplateService } from "../services/dsf-template.service";
 
 interface ProfileData {
   firstName: string;
@@ -79,6 +84,8 @@ interface AssistantFormData {
 
 export function SimpleSettings() {
   const { addToHistory, theme, setTheme, language, setLanguage } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
   const {
     user,
     logout,
@@ -127,6 +134,16 @@ export function SimpleSettings() {
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
 
+  // DSF Template states
+  const [templateStatus, setTemplateStatus] = useState<{
+    hasTemplate: boolean;
+    fileName?: string;
+    uploadDate?: string;
+    fileSize?: number;
+  }>({ hasTemplate: false });
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateUploading, setTemplateUploading] = useState(false);
+
   // Calculs
   const maxAssistants = Number(user?.maxAssistants) || 0;
   const canCreateMoreAssistants = assistants.length < maxAssistants;
@@ -148,6 +165,13 @@ export function SimpleSettings() {
   useEffect(() => {
     if (user?.role === "COMPTABLE") {
       loadAssistants();
+    }
+  }, [user]);
+
+  // Charger le statut du template DSF
+  useEffect(() => {
+    if (user) {
+      loadTemplateStatus();
     }
   }, [user]);
 
@@ -182,6 +206,44 @@ export function SimpleSettings() {
       console.error("Erreur lors du chargement des dossiers:", error);
     } finally {
       setLoadingFolders(false);
+    }
+  };
+
+  const loadTemplateStatus = async () => {
+    try {
+      setTemplateLoading(true);
+      const status = await dsfTemplateService.getTemplateStatus();
+      setTemplateStatus(status);
+    } catch (error) {
+      console.error("Erreur chargement statut template:", error);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const handleTemplateUpload = async (file: File) => {
+    try {
+      setTemplateUploading(true);
+      const status = await dsfTemplateService.uploadTemplate(file);
+      setTemplateStatus(status);
+      addToHistory("Template DSF", "Template importé avec succès");
+    } catch (error: any) {
+      console.error("Erreur upload template:", error);
+      alert(error.response?.data?.message || error.message || "Erreur lors de l'import");
+    } finally {
+      setTemplateUploading(false);
+    }
+  };
+
+  const handleTemplateDelete = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer le template DSF ?")) return;
+    try {
+      await dsfTemplateService.deleteTemplate();
+      setTemplateStatus({ hasTemplate: false });
+      addToHistory("Template DSF", "Template supprimé");
+    } catch (error: any) {
+      console.error("Erreur suppression template:", error);
+      alert(error.response?.data?.message || error.message);
     }
   };
 
@@ -391,10 +453,10 @@ export function SimpleSettings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
-            Profil
+            Profil & Template
           </TabsTrigger>
           {user?.role === "COMPTABLE" && (
             <TabsTrigger value="assistants">
@@ -408,292 +470,339 @@ export function SimpleSettings() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Onglet Profil */}
+        {/* Onglet Profil & Template */}
         <TabsContent value="profile" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informations Personnelles</CardTitle>
-              <CardDescription>
-                Gérez vos informations de profil et coordonnées
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Avatar et informations de base */}
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-3xl">
-                  {user
-                    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
-                    : "U"}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <h3 className="text-xl font-semibold">
-                    {user
-                      ? `${user.firstName} ${user.lastName}`
-                      : "Utilisateur"}
-                  </h3>
-                  <p className="text-muted-foreground">{position}</p>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informations Personnelles</CardTitle>
+                  <CardDescription>
+                    Gérez vos informations de profil et coordonnées
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Avatar et informations de base */}
+                  <div className="flex items-center gap-6">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-3xl">
+                      {user
+                        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+                        : "U"}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <h3 className="text-xl font-semibold">
+                        {user
+                          ? `${user.firstName} ${user.lastName}`
+                          : "Utilisateur"}
+                      </h3>
+                      <p className="text-muted-foreground">{position}</p>
+                    </div>
+                  </div>
 
-              <Separator />
+                  <Separator />
 
-              {/* Formulaire du profil */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Prénom *</Label>
-                  <Input
-                    id="firstName"
-                    value={profileData.firstName}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        firstName: e.target.value,
-                      })
-                    }
-                    className="h-11"
-                    placeholder="Prénom"
-                  />
-                </div>
+                  {/* Formulaire du profil */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Prénom *</Label>
+                      <Input
+                        id="firstName"
+                        value={profileData.firstName}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            firstName: e.target.value,
+                          })
+                        }
+                        className="h-11"
+                        placeholder="Prénom"
+                        autoComplete="off"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Nom *</Label>
-                  <Input
-                    id="lastName"
-                    value={profileData.lastName}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        lastName: e.target.value,
-                      })
-                    }
-                    className="h-11"
-                    placeholder="Nom"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Nom *</Label>
+                      <Input
+                        id="lastName"
+                        value={profileData.lastName}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            lastName: e.target.value,
+                          })
+                        }
+                        className="h-11"
+                        placeholder="Nom"
+                        autoComplete="off"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) =>
-                      setProfileData({ ...profileData, email: e.target.value })
-                    }
-                    className="h-11"
-                    placeholder="Email"
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) =>
+                          setProfileData({ ...profileData, email: e.target.value })
+                        }
+                        className="h-11"
+                        placeholder="Email"
+                        autoComplete="off"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Téléphone</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    value={profileData.phoneNumber}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        phoneNumber: e.target.value,
-                      })
-                    }
-                    className="h-11"
-                    placeholder="Téléphone"
-                  />
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phoneNumber">Téléphone</Label>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        value={profileData.phoneNumber}
+                        onChange={(e) =>
+                          setProfileData({
+                            ...profileData,
+                            phoneNumber: e.target.value,
+                          })
+                        }
+                        className="h-11"
+                        placeholder="Téléphone"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
 
-              <div className="flex justify-end">
-                <Button onClick={handleSaveProfile} disabled={authLoading}>
-                  {authLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Sauvegarde...
-                    </>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveProfile} disabled={authLoading}>
+                      {authLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sauvegarde...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Sauvegarder le profil
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Template DSF Section inside Profile tab */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                    Template DSF Excel
+                  </CardTitle>
+                  <CardDescription>
+                    Importez votre template Excel DSF pour activer l'export Excel pré-rempli.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {templateLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Chargement du statut...
+                    </div>
+                  ) : templateStatus.hasTemplate ? (
+                    <Alert className="bg-green-50 border-green-200">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription>
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="font-medium text-green-800">Template importé avec succès</p>
+                            <p className="text-xs text-green-700 opacity-80">
+                              Dernière mise à jour le {templateStatus.uploadDate ? new Date(templateStatus.uploadDate).toLocaleDateString() : 'N/A'}
+                            </p>
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleTemplateDelete}
+                            className="h-8"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
                   ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Sauvegarder
-                    </>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Aucun template importé. L'export Excel DSF sera indisponible.
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </Button>
-              </div>
 
-              <Separator />
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50/50"
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleTemplateUpload(file);
+                    }}
+                    onClick={() => {
+                      const input = document.createElement("input");
+                      input.type = "file";
+                      input.accept = ".xlsx,.xls";
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) handleTemplateUpload(file);
+                      };
+                      input.click();
+                    }}
+                  >
+                    {templateUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
+                        <p className="text-sm text-muted-foreground">Importation en cours...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="h-10 w-10 text-gray-400" />
+                        <p className="text-sm font-medium">
+                          {templateStatus.hasTemplate ? "Remplacer le template" : "Importer un template Excel"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Fichiers .xlsx ou .xls uniquement</p>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Changement de mot de passe */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Changer le mot de passe</h4>
-                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-800">
+                    <p className="font-medium mb-1 flex items-center gap-1">
+                      <Globe className="w-3 h-3" /> Aide à l'export
+                    </p>
+                    <p>Le template sera utilisé pour injecter vos données de DSF directement dans votre fichier Excel personnalisé lors du téléchargement.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              {/* Sécurité */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Sécurité</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="currentPassword">
-                      Mot de passe actuel *
-                    </Label>
+                    <Label htmlFor="currentPassword">Mot de passe actuel</Label>
                     <div className="relative">
                       <Input
                         id="currentPassword"
                         type={passwordVisible ? "text" : "password"}
                         value={passwordData.currentPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            currentPassword: e.target.value,
-                          })
-                        }
-                        className="h-11 pr-10"
-                        placeholder="Mot de passe actuel"
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        className="pr-10"
                       />
                       <button
                         type="button"
                         onClick={() => setPasswordVisible(!passwordVisible)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                       >
-                        {passwordVisible ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
+                        {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword">Nouveau mot de passe *</Label>
+                    <Label htmlFor="newPassword">Nouveau mot de passe</Label>
                     <Input
                       id="newPassword"
                       type={passwordVisible ? "text" : "password"}
                       value={passwordData.newPassword}
-                      onChange={(e) =>
-                        setPasswordData({
-                          ...passwordData,
-                          newPassword: e.target.value,
-                        })
-                      }
-                      className="h-11"
-                      placeholder="Nouveau mot de passe"
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">
-                      Confirmer le nouveau mot de passe *
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type={passwordVisible ? "text" : "password"}
-                      value={passwordData.confirmPassword}
-                      onChange={(e) =>
-                        setPasswordData({
-                          ...passwordData,
-                          confirmPassword: e.target.value,
-                        })
-                      }
-                      className="h-11"
-                      placeholder="Confirmer le mot de passe"
-                    />
-                  </div>
-
-                  <Button onClick={handleChangePassword} disabled={authLoading}>
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Modification...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="h-4 w-4 mr-2" />
-                        Changer le mot de passe
-                      </>
-                    )}
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={handleChangePassword}
+                    disabled={authLoading || !passwordData.newPassword}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    Changer
                   </Button>
-                </div>
-              </div>
-
-              <Separator />
+                </CardContent>
+              </Card>
 
               {/* Préférences */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Préférences</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Préférences</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label
-                      htmlFor="language"
-                      className="flex items-center gap-2"
+                    <Label>Langue</Label>
+                    <Select
+                      value={language}
+                      onValueChange={(newLanguage: string) => {
+                        // Change the language
+                        setLanguage(newLanguage as "en" | "fr");
+
+                        // Update the URL to reflect the language change
+                        const pathSegments = location.pathname
+                          .split("/")
+                          .filter(Boolean);
+                        let newPath: string;
+
+                        // Remove existing language prefix if present
+                        const pathWithoutLanguage =
+                          pathSegments[0] === "en" || pathSegments[0] === "fr"
+                            ? pathSegments.slice(1).join("/")
+                            : pathSegments.join("/");
+
+                        // Add new language prefix
+                        newPath = `/${newLanguage}${
+                          pathWithoutLanguage ? "/" + pathWithoutLanguage : ""
+                        }`;
+
+                        navigate(
+                          newPath + location.search + location.hash,
+                          { replace: true }
+                        );
+                      }}
                     >
-                      <Globe className="h-4 w-4 text-blue-600" />
-                      Langue
-                    </Label>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger id="language" className="h-11">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="fr">Français</SelectItem>
                         <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="pt">Português</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="theme" className="flex items-center gap-2">
-                      <Palette className="h-4 w-4 text-blue-600" />
-                      Thème
-                    </Label>
+                    <Label>Thème</Label>
                     <Select value={theme} onValueChange={setTheme}>
-                      <SelectTrigger id="theme" className="h-11">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="light">
-                          <div className="flex items-center gap-2">
-                            <Sun className="h-4 w-4" />
-                            Clair
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="dark">
-                          <div className="flex items-center gap-2">
-                            <Moon className="h-4 w-4" />
-                            Sombre
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="auto">Automatique</SelectItem>
+                        <SelectItem value="light">Clair</SelectItem>
+                        <SelectItem value="dark">Sombre</SelectItem>
+                        <SelectItem value="auto">Système</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={handleSaveSettings}
-                    disabled={authLoading}
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sauvegarde...
-                      </>
-                    ) : (
-                      <>
-                        <Settings2 className="h-4 w-4 mr-2" />
-                        Sauvegarder les préférences
-                      </>
-                    )}
+                  <Button className="w-full" variant="outline" onClick={handleSaveSettings}>
+                    <Settings2 className="h-4 w-4 mr-2" />
+                    Mettre à jour
                   </Button>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              <Separator />
-
-              {/* Déconnexion */}
-              <div className="flex justify-end">
-                <Button variant="destructive" size="sm" onClick={logout}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Se déconnecter
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <Button variant="destructive" className="w-full" onClick={logout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
+              </Button>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Onglet Assistants (seulement pour les comptables) */}
@@ -765,6 +874,7 @@ export function SimpleSettings() {
                             }
                             placeholder="Jean"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -781,6 +891,7 @@ export function SimpleSettings() {
                             }
                             placeholder="Dupont"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -800,6 +911,7 @@ export function SimpleSettings() {
                             }
                             placeholder="jean.dupont@cabinet.com"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -817,6 +929,7 @@ export function SimpleSettings() {
                             }
                             placeholder="6 99 12 34 56"
                             className="h-11"
+                            autoComplete="off"
                           />
                         </div>
 
@@ -839,6 +952,7 @@ export function SimpleSettings() {
                               }
                               placeholder="Mot de passe temporaire"
                               className="h-11 pr-20"
+                              autoComplete="new-password"
                             />
                             <button
                               type="button"
@@ -966,12 +1080,12 @@ export function SimpleSettings() {
                                   </p>
                                   {assistant._count?.assignedFolders !==
                                     undefined && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      <Folder className="h-3 w-3 inline mr-1" />
-                                      {assistant._count.assignedFolders}{" "}
-                                      dossier(s) assigné(s)
-                                    </p>
-                                  )}
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        <Folder className="h-3 w-3 inline mr-1" />
+                                        {assistant._count.assignedFolders}{" "}
+                                        dossier(s) assigné(s)
+                                      </p>
+                                    )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1055,36 +1169,19 @@ export function SimpleSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert>
-                <Shield className="h-4 w-4" />
-                <AlertDescription>
-                  Vos données sont stockées de manière sécurisée. Vous pouvez
-                  exporter vos données à tout moment.
-                </AlertDescription>
-              </Alert>
-
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Exporter les données</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Exportez toutes vos données au format JSON pour les
-                    sauvegarder localement.
-                  </p>
-                  <Button variant="outline" className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exporter toutes les données
+              <div className="p-4 border border-amber-100 bg-amber-50/50 rounded-lg">
+                <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" /> Zone sensible
+                </h4>
+                <p className="text-sm text-amber-800 mb-4">
+                  Ces actions impactent l'ensemble de vos données. Soyez prudent.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Button variant="outline" className="justify-start">
+                    <Download className="h-4 w-4 mr-2" /> Exporter en JSON
                   </Button>
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-medium mb-2">Supprimer les données</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Attention : Cette action est irréversible. Toutes vos
-                    données seront définitivement supprimées.
-                  </p>
-                  <Button variant="destructive" className="w-full">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Supprimer toutes les données
+                  <Button variant="destructive" className="justify-start">
+                    <Trash2 className="h-4 w-4 mr-2" /> Supprimer mon compte
                   </Button>
                 </div>
               </div>
@@ -1094,82 +1191,84 @@ export function SimpleSettings() {
       </Tabs>
 
       {/* Modal d'assignation des dossiers */}
-      {showAssignFolders && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full max-h-[80vh] overflow-hidden">
-            <CardHeader>
-              <CardTitle>Assigner des dossiers</CardTitle>
-              <CardDescription>
-                Sélectionnez les dossiers à assigner à cet assistant
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="max-h-96 overflow-y-auto">
-              {loadingFolders ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                  <span>Chargement des dossiers...</span>
-                </div>
-              ) : folders.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Aucun dossier disponible
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {folders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        id={`folder-${folder.id}`}
-                        checked={selectedFolders.includes(folder.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedFolders([...selectedFolders, folder.id]);
-                          } else {
-                            setSelectedFolders(
-                              selectedFolders.filter((id) => id !== folder.id),
-                            );
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <label
-                        htmlFor={`folder-${folder.id}`}
-                        className="flex-1 cursor-pointer"
+      {
+        showAssignFolders && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="max-w-md w-full max-h-[80vh] overflow-hidden">
+              <CardHeader>
+                <CardTitle>Assigner des dossiers</CardTitle>
+                <CardDescription>
+                  Sélectionnez les dossiers à assigner à cet assistant
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="max-h-96 overflow-y-auto">
+                {loadingFolders ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Chargement des dossiers...</span>
+                  </div>
+                ) : folders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Aucun dossier disponible
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {folders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
                       >
-                        <div className="font-medium">{folder.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Client: {folder.client?.name || "Non spécifié"} •
-                          Exercice: {folder.fiscalYear}
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAssignFolders(null);
-                  setSelectedFolders([]);
-                }}
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={() => handleAssignFolders(showAssignFolders)}
-                disabled={selectedFolders.length === 0}
-              >
-                Assigner ({selectedFolders.length})
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+                        <input
+                          type="checkbox"
+                          id={`folder-${folder.id}`}
+                          checked={selectedFolders.includes(folder.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFolders([...selectedFolders, folder.id]);
+                            } else {
+                              setSelectedFolders(
+                                selectedFolders.filter((id) => id !== folder.id),
+                              );
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <label
+                          htmlFor={`folder-${folder.id}`}
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="font-medium">{folder.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Client: {folder.client?.name || "Non spécifié"} •
+                            Exercice: {folder.fiscalYear}
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+              <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAssignFolders(null);
+                    setSelectedFolders([]);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => handleAssignFolders(showAssignFolders)}
+                  disabled={selectedFolders.length === 0}
+                >
+                  Assigner ({selectedFolders.length})
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )
+      }
     </div>
   );
 }

@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useTranslation } from "../hooks/useTranslation";
 import {
   Card,
   CardContent,
@@ -35,31 +36,14 @@ import {
   SelectValue,
 } from "./ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-
-interface RegisterForm {
-  firstName: string;
-  lastName: string;
-  email?: string;
-  phoneCountryCode: string;
-  phoneNumber: string;
-  country: string;
-  role: "ASSISTANT" | "COMPTABLE" | "ADMIN";
-  maxAssistants: number;
-  companyName: string;
-  legalForm: string;
-  taxNumber: string;
-  address: string;
-  city: string;
-  password: string;
-  confirmPassword: string;
-}
+import { RegisterFormData } from "../hooks/useLogin";
 
 interface RegisterPageProps {
-  registerForm: RegisterForm;
+  registerForm: RegisterFormData;
   registerStep: number;
   registerProgress: number;
   isRegistering: boolean;
-  onRegisterChange: (field: keyof RegisterForm, value: string | number) => void;
+  onRegisterChange: (field: keyof RegisterFormData, value: string | number) => void;
   onRegisterSubmit: (e: React.FormEvent) => void;
   onNextStep: () => void;
   onPreviousStep: () => void;
@@ -78,6 +62,7 @@ export function RegisterPage({
   onPreviousStep,
   isStepValid,
 }: RegisterPageProps) {
+  const { t } = useTranslation();
   const stepVariants = {
     initial: { opacity: 0, x: 20 },
     animate: { opacity: 1, x: 0 },
@@ -144,7 +129,7 @@ export function RegisterPage({
           >
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="register-firstName">Prénom *</Label>
+                <Label htmlFor="register-firstName">{t("firstName")} *</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -156,6 +141,7 @@ export function RegisterPage({
                     }
                     placeholder="Jean"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -172,7 +158,7 @@ export function RegisterPage({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="register-lastName">Nom *</Label>
+                <Label htmlFor="register-lastName">{t("lastName")} *</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -184,6 +170,7 @@ export function RegisterPage({
                     }
                     placeholder="Dupont"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -200,7 +187,7 @@ export function RegisterPage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-phone">Numéro de téléphone *</Label>
+              <Label htmlFor="register-phone">{t("phoneNumber")} *</Label>
               <div className="flex gap-2">
                 <Select
                   value={registerForm.phoneCountryCode || "+237"}
@@ -230,6 +217,7 @@ export function RegisterPage({
                     }
                     placeholder="6 67 12 34 56"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -259,7 +247,7 @@ export function RegisterPage({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-email">Email professionnel</Label>
+              <Label htmlFor="register-email">{t("email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -269,6 +257,7 @@ export function RegisterPage({
                   onChange={(e) => onRegisterChange("email", e.target.value)}
                   placeholder="jean.dupont@entreprise.com"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
                 />
               </div>
               {registerForm.email &&
@@ -278,7 +267,7 @@ export function RegisterPage({
                     animate={{ opacity: 1, height: "auto" }}
                     className="text-xs text-red-500"
                   >
-                    Format d'email invalide
+                    {t("invalidEmail")}
                   </motion.p>
                 )}
             </div>
@@ -290,7 +279,7 @@ export function RegisterPage({
                 onClick={onNextStep}
                 disabled={!isStepValid(1)}
               >
-                Suivant
+                {t("next")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </motion.div>
@@ -369,7 +358,7 @@ export function RegisterPage({
                     onClick={onNextStep}
                     disabled={!isStepValid(2)}
                   >
-                    Suivant
+                    {t("next")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -446,7 +435,7 @@ export function RegisterPage({
                     onClick={onNextStep}
                     disabled={!isStepValid(3)}
                   >
-                    Suivant
+                    {t("next")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -532,7 +521,7 @@ export function RegisterPage({
                       onClick={onNextStep}
                       disabled={!isStepValid(4)}
                     >
-                      Suivant
+                      {t("next")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </motion.div>
@@ -563,6 +552,7 @@ export function RegisterPage({
                   onChange={(e) => onRegisterChange("password", e.target.value)}
                   placeholder="VotreMotDePasse123!"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -666,6 +656,7 @@ export function RegisterPage({
                   }
                   placeholder="Confirmez votre mot de passe"
                   className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -716,7 +707,7 @@ export function RegisterPage({
                     ) : (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Créer mon compte
+                        {t("createAccount")}
                       </>
                     )}
                   </Button>
@@ -751,7 +742,8 @@ export function RegisterPage({
                     }
                     placeholder="VotreMotDePasse123!"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-                    required
+                    autoComplete="new-password"
+                  required
                   />
                 </div>
 
@@ -854,7 +846,8 @@ export function RegisterPage({
                     }
                     placeholder="Confirmez votre mot de passe"
                     className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
-                    required
+                    autoComplete="new-password"
+                  required
                   />
                 </div>
                 {registerForm.confirmPassword &&
@@ -904,7 +897,7 @@ export function RegisterPage({
                       ) : (
                         <>
                           <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Créer mon compte
+                          {t("createAccount")}
                         </>
                       )}
                     </Button>
@@ -926,7 +919,7 @@ export function RegisterPage({
     >
       <Card className="shadow-lg border-0">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Créer un compte</CardTitle>
+            <CardTitle className="text-xl">{t("createAccount")}</CardTitle>
           <CardDescription>
             Étape {registerStep} sur {totalSteps}
           </CardDescription>

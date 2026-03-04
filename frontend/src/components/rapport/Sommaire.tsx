@@ -1,11 +1,16 @@
 import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
+import { Pencil, Save, Download, FileText, FileSpreadsheet, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useApp } from "../../contexts/AppContext";
+import { dsfTemplateService } from "../../services/dsf-template.service";
 
 const Sommaire: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
+  const { selectedFolder } = useApp();
+  const folderId = selectedFolder?.id;
 
   const downloadPDF = async () => {
     if (reportRef.current) {
@@ -24,6 +29,7 @@ const Sommaire: React.FC = () => {
     }
   };
 
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
@@ -34,9 +40,8 @@ const Sommaire: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-blue-600"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${isEditing ? "bg-green-600" : "bg-blue-600"
+              }`}
           >
             {isEditing ? (
               <>

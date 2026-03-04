@@ -20,6 +20,7 @@ import assistantRoutes from "./routes/assistant.routes";
 // import reportRoutes from "./routes/report.routes";
 import auditRoutes from "./routes/audit.routes";
 import notesRoutes from "./routes/notes.routes";
+import dsfTemplateRoutes from "./routes/dsf-template.routes";
 // import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
@@ -69,6 +70,7 @@ app.use("/api/assistants", assistantRoutes);
 // app.use("/api/reports", reportRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/notes", notesRoutes);
+app.use("/api/dsf-template", dsfTemplateRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling

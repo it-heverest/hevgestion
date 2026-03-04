@@ -1,5 +1,9 @@
-import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { useApp } from "../../contexts/AppContext";
+import { notesService } from "../../services/notes.service";
 
 interface HeaderData {
   entityName: string;
@@ -22,12 +26,17 @@ interface ExerciseData {
 const Note3F: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = selectedFolder?.id;
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [headerInfo, setHeaderInfo] = useState<HeaderData>({
-    entityName: "NASHSOFT SYSTEMS",
-    fiscalYear: "2024",
-    idNumber: "RC/DLA/2024/B/123",
-    duration: "12",
+    entityName: "",
+    fiscalYear: "",
+    idNumber: "",
+    duration: "",
   });
 
   const [globalAmount, setGlobalAmount] = useState<string>("");
@@ -36,11 +45,11 @@ const Note3F: React.FC = () => {
   // Exercice N data
   const [exerciseN, setExerciseN] = useState<ExerciseData>({
     rows: [
-      { id: "n1", account: "60…", amount: "" },
-      { id: "n2", account: "61…", amount: "" },
-      { id: "n3", account: "62…", amount: "" },
-      { id: "n4", account: "63…", amount: "" },
-      { id: "n5", account: "…", amount: "" },
+      { id: "n1", account: "", amount: "" },
+      { id: "n2", account: "", amount: "" },
+      { id: "n3", account: "", amount: "" },
+      { id: "n4", account: "", amount: "" },
+      { id: "n5", account: "", amount: "" },
     ],
     total: "",
   });
@@ -48,11 +57,11 @@ const Note3F: React.FC = () => {
   // Charges à répartir data
   const [chargesToSpread, setChargesToSpread] = useState<ExerciseData>({
     rows: [
-      { id: "c1", account: "60…", amount: "" },
-      { id: "c2", account: "61…", amount: "" },
-      { id: "c3", account: "62…", amount: "" },
-      { id: "c4", account: "63…", amount: "" },
-      { id: "c5", account: "…", amount: "" },
+      { id: "c1", account: "", amount: "" },
+      { id: "c2", account: "", amount: "" },
+      { id: "c3", account: "", amount: "" },
+      { id: "c4", account: "", amount: "" },
+      { id: "c5", account: "", amount: "" },
     ],
     total: "",
   });
@@ -75,6 +84,128 @@ const Note3F: React.FC = () => {
   const [totalExerciseN4, setTotalExerciseN4] = useState<string>("");
   const [totalGeneral, setTotalGeneral] = useState<string>("");
 
+  useEffect(() => {
+    if (folderId) {
+      loadNoteData();
+    }
+  }, [folderId]);
+
+  useEffect(() => {
+    if (selectedClient && selectedFolder && !headerInfo.entityName) {
+      setHeaderInfo({
+        entityName: selectedClient.name || "",
+        fiscalYear: selectedFolder.fiscalYear?.toString() || "",
+        idNumber: selectedClient.taxNumber || "",
+        duration: "12",
+      });
+    }
+  }, [selectedClient, selectedFolder]);
+
+  const loadNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const noteData = (await notesService.getNoteData(folderId, "3F")) as any;
+      if (!noteData) return;
+
+      if (noteData.entete) {
+        setHeaderInfo({
+          entityName: noteData.entete.entityName || "",
+          fiscalYear: noteData.entete.fiscalYear || "",
+          idNumber: noteData.entete.idNumber || "",
+          duration: noteData.entete.duration || "",
+        });
+      }
+
+      if (noteData.montantGlobalEtDuree && noteData.montantGlobalEtDuree.length > 0) {
+        setGlobalAmount(noteData.montantGlobalEtDuree[0]?.fraisEtablissement?.toString() || "");
+        setRetainedDuration(noteData.montantGlobalEtDuree[1]?.fraisEtablissement?.toString() || "");
+      }
+
+      if (noteData.exerciceN) {
+        const rowsN = noteData.exerciceN.map((row: any, i: number) => ({
+          id: `n${i + 1}`,
+          account: row.fraisEtablissementCompte || "",
+          amount: row.fraisEtablissementMontant?.toString() || "",
+        }));
+        setExerciseN(prev => ({ ...prev, rows: rowsN.slice(0, 5) }));
+
+        const rowsC = noteData.exerciceN.map((row: any, i: number) => ({
+          id: `c${i + 1}`,
+          account: row.chargesARepartirCompte || "",
+          amount: row.chargesARepartirMontant?.toString() || "",
+        }));
+        setChargesToSpread(prev => ({ ...prev, rows: rowsC.slice(0, 5) }));
+
+        const rowsP = noteData.exerciceN.map((row: any, i: number) => ({
+          id: `p${i + 1}`,
+          account: row.primesRemboursementCompte || "",
+          amount: row.primesRemboursementMontant?.toString() || "",
+        }));
+        setPrimes(prev => ({ ...prev, rows: rowsP.slice(0, 5) }));
+      }
+
+      if (noteData.totaux && noteData.totaux.length > 0) {
+        setExerciseN(prev => ({ ...prev, total: noteData.totaux[0]?.fraisEtablissementMontant?.toString() || "" }));
+        setChargesToSpread(prev => ({ ...prev, total: noteData.totaux[0]?.chargesARepartirMontant?.toString() || "" }));
+        setPrimes(prev => ({ ...prev, total: noteData.totaux[0]?.primesRemboursementMontant?.toString() || "" }));
+
+        setTotalExerciseN1(noteData.totaux[1]?.fraisEtablissementMontant?.toString() || "");
+        setTotalExerciseN2(noteData.totaux[2]?.fraisEtablissementMontant?.toString() || "");
+        setTotalExerciseN3(noteData.totaux[3]?.fraisEtablissementMontant?.toString() || "");
+        setTotalExerciseN4(noteData.totaux[4]?.fraisEtablissementMontant?.toString() || "");
+        setTotalGeneral(noteData.totaux[5]?.fraisEtablissementMontant?.toString() || "");
+      }
+    } catch (error) {
+      console.error("Error loading Note 3F:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsSaving(true);
+      const noteData = {
+        entete: headerInfo,
+        montantGlobalEtDuree: [
+          { fraisEtablissement: parseFloat(globalAmount) || 0, chargesARepartir: 0, primesRemboursement: 0 },
+          { fraisEtablissement: parseFloat(retainedDuration) || 0, chargesARepartir: 0, primesRemboursement: 0 },
+        ],
+        exerciceN: exerciseN.rows.map((row, i) => ({
+          fraisEtablissementCompte: row.account,
+          fraisEtablissementMontant: parseFloat(row.amount) || 0,
+          chargesARepartirCompte: chargesToSpread.rows[i].account,
+          chargesARepartirMontant: parseFloat(chargesToSpread.rows[i].amount) || 0,
+          primesRemboursementCompte: primes.rows[i].account,
+          primesRemboursementMontant: parseFloat(primes.rows[i].amount) || 0,
+        })),
+        totaux: [
+          {
+            fraisEtablissementMontant: parseFloat(exerciseN.total) || 0,
+            chargesARepartirMontant: parseFloat(chargesToSpread.total) || 0,
+            primesRemboursementMontant: parseFloat(primes.total) || 0
+          },
+          { fraisEtablissementMontant: parseFloat(totalExerciseN1) || 0 },
+          { fraisEtablissementMontant: parseFloat(totalExerciseN2) || 0 },
+          { fraisEtablissementMontant: parseFloat(totalExerciseN3) || 0 },
+          { fraisEtablissementMontant: parseFloat(totalExerciseN4) || 0 },
+          { fraisEtablissementMontant: parseFloat(totalGeneral) || 0 },
+        ]
+      };
+
+      await notesService.saveNoteData(folderId, "3F", noteData as any);
+      alert("Données sauvegardées avec succès");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving Note 3F:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleExerciseRowChange = (
     setter: React.Dispatch<React.SetStateAction<ExerciseData>>,
     id: string,
@@ -87,40 +218,6 @@ const Note3F: React.FC = () => {
         row.id === id ? { ...row, [field]: value } : row
       ),
     }));
-  };
-
-  const downloadPDF = async () => {
-    if (reportRef.current) {
-      const wasEditing = isEditing;
-      setIsEditing(false);
-
-      // Dynamically import libraries
-      setTimeout(async () => {
-        try {
-          const html2canvas = (
-            await import(
-              "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" as any
-            )
-          ).default;
-          const { jsPDF } = await import(
-            "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" as any
-          );
-
-          const canvas = await html2canvas(reportRef.current!, { scale: 2 });
-          const imgData = canvas.toDataURL("image/png");
-          const pdf = new jsPDF("p", "mm", "a4");
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-          pdf.save("note_3f_charges.pdf");
-        } catch (error) {
-          console.error("Erreur lors de la génération du PDF:", error);
-          alert("Erreur lors de la génération du PDF");
-        } finally {
-          setIsEditing(wasEditing);
-        }
-      }, 100);
-    }
   };
 
   const renderEditableCell = (
@@ -139,33 +236,117 @@ const Note3F: React.FC = () => {
     );
   };
 
+  const downloadPDF = async () => {
+    if (reportRef.current) {
+      const wasEditing = isEditing;
+      setIsEditing(false);
+
+      setTimeout(async () => {
+        try {
+          const canvas = await html2canvas(reportRef.current!, { scale: 2 });
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF("p", "mm", "a4");
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+          pdf.save("note_3f_charges.pdf");
+        } catch (error) {
+          console.error("Erreur lors de la génération du PDF:", error);
+          alert("Erreur lors de la génération du PDF");
+        } finally {
+          setIsEditing(wasEditing);
+        }
+      }, 100);
+    }
+  };
+
+  const isHeaderIncomplete =
+    !headerInfo.entityName ||
+    !headerInfo.fiscalYear ||
+    !headerInfo.idNumber ||
+    !headerInfo.duration;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!folderId || !selectedFolder) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Aucun dossier sélectionné
+          </h2>
+          <p className="text-gray-600">
+            Veuillez sélectionner un dossier pour voir la Note 3F.
+          </p>
+          {selectedClient && (
+            <p className="text-sm text-gray-500 mt-2">
+              Client: {selectedClient.name}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
-          Prévisualiser Rapport - Note 3F
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 3F - Étalement des Charges
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedClient?.name} - Exercice {selectedFolder?.fiscalYear}
+          </p>
+        </div>
         <div className="flex gap-3">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
-          </button>
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              <Pencil size={18} /> Éditer
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveNoteData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
+              >
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} /> Sauvegarder
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  loadNoteData();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Annuler
+              </button>
+            </>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
@@ -175,77 +356,116 @@ const Note3F: React.FC = () => {
         </div>
       </div>
 
+      {isLoading && (
+        <div className="max-w-[210mm] mx-auto mb-6 bg-blue-50 p-4 rounded border border-blue-200 text-blue-700 flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          Chargement des données...
+        </div>
+      )}
+
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-300"
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
-        {/* Numéro de page */}
-        <div className="text-center font-bold mb-3 text-base">16</div>
+        {isEditing && (
+          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Pencil size={16} />
+              <span className="font-medium">Mode édition activé</span>
+            </div>
+          </div>
+        )}
 
-        {/* En-tête */}
-        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 pb-3">
-          <div className="flex gap-2">
-            <span className="font-bold">Désignation entité :</span>
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de
+              l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-orange-800 underline font-bold"
+              >
+                Mettre à jour l'en-tête
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* En-tête du document */}
+        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">
+              Désignation entité :
+            </span>
             {isEditing ? (
               <input
                 value={headerInfo.entityName}
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.entityName}
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.entityName || "-"}
               </span>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Exercice clos le 31-12-</span>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">
+              Exercice clos le 31-12-
+            </span>
             {isEditing ? (
               <input
                 value={headerInfo.fiscalYear}
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.fiscalYear}
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">
+                {headerInfo.fiscalYear || "-"}
               </span>
             )}
           </div>
-          <div className="flex gap-2">
-            <span className="font-bold">Numéro d'identification :</span>
+          <div className="flex gap-2 items-end">
+            <span className="font-bold whitespace-nowrap">
+              Numéro d'identification :
+            </span>
             {isEditing ? (
               <input
                 value={headerInfo.idNumber}
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.idNumber}
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.idNumber || "-"}
               </span>
             )}
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Durée (en mois) :</span>
+          <div className="flex gap-2 items-end justify-end">
+            <span className="font-bold whitespace-nowrap">
+              Durée (en mois) :
+            </span>
             {isEditing ? (
               <input
                 value={headerInfo.duration}
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.duration}
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
+                {headerInfo.duration || "-"}
               </span>
             )}
           </div>

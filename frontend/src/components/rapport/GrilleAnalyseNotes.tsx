@@ -538,21 +538,21 @@ const GrilleAnalyseNotes: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
+    <div className="min-h-screen bg-gray-50 p-6 font-sans text-xs text-black">
       {/* Barre d'actions */}
-      <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+      <div className="w-full max-w-[210mm] mx-auto mb-8 flex justify-between items-center bg-white p-5 rounded-lg shadow-md border border-gray-200">
+        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+          <FileText className="w-7 h-7 text-blue-600" />
           Grille d'Analyse des Notes
         </h1>
-        <div className="flex gap-3">
+        <div className="flex gap-4">
           <button
             onClick={() => {
               if (isEditing) saveToBackend();
               setIsEditing(!isEditing);
             }}
             disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-white font-medium transition transform hover:scale-105 ${
               isEditing
                 ? "bg-green-600 hover:bg-green-700"
                 : "bg-blue-600 hover:bg-blue-700"
@@ -577,7 +577,7 @@ const GrilleAnalyseNotes: React.FC = () => {
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium transform hover:scale-105"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -587,195 +587,216 @@ const GrilleAnalyseNotes: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-full max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border border-gray-300"
       >
         {/* Numéro de page */}
-        <div className="text-center font-bold mb-2 text-lg">4</div>
+        <div className="text-right font-bold mb-6 text-base text-gray-600">Page 4</div>
 
         {/* En-tête */}
-        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
-          <div className="flex gap-2">
-            <span className="font-bold">Désignation entité :</span>
-            {isEditing ? (
-              <input
-                value={headerInfo.entityName}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
-              />
-            ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.entityName}
-              </span>
-            )}
+        <div className="mb-6 pb-4 border-b-2 border-gray-300">
+          {/* Première ligne d'en-tête */}
+          <div className="grid grid-cols-2 gap-8 mb-4">
+            {/* Colonne gauche: Désignation entité */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">
+                Désignation de l'entité :
+              </label>
+              {isEditing ? (
+                <input
+                  value={headerInfo.entityName}
+                  onChange={(e) =>
+                    setHeaderInfo({ ...headerInfo, entityName: e.target.value })
+                  }
+                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium"
+                />
+              ) : (
+                <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
+                  {headerInfo.entityName || "________________"}
+                </span>
+              )}
+            </div>
+
+            {/* Colonne droite: Exercice clos */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">
+                Exercice clos le 31-12- :
+              </label>
+              {isEditing ? (
+                <input
+                  value={headerInfo.fiscalYear}
+                  onChange={(e) =>
+                    setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
+                  }
+                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium w-full"
+                />
+              ) : (
+                <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
+                  {headerInfo.fiscalYear || "________"}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Exercice clos le 31-12-</span>
-            {isEditing ? (
-              <input
-                value={headerInfo.fiscalYear}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-20 px-1"
-              />
-            ) : (
-              <span className="border-b border-dotted border-gray-400 w-20 text-center">
-                {headerInfo.fiscalYear}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <span className="font-bold">Numéro d'identification :</span>
-            {isEditing ? (
-              <input
-                value={headerInfo.idNumber}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
-              />
-            ) : (
-              <span className="border-b border-dotted border-gray-400 flex-1">
-                {headerInfo.idNumber}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2 justify-end">
-            <span className="font-bold">Durée (en mois) :</span>
-            {isEditing ? (
-              <input
-                value={headerInfo.duration}
-                onChange={(e) =>
-                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
-                }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
-              />
-            ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center">
-                {headerInfo.duration}
-              </span>
-            )}
+
+          {/* Deuxième ligne d'en-tête */}
+          <div className="grid grid-cols-2 gap-8">
+            {/* Colonne gauche: Numéro d'identification */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">
+                Numéro d'identification :
+              </label>
+              {isEditing ? (
+                <input
+                  value={headerInfo.idNumber}
+                  onChange={(e) =>
+                    setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
+                  }
+                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium"
+                />
+              ) : (
+                <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
+                  {headerInfo.idNumber || "________________"}
+                </span>
+              )}
+            </div>
+
+            {/* Colonne droite: Durée */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">
+                Durée (en mois) :
+              </label>
+              {isEditing ? (
+                <input
+                  value={headerInfo.duration}
+                  onChange={(e) =>
+                    setHeaderInfo({ ...headerInfo, duration: e.target.value })
+                  }
+                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium w-full"
+                />
+              ) : (
+                <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
+                  {headerInfo.duration || "____"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Titre Principal */}
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-4">
+        <div className="bg-gray-400 border-2 border-gray-500 py-3 px-4 text-center font-bold mb-6 text-lg">
           GRILLE D'ANALYSE DES NOTES
         </div>
 
         {/* Tableau */}
-        <table className="w-full border-collapse border border-gray-400 text-[10px]">
+        <table className="w-full border-collapse border-2 border-gray-500 text-[11px]">
           <thead>
-            <tr className="bg-gray-300">
-              <th rowSpan={2} className="border border-gray-400 p-1 pl-2">
+            <tr className="bg-gray-350">
+              <th rowSpan={2} className="border-2 border-gray-500 p-3 text-left font-bold">
                 NOTES/ ANNEXES
               </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 pl-2">
+              <th rowSpan={2} className="border-2 border-gray-500 p-3 text-left font-bold">
                 INTITULE
               </th>
               <th
                 colSpan={4}
-                className="border border-gray-400 p-1 text-center"
+                className="border-2 border-gray-500 p-3 text-center font-bold bg-gray-300"
               >
                 STATISTIQUES DSF
               </th>
             </tr>
             <tr className="bg-gray-300">
-              <th className="border border-gray-400 p-1 text-center">
+              <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
                 Eco Soc Fisc
               </th>
-              <th className="border border-gray-400 p-1 text-center">
-                Eco Soc Fisc Obl
+              <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
+                Obl
               </th>
-              <th className="border border-gray-400 p-1 text-center">
-                Eco Soc Fisc Stat
+              <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
+                Stat
               </th>
-              <th className="border border-gray-400 p-1 text-center">
-                Eco Soc Fisc Cial
+              <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
+                Cial
               </th>
             </tr>
           </thead>
           <tbody>
             {notes.map((note, index) => (
-              <tr key={note.note}>
-                <td className="border border-gray-400 p-1 font-bold">
+              <tr key={note.note} className="hover:bg-gray-50">
+                <td className="border-2 border-gray-500 p-2 font-bold text-center align-middle w-20">
                   {note.note}
                 </td>
-                <td className="border border-gray-400 p-1 pl-2">
-                  {note.title}
+                <td className="border-2 border-gray-500 p-2 text-left align-middle">
+                  <span className="text-xs leading-tight">{note.title}</span>
                 </td>
-                <td className="border border-gray-400 p-1 text-center">
+                <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
                       onClick={() => toggleStatus(index, "ecoSocFisc")}
-                      className="w-full h-full flex justify-center items-center"
+                      className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
                       {note.ecoSocFisc ? (
-                        <Check className="text-green-600" size={16} />
+                        <Check className="text-green-600 font-bold" size={18} />
                       ) : (
-                        <X className="text-red-600" size={16} />
+                        <X className="text-gray-400" size={18} />
                       )}
                     </button>
                   ) : note.ecoSocFisc ? (
-                    <Check className="text-green-600 mx-auto" size={16} />
+                    <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
-                    ""
+                    <span className="text-gray-300">-</span>
                   )}
                 </td>
-                <td className="border border-gray-400 p-1 text-center">
+                <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
                       onClick={() => toggleStatus(index, "ecoSocFiscObli")}
-                      className="w-full h-full flex justify-center items-center"
+                      className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
                       {note.ecoSocFiscObli ? (
-                        <Check className="text-green-600" size={16} />
+                        <Check className="text-green-600 font-bold" size={18} />
                       ) : (
-                        <X className="text-red-600" size={16} />
+                        <X className="text-gray-400" size={18} />
                       )}
                     </button>
                   ) : note.ecoSocFiscObli ? (
-                    <Check className="text-green-600 mx-auto" size={16} />
+                    <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
-                    ""
+                    <span className="text-gray-300">-</span>
                   )}
                 </td>
-                <td className="border border-gray-400 p-1 text-center">
+                <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
                       onClick={() => toggleStatus(index, "ecoSocFiscStat")}
-                      className="w-full h-full flex justify-center items-center"
+                      className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
                       {note.ecoSocFiscStat ? (
-                        <Check className="text-green-600" size={16} />
+                        <Check className="text-green-600 font-bold" size={18} />
                       ) : (
-                        <X className="text-red-600" size={16} />
+                        <X className="text-gray-400" size={18} />
                       )}
                     </button>
                   ) : note.ecoSocFiscStat ? (
-                    <Check className="text-green-600 mx-auto" size={16} />
+                    <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
-                    ""
+                    <span className="text-gray-300">-</span>
                   )}
                 </td>
-                <td className="border border-gray-400 p-1 text-center">
+                <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
                       onClick={() => toggleStatus(index, "ecoSocFiscCial")}
-                      className="w-full h-full flex justify-center items-center"
+                      className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
                       {note.ecoSocFiscCial ? (
-                        <Check className="text-green-600" size={16} />
+                        <Check className="text-green-600 font-bold" size={18} />
                       ) : (
-                        <X className="text-red-600" size={16} />
+                        <X className="text-gray-400" size={18} />
                       )}
                     </button>
                   ) : note.ecoSocFiscCial ? (
-                    <Check className="text-green-600 mx-auto" size={16} />
+                    <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
-                    ""
+                    <span className="text-gray-300">-</span>
                   )}
                 </td>
               </tr>
@@ -784,10 +805,12 @@ const GrilleAnalyseNotes: React.FC = () => {
         </table>
 
         {/* Légende */}
-        <div className="mt-4 text-[10px] text-gray-600">
-          <strong>Légende :</strong> Eco - Statistiques économiques ; Soc -
-          Statistiques sociales ; Fisc - Statistiques fiscales ; Obl -
-          Obligatoire ; Stat - Statistique ; Cial - Commercial
+        <div className="mt-6 pt-4 border-t border-gray-300 text-[10px] text-gray-700 leading-relaxed">
+          <p className="font-bold mb-2">Légende :</p>
+          <p>
+            <strong>Eco</strong> = Statistiques économiques | <strong>Soc</strong> = Statistiques sociales | <strong>Fisc</strong> = Statistiques fiscales |
+            <strong> Obl</strong> = Obligatoire | <strong>Stat</strong> = Statistique | <strong>Cial</strong> = Commercial
+          </p>
         </div>
       </div>
     </div>

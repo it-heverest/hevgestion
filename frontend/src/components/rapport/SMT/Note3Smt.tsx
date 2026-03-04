@@ -1,7 +1,9 @@
-import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText, Plus, Trash2 } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Pencil, Save, Download, FileText, Plus, Trash2, X, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { useApp } from "../../../contexts/AppContext";
+import { notesService } from "../../../services/notes.service";
 
 interface CreanceItem {
   id: number;
@@ -22,9 +24,14 @@ interface DetteItem {
 const Note3Smt: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = selectedFolder?.id;
 
-  // En-tête
-  const [header, setHeader] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // En-tête (standardized to 'entete' used by other notes)
+  const [entete, setEntete] = useState({
     designationEntite: "",
     numeroIdentification: "",
     exerciceClosLe: "",
@@ -46,6 +53,67 @@ const Note3Smt: React.FC = () => {
       montant1erJan: "0",
     },
   ]);
+
+  useEffect(() => {
+    if (folderId) {
+      loadNoteData();
+    }
+  }, [folderId]);
+
+  useEffect(() => {
+    if (selectedClient && selectedFolder && !entete.designationEntite) {
+      setEntete({
+        designationEntite: selectedClient.name || "",
+        exerciceClosLe: selectedFolder.fiscalYear?.toString() || "",
+        numeroIdentification: selectedClient.taxNumber || "",
+        dureeMois: "12",
+      });
+    }
+  }, [selectedClient, selectedFolder]);
+
+  const loadNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const noteData = (await notesService.getNoteData(folderId, "3SMT")) as any;
+      if (!noteData) return;
+
+      if (noteData.entete) {
+        setEntete(noteData.entete);
+      } else if (noteData.header) {
+        // Fallback for legacy data if any
+        setEntete(noteData.header);
+      }
+
+      if (noteData.creances) setCreances(noteData.creances);
+      if (noteData.dettes) setDettes(noteData.dettes);
+    } catch (error) {
+      console.error("Error loading Note 3 SMT:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveNoteData = async () => {
+    if (!folderId) return;
+    try {
+      setIsSaving(true);
+      const noteData = {
+        entete,
+        creances,
+        dettes,
+      };
+
+      await notesService.saveNoteData(folderId, "3SMT", noteData as any);
+      alert("Données sauvegardées avec succès");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving Note 3 SMT:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const addCreance = () => {
     const newId = Math.max(...creances.map((i) => i.id), 0) + 1;
@@ -116,171 +184,236 @@ const Note3Smt: React.FC = () => {
       setIsEditing(false);
       await new Promise((r) => setTimeout(r, 100));
 
-      const canvas = await html2canvas(reportRef.current!, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("l", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save("note_3_creances_dettes_non_echues.pdf");
-
-      setIsEditing(wasEditing);
+      try {
+        const canvas = await html2canvas(reportRef.current!, { scale: 2 });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("l", "mm", "a4");
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save("note_3_creances_dettes_non_echues.pdf");
+      } catch (error) {
+        console.error("Erreur PDF:", error);
+      } finally {
+        setIsEditing(wasEditing);
+      }
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-10 px-6 font-sans text-xs">
-      {/* Barre d'actions */}
-      <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-5 rounded-xl shadow-lg">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-8 h-8 text-blue-700" />
-          NOTE 3 - État des créances et dettes non échues au 31 décembre
-        </h1>
+  const isHeaderIncomplete =
+    !entete.designationEntite ||
+    !entete.exerciceClosLe ||
+    !entete.numeroIdentification ||
+    !entete.dureeMois;
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium shadow transition-all ${
-              isEditing
-                ? "bg-orange-600 hover:bg-orange-700 text-white"
-                : "bg-blue-700 hover:bg-blue-800 text-white"
-            }`}
-          >
-            {isEditing ? <X size={18} /> : <Pencil size={18} />}
-            {isEditing ? "Annuler" : "Éditer"}
-          </button>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
 
-          {isEditing && (
-            <button
-              onClick={() => {
-                setIsEditing(false);
-                alert("Modifications enregistrées !");
-              }}
-              className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-all shadow"
-            >
-              <Save size={18} /> Sauvegarder
-            </button>
+  if (!folderId || !selectedFolder) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Aucun dossier sélectionné
+          </h2>
+          <p className="text-gray-600">
+            Veuillez sélectionner un dossier pour voir la Note 3 SMT.
+          </p>
+          {selectedClient && (
+            <p className="text-sm text-gray-500 mt-2">
+              Client: {selectedClient.name}
+            </p>
           )}
+        </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
+      {/* Barre d'actions */}
+      <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+        <div>
+          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-600" />
+            Note 3 SMT - Créances et Dettes Non Échues
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedClient?.name} - Exercice {selectedFolder?.fiscalYear}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              <Pencil size={18} /> Éditer
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={saveNoteData}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
+              >
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} /> Sauvegarder
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  loadNoteData();
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+              >
+                Annuler
+              </button>
+            </>
+          )}
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-6 py-2.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-all shadow"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
           >
-            <Download size={18} /> PDF
+            <Download size={18} /> Télécharger PDF
           </button>
         </div>
       </div>
 
-      {/* Document A4 paysage */}
+      {isLoading && (
+        <div className="max-w-[297mm] mx-auto mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-700 flex items-center gap-2">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          Chargement des données...
+        </div>
+      )}
+
+      {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
+        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+          }`}
       >
-        <style jsx>{`
-          .header-gray {
-            background-color: #e0e0e0;
-          }
-          .title-gray {
-            background-color: #d0d0d0;
-            font-weight: bold;
-          }
-          .total-row {
-            background-color: #c0c0c0;
-            font-weight: bold;
-          }
-          .edit-input {
-            width: 100%;
-            padding: 4px 6px;
-            border: 1px solid #999;
-            border-radius: 4px;
-            background: #fff9e6;
-            font-size: 11px;
-          }
-          .edit-input:focus {
-            outline: 2px solid #3b82f6;
-            background: #fff;
-          }
-          .delete-btn {
-            opacity: 0.6;
-          }
-          .delete-btn:hover {
-            opacity: 1;
-          }
-        `}</style>
+        {isEditing && (
+          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Pencil size={16} />
+              <span className="font-medium">Mode édition activé</span>
+            </div>
+          </div>
+        )}
 
-        {/* En-tête */}
-        <div className="p-6 border-b-2 border-gray-700 grid grid-cols-2 gap-6">
-          <div className="flex items-center gap-3">
+        {isHeaderIncomplete && (
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center">
+            <div className="text-orange-800">
+              <span className="font-bold">Attention :</span> Certains champs de
+              l'en-tête sont vides.
+            </div>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-orange-800 underline font-bold"
+              >
+                Mettre à jour l'en-tête
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* En-tête du document */}
+        <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
+          <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Désignation entité :
             </span>
             {isEditing ? (
               <input
-                className="edit-input flex-1"
-                value={header.designationEntite}
+                value={entete.designationEntite}
                 onChange={(e) =>
-                  setHeader({ ...header, designationEntite: e.target.value })
+                  setEntete({ ...entete, designationEntite: e.target.value })
                 }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-600 flex-1 min-h-[22px]">
-                {header.designationEntite || ""}
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {entete.designationEntite || "-"}
               </span>
             )}
           </div>
-
-          <div className="flex items-center gap-3 justify-end">
+          <div className="flex gap-2 items-end justify-end">
             <span className="font-bold whitespace-nowrap">
-              Exercice clos le :
+              Exercice clos le 31-12-
             </span>
             {isEditing ? (
               <input
-                className="edit-input w-44 text-center"
-                value={header.exerciceClosLe}
+                value={entete.exerciceClosLe}
                 onChange={(e) =>
-                  setHeader({ ...header, exerciceClosLe: e.target.value })
+                  setEntete({ ...entete, exerciceClosLe: e.target.value })
                 }
+                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-600 w-44 text-center">
-                {header.exerciceClosLe || ""}
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">
+                {entete.exerciceClosLe || "-"}
               </span>
             )}
           </div>
-
-          <div className="flex items-center gap-3">
+          <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Numéro d'identification :
             </span>
             {isEditing ? (
               <input
-                className="edit-input flex-1"
-                value={header.numeroIdentification}
+                value={entete.numeroIdentification}
                 onChange={(e) =>
-                  setHeader({ ...header, numeroIdentification: e.target.value })
+                  setEntete({ ...entete, numeroIdentification: e.target.value })
                 }
+                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-600 flex-1 min-h-[22px]">
-                {header.numeroIdentification || ""}
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {entete.numeroIdentification || "-"}
               </span>
             )}
           </div>
-
-          <div className="flex items-center gap-3 justify-end">
+          <div className="flex gap-2 items-end justify-end">
             <span className="font-bold whitespace-nowrap">
               Durée (en mois) :
             </span>
-            <span className="border-b border-dotted border-gray-600 w-16 text-center">
-              {header.dureeMois}
-            </span>
+            {isEditing ? (
+              <input
+                value={entete.dureeMois}
+                onChange={(e) =>
+                  setEntete({ ...entete, dureeMois: e.target.value })
+                }
+                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
+                {entete.dureeMois || "-"}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Titre principal */}
-        <div className="title-gray py-4 text-center font-bold text-base border-b-2 border-gray-700">
-          ÉTAT DES CRÉANCES ET DES DETTES NON ÉCHUES AU 31 DÉCEMBRE
-          .........................................
+        <div className="bg-gray-300 font-bold py-2 text-center text-xs border border-gray-400 mb-4">
+          NOTE 3 <br /> ÉTAT DES CRÉANCES ET DES DETTES NON ÉCHUES AU 31 DÉCEMBRE
         </div>
 
         {/* Tableau Créances */}
@@ -315,7 +448,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input text-center"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] text-center focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.date}
                         onChange={(e) =>
                           updateCreance(item.id, "date", e.target.value)
@@ -329,7 +462,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.nomClient}
                         onChange={(e) =>
                           updateCreance(item.id, "nomClient", e.target.value)
@@ -343,7 +476,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input text-right"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] text-right focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.montant31Dec}
                         onChange={(e) =>
                           updateCreance(item.id, "montant31Dec", e.target.value)
@@ -357,7 +490,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input text-right"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] text-right focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.montant1erJan}
                         onChange={(e) =>
                           updateCreance(
@@ -376,7 +509,7 @@ const Note3Smt: React.FC = () => {
                     <td className="border border-gray-600 p-2 text-center">
                       <button
                         onClick={() => removeCreance(item.id)}
-                        className="delete-btn text-red-600"
+                        className="opacity-60 hover:opacity-100 text-red-600"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -386,7 +519,7 @@ const Note3Smt: React.FC = () => {
               ))}
 
               {/* Total Créances */}
-              <tr className="total-row">
+              <tr className="bg-[#c0c0c0] font-bold">
                 <td
                   colSpan={isEditing ? 2 : 1}
                   className="border border-gray-600 p-2 font-bold text-right"
@@ -466,7 +599,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.nomFournisseur}
                         onChange={(e) =>
                           updateDette(item.id, "nomFournisseur", e.target.value)
@@ -480,7 +613,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input text-right"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] text-right focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.montant31Dec}
                         onChange={(e) =>
                           updateDette(item.id, "montant31Dec", e.target.value)
@@ -494,7 +627,7 @@ const Note3Smt: React.FC = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        className="edit-input text-right"
+                        className="w-full px-[6px] py-[4px] border border-[#999] rounded-md bg-[#fff9e6] text-[11px] text-right focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:bg-white"
                         value={item.montant1erJan}
                         onChange={(e) =>
                           updateDette(item.id, "montant1erJan", e.target.value)
@@ -509,7 +642,7 @@ const Note3Smt: React.FC = () => {
                     <td className="border border-gray-600 p-2 text-center">
                       <button
                         onClick={() => removeDette(item.id)}
-                        className="delete-btn text-red-600"
+                        className="opacity-60 hover:opacity-100 text-red-600"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -519,7 +652,7 @@ const Note3Smt: React.FC = () => {
               ))}
 
               {/* Total Dettes */}
-              <tr className="total-row">
+              <tr className="bg-[#c0c0c0] font-bold">
                 <td
                   colSpan={isEditing ? 2 : 1}
                   className="border border-gray-600 p-2 font-bold text-right"
