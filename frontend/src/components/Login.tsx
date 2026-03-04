@@ -75,10 +75,8 @@ export function Login() {
           >
             <BarChart3 className="h-8 w-8 text-white" />
           </motion.div>
-          <hHevGestion DSF
-          </h1>
-          <p className="text-muted-foreground">{t("systemStatusCompliant")}
-          <p className="text-muted-foreground">Gestion Comptable OHADA</p>
+          <h1 className="text-3xl font-bold text-gray-900">HevGestion DSF</h1>
+          <p className="text-muted-foreground">{t("systemStatusCompliant")}</p>
         </motion.div>
 
         <Tabs
@@ -106,7 +104,7 @@ export function Login() {
             <LoginPage
               loginForm={loginForm}
               isLoggingIn={isLoggingIn}
-              onLoginChange={handleLoginChange}
+              onLoginChange={handleLoginChange as any}
               onLoginSubmit={handleLoginSubmit}
               onSwitchToRegister={() => setActiveTab("register")}
             />

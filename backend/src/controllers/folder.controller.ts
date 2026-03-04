@@ -4,6 +4,7 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../lib/errors";
 import { FolderStatus } from "@prisma/client";
+import { auditService } from "../services/audit.service";
 
 const VALID_STATUSES: string[] = [
   "DRAFT",
@@ -331,6 +332,9 @@ class FolderController {
         },
       });
 
+      // Log folder creation
+      await auditService.logFolderCreated(userId, folder, folder.id);
+
       res.status(201).json({ message: "Folder created successfully", folder });
     } catch (error) {
       next(error);
@@ -389,6 +393,9 @@ class FolderController {
           },
         },
       });
+
+      // Log folder duplication
+      await auditService.logFolderCreated(userId, folder, folder.id);
 
       res.status(201).json({ message: "Folder duplicated successfully", folder });
     } catch (error) {
