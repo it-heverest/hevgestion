@@ -42,8 +42,9 @@ import {
   Loader2,
   AlertCircle,
   User,
+  Loader,
 } from "lucide-react";
-import type { Client } from "../services/client.service";
+import type { Client } from "@/types";
 import Refresher from "./ui/refresher";
 
 export function CountrySelector() {
@@ -74,12 +75,11 @@ export function CountrySelector() {
     reloadInitialData,
   } = useApp();
 
-  // Check if this is onboarding flow (user has no clients)
-  const isOnboarding = clients.length === 0;
 
-  // Nouveau client form
-  const [newClient, setNewClient] = useState({
-    name: "",
+
+
+  const [newClient, setNewClient] = useState<Partial<Client>>({
+  name: "",
     legalForm: "SARL",
     clientType: "NORMAL",
     taxNumber: "",
@@ -87,7 +87,7 @@ export function CountrySelector() {
     city: "",
     phone: "",
     email: "",
-  });
+  })
 
   // Step 1: Handle authentication and initialization using AppContext
   useEffect(() => {
@@ -103,15 +103,8 @@ export function CountrySelector() {
       // If not authenticated, redirect to login with new route
       if (!isAuthenticated) {
         console.log("🚫 Not authenticated, redirecting to login");
-        navigate("/web/user/login");
+        navigate("fr/web/user/login");
         return;
-      }
-
-      // Only clear client selection if we're in onboarding mode (no clients) or if explicitly needed
-      // Don't clear if we already have a selected client from session restoration
-      if (user && isOnboarding && !selectedClient) {
-        console.log("🧹 Clearing previous client selection (onboarding mode)");
-        setSelectedClient(null);
       }
 
       // Restore selections from encrypted storage using AppContext
@@ -274,66 +267,66 @@ export function CountrySelector() {
   }, [isDialogOpen, selectedCountry, availableCountries, setSelectedCountry]);
 
   const handleCreateClient = async () => {
-    if (!newClient.name || !selectedCountry) {
-      alert("Veuillez remplir le nom du client et sélectionner un pays");
-      return;
-    }
+  // 1. Better Validation: check legalForm to satisfy the TS error
+  if (!newClient.name || !selectedCountry || !newClient.legalForm) {
+    alert("Veuillez remplir les informations obligatoires (Nom, Pays, Forme Juridique)");
+    return;
+  }
 
-    setIsCreating(true);
-    try {
-      const client = await createClient({
-        name: newClient.name,
-        country: selectedCountry,
-        legalForm: newClient.legalForm,
-        clientType: newClient.clientType,
-        taxNumber: newClient.taxNumber,
-        address: newClient.address,
-        city: newClient.city,
-        phone: newClient.phone,
-        email: newClient.email,
-      });
+  setIsCreating(true);
+  try {
+    // 2. Type casting only if strictly necessary, but better to spread
+    const clientData = {
+      ...newClient,
+      country: selectedCountry,
+    } as Client; 
 
-      setIsDialogOpen(false);
-      setNewClient({
-        name: "",
-        legalForm: "SARL",
-        clientType: "NORMAL",
-        taxNumber: "",
-        address: "",
-        city: "",
-        phone: "",
-        email: "",
-      });
+    const client = await createClient(clientData);
 
-      // Overlay de succès 1 seconde puis navigation sécurisée
-      setShowSuccess(true);
-      setSelectedClient(client);
+    setIsDialogOpen(false);
+    
+    // 3. Reset form to match your interface defaults
+    setNewClient({
+      name: "",
+      legalForm: "SARL",
+      clientType: "NORMAL",
+      taxNumber: "",
+      address: "",
+      city: "",
+      phone: "",
+      email: "",
+    });
 
-      // AppContext will automatically save the selection to encrypted storage
+    setShowSuccess(true);
+    setSelectedClient(client);
 
-      const uid = user?.id ?? "me";
-      setTimeout(() => {
-        setShowSuccess(false);
-        navigate(`/web/user/dashboard/${uid}/dashboard`);
-      }, 1000);
-    } catch (error) {
-      console.error("Erreur création client:", error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
+    // 4. Critical: Using a template literal correctly for the URL
+    // Ensure the path starts with a / if it's an absolute path
+    const uid = user?.id || "me";
+    const targetPath = `/fr/web/user/dashboard/${uid}/dashboard`;
 
-  const handleSelectClient = useCallback(
-    async (client: Client) => {
-      setSelectedClient(client);
-      // AppContext will automatically save the selection to encrypted storage
+    setTimeout(() => {
+      setShowSuccess(false);
+      navigate(targetPath);
+    }, 1000);
+  } catch (error) {
+    console.error("Erreur création client:", error);
+    // Suggestion: Add a toast/alert for the user here
+  } finally {
+    setIsCreating(false);
+  }
+};
 
-      const uid = user?.id ?? "me";
-      navigate(`/web/user/dashboard/${uid}/dashboard`);
-    },
-    [setSelectedClient, navigate, user]
-  );
-
+const handleSelectClient = useCallback(
+  (client: Client) => {
+    setSelectedClient(client);
+    const uid = user?.id || "me";
+    // Added leading slash to ensure navigation from root
+    navigate(`/fr/web/user/dashboard/${uid}/dashboard`);
+  },
+  [setSelectedClient, navigate, user]
+);
+ 
   const getCountryName = useCallback(
     (countryCode: string) => {
       return countries.find((c) => c.code === countryCode)?.name || countryCode;
@@ -381,7 +374,7 @@ export function CountrySelector() {
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 mx-auto animate-spin text-blue-600" />
           <p className="text-muted-foreground">
-            Chargement de la session sécurisée...
+            Chargement ...
           </p>
         </div>
       </div>
@@ -393,279 +386,6 @@ export function CountrySelector() {
     return null;
   }
 
-  // Onboarding flow for new users
-  if (isOnboarding) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-2xl space-y-8">
-          {/* Welcome header */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="bg-gradient-to-br from-green-600 to-green-700 text-white rounded-2xl p-4 shadow-lg">
-                <User className="h-10 w-10" />
-              </div>
-              <div className="text-left">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-                  Bienvenue sur FinanceERP Pro !
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Créons votre premier client
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <h3 className="font-semibold text-blue-900 mb-2">
-                🚀 Pour commencer :
-              </h3>
-              <ol className="text-sm text-blue-800 space-y-1">
-                <li>1. Sélectionnez le pays de votre client</li>
-                <li>2. Créez votre premier client</li>
-                <li>3. Commencez à gérer vos finances</li>
-              </ol>
-            </div>
-          </div>
-
-          {/* Country selection for onboarding */}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="flex items-center justify-center gap-2 text-xl">
-                <Globe className="h-6 w-6 text-blue-600" />
-                Dans quel pays se trouve votre client ?
-              </CardTitle>
-              <CardDescription>
-                Sélectionnez le pays pour continuer la configuration
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Select
-                value={selectedCountry || ""}
-                onValueChange={handleCountryChange}
-              >
-                <SelectTrigger className="h-14 text-base">
-                  <SelectValue placeholder="Choisissez un pays" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">
-                          {getCountryFlag(country.code)}
-                        </span>
-                        <span>{country.name}</span>
-                        <Badge variant="outline" className="ml-auto text-xs">
-                          {country.currency}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {selectedCountry && (
-                <div className="text-center space-y-4">
-                  <div className="flex items-center justify-center gap-2 text-green-600">
-                    <span className="text-2xl">
-                      {getCountryFlag(selectedCountry)}
-                    </span>
-                    <span className="font-medium">
-                      {getCountryName(selectedCountry)}
-                    </span>
-                  </div>
-
-                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="lg" className="w-full h-14 text-lg">
-                        <Plus className="h-5 w-5 mr-2" />
-                        Créer mon premier client
-                      </Button>
-                    </DialogTrigger>
-
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle className="text-xl">
-                          Créer votre premier client
-                        </DialogTitle>
-                        <DialogDescription>
-                          Remplissez les informations de base de votre client
-                          pour{" "}
-                          {selectedCountry
-                            ? getCountryName(selectedCountry)
-                            : "le pays sélectionné"}
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="client-name" className="text-base">
-                            Nom du client *
-                          </Label>
-                          <Input
-                            id="client-name"
-                            value={newClient.name}
-                            onChange={(e) =>
-                              setNewClient({
-                                ...newClient,
-                                name: e.target.value,
-                              })
-                            }
-                            placeholder="Ex: Mon Entreprise SARL"
-                            autoComplete="off"
-                            className="h-12"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="legal-form" className="text-base">
-                            Forme juridique *
-                          </Label>
-                          <Select
-                            value={newClient.legalForm}
-                            onValueChange={(value: string) =>
-                              setNewClient({ ...newClient, legalForm: value })
-                            }
-                          >
-                            <SelectTrigger className="h-12">
-                              <SelectValue placeholder="Sélectionnez la forme juridique" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="SARL">SARL</SelectItem>
-                              <SelectItem value="SA">SA</SelectItem>
-                              <SelectItem value="SUARL">SUARL</SelectItem>
-                              <SelectItem value="INDIVIDUAL">
-                                Individuel
-                              </SelectItem>
-                              <SelectItem value="OTHER">Autre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="client-type" className="text-base">
-                            Type de client *
-                          </Label>
-                          <Select
-                            value={newClient.clientType}
-                            onValueChange={(value: string) =>
-                              setNewClient({ ...newClient, clientType: value })
-                            }
-                          >
-                            <SelectTrigger className="h-12">
-                              <SelectValue placeholder="Sélectionnez le type de client" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="NORMAL">
-                                Entreprise classique
-                              </SelectItem>
-                              <SelectItem value="ASSURANCE">
-                                Société d'assurance
-                              </SelectItem>
-                              <SelectItem value="SMT">
-                                Société de microfinance
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="tax-number" className="text-base">
-                            Numéro fiscal
-                          </Label>
-                          <Input
-                            id="tax-number"
-                            value={newClient.taxNumber}
-                            onChange={(e) =>
-                              setNewClient({
-                                ...newClient,
-                                taxNumber: e.target.value,
-                              })
-                            }
-                            placeholder="Numéro fiscal (optionnel)"
-                            autoComplete="off"
-                            className="h-12"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="city" className="text-base">
-                              Ville
-                            </Label>
-                            <Input
-                              id="city"
-                              value={newClient.city}
-                              onChange={(e) =>
-                                setNewClient({
-                                  ...newClient,
-                                  city: e.target.value,
-                                })
-                              }
-                              placeholder="Ville"
-                              autoComplete="off"
-                              className="h-12"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="phone" className="text-base">
-                              Téléphone
-                            </Label>
-                            <Input
-                              id="phone"
-                              value={newClient.phone}
-                              onChange={(e) =>
-                                setNewClient({
-                                  ...newClient,
-                                  phone: e.target.value,
-                                })
-                              }
-                              placeholder="Numéro de téléphone"
-                              autoComplete="off"
-                              className="h-12"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsDialogOpen(false)}
-                            className="h-12 px-6"
-                          >
-                            Annuler
-                          </Button>
-                          <Button
-                            onClick={handleCreateClient}
-                            disabled={
-                              isCreating || !newClient.name || !selectedCountry
-                            }
-                            className="h-12 px-8"
-                          >
-                            {isCreating ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Création...
-                              </>
-                            ) : (
-                              "Créer mon client"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Success overlay */}
-          {showSuccess && <Refresher />}
-        </div>
-      </div>
-    );
-  }
-
   // Regular client selection for existing users
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
@@ -673,12 +393,12 @@ export function CountrySelector() {
         {/* En-tête avec info utilisateur */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl p-4 shadow-lg">
+            {/* <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl p-4 shadow-lg">
               <Building2 className="h-10 w-10" />
-            </div>
-            <div className="text-left">
+            </div> */}
+            <div className="text-align-center">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                FinanceERP Pro
+               HevGestion
               </h1>
               <p className="text-sm text-muted-foreground">
                 Sélectionnez votre client
@@ -742,18 +462,18 @@ export function CountrySelector() {
                             {country.currency}
                           </Badge>
                         </div>
-                        {user?.role !== "ADMIN" && (
+                        {/* {user?.role !== "ADMIN" && ( */}
                           <Badge variant="secondary" className="text-xs">
                             {countryClientCount} client(s)
                           </Badge>
-                        )}
+                        {/* )} */}
                       </div>
                     </SelectItem>
                   );
                 })}
               </SelectContent>
             </Select>
-            <Refresher onRefresh={handleRefresh} />
+            <Refresher onClick={handleRefresh} />
           </CardContent>
         </Card>
 
@@ -814,9 +534,11 @@ export function CountrySelector() {
                     <div className="space-y-2">
                       <Label htmlFor="legal-form">Forme juridique *</Label>
                       <Select
-                        value={newClient.legalForm}
                         onValueChange={(value: string) =>
-                          setNewClient({ ...newClient, legalForm: value })
+                          setNewClient({ 
+                            ...newClient, 
+                            legalForm: value as Client["legalForm"] 
+                          })
                         }
                       >
                         <SelectTrigger>
@@ -946,7 +668,7 @@ export function CountrySelector() {
                     >
                       {isCreating ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader className="h-4 w-4 mr-2 animate-spin" />
                           Création...
                         </>
                       ) : (
