@@ -127,11 +127,11 @@ export class DSFConfigController {
       if (userRole === "COMPTABLE") {
         const userConfigCodes = new Set(
           transformedConfigs
-            .filter((c) => c.ownerType === "ACCOUNTANT" && c.ownerId === userId)
-            .map((c) => c.codeDsf)
+            .filter((c: { ownerType: string; ownerId: string | undefined; }) => c.ownerType === "ACCOUNTANT" && c.ownerId === userId)
+            .map((c: { codeDsf: any; }) => c.codeDsf)
         );
 
-        transformedConfigs = transformedConfigs.filter((config) => {
+        transformedConfigs = transformedConfigs.filter((config: { ownerType: string; codeDsf: unknown; }) => {
           if (
             config.ownerType === "SYSTEM" &&
             userConfigCodes.has(config.codeDsf)
@@ -596,10 +596,14 @@ export class DSFConfigController {
       });
 
       console.log("✅ Update DSF config - Successfully updated:", id);
-
+ 
+      if(!userId){
+        console.log("Action aborted: No authentication information available for audit logging.");
+        return;
+      }
       // Log audit event
       await auditService.logDSFConfigUpdated(
-        userId,
+        userId , 
         id,
         existingConfig,
         updatedConfig

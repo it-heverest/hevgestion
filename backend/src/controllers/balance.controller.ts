@@ -271,142 +271,142 @@ class BalanceController {
     }
   }
 
-  async checkEquilibrium(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { clientId, folderId } = req.params;
+  // async checkEquilibrium(req: AuthRequest, res: Response, next: NextFunction) {
+  //   try {
+  //     const { clientId, folderId } = req.params;
 
-      console.log("🔍 Checking equilibrium for:", { clientId, folderId });
+  //     console.log("🔍 Checking equilibrium for:", { clientId, folderId });
 
-      if (!clientId || !folderId) {
-        throw new BadRequestError("Client ID and Folder ID are required");
-      }
+  //     if (!clientId || !folderId) {
+  //       throw new BadRequestError("Client ID and Folder ID are required");
+  //     }
 
-      // Vérifier que le contrôleur est correctement initialisé
-      if (!this.balanceProcessor) {
-        console.error("❌ balanceProcessor is not initialized");
-        // Réinitialiser en cas de problème
-        this.balanceProcessor = new BalanceProcessor();
-        console.log("✅ balanceProcessor reinitialized");
-      }
+  //     // Vérifier que le contrôleur est correctement initialisé
+  //     if (!this.balanceProcessor) {
+  //       console.error("❌ balanceProcessor is not initialized");
+  //       // Réinitialiser en cas de problème
+  //       this.balanceProcessor = new BalanceProcessor();
+  //       console.log("✅ balanceProcessor reinitialized");
+  //     }
 
-      // Vérifier l'accès au dossier
-      const folder = await prisma.folder.findUnique({
-        where: { id: folderId },
-        include: {
-          balances: {
-            include: {
-              equilibrium: true,
-            },
-          },
-        },
-      });
+  //     // Vérifier l'accès au dossier
+  //     const folder = await prisma.folder.findUnique({
+  //       where: { id: folderId },
+  //       include: {
+  //         balances: {
+  //           include: {
+  //             equilibrium: true,
+  //           },
+  //         },
+  //       },
+  //     });
 
-      if (!folder) {
-        throw new NotFoundError("Exercise not found");
-      }
+  //     if (!folder) {
+  //       throw new NotFoundError("Exercise not found");
+  //     }
 
-      // Vérifier que l'utilisateur a accès à ce client/dossier
-      if (folder.ownerId !== req.user?.userId) {
-        throw new ForbiddenError("You don't have access to this exercise");
-      }
+  //     // Vérifier que l'utilisateur a accès à ce client/dossier
+  //     if (folder.ownerId !== req.user?.userId) {
+  //       throw new ForbiddenError("You don't have access to this exercise");
+  //     }
 
-      console.log("📊 Folder balances:", folder.balances.length);
+  //     console.log("📊 Folder balances:", folder.balances.length);
 
-      // Vérifier s'il y a des balances
-      if (!folder.balances || folder.balances.length === 0) {
-        return res.json({
-          isBalanced: false,
-          message: "Aucune balance trouvée pour cet exercice",
-          details: {
-            hasBalances: false,
-            currentYear: null,
-            previousYear: null,
-          },
-        });
-      }
+  //     // Vérifier s'il y a des balances
+  //     if (!folder.balances || folder.balances.length === 0) {
+  //       return res.json({
+  //         isBalanced: false,
+  //         message: "Aucune balance trouvée pour cet exercice",
+  //         details: {
+  //           hasBalances: false,
+  //           currentYear: null,
+  //           previousYear: null,
+  //         },
+  //       });
+  //     }
 
-      // Récupérer les balances actuelles et précédentes
-      const currentBalance = folder.balances.find(
-        (b) => b.type === BalanceType.CURRENT_YEAR
-      );
+  //     // Récupérer les balances actuelles et précédentes
+  //     const currentBalance = folder.balances.find(
+  //       (b) => b.type === BalanceType.CURRENT_YEAR
+  //     );
 
-      const previousBalance = folder.balances.find(
-        (b) => b.type === BalanceType.PREVIOUS_YEAR
-      );
+  //     const previousBalance = folder.balances.find(
+  //       (b) => b.type === BalanceType.PREVIOUS_YEAR
+  //     );
 
-      console.log("📈 Balances found:", {
-        current: currentBalance?.id,
-        previous: previousBalance?.id,
-      });
+  //     console.log("📈 Balances found:", {
+  //       current: currentBalance?.id,
+  //       previous: previousBalance?.id,
+  //     });
 
-      // Vérifier l'équilibre
-      let equilibrium;
+  //     // Vérifier l'équilibre
+  //     let equilibrium;
 
-      if (currentBalance) {
-        console.log(
-          "🔄 Checking equilibrium for current balance:",
-          currentBalance.id
-        );
-        equilibrium =
-          await this.balanceProcessor.checkEquilibrium(currentBalance);
-        console.log("✅ Equilibrium result:", equilibrium);
-      } else {
-        equilibrium = {
-          isBalanced: false,
-          message: "Balance de l'année courante manquante",
-          details: {
-            totalDebit: 0,
-            totalCredit: 0,
-            difference: 0,
-            tolerance: 0.01,
-          },
-        };
-      }
+  //     if (currentBalance) {
+  //       console.log(
+  //         "🔄 Checking equilibrium for current balance:",
+  //         currentBalance.id
+  //       );
+  //       equilibrium =
+  //         await this.balanceProcessor.checkEquilibrium(currentBalance);
+  //       console.log("✅ Equilibrium result:", equilibrium);
+  //     } else {
+  //       equilibrium = {
+  //         isBalanced: false,
+  //         message: "Balance de l'année courante manquante",
+  //         details: {
+  //           totalDebit: 0,
+  //           totalCredit: 0,
+  //           difference: 0,
+  //           tolerance: 0.01,
+  //         },
+  //       };
+  //     }
 
-      res.json({
-        isBalanced: equilibrium.isBalanced,
-        message: equilibrium.message,
-        details: {
-          hasBalances: !!currentBalance,
-          currentYear: currentBalance
-            ? {
-                id: currentBalance.id,
-                type: currentBalance.type,
-                status: currentBalance.status,
-                isBalanced: equilibrium.isBalanced,
-                totals: equilibrium.details,
-              }
-            : null,
-          previousYear: previousBalance
-            ? {
-                id: previousBalance.id,
-                type: previousBalance.type,
-                status: previousBalance.status,
-              }
-            : null,
-        },
-      });
-    } catch (error) {
-      console.error("❌ Error in checkEquilibrium:", error);
+  //     res.json({
+  //       isBalanced: equilibrium.isBalanced,
+  //       message: equilibrium.message,
+  //       details: {
+  //         hasBalances: !!currentBalance,
+  //         currentYear: currentBalance
+  //           ? {
+  //               id: currentBalance.id,
+  //               type: currentBalance.type,
+  //               status: currentBalance.status,
+  //               isBalanced: equilibrium.isBalanced,
+  //               totals: equilibrium.details,
+  //             }
+  //           : null,
+  //         previousYear: previousBalance
+  //           ? {
+  //               id: previousBalance.id,
+  //               type: previousBalance.type,
+  //               status: previousBalance.status,
+  //             }
+  //           : null,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("❌ Error in checkEquilibrium:", error);
 
-      // En cas d'erreur, retourner une réponse d'erreur structurée
-      if (error instanceof NotFoundError || error instanceof ForbiddenError) {
-        next(error);
-      } else {
-        // Pour les autres erreurs, retourner un statut non équilibré avec le message d'erreur
-        res.json({
-          isBalanced: false,
-          message: `Erreur lors de la vérification: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
-          details: {
-            hasBalances: false,
-            error: true,
-            errorMessage:
-              error instanceof Error ? error.message : "Unknown error",
-          },
-        });
-      }
-    }
-  }
+  //     // En cas d'erreur, retourner une réponse d'erreur structurée
+  //     if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+  //       next(error);
+  //     } else {
+  //       // Pour les autres erreurs, retourner un statut non équilibré avec le message d'erreur
+  //       res.json({
+  //         isBalanced: false,
+  //         message: `Erreur lors de la vérification: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
+  //         details: {
+  //           hasBalances: false,
+  //           error: true,
+  //           errorMessage:
+  //             error instanceof Error ? error.message : "Unknown error",
+  //         },
+  //       });
+  //     }
+  //   }
+  // }
 
   async performVentilation(
     req: AuthRequest,
