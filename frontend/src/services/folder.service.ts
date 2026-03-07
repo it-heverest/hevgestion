@@ -87,7 +87,7 @@ class FolderService {
       },
       (error) => {
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor to handle global errors
@@ -99,7 +99,7 @@ class FolderService {
           window.location.href = "/login";
         }
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -214,7 +214,7 @@ class FolderService {
    */
   async updateFolder(
     folderId: string,
-    folderData: UpdateFolderData
+    folderData: UpdateFolderData,
   ): Promise<Folder> {
     try {
       const response = await this.api.put(`/folders/${folderId}`, folderData);
@@ -262,7 +262,7 @@ class FolderService {
    */
   async duplicateFolder(
     folderId: string,
-    newFiscalYear: number
+    newFiscalYear: number,
   ): Promise<Folder> {
     try {
       const response = await this.api.post(`/folders/${folderId}/duplicate`, {
@@ -295,13 +295,14 @@ class FolderService {
 
   /**
    * Update folder status
+   * Uses PATCH /:id/status endpoint (not the close endpoint)
    */
   async updateFolderStatus(
     folderId: string,
-    status: Folder["status"]
+    status: Folder["status"],
   ): Promise<Folder> {
     try {
-      const response = await this.api.put(`/folders/${folderId}/close`, {
+      const response = await this.api.patch(`/folders/${folderId}/status`, {
         status,
       });
       return response.data.folder;
@@ -313,6 +314,102 @@ class FolderService {
       }
 
       throw new Error("Erreur lors de la mise à jour du statut du dossier");
+    }
+  }
+
+  /**
+   * Refresh folders - reloads all folders for the current user
+   */
+  async refreshFolders(): Promise<Folder[]> {
+    try {
+      const response = await this.api.get("/folders");
+      return response.data.folders;
+    } catch (error) {
+      console.error("Error refreshing folders:", error);
+      throw new Error("Erreur lors du rafraîchissement des dossiers");
+    }
+  }
+
+  /**
+   * Search folders by query string
+   */
+  async searchFolders(query: string, clientId?: string): Promise<Folder[]> {
+    try {
+      const response = await this.api.get("/folders/search", {
+        params: { query, ...(clientId && { clientId }) },
+      });
+      return response.data.folders;
+    } catch (error) {
+      console.error("Error searching folders:", error);
+      throw new Error("Erreur lors de la recherche de dossiers");
+    }
+  }
+
+  /**
+   * Get folder statistics for a client
+   */
+  async getFolderStats(
+    clientId: string,
+  ): Promise<{ [status: string]: number }> {
+    try {
+      const response = await this.api.get("/folders/stats/summary", {
+        params: { clientId },
+      });
+      return response.data.stats;
+    } catch (error) {
+      console.error("Error fetching folder stats:", error);
+      throw new Error(
+        "Erreur lors du chargement des statistiques des dossiers",
+      );
+    }
+  }
+
+  /**
+   * Archive a folder
+   */
+  async archiveFolder(folderId: string): Promise<Folder> {
+    try {
+      const response = await this.api.put(`/folders/${folderId}/archive`);
+      return response.data.folder;
+    } catch (error: any) {
+      console.error("Error archiving folder:", error);
+
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de l'archivage du dossier");
+    }
+  }
+
+  /**
+   * Restore an archived folder
+   */
+  async restoreFolder(folderId: string): Promise<Folder> {
+    try {
+      const response = await this.api.put(`/folders/${folderId}/restore`);
+      return response.data.folder;
+    } catch (error: any) {
+      console.error("Error restoring folder:", error);
+
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la restauration du dossier");
+    }
+  }
+
+  /**
+   * Get folder timeline - audit events for a folder
+   */
+  async getFolderTimeline(folderId: string): Promise<any[]> {
+    try {
+      const response = await this.api.get(`/folders/${folderId}/timeline`);
+      return response.data.timeline;
+    } catch (error) {
+      console.error("Error fetching folder timeline:", error);
+      throw new Error("Erreur lors du chargement de l'historique du dossier");
     }
   }
 
