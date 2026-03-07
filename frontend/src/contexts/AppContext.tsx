@@ -17,6 +17,7 @@ import { secureStorageService } from "../services/encryption.service";
 import { clientService } from "../services/client.service";
 import { folderService } from "../services/folder.service";
 
+
 interface CreateClientData {
   name: string;
   legalForm: "SARL" | "SA" | "SUARL" | "INDIVIDUAL" | "OTHER";

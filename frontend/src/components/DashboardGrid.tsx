@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useApp } from "../contexts/AppContext";
 
 interface DashboardGridProps {
   companyName: string;
@@ -29,6 +30,8 @@ export function DashboardGrid({
   const { user } = useAuth();
   const uid = user?.id ?? "me";
 
+  const { language } = useApp();
+
   const workflowSteps = [
     {
       id: "setup",
@@ -37,7 +40,7 @@ export function DashboardGrid({
       icon: <Settings className="h-5 w-5" />,
       status: "En cours",
       statusColor: "bg-blue-100 text-blue-800",
-      action: () => navigate(`/web/user/select-company`),
+      action: () => navigate(`/${language}/web/user/select-country`),
     },
     {
       id: "exercise",
@@ -46,7 +49,7 @@ export function DashboardGrid({
       icon: <Calendar className="h-5 w-5" />,
       status: currentExercise.toString(),
       statusColor: "bg-blue-100 text-blue-800",
-      action: () => navigate(`/web/user/exercise/${uid}/exercise`),
+      action: () => navigate(`/${language}/web/user/exercise/${uid}/exercise`),
     },
     {
       id: "import",
@@ -55,7 +58,7 @@ export function DashboardGrid({
       icon: <Upload className="h-5 w-5" />,
       status: "Prêt",
       statusColor: "bg-green-100 text-green-800",
-      action: () => navigate(`/web/user/import/${uid}/import`),
+      action: () => navigate(`/${language}/web/user/import/${uid}/import`),
     },
     {
       id: "process",
@@ -64,7 +67,8 @@ export function DashboardGrid({
       icon: <Zap className="h-5 w-5" />,
       status: "En attente",
       statusColor: "bg-orange-100 text-orange-800",
-      action: () => navigate(`/web/user/traitement/${uid}/traitement`),
+      action: () =>
+        navigate(`/${language}/web/user/traitement/${uid}/traitement`),
     },
     {
       id: "reports",
@@ -73,7 +77,7 @@ export function DashboardGrid({
       icon: <FileText className="h-5 w-5" />,
       status: "15 rapports",
       statusColor: "bg-purple-100 text-purple-800",
-      action: () => navigate(`/web/user/reports/${uid}/reports`),
+      action: () => navigate(`/${language}/web/user/reports/${uid}/reports`),
     },
     {
       id: "submit",
@@ -82,7 +86,8 @@ export function DashboardGrid({
       icon: <Cloud className="h-5 w-5" />,
       status: "Non envoyé",
       statusColor: "bg-gray-100 text-gray-800",
-      action: () => navigate(`/web/user/televersion/${uid}/televersion`),
+      action: () =>
+        navigate(`/${language}/web/user/televersion/${uid}/televersion`),
     },
   ];
 

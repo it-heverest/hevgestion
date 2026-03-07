@@ -1,22 +1,26 @@
-import { Loader2, RefreshCcwIcon } from 'lucide-react'
+import { Loader, RefreshCcwIcon } from 'lucide-react'
 import React, { useState } from 'react'
 
-function Refresher() {
+interface RefresherProps {
+    onClick: () => Promise<void> | void;
+}
+
+function Refresher({ onClick }: RefresherProps) {
     const [refresh, setRefresh] = useState(false)
     
-    const refreshPage = async () => {
-        setRefresh(true)
-        window.location.reload()
-    }
+    // const refreshPage = async () => {
+    //     setRefresh(true)
+    //     window.location.reload()
+    // }
 
 
   return (
     <div>
       {" "}
       <div>
-        <button className="px-3" onClick={refreshPage}>
+        <button className="px-3" onClick={onClick}>
           {refresh ? (
-            <Loader2 className="h-7 w-7 mx-auto text-muted-foreground opacity-50 animate-spin" />
+            <Loader className="h-7 w-7 mx-auto text-muted-foreground opacity-50 animate-spin" />
           ) : (
             <RefreshCcwIcon className="h-7 w-7 mx-auto text-muted-foreground opacity-50" />
           )}

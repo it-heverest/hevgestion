@@ -71,7 +71,7 @@ export function Login() {
         >
           <motion.div
             whileHover={{ scale: 1.05, rotate: 5 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl mb-4 shadow-lg"
+            className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-4xl mb-4 shadow-lg"
           >
             <BarChart3 className="h-8 w-8 text-white" />
           </motion.div>

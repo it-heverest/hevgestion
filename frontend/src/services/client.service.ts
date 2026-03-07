@@ -2,6 +2,7 @@
 import axios from "axios";
 import { API_CONFIG } from "../config/api";
 import { authService } from "./auth.service";
+import { Client } from "@/types";
 
 export interface Country {
   code: string;
@@ -10,21 +11,21 @@ export interface Country {
   timezone: string;
 }
 
-export interface Client {
-  id: string;
-  name: string;
-  country: string;
-  legalForm: string;
-  taxNumber: string;
-  address: string;
-  city: string;
-  phone?: string;
-  email?: string;
-  createdBy: string;
-  currency: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+// export interface Client {
+//   id: string;
+//   name: string;
+//   country: string;
+//   legalForm: string;
+//   taxNumber?: string;
+//   address: string;
+//   city: string;
+//   phone?: string;
+//   email?: string;
+//   createdBy: string;
+//   currency: string;
+//   createdAt?: string;
+//   updatedAt?: string;
+// }
 
 export interface CreateClientData {
   name: string;

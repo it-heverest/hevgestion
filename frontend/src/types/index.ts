@@ -23,6 +23,8 @@ export interface Client {
   legalForm: "SARL" | "SA" | "SUARL" | "INDIVIDUAL" | "OTHER";
   taxNumber?: string;
   address?: string;
+  clientType?: string;
+  email?: string;
   city?: string;
   phone?: string;
   country: string;

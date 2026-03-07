@@ -120,7 +120,7 @@ export function useLogin() {
         loginForm.phoneCountryCode && loginForm.phoneNumber
           ? `${loginForm.phoneCountryCode}${loginForm.phoneNumber.replace(
               /\s/g,
-              ""
+              "",
             )}`
           : loginForm.phoneNumber || "";
 
@@ -129,7 +129,7 @@ export function useLogin() {
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
-      navigate("/web/user/select-country");
+      navigate("/fr/web/user/select-country");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Échec de la connexion";
@@ -142,7 +142,7 @@ export function useLogin() {
   // Handlers pour l'inscription
   const handleRegisterChange = (
     field: keyof RegisterFormData,
-    value: string | number
+    value: string | number,
   ) => {
     setRegisterForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -344,7 +344,7 @@ export function useLogin() {
         } else {
           // For other roles, validate password
           const passwordValidation = validatePasswordStrength(
-            registerForm.password
+            registerForm.password,
           );
           return (
             passwordValidation.isValid &&
@@ -355,7 +355,7 @@ export function useLogin() {
       case 5: // Password (only for COMPTABLE)
         if (registerForm.role === "COMPTABLE") {
           const passwordValidation = validatePasswordStrength(
-            registerForm.password
+            registerForm.password,
           );
           return (
             passwordValidation.isValid &&
@@ -377,7 +377,7 @@ export function useLogin() {
 
   // Fonction pour valider la force du mot de passe
   const validatePasswordStrength = (
-    password: string
+    password: string,
   ): { isValid: boolean; message: string } => {
     if (password.length < 8) {
       return {

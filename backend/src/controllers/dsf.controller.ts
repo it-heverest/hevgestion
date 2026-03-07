@@ -294,7 +294,7 @@ class DSFController {
         // Update folder status back to BALANCE_UPLOADED
         await prisma.folder.update({
           where: { id: dsfImport.folderId },
-          data: { status: FolderStatus.BALANCE_UPLOADED },
+          data: { status: FolderStatus.BALANCE_READY },
         });
 
         return res.json({
@@ -333,7 +333,7 @@ class DSFController {
       // Update folder status back to BALANCE_UPLOADED
       await prisma.folder.update({
         where: { id: dsf.folderId },
-        data: { status: FolderStatus.BALANCE_UPLOADED },
+        data: { status: FolderStatus.BALANCE_READY },
       });
 
       res.json({
@@ -345,33 +345,20 @@ class DSFController {
     }
   };
 
-  generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
+generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      // 1. Validating input from body
       const { folderId } = req.body;
-
       if (!folderId) {
-        throw new BadRequestError("Folder ID is required");
+        throw new BadRequestError("L'ID du dossier est requis");
       }
 
-      // Get folder with complete relations
+      // 2. Fetch folder using the relation structure defined in your prisma.ts
+      // This eliminates the need for "as unknown as"
       const folder = await prisma.folder.findUnique({
         where: { id: folderId },
         include: {
-          client: {
-            select: {
-              id: true,
-              name: true,
-              legalForm: true,
-              clientType: true,
-              taxNumber: true,
-              address: true,
-              city: true,
-              phone: true,
-              country: true,
-              currency: true,
-              createdBy: true,
-            },
-          },
+          client: true, // Full client object to match LegalForm/ClientType types
           balances: {
             where: { status: BalanceStatus.PROCESSED },
             include: {
@@ -379,84 +366,75 @@ class DSFController {
               fixedAssets: true,
             },
           },
+          // Ensure any other fields required by FolderWithFullRelations are included here
         },
       });
 
+      // 3. Guards / Validation
       if (!folder) {
-        throw new NotFoundError("Exercise not found");
+        throw new NotFoundError("Dossier introuvable");
       }
 
-      // Vérifier que le dossier a les relations nécessaires
       if (!folder.client) {
-        throw new BadRequestError(
-          "Client information is missing for this folder"
-        );
+        throw new BadRequestError("Informations client manquantes pour ce dossier");
       }
 
-      if (!folder.balances || folder.balances.length === 0) {
-        throw new BadRequestError(
-          "No processed balances found for this folder"
-        );
+      const hasNBalance = folder.balances.some(b => b.type === BalanceType.CURRENT_YEAR);
+      if (!hasNBalance) {
+        throw new BadRequestError("Balance N (année en cours) introuvable ou non traitée");
       }
 
-      // Check if N balance exists
-      const nBalance = folder.balances.find(
-        (b) => b.type === BalanceType.CURRENT_YEAR
-      );
-      if (!nBalance) {
-        throw new BadRequestError(
-          "Current year balance not found or not processed"
-        );
-      }
+      // 4. Shared Generation Logic
+      // Because we included the full client/balances above, TS accepts 'folder' directly
+      const reports = await this.dsfGenerator.generate(folder as unknown as FolderWithFullRelations);
 
-      // Type assertion pour garantir la compatibilité
-      const folderWithRelations = folder as unknown as FolderWithFullRelations;
+      // 5. Database Atomic Operation (Transaction is safer here)
+      const result = await prisma.$transaction(async (tx) => {
+        // Check if DSF already exists
+        let dsf = await tx.dSF.findUnique({
+          where: { folderId },
+        });
 
-      // Check if DSF already exists
-      let dsf = await prisma.dSF.findUnique({
-        where: { folderId },
+        if (dsf) {
+          // Update existing
+          dsf = await tx.dSF.update({
+            where: { id: dsf.id },
+            data: {
+              status: DSFStatus.GENERATED,
+              reports: reports as any,
+              lastGeneratedAt: new Date(),
+            },
+          });
+        } else {
+          // Create new
+          dsf = await tx.dSF.create({
+            data: {
+              folderId,
+              status: DSFStatus.GENERATED,
+              reports: reports as any,
+              lastGeneratedAt: new Date(),
+            },
+          });
+
+          // Update folder status only on first creation
+          await tx.folder.update({
+            where: { id: folderId },
+            data: { status: FolderStatus.DSF_GENERATED },
+          });
+        }
+        return dsf;
       });
 
-      if (dsf) {
-        // Regenerate
-        const reports = await this.dsfGenerator.generate(folderWithRelations);
-
-        dsf = await prisma.dSF.update({
-          where: { id: dsf.id },
-          data: {
-            status: DSFStatus.GENERATED,
-            reports: reports as any,
-            lastGeneratedAt: new Date(),
-          },
-        });
-      } else {
-        // Create new DSF
-        const reports = await this.dsfGenerator.generate(folderWithRelations);
-
-        dsf = await prisma.dSF.create({
-          data: {
-            folderId,
-            status: DSFStatus.GENERATED,
-            reports: reports as any,
-            lastGeneratedAt: new Date(),
-          },
-        });
-
-        // Update folder status
-        await prisma.folder.update({
-          where: { id: folderId },
-          data: { status: FolderStatus.DSF_GENERATED },
-        });
-      }
-
+      // 6. Final Response
       res.json({
-        message: "DSF generated successfully",
+        message: "DSF généré avec succès",
         dsf: {
-          id: dsf.id,
-          status: dsf.status,
-          lastGeneratedAt: dsf.lastGeneratedAt,
+          id: result.id,
+          status: result.status,
+          lastGeneratedAt: result.lastGeneratedAt,
         },
       });
+      
     } catch (error) {
       next(error);
     }
