@@ -26,6 +26,7 @@ import {
   getCategories,
   ALL_REPORTS,
 } from "./ReportRenderer";
+import { ReportNavigation } from "./ReportNavigation";
 
 interface ReportsViewProps {
   extractionResults: ExtractionResult[];
@@ -503,6 +504,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </div>
             )}
           </div>
+
+          {/* Report Navigation */}
+          <ReportNavigation />
         </div>
       </div>
 
