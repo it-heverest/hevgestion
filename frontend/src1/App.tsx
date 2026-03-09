@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -215,9 +215,9 @@ export function ProtectedLayout({
                 <div className="flex items-center gap-4">
                   <SidebarTrigger />
                   <div className="flex items-center gap-3">
-                    <div className="bg-blue-600 p-2 rounded-lg">
+                    {/* <div className="bg-blue-600 p-2 rounded-lg">
                       <BarChart3 className="h-5 w-5 text-white" />
-                    </div>
+                    </div> */}
                     <div>
                       <h1 className="text-lg font-semibold text-gray-900">
                         HevGestion DSF
@@ -269,7 +269,9 @@ export function ProtectedLayout({
                   {selectedExercise && (
                     <div
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() => navigate("/web/user/exercise")}
+                      onClick={() =>
+                        navigate(`/web/user/exercise/${useId}/exercise`)
+                      }
                     >
                       <Calendar className="h-4 w-4" />
                       <span className="text-sm font-medium">

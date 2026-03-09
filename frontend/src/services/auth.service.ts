@@ -30,7 +30,6 @@ export interface UpdateProfileData {
   country?: string;
 }
 
-
 /**
  * Service d'authentification avec HttpOnly cookies
  * Gestion centralisée de toutes les opérations d'authentification
