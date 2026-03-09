@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -60,7 +59,7 @@ import {
   Folder as FolderType,
 } from "../services/folder.service";
 import { dsfTemplateService } from "../services/dsf-template.service";
-import { generateStrongPassword } from "../utils/passwordGeneration"
+import { generateStrongPassword } from "../utils/passwordGeneration";
 
 interface ProfileData {
   firstName: string;
@@ -150,6 +149,12 @@ export function SimpleSettings() {
   const canCreateMoreAssistants = assistants.length < maxAssistants;
   const hasReachedLimit = assistants.length >= maxAssistants;
 
+  const [locked, setLocked] = useState(true);
+
+  const toggleHandler = () => {
+    setLocked(!locked);
+  };
+
   // Initialiser les données du profil
   useEffect(() => {
     if (user) {
@@ -230,14 +235,19 @@ export function SimpleSettings() {
       addToHistory("Template DSF", "Template importé avec succès");
     } catch (error: any) {
       console.error("Erreur upload template:", error);
-      alert(error.response?.data?.message || error.message || "Erreur lors de l'import");
+      alert(
+        error.response?.data?.message ||
+          error.message ||
+          "Erreur lors de l'import",
+      );
     } finally {
       setTemplateUploading(false);
     }
   };
 
   const handleTemplateDelete = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer le template DSF ?")) return;
+    if (!confirm("Êtes-vous sûr de vouloir supprimer le template DSF ?"))
+      return;
     try {
       await dsfTemplateService.deleteTemplate();
       setTemplateStatus({ hasTemplate: false });
@@ -276,11 +286,14 @@ export function SimpleSettings() {
         newPassword: "",
         confirmPassword: "",
       });
+      logout();
     } catch (error: any) {
       console.error(
         "Erreur lors du changement de mot de passe:",
         error.message,
       );
+      addToHistory("Sécurité", "Échec du changement de mot de passe");
+      alert(error.response?.data?.message || error.message);
     }
   };
 
@@ -300,8 +313,6 @@ export function SimpleSettings() {
   };
 
   // ==================== GESTION DES ASSISTANTS ====================
-
-
 
   const isAssistantFormValid = useCallback(() => {
     const { firstName, lastName, email, phoneNumber, password } = newAssistant;
@@ -434,7 +445,9 @@ export function SimpleSettings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-3" : "grid-cols-2"}`}>
+        <TabsList
+          className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-3" : "grid-cols-2"}`}
+        >
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profil & Template
@@ -498,6 +511,7 @@ export function SimpleSettings() {
                         className="h-11"
                         placeholder="Prénom"
                         autoComplete="off"
+                        disabled={locked}
                       />
                     </div>
 
@@ -515,6 +529,7 @@ export function SimpleSettings() {
                         className="h-11"
                         placeholder="Nom"
                         autoComplete="off"
+                        disabled={locked}
                       />
                     </div>
 
@@ -525,11 +540,15 @@ export function SimpleSettings() {
                         type="email"
                         value={profileData.email}
                         onChange={(e) =>
-                          setProfileData({ ...profileData, email: e.target.value })
+                          setProfileData({
+                            ...profileData,
+                            email: e.target.value,
+                          })
                         }
                         className="h-11"
                         placeholder="Email"
                         autoComplete="off"
+                        disabled={locked}
                       />
                     </div>
 
@@ -539,6 +558,7 @@ export function SimpleSettings() {
                         id="phoneNumber"
                         type="tel"
                         value={profileData.phoneNumber}
+                        disabled={locked}
                         onChange={(e) =>
                           setProfileData({
                             ...profileData,
@@ -553,19 +573,31 @@ export function SimpleSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveProfile} disabled={authLoading}>
-                      {authLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sauvegarde...
-                        </>
-                      ) : (
+                    {locked ? (
+                      <Button onClick={toggleHandler}>
                         <>
                           <Save className="h-4 w-4 mr-2" />
-                          Sauvegarder le profil
+                          Editer le profil
                         </>
-                      )}
-                    </Button>
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleSaveProfile}
+                        disabled={authLoading}
+                      >
+                        {authLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sauvegarde...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Sauvegarder le profil
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -578,7 +610,8 @@ export function SimpleSettings() {
                     Template DSF Excel
                   </CardTitle>
                   <CardDescription>
-                    Importez votre template Excel DSF pour activer l'export Excel pré-rempli.
+                    Importez votre template Excel DSF pour activer l'export
+                    Excel pré-rempli.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -591,18 +624,25 @@ export function SimpleSettings() {
                     <Alert className="bg-green-50 border-green-200">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
                           <div className="space-y-1">
-                            <p className="font-medium text-green-800">Template importé avec succès</p>
+                            <p className="font-medium text-green-800">
+                              Template importé avec succès
+                            </p>
                             <p className="text-xs text-green-700 opacity-80">
-                              Dernière mise à jour le {templateStatus.uploadDate ? new Date(templateStatus.uploadDate).toLocaleDateString() : 'N/A'}
+                              Dernière mise à jour le{" "}
+                              {templateStatus.uploadDate
+                                ? new Date(
+                                    templateStatus.uploadDate,
+                                  ).toLocaleDateString()
+                                : "N/A"}
                             </p>
                           </div>
                           <Button
                             variant="destructive"
                             size="sm"
                             onClick={handleTemplateDelete}
-                            className="h-8"
+                            className="h-8 ml-4 flex items-center"
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-1" />
                             Supprimer
@@ -614,14 +654,18 @@ export function SimpleSettings() {
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        Aucun template importé. L'export Excel DSF sera indisponible.
+                        Aucun template importé. L'export Excel DSF sera
+                        indisponible.
                       </AlertDescription>
                     </Alert>
                   )}
 
                   <div
                     className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50/50"
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -642,15 +686,21 @@ export function SimpleSettings() {
                     {templateUploading ? (
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Importation en cours...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Importation en cours...
+                        </p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-gray-400" />
                         <p className="text-sm font-medium">
-                          {templateStatus.hasTemplate ? "Remplacer le template" : "Importer un template Excel"}
+                          {templateStatus.hasTemplate
+                            ? "Remplacer le template"
+                            : "Importer un template Excel"}
                         </p>
-                        <p className="text-xs text-muted-foreground">Fichiers .xlsx ou .xls uniquement</p>
+                        <p className="text-xs text-muted-foreground">
+                          Fichiers .xlsx ou .xls uniquement
+                        </p>
                       </div>
                     )}
                   </div>
@@ -659,7 +709,11 @@ export function SimpleSettings() {
                     <p className="font-medium mb-1 flex items-center gap-1">
                       <Globe className="w-3 h-3" /> Aide à l'export
                     </p>
-                    <p>Le template sera utilisé pour injecter vos données de DSF directement dans votre fichier Excel personnalisé lors du téléchargement.</p>
+                    <p>
+                      Le template sera utilisé pour injecter vos données de DSF
+                      directement dans votre fichier Excel personnalisé lors du
+                      téléchargement.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -679,7 +733,12 @@ export function SimpleSettings() {
                         id="currentPassword"
                         type={passwordVisible ? "text" : "password"}
                         value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        onChange={(e) =>
+                          setPasswordData({
+                            ...passwordData,
+                            currentPassword: e.target.value,
+                          })
+                        }
                         className="pr-10"
                       />
                       <button
@@ -687,7 +746,11 @@ export function SimpleSettings() {
                         onClick={() => setPasswordVisible(!passwordVisible)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                       >
-                        {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {passwordVisible ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -697,7 +760,26 @@ export function SimpleSettings() {
                       id="newPassword"
                       type={passwordVisible ? "text" : "password"}
                       value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      onChange={(e) =>
+                        setPasswordData({
+                          ...passwordData,
+                          newPassword: e.target.value,
+                        })
+                      }
+                    />
+                    <Label htmlFor="confirmPassword">
+                      Confirmer le nouveau mot de passe
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type={passwordVisible ? "text" : "password"}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordData({
+                          ...passwordData,
+                          confirmPassword: e.target.value,
+                        })
+                      }
                     />
                   </div>
                   <Button
@@ -743,10 +825,9 @@ export function SimpleSettings() {
                           pathWithoutLanguage ? "/" + pathWithoutLanguage : ""
                         }`;
 
-                        navigate(
-                          newPath + location.search + location.hash,
-                          { replace: true }
-                        );
+                        navigate(newPath + location.search + location.hash, {
+                          replace: true,
+                        });
                       }}
                     >
                       <SelectTrigger>
@@ -771,7 +852,11 @@ export function SimpleSettings() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full" variant="outline" onClick={handleSaveSettings}>
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={handleSaveSettings}
+                  >
                     <Settings2 className="h-4 w-4 mr-2" />
                     Mettre à jour
                   </Button>
@@ -1061,12 +1146,12 @@ export function SimpleSettings() {
                                   </p>
                                   {assistant._count?.assignedFolders !==
                                     undefined && (
-                                      <p className="text-xs text-muted-foreground mt-0.5">
-                                        <Folder className="h-3 w-3 inline mr-1" />
-                                        {assistant._count.assignedFolders}{" "}
-                                        dossier(s) assigné(s)
-                                      </p>
-                                    )}
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      <Folder className="h-3 w-3 inline mr-1" />
+                                      {assistant._count.assignedFolders}{" "}
+                                      dossier(s) assigné(s)
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1155,7 +1240,8 @@ export function SimpleSettings() {
                   <AlertCircle className="h-4 w-4" /> Zone sensible
                 </h4>
                 <p className="text-sm text-amber-800 mb-4">
-                  Ces actions impactent l'ensemble de vos données. Soyez prudent.
+                  Ces actions impactent l'ensemble de vos données. Soyez
+                  prudent.
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button variant="outline" className="justify-start">
@@ -1172,84 +1258,82 @@ export function SimpleSettings() {
       </Tabs>
 
       {/* Modal d'assignation des dossiers */}
-      {
-        showAssignFolders && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="max-w-md w-full max-h-[80vh] overflow-hidden">
-              <CardHeader>
-                <CardTitle>Assigner des dossiers</CardTitle>
-                <CardDescription>
-                  Sélectionnez les dossiers à assigner à cet assistant
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="max-h-96 overflow-y-auto">
-                {loadingFolders ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Chargement des dossiers...</span>
-                  </div>
-                ) : folders.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    Aucun dossier disponible
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {folders.map((folder) => (
-                      <div
-                        key={folder.id}
-                        className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
+      {showAssignFolders && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full max-h-[80vh] overflow-hidden">
+            <CardHeader>
+              <CardTitle>Assigner des dossiers</CardTitle>
+              <CardDescription>
+                Sélectionnez les dossiers à assigner à cet assistant
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="max-h-96 overflow-y-auto">
+              {loadingFolders ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  <span>Chargement des dossiers...</span>
+                </div>
+              ) : folders.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Aucun dossier disponible
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {folders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        id={`folder-${folder.id}`}
+                        checked={selectedFolders.includes(folder.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFolders([...selectedFolders, folder.id]);
+                          } else {
+                            setSelectedFolders(
+                              selectedFolders.filter((id) => id !== folder.id),
+                            );
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <label
+                        htmlFor={`folder-${folder.id}`}
+                        className="flex-1 cursor-pointer"
                       >
-                        <input
-                          type="checkbox"
-                          id={`folder-${folder.id}`}
-                          checked={selectedFolders.includes(folder.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedFolders([...selectedFolders, folder.id]);
-                            } else {
-                              setSelectedFolders(
-                                selectedFolders.filter((id) => id !== folder.id),
-                              );
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <label
-                          htmlFor={`folder-${folder.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
-                          <div className="font-medium">{folder.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Client: {folder.client?.name || "Non spécifié"} •
-                            Exercice: {folder.fiscalYear}
-                          </div>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-              <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowAssignFolders(null);
-                    setSelectedFolders([]);
-                  }}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  onClick={() => handleAssignFolders(showAssignFolders)}
-                  disabled={selectedFolders.length === 0}
-                >
-                  Assigner ({selectedFolders.length})
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )
-      }
+                        <div className="font-medium">{folder.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Client: {folder.client?.name || "Non spécifié"} •
+                          Exercice: {folder.fiscalYear}
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAssignFolders(null);
+                  setSelectedFolders([]);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => handleAssignFolders(showAssignFolders)}
+                disabled={selectedFolders.length === 0}
+              >
+                Assigner ({selectedFolders.length})
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
