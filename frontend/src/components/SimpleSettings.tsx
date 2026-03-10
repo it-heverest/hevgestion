@@ -466,408 +466,403 @@ export function SimpleSettings() {
 
         {/* Onglet Profil & Template */}
         <TabsContent value="profile" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informations Personnelles</CardTitle>
-                  <CardDescription>
-                    Gérez vos informations de profil et coordonnées
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Avatar et informations de base */}
-                  <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-3xl">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations Personnelles</CardTitle>
+                <CardDescription>
+                  Gérez vos informations de profil et coordonnées
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Avatar et informations de base */}
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-3xl">
+                    {user
+                      ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+                      : "U"}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="text-xl font-semibold">
                       {user
-                        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
-                        : "U"}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <h3 className="text-xl font-semibold">
-                        {user
-                          ? `${user.firstName} ${user.lastName}`
-                          : "Utilisateur"}
-                      </h3>
-                      <p className="text-muted-foreground">{position}</p>
-                    </div>
+                        ? `${user.firstName} ${user.lastName}`
+                        : "Utilisateur"}
+                    </h3>
+                    <p className="text-muted-foreground">{position}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Formulaire du profil */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Prénom *</Label>
+                    <Input
+                      id="firstName"
+                      value={profileData.firstName}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          firstName: e.target.value,
+                        })
+                      }
+                      className="h-11"
+                      placeholder="Prénom"
+                      autoComplete="off"
+                      disabled={locked}
+                    />
                   </div>
 
-                  <Separator />
-
-                  {/* Formulaire du profil */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">Prénom *</Label>
-                      <Input
-                        id="firstName"
-                        value={profileData.firstName}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            firstName: e.target.value,
-                          })
-                        }
-                        className="h-11"
-                        placeholder="Prénom"
-                        autoComplete="off"
-                        disabled={locked}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Nom *</Label>
-                      <Input
-                        id="lastName"
-                        value={profileData.lastName}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            lastName: e.target.value,
-                          })
-                        }
-                        className="h-11"
-                        placeholder="Nom"
-                        autoComplete="off"
-                        disabled={locked}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={profileData.email}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            email: e.target.value,
-                          })
-                        }
-                        className="h-11"
-                        placeholder="Email"
-                        autoComplete="off"
-                        disabled={locked}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phoneNumber">Téléphone</Label>
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        value={profileData.phoneNumber}
-                        disabled={locked}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            phoneNumber: e.target.value,
-                          })
-                        }
-                        className="h-11"
-                        placeholder="Téléphone"
-                        autoComplete="off"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Nom *</Label>
+                    <Input
+                      id="lastName"
+                      value={profileData.lastName}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          lastName: e.target.value,
+                        })
+                      }
+                      className="h-11"
+                      placeholder="Nom"
+                      autoComplete="off"
+                      disabled={locked}
+                    />
                   </div>
 
-                  <div className="flex justify-end">
-                    {locked ? (
-                      <Button onClick={toggleHandler}>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          email: e.target.value,
+                        })
+                      }
+                      className="h-11"
+                      placeholder="Email"
+                      autoComplete="off"
+                      disabled={locked}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Téléphone</Label>
+                    <Input
+                      id="phoneNumber"
+                      type="tel"
+                      value={profileData.phoneNumber}
+                      disabled={locked}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          phoneNumber: e.target.value,
+                        })
+                      }
+                      className="h-11"
+                      placeholder="Téléphone"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  {locked ? (
+                    <Button onClick={toggleHandler}>
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Editer le profil
+                      </>
+                    </Button>
+                  ) : (
+                    <Button onClick={handleSaveProfile} disabled={authLoading}>
+                      {authLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sauvegarde...
+                        </>
+                      ) : (
                         <>
                           <Save className="h-4 w-4 mr-2" />
-                          Editer le profil
+                          Sauvegarder le profil
                         </>
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handleSaveProfile}
-                        disabled={authLoading}
-                      >
-                        {authLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Sauvegarde...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Sauvegarder le profil
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Template DSF Section inside Profile tab */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                    Template DSF Excel
-                  </CardTitle>
-                  <CardDescription>
-                    Importez votre template Excel DSF pour activer l'export
-                    Excel pré-rempli.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {templateLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Chargement du statut...
-                    </div>
-                  ) : templateStatus.hasTemplate ? (
-                    <Alert className="bg-green-50 border-green-200">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <AlertDescription>
-                        <div className="flex items-center space-x-4">
-                          <div className="space-y-1">
-                            <p className="font-medium text-green-800">
-                              Template importé avec succès
-                            </p>
-                            <p className="text-xs text-green-700 opacity-80">
-                              Dernière mise à jour le{" "}
-                              {templateStatus.uploadDate
-                                ? new Date(
-                                    templateStatus.uploadDate,
-                                  ).toLocaleDateString()
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={handleTemplateDelete}
-                            className="h-8 ml-4 flex items-center"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            Supprimer
-                          </Button>
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Aucun template importé. L'export Excel DSF sera
-                        indisponible.
-                      </AlertDescription>
-                    </Alert>
+                      )}
+                    </Button>
                   )}
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50/50"
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const file = e.dataTransfer.files?.[0];
+            {/* Template DSF Section inside Profile tab */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                  Template DSF Excel
+                </CardTitle>
+                <CardDescription>
+                  Importez votre template Excel DSF pour activer l'export Excel
+                  pré-rempli.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {templateLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Chargement du statut...
+                  </div>
+                ) : templateStatus.hasTemplate ? (
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription>
+                      <div className="flex items-center space-x-4">
+                        <div className="space-y-1">
+                          <p className="font-medium text-green-800">
+                            Template importé avec succès
+                          </p>
+                          <p className="text-xs text-green-700 opacity-80">
+                            Dernière mise à jour le{" "}
+                            {templateStatus.uploadDate
+                              ? new Date(
+                                  templateStatus.uploadDate,
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleTemplateDelete}
+                          className="h-8 ml-4 flex items-center"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Supprimer
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Aucun template importé. L'export Excel DSF sera
+                      indisponible.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50/50"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleTemplateUpload(file);
+                  }}
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".xlsx,.xls";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) handleTemplateUpload(file);
-                    }}
-                    onClick={() => {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = ".xlsx,.xls";
-                      input.onchange = (e) => {
-                        const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) handleTemplateUpload(file);
-                      };
-                      input.click();
-                    }}
-                  >
-                    {templateUploading ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-                        <p className="text-sm text-muted-foreground">
-                          Importation en cours...
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2">
-                        <Upload className="h-10 w-10 text-gray-400" />
-                        <p className="text-sm font-medium">
-                          {templateStatus.hasTemplate
-                            ? "Remplacer le template"
-                            : "Importer un template Excel"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Fichiers .xlsx ou .xls uniquement
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-800">
-                    <p className="font-medium mb-1 flex items-center gap-1">
-                      <Globe className="w-3 h-3" /> Aide à l'export
-                    </p>
-                    <p>
-                      Le template sera utilisé pour injecter vos données de DSF
-                      directement dans votre fichier Excel personnalisé lors du
-                      téléchargement.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-6">
-              {/* Sécurité */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Sécurité</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-                    <div className="relative">
-                      <Input
-                        id="currentPassword"
-                        type={passwordVisible ? "text" : "password"}
-                        value={passwordData.currentPassword}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            currentPassword: e.target.value,
-                          })
-                        }
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPasswordVisible(!passwordVisible)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      >
-                        {passwordVisible ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
+                    };
+                    input.click();
+                  }}
+                >
+                  {templateUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
+                      <p className="text-sm text-muted-foreground">
+                        Importation en cours...
+                      </p>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="h-10 w-10 text-gray-400" />
+                      <p className="text-sm font-medium">
+                        {templateStatus.hasTemplate
+                          ? "Remplacer le template"
+                          : "Importer un template Excel"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Fichiers .xlsx ou .xls uniquement
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-800">
+                  <p className="font-medium mb-1 flex items-center gap-1">
+                    <Globe className="w-3 h-3" /> Aide à l'export
+                  </p>
+                  <p>
+                    Le template sera utilisé pour injecter vos données de DSF
+                    directement dans votre fichier Excel personnalisé lors du
+                    téléchargement.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sécurité */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Sécurité</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Mot de passe actuel</Label>
+                  <div className="relative">
                     <Input
-                      id="newPassword"
+                      id="currentPassword"
                       type={passwordVisible ? "text" : "password"}
-                      value={passwordData.newPassword}
+                      value={passwordData.currentPassword}
                       onChange={(e) =>
                         setPasswordData({
                           ...passwordData,
-                          newPassword: e.target.value,
+                          currentPassword: e.target.value,
                         })
                       }
+                      className="pr-10"
+                      placeholder="••••••••"
+                      autoComplete="off"
                     />
-                    <Label htmlFor="confirmPassword">
-                      Confirmer le nouveau mot de passe
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type={passwordVisible ? "text" : "password"}
-                      value={passwordData.confirmPassword}
-                      onChange={(e) =>
-                        setPasswordData({
-                          ...passwordData,
-                          confirmPassword: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <Button
-                    className="w-full"
-                    variant="outline"
-                    onClick={handleChangePassword}
-                    disabled={authLoading || !passwordData.newPassword}
-                  >
-                    <Lock className="h-4 w-4 mr-2" />
-                    Changer
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Préférences */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Préférences</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Langue</Label>
-                    <Select
-                      value={language}
-                      onValueChange={(newLanguage: string) => {
-                        // Change the language
-                        setLanguage(newLanguage as "en" | "fr");
-
-                        // Update the URL to reflect the language change
-                        const pathSegments = location.pathname
-                          .split("/")
-                          .filter(Boolean);
-                        let newPath: string;
-
-                        // Remove existing language prefix if present
-                        const pathWithoutLanguage =
-                          pathSegments[0] === "en" || pathSegments[0] === "fr"
-                            ? pathSegments.slice(1).join("/")
-                            : pathSegments.join("/");
-
-                        // Add new language prefix
-                        newPath = `/${newLanguage}${
-                          pathWithoutLanguage ? "/" + pathWithoutLanguage : ""
-                        }`;
-
-                        navigate(newPath + location.search + location.hash, {
-                          replace: true,
-                        });
-                      }}
+                    <button
+                      type="button"
+                      onClick={() => setPasswordVisible(!passwordVisible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {passwordVisible ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Thème</Label>
-                    <Select value={theme} onValueChange={setTheme}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Clair</SelectItem>
-                        <SelectItem value="dark">Sombre</SelectItem>
-                        <SelectItem value="auto">Système</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    className="w-full"
-                    variant="outline"
-                    onClick={handleSaveSettings}
-                  >
-                    <Settings2 className="h-4 w-4 mr-2" />
-                    Mettre à jour
-                  </Button>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                  <Input
+                    id="newPassword"
+                    type={passwordVisible ? "text" : "password"}
+                    value={passwordData.newPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        newPassword: e.target.value,
+                      })
+                    }
+                  />
+                  <Label htmlFor="confirmPassword">
+                    Confirmer le nouveau mot de passe
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type={passwordVisible ? "text" : "password"}
+                    value={passwordData.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={handleChangePassword}
+                  disabled={authLoading || !passwordData.newPassword}
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Changer
+                </Button>
+              </CardContent>
+            </Card>
 
-              <Button variant="destructive" className="w-full" onClick={logout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Déconnexion
-              </Button>
-            </div>
+            {/* Préférences */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Préférences</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Langue</Label>
+                  <Select
+                    value={language}
+                    onValueChange={(newLanguage: string) => {
+                      // Change the language
+                      setLanguage(newLanguage as "en" | "fr");
+
+                      // Update the URL to reflect the language change
+                      const pathSegments = location.pathname
+                        .split("/")
+                        .filter(Boolean);
+                      let newPath: string;
+
+                      // Remove existing language prefix if present
+                      const pathWithoutLanguage =
+                        pathSegments[0] === "en" || pathSegments[0] === "fr"
+                          ? pathSegments.slice(1).join("/")
+                          : pathSegments.join("/");
+
+                      // Add new language prefix
+                      newPath = `/${newLanguage}${
+                        pathWithoutLanguage ? "/" + pathWithoutLanguage : ""
+                      }`;
+
+                      navigate(newPath + location.search + location.hash, {
+                        replace: true,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fr">Français</SelectItem>
+                      <SelectItem value="en">English</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Thème</Label>
+                  <Select value={theme} onValueChange={setTheme}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Clair</SelectItem>
+                      <SelectItem value="dark">Sombre</SelectItem>
+                      <SelectItem value="auto">Système</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={handleSaveSettings}
+                >
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Mettre à jour
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Button variant="destructive" className="w-full" onClick={logout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Déconnexion
+            </Button>
           </div>
         </TabsContent>
 
