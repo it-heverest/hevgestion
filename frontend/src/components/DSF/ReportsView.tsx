@@ -19,6 +19,7 @@ import {
 import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate } from "react-router-dom";
 import { dsfTemplateService } from "../../services/dsf-template.service";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   AllReportsGrid,
   REPORT_CATEGORIES,
@@ -49,6 +50,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   checkExistingDSF,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Tous");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -158,8 +160,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         error.response?.data instanceof Blob
           ? "Aucun template DSF importé. Allez dans Profil & Template pour en importer un."
           : error.response?.data?.message ||
-          error.message ||
-          "Erreur lors de l'export Excel";
+            error.message ||
+            "Erreur lors de l'export Excel";
       alert(message);
     } finally {
       setIsExporting(false);
@@ -304,12 +306,27 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <AllReportsGrid
                 folderId={folderId}
                 onViewReport={(name, Component) => {
+                  // Find the report route from ALL_REPORTS
+                  const report = ALL_REPORTS.find(r => r.name === name);
+                  const route = report?.route?.replace('rapport/', '') || name.toLowerCase().replace(" ", "");
+                  
                   // Open notes in a new tab instead of modal
-                  const newTabReports = ["NOTE 1", "NOTE 2", "NOTE 3A", "NOTE 3B", "NOTE 3C", "NOTE 3D", "NOTE 3F"];
+                  const newTabReports = [
+                    "NOTE 1",
+                    "NOTE 2",
+                    "NOTE 3A",
+                    "NOTE 3B",
+                    "NOTE 3C",
+                    "NOTE 3D",
+                    "NOTE 3F",
+                    "ASS 1",
+                    "ASS 2",
+                    "TVA",
+                  ];
                   if (newTabReports.includes(name)) {
-                    const route = name.toLowerCase().replace(" ", "");
+                    const userId = user?.id || "current";
                     window.open(
-                      `/rapport/${route}?folderId=${folderId || ""}`,
+                      `/reports/${userId}/reports/rapport/${route}?folderId=${folderId || ""}`,
                       "_blank",
                     );
                   } else {
@@ -549,10 +566,11 @@ const ReportCard: React.FC<ReportCardProps> = ({
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${report.success
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-              }`}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+              report.success
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -590,10 +608,11 @@ const ReportCard: React.FC<ReportCardProps> = ({
             {report.noteName}
           </h3>
           <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${report.success
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-              }`}
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+              report.success
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
           >
             {report.success ? "Extrait" : "Échec"}
           </span>
@@ -705,19 +724,21 @@ const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
             <div className="flex border border-gray-300 rounded-lg overflow-hidden">
               <button
                 onClick={() => setViewMode("component")}
-                className={`px-3 py-2 text-sm ${viewMode === "component"
-                  ? "bg-blue-50 text-blue-600 font-medium"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`px-3 py-2 text-sm ${
+                  viewMode === "component"
+                    ? "bg-blue-50 text-blue-600 font-medium"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 Composant
               </button>
               <button
                 onClick={() => setViewMode("data")}
-                className={`px-3 py-2 text-sm border-l border-gray-300 ${viewMode === "data"
-                  ? "bg-blue-50 text-blue-600 font-medium"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
+                className={`px-3 py-2 text-sm border-l border-gray-300 ${
+                  viewMode === "data"
+                    ? "bg-blue-50 text-blue-600 font-medium"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 Données
               </button>
