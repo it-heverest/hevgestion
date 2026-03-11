@@ -606,111 +606,79 @@ export function SimpleSettings() {
                   Template DSF Excel
                 </CardTitle>
                 <CardDescription>
-                  Importez votre template Excel DSF pour activer l'export Excel
-                  pré-rempli.
+                  Importez votre template Excel DSF pour l'export pré-rempli.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 {templateLoading ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Chargement du statut...
+                    Chargement...
                   </div>
                 ) : templateStatus.hasTemplate ? (
-                  <Alert className="bg-green-50 border-green-200">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription>
-                      <div className="flex items-center space-x-4">
-                        <div className="space-y-1">
-                          <p className="font-medium text-green-800">
-                            Template importé avec succès
-                          </p>
-                          <p className="text-xs text-green-700 opacity-80">
-                            Dernière mise à jour le{" "}
-                            {templateStatus.uploadDate
-                              ? new Date(
-                                  templateStatus.uploadDate,
-                                ).toLocaleDateString()
-                              : "N/A"}
-                          </p>
-                        </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleTemplateDelete}
-                          className="h-8 ml-4 flex items-center"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Supprimer
-                        </Button>
+                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-800">Template configuré</p>
+                        <p className="text-xs text-green-600">
+                          {templateStatus.uploadDate ? `Importé le ${new Date(templateStatus.uploadDate).toLocaleDateString()}` : 'Actif'}
+                        </p>
                       </div>
-                    </AlertDescription>
-                  </Alert>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = ".xlsx,.xls";
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) handleTemplateUpload(file);
+                          };
+                          input.click();
+                        }}
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        Remplacer
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleTemplateDelete}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Aucun template importé. L'export Excel DSF sera
-                      indisponible.
-                    </AlertDescription>
-                  </Alert>
+                  <div className="text-center p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-amber-800 mb-3">Aucun template importé</p>
+                    <Button
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = ".xlsx,.xls";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) handleTemplateUpload(file);
+                        };
+                        input.click();
+                      }}
+                      disabled={templateUploading}
+                    >
+                      {templateUploading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Importer un template
+                    </Button>
+                  </div>
                 )}
-
-                <div
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50/50"
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleTemplateUpload(file);
-                  }}
-                  onClick={() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = ".xlsx,.xls";
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (file) handleTemplateUpload(file);
-                    };
-                    input.click();
-                  }}
-                >
-                  {templateUploading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-                      <p className="text-sm text-muted-foreground">
-                        Importation en cours...
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-10 w-10 text-gray-400" />
-                      <p className="text-sm font-medium">
-                        {templateStatus.hasTemplate
-                          ? "Remplacer le template"
-                          : "Importer un template Excel"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Fichiers .xlsx ou .xls uniquement
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-800">
-                  <p className="font-medium mb-1 flex items-center gap-1">
-                    <Globe className="w-3 h-3" /> Aide à l'export
-                  </p>
-                  <p>
-                    Le template sera utilisé pour injecter vos données de DSF
-                    directement dans votre fichier Excel personnalisé lors du
-                    téléchargement.
-                  </p>
-                </div>
               </CardContent>
             </Card>
 
@@ -762,6 +730,8 @@ export function SimpleSettings() {
                         newPassword: e.target.value,
                       })
                     }
+                    autoComplete="off"
+                    placeholder="••••••••"
                   />
                   <Label htmlFor="confirmPassword">
                     Confirmer le nouveau mot de passe
@@ -776,6 +746,8 @@ export function SimpleSettings() {
                         confirmPassword: e.target.value,
                       })
                     }
+                    autoComplete="off"
+                    placeholder="••••••••"
                   />
                 </div>
                 <Button
