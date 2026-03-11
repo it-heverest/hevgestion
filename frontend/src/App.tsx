@@ -42,6 +42,7 @@ import { OnboardingGuide } from "./components/OnboardingGuide";
 import { ReportNavigation } from "./components/DSF/ReportNavigation";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
+import { EntityHeader } from "./components/EntityHeader";
 import {
   LayoutDashboard,
   Upload,
@@ -509,6 +510,7 @@ export function ProtectedLayout({
 
           <div className="p-6 pb-16">
             <Outlet />
+            <EntityHeader />
           </div>
 
           <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white border-t border-gray-200">
