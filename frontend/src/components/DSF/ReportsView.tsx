@@ -307,9 +307,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 folderId={folderId}
                 onViewReport={(name, Component) => {
                   // Find the report route from ALL_REPORTS
-                  const report = ALL_REPORTS.find(r => r.name === name);
-                  const route = report?.route?.replace('rapport/', '') || name.toLowerCase().replace(" ", "");
-                  
+                  const report = ALL_REPORTS.find((r) => r.name === name);
+                  const route =
+                    report?.route?.replace("rapport/", "") ||
+                    name.toLowerCase().replace(" ", "");
+
                   // Open notes in a new tab instead of modal
                   const newTabReports = [
                     "NOTE 1",
@@ -418,7 +420,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               {/* Search and Filters */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-3 bottom-3 h-5 w-5 text-gray-400 mt-2" />
                   <input
                     type="text"
                     placeholder="Rechercher un rapport..."
