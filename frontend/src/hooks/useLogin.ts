@@ -129,6 +129,14 @@ export function useLogin() {
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
+      
+      // Clear sensitive fields after successful login
+      setLoginForm((prev) => ({
+        ...prev,
+        phoneNumber: "",
+        password: "",
+      }));
+      
       navigate("/fr/web/user/select-country");
     } catch (err) {
       const errorMessage =
@@ -213,6 +221,14 @@ export function useLogin() {
       const result = await register(submitData);
 
       if (result.requiresOtp && result.user) {
+        // Clear sensitive fields after successful registration initiation
+        setRegisterForm((prev) => ({
+          ...prev,
+          phoneNumber: "",
+          password: "",
+          confirmPassword: "",
+        }));
+        
         // Redirect to OTP verification page with user data
         navigate("/web/user/verify-otp", {
           state: {
@@ -222,6 +238,14 @@ export function useLogin() {
           },
         });
       } else {
+        // Clear sensitive fields after successful registration
+        setRegisterForm((prev) => ({
+          ...prev,
+          phoneNumber: "",
+          password: "",
+          confirmPassword: "",
+        }));
+        
         // Direct registration success - redirect to country/client selection
         navigate("/web/user/select-country");
       }
