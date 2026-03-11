@@ -341,20 +341,20 @@ export class AssistantController {
         );
       }
 
-      // Remove existing assignments for these folders and assistant
-      // await prisma.folderAssignment.deleteMany({
-      //   where: {
-      //     folderId: { in: folderIds },
-      //     userId: assistantId,
-      //   },
-      // });
-      // i removed it because one or more assistant can work on one folder
-
-      // Create new assignments
+      // Create or update assignments (upsert to handle duplicates)
       const assignments = await Promise.all(
         folderIds.map((folderId: string) =>
-          prisma.folderAssignment.create({
-            data: {
+          prisma.folderAssignment.upsert({
+            where: {
+              folderId_userId: {
+                folderId,
+                userId: assistantId,
+              },
+            },
+            update: {
+              role,
+            },
+            create: {
               folderId,
               userId: assistantId,
               role,

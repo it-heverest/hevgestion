@@ -205,12 +205,11 @@ export function SimpleSettings() {
   const loadFolders = async () => {
     try {
       setLoadingFolders(true);
-      if (!user?.id) return;
-      const foldersData = await folderService.getFolders(user.id);
+      // Use searchFolders with empty query to get all folders for the accountant
+      const foldersData = await folderService.searchFolders("");
       setFolders(foldersData);
     } catch (error) {
       console.error("Erreur lors du chargement des dossiers:", error);
-    } finally {
       setLoadingFolders(false);
     }
   };

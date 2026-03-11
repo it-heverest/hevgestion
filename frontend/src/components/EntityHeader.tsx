@@ -232,7 +232,7 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
 
       {/* Dialog for entering header information */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[50%] max-w-[50%]">
+        <DialogContent className="sm:max-w-[50%] max-w-[50%] w-50 ">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
