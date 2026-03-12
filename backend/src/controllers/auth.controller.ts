@@ -153,11 +153,11 @@ class AuthController {
         where: { phoneNumber: phone },
       });
 
-      if (!user) throw new UnauthorizedError("Invalid credentials");
+      if (!user) throw new UnauthorizedError("Numéro de téléphone ou mot de passe incorrect");
       if (!user.isActive) throw new UnauthorizedError("Account is inactive");
 
       const isPasswordValid = await comparePassword(password, user.password);
-      if (!isPasswordValid) throw new UnauthorizedError("Invalid credentials");
+      if (!isPasswordValid) throw new UnauthorizedError("Numéro de téléphone ou mot de passe incorrect");
 
       const accessToken = generateAccessToken({
         userId: user.id,
