@@ -51,6 +51,14 @@ export const config = {
     key: process.env.ENCRYPTION_KEY || "your-32-character-encryption-key!",
   },
 
+  // Redis Cache
+  redis: {
+    host: process.env.REDIS_HOST || "localhost",
+    port: parseInt(process.env.REDIS_PORT || "6379", 10),
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB || "0", 10),
+  },
+
   // Countries
   supportedCountries: ["CM", "CI", "SN", "BF", "TG", "BJ"],
 };
