@@ -17,6 +17,8 @@ export interface CreateAssistantData {
   firstName: string;
   lastName: string;
   email: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
   password: string;
 }
 

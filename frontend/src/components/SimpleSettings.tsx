@@ -78,6 +78,7 @@ interface AssistantFormData {
   firstName: string;
   lastName: string;
   email: string;
+  phoneCountryCode: string;
   phoneNumber: string;
   password: string;
 }
@@ -118,6 +119,7 @@ export function SimpleSettings() {
     firstName: "",
     lastName: "",
     email: "",
+    phoneCountryCode: "+237", // Default to Cameroon
     phoneNumber: "",
     password: "",
   });
@@ -341,6 +343,7 @@ export function SimpleSettings() {
         firstName: "",
         lastName: "",
         email: "",
+        phoneCountryCode: "+237",
         phoneNumber: "",
         password: "",
       });
@@ -619,9 +622,13 @@ export function SimpleSettings() {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <div>
-                        <p className="font-medium text-green-800">Template configuré</p>
+                        <p className="font-medium text-green-800">
+                          Template configuré
+                        </p>
                         <p className="text-xs text-green-600">
-                          {templateStatus.uploadDate ? `Importé le ${new Date(templateStatus.uploadDate).toLocaleDateString()}` : 'Actif'}
+                          {templateStatus.uploadDate
+                            ? `Importé le ${new Date(templateStatus.uploadDate).toLocaleDateString()}`
+                            : "Actif"}
                         </p>
                       </div>
                     </div>
@@ -634,7 +641,8 @@ export function SimpleSettings() {
                           input.type = "file";
                           input.accept = ".xlsx,.xls";
                           input.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
+                            const file = (e.target as HTMLInputElement)
+                              .files?.[0];
                             if (file) handleTemplateUpload(file);
                           };
                           input.click();
@@ -655,14 +663,17 @@ export function SimpleSettings() {
                   </div>
                 ) : (
                   <div className="text-center p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-amber-800 mb-3">Aucun template importé</p>
+                    <p className="text-amber-800 mb-3">
+                      Aucun template importé
+                    </p>
                     <Button
                       onClick={() => {
                         const input = document.createElement("input");
                         input.type = "file";
                         input.accept = ".xlsx,.xls";
                         input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
+                          const file = (e.target as HTMLInputElement)
+                            .files?.[0];
                           if (file) handleTemplateUpload(file);
                         };
                         input.click();
@@ -949,20 +960,46 @@ export function SimpleSettings() {
 
                         <div className="space-y-2">
                           <Label htmlFor="assistantPhone">Téléphone *</Label>
-                          <Input
-                            id="assistantPhone"
-                            type="tel"
-                            value={newAssistant.phoneNumber}
-                            onChange={(e) =>
-                              setNewAssistant({
-                                ...newAssistant,
-                                phoneNumber: e.target.value,
-                              })
-                            }
-                            placeholder="6 99 12 34 56"
-                            className="h-11"
-                            autoComplete="off"
-                          />
+                          <div className="flex gap-2">
+                            <select
+                              value={newAssistant.phoneCountryCode}
+                              onChange={(e) =>
+                                setNewAssistant({
+                                  ...newAssistant,
+                                  phoneCountryCode: e.target.value,
+                                })
+                              }
+                              className="h-11 rounded-md border border-input bg-background px-3 py-2 text-sm min-w-[100px]"
+                            >
+                              <option value="+237">+237 (CM)</option>
+                              <option value="+241">+241 (GA)</option>
+                              <option value="+229">+229 (BJ)</option>
+                              <option value="+221">+221 (SN)</option>
+                              <option value="+225">+225 (CI)</option>
+                              <option value="+230">+230 (MU)</option>
+                              <option value="+261">+261 (MG)</option>
+                              <option value="+257">+257 (BI)</option>
+                              <option value="+243">+243 (CD)</option>
+                              <option value="+244">+244 (AO)</option>
+                              <option value="+1">+1 (US/CA)</option>
+                              <option value="+33">+33 (FR)</option>
+                              <option value="+44">+44 (UK)</option>
+                            </select>
+                            <Input
+                              id="assistantPhone"
+                              type="tel"
+                              value={newAssistant.phoneNumber}
+                              onChange={(e) =>
+                                setNewAssistant({
+                                  ...newAssistant,
+                                  phoneNumber: e.target.value,
+                                })
+                              }
+                              placeholder="6 99 12 34 56"
+                              className="flex-1 h-11"
+                              autoComplete="off"
+                            />
+                          </div>
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
@@ -1031,6 +1068,7 @@ export function SimpleSettings() {
                               firstName: "",
                               lastName: "",
                               email: "",
+                              phoneCountryCode: "+237",
                               phoneNumber: "",
                               password: "",
                             });

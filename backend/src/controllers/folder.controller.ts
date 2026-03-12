@@ -235,13 +235,18 @@ class FolderController {
           ? { ownerId: userId }
           : { assignments: { some: { userId } } };
 
+      // If query is empty, return all folders without filtering by name/description
       const where: any = {
         ...accessScope,
-        OR: [
+      };
+
+      // Only add name/description filter if query is not empty
+      if (query && query.trim() !== "") {
+        where.OR = [
           { name: { contains: query as string, mode: "insensitive" } },
           { description: { contains: query as string, mode: "insensitive" } },
-        ],
-      };
+        ];
+      }
 
       if (clientId) where.clientId = clientId;
 
@@ -251,7 +256,7 @@ class FolderController {
           client: { select: { id: true, name: true, country: true } },
         },
         orderBy: { fiscalYear: "desc" },
-        take: 20,
+        take: 100, // Increased limit to return more folders
       });
 
       res.json({ folders });
