@@ -11,6 +11,7 @@ export const API_CONFIG = {
   BALANCES: `${API_BASE_URL}/balances`,
   DSF: `${API_BASE_URL}/dsf`,
   DECLARATIONS: `${API_BASE_URL}/declarations`,
+  DGI: `${API_BASE_URL}/dgi`,
 } as const;
 
 export default API_CONFIG;

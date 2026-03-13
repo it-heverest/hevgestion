@@ -36,25 +36,25 @@ class DGIService {
    */
   async createProcess(
     declarationYear: string,
-    declarationType: string
+    declarationType: string,
   ): Promise<DGICreateProcessResponse> {
     try {
       const response = await axios.post(
-        `${this.baseURL}/declarations/process/${declarationYear}/${declarationType}`,
+        `${API_CONFIG.DGI}/process/${declarationYear}/${declarationType}`,
         {},
         {
           headers: {
             "Content-Type": "application/json",
           },
           withCredentials: true,
-        }
+        },
       );
 
       return response.data;
     } catch (error: any) {
       console.error("DGI create process error:", error);
       throw new Error(
-        error.response?.data?.message || "Failed to create declaration process"
+        error.response?.data?.message || "Failed to create declaration process",
       );
     }
   }
@@ -64,22 +64,19 @@ class DGIService {
    */
   async deleteProcess(processId: string): Promise<DGIDeleteProcessResponse> {
     try {
-      const response = await axios.delete(
-        `${this.baseURL}/declarations/process`,
-        {
-          data: { id: processId },
-          headers: {
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        }
-      );
+      const response = await axios.delete(`${API_CONFIG.DGI}/process`, {
+        data: { id: processId },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        withCredentials: true,
+      });
 
       return response.data;
     } catch (error: any) {
       console.error("DGI delete process error:", error);
       throw new Error(
-        error.response?.data?.message || "Failed to delete declaration process"
+        error.response?.data?.message || "Failed to delete declaration process",
       );
     }
   }
@@ -89,7 +86,7 @@ class DGIService {
    */
   async getProcesses(): Promise<DGIGetProcessesResponse> {
     try {
-      const response = await axios.get(`${this.baseURL}/declarations/process`, {
+      const response = await axios.get(`${API_CONFIG.DGI}/process`, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -100,7 +97,7 @@ class DGIService {
     } catch (error: any) {
       console.error("DGI get processes error:", error);
       throw new Error(
-        error.response?.data?.message || "Failed to get declaration processes"
+        error.response?.data?.message || "Failed to get declaration processes",
       );
     }
   }
@@ -109,17 +106,17 @@ class DGIService {
    * Get declaration processes for a specific year
    */
   async getProcessesByYear(
-    declarationYear: string
+    declarationYear: string,
   ): Promise<DGIGetProcessesResponse> {
     try {
       const response = await axios.get(
-        `${this.baseURL}/declarations/process/${declarationYear}`,
+        `${API_CONFIG.DGI}/process/${declarationYear}`,
         {
           headers: {
             "Content-Type": "application/json",
           },
           withCredentials: true,
-        }
+        },
       );
 
       return response.data;
@@ -127,7 +124,7 @@ class DGIService {
       console.error("DGI get processes by year error:", error);
       throw new Error(
         error.response?.data?.message ||
-          "Failed to get declaration processes for year"
+          "Failed to get declaration processes for year",
       );
     }
   }
@@ -138,27 +135,36 @@ class DGIService {
   async login(username: string, password: string): Promise<DGILoginResponse> {
     try {
       const response = await axios.post(
-        `${this.baseURL}/declarations/auth`,
+        `${API_CONFIG.DGI}/auth`,
         { username, password },
         {
           headers: {
             "Content-Type": "application/json",
           },
           withCredentials: true,
-        }
+        },
       );
 
       return response.data;
     } catch (error: any) {
       console.error("DGI login error:", error);
 
-      if (error.response?.status === 401) {
-        throw new Error("Nom d'utilisateur ou mot de passe incorrect");
+      // Extract error message from response
+      let errorMessage = "Échec de la connexion DGI";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.status === 401) {
+        errorMessage = "Nom d'utilisateur ou mot de passe incorrect";
+      } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+        errorMessage =
+          "Serveur DGI inaccessible. Veuillez vérifier votre connexion.";
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
-      throw new Error(
-        error.response?.data?.message || "Échec de la connexion DGI"
-      );
+      throw new Error(errorMessage);
     }
   }
 }

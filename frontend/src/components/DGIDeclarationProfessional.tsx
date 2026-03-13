@@ -88,7 +88,7 @@ export default function DGIDeclarationProfessional() {
     if (!user?.id) return;
     try {
       const history = await dgiDeclarationService.getDeclarationHistory(
-        user.id
+        user.id,
       );
       setDeclarationHistory(history);
     } catch (error) {
@@ -126,7 +126,7 @@ export default function DGIDeclarationProfessional() {
       !config.password
     ) {
       alert(
-        "🔧 Configuration DGI requise\nVeuillez configurer vos identifiants DGI avant de déclarer"
+        "🔧 Configuration DGI requise\nVeuillez configurer vos identifiants DGI avant de déclarer",
       );
       setShowConfig(true);
       return;
@@ -137,7 +137,7 @@ export default function DGIDeclarationProfessional() {
     try {
       const result = await dgiDeclarationService.submitDeclaration(
         selectedFolder.id,
-        user.id
+        user.id,
       );
 
       setDeclarationResult({
@@ -149,14 +149,14 @@ export default function DGIDeclarationProfessional() {
       await loadDeclarationHistory();
 
       alert(
-        `✅ Déclaration transmise avec succès !\n\nNuméro: ${result.number}\nDate: ${result.date} à ${result.timestamp}`
+        `✅ Déclaration transmise avec succès !\n\nNuméro: ${result.number}\nDate: ${result.date} à ${result.timestamp}`,
       );
     } catch (error: any) {
       console.error("Declaration error:", error);
       alert(
         `❌ Erreur lors de la soumission:\n${
           error.message || "Une erreur est survenue lors de la transmission"
-        }`
+        }`,
       );
     } finally {
       setLoading(false);
@@ -197,7 +197,7 @@ export default function DGIDeclarationProfessional() {
       alert(
         `❌ Erreur lors de la sauvegarde:\n${
           error.message || "Impossible de sauvegarder la configuration"
-        }`
+        }`,
       );
     } finally {
       setConfigLoading(false);
@@ -205,8 +205,21 @@ export default function DGIDeclarationProfessional() {
   };
 
   const handleTestDGILogin = async () => {
-    if (!config.username.trim() || !config.password.trim()) {
-      alert("❌ Veuillez saisir le nom d'utilisateur et le mot de passe DGI");
+    // Validate all required fields
+    if (!config.companyName?.trim()) {
+      alert("❌ Veuillez saisir le nom de l'entreprise");
+      return;
+    }
+    if (!config.niu?.trim()) {
+      alert("❌ Veuillez saisir le numéro NIU");
+      return;
+    }
+    if (!config.username?.trim()) {
+      alert("❌ Veuillez saisir le nom d'utilisateur DGI");
+      return;
+    }
+    if (!config.password?.trim()) {
+      alert("❌ Veuillez saisir le mot de passe DGI");
       return;
     }
 
@@ -232,7 +245,7 @@ export default function DGIDeclarationProfessional() {
       alert(
         `❌ Échec de la connexion DGI:\n${
           error.message || "Identifiants invalides"
-        }`
+        }`,
       );
     } finally {
       setDgiLoginLoading(false);
@@ -254,12 +267,12 @@ export default function DGIDeclarationProfessional() {
       alert(
         `✅ ${result.total} processus DGI chargés${
           selectedYear ? ` pour ${selectedYear}` : ""
-        }`
+        }`,
       );
     } catch (error: any) {
       console.error("Load DGI processes error:", error);
       alert(
-        `❌ Erreur lors du chargement des processus DGI:\n${error.message}`
+        `❌ Erreur lors du chargement des processus DGI:\n${error.message}`,
       );
     } finally {
       setLoadingProcesses(false);
@@ -422,7 +435,7 @@ export default function DGIDeclarationProfessional() {
               <button
                 onClick={() =>
                   alert(
-                    "📥 Fonctionnalité d'accusé de réception bientôt disponible"
+                    "📥 Fonctionnalité d'accusé de réception bientôt disponible",
                   )
                 }
                 className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -433,7 +446,7 @@ export default function DGIDeclarationProfessional() {
               <button
                 onClick={() =>
                   alert(
-                    "📊 Fonctionnalité de rapport détaillé bientôt disponible"
+                    "📊 Fonctionnalité de rapport détaillé bientôt disponible",
                   )
                 }
                 className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -663,24 +676,24 @@ export default function DGIDeclarationProfessional() {
                               decl.status === "APPROVED"
                                 ? "bg-green-100 text-green-800"
                                 : decl.status === "PENDING"
-                                ? "bg-orange-100 text-orange-800"
-                                : decl.status === "REJECTED"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-blue-100 text-blue-800"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : decl.status === "REJECTED"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-blue-100 text-blue-800"
                             }`}
                           >
                             {decl.status === "APPROVED"
                               ? "Approuvée"
                               : decl.status === "PENDING"
-                              ? "En attente"
-                              : decl.status === "REJECTED"
-                              ? "Rejetée"
-                              : "Soumise"}
+                                ? "En attente"
+                                : decl.status === "REJECTED"
+                                  ? "Rejetée"
+                                  : "Soumise"}
                           </span>
                         </div>
                         <p className="text-gray-600 text-sm mb-2">
                           {new Date(decl.submittedAt).toLocaleDateString(
-                            "fr-FR"
+                            "fr-FR",
                           )}
                         </p>
                         <p className="font-mono text-sm text-gray-900">

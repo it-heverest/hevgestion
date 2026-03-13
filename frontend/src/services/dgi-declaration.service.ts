@@ -1,5 +1,6 @@
 // services/dgi-declaration.service.ts
 import axios from "axios";
+import { API_CONFIG } from "../config/api";
 
 interface DGIConfig {
   id?: string;
@@ -27,7 +28,7 @@ interface DeclarationHistory {
 }
 
 class DGIDeclarationService {
-  private baseURL = "http://localhost:5000/api/dgi";
+  private baseURL = API_CONFIG.DGI;
 
   async getConfig(userId: string): Promise<DGIConfig | null> {
     try {
