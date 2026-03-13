@@ -24,6 +24,8 @@ import {
   DGINote3D2Data,
   DGINote3E2Data,
   DGINote3FData,
+  DGINote4Data,
+  DGINote5Data,
 } from "../types/declaration.types";
 
 export class DeclarationController {
@@ -2823,6 +2825,348 @@ export class DeclarationController {
       res.status(error.response?.status || 500).json({
         success: false,
         message: error.response?.data?.message || "Failed to delete Note 3F",
+      });
+    }
+  }
+
+  // ============================================
+  // Note 4 (Créances) Methods
+  // This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+  // The :declaration_page parameter is "note42"
+  // ============================================
+
+  /**
+   * PUT /api/dgi/note4
+   * Submit Note 4 (Créances) - full replace
+   * Uses URL pattern: /process/:declaration_id/note42
+   */
+  async submitNote4(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note4Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note4Data: DGINote4Data;
+      };
+
+      if (!userId || !declarationId || !note4Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note4Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.submitNote4(
+        declarationId,
+        note4Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Submit Note 4 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to submit Note 4",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/dgi/note4
+   * Update Note 4 (Créances) - partial update
+   */
+  async updateNote4(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note4Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note4Data: Partial<DGINote4Data>;
+      };
+
+      if (!userId || !declarationId || !note4Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note4Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.updateNote4(
+        declarationId,
+        note4Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Update Note 4 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to update Note 4",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/dgi/note4
+   * Delete Note 4 (Créances)
+   */
+  async deleteNote4(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId } = req.body as {
+        userId: string;
+        declarationId: string;
+      };
+
+      if (!userId || !declarationId) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.deleteNote4(declarationId);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Delete Note 4 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to delete Note 4",
+      });
+    }
+  }
+
+  // ============================================
+  // Note 5 (Stocks) Methods
+  // This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+  // The :declaration_page parameter is "note52"
+  // ============================================
+
+  /**
+   * PUT /api/dgi/note5
+   * Submit Note 5 (Stocks) - full replace
+   * Uses URL pattern: /process/:declaration_id/note52
+   */
+  async submitNote5(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note5Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note5Data: DGINote5Data;
+      };
+
+      if (!userId || !declarationId || !note5Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note5Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.submitNote5(
+        declarationId,
+        note5Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Submit Note 5 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to submit Note 5",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/dgi/note5
+   * Update Note 5 (Stocks) - partial update
+   */
+  async updateNote5(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note5Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note5Data: Partial<DGINote5Data>;
+      };
+
+      if (!userId || !declarationId || !note5Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note5Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.updateNote5(
+        declarationId,
+        note5Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Update Note 5 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to update Note 5",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/dgi/note5
+   * Delete Note 5 (Stocks)
+   */
+  async deleteNote5(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId } = req.body as {
+        userId: string;
+        declarationId: string;
+      };
+
+      if (!userId || !declarationId) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.deleteNote5(declarationId);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Delete Note 5 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to delete Note 5",
       });
     }
   }

@@ -1,6 +1,6 @@
 /**
  * DGI Declaration Service
- * 
+ *
  * Handles all communication with DGI API
  * Base URL: http://tasserver.dgi.cm/api/v1
  */
@@ -29,6 +29,8 @@ import {
   DGINote3D2Data,
   DGINote3E2Data,
   DGINote3FData,
+  DGINote4Data,
+  DGINote5Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -52,11 +54,11 @@ export class DeclarationService {
       (error: AxiosError<DGIError>) => {
         if (error.response?.data) {
           console.error(
-            `[DGI API Error] ${error.response.data.errorCode}: ${error.response.data.message}`
+            `[DGI API Error] ${error.response.data.errorCode}: ${error.response.data.message}`,
           );
         }
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -69,7 +71,10 @@ export class DeclarationService {
    * POST /auth
    */
   async authenticate(credentials: DGIAuthRequest): Promise<DGIAuthResponse> {
-    const response = await this.client.post<DGIAuthResponse>("/auth", credentials);
+    const response = await this.client.post<DGIAuthResponse>(
+      "/auth",
+      credentials,
+    );
     this.token = response.data.token;
     return response.data;
   }
@@ -124,12 +129,12 @@ export class DeclarationService {
    */
   async createDeclaration(
     year: string,
-    declarationType: DGIDeclarationType
+    declarationType: DGIDeclarationType,
   ): Promise<DGICreateDeclarationResponse> {
     const response = await this.client.post<DGICreateDeclarationResponse>(
       `/process/${year}/${declarationType}`,
       {},
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -139,9 +144,12 @@ export class DeclarationService {
    * GET /process
    */
   async getAllDeclarations(): Promise<DGIDeclarationListResponse> {
-    const response = await this.client.get<DGIDeclarationListResponse>("/process", {
-      headers: this.getAuthHeaders(),
-    });
+    const response = await this.client.get<DGIDeclarationListResponse>(
+      "/process",
+      {
+        headers: this.getAuthHeaders(),
+      },
+    );
     return response.data;
   }
 
@@ -149,10 +157,12 @@ export class DeclarationService {
    * Get processes by year
    * GET /process/:year
    */
-  async getDeclarationsByYear(year: string): Promise<DGIDeclarationListResponse> {
+  async getDeclarationsByYear(
+    year: string,
+  ): Promise<DGIDeclarationListResponse> {
     const response = await this.client.get<DGIDeclarationListResponse>(
       `/process/${year}`,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -163,11 +173,11 @@ export class DeclarationService {
    */
   async getDeclarationsByYearAndType(
     year: string,
-    type: DGIDeclarationType
+    type: DGIDeclarationType,
   ): Promise<DGIDeclarationListResponse> {
     const response = await this.client.get<DGIDeclarationListResponse>(
       `/process/${year}/${type}`,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -176,13 +186,15 @@ export class DeclarationService {
    * Delete a declaration
    * DELETE /process
    */
-  async deleteDeclaration(declarationId: string): Promise<DGIDeleteDeclarationResponse> {
+  async deleteDeclaration(
+    declarationId: string,
+  ): Promise<DGIDeleteDeclarationResponse> {
     const response = await this.client.delete<DGIDeleteDeclarationResponse>(
       "/process",
       {
         headers: this.getAuthHeaders(),
         data: { id: declarationId },
-      }
+      },
     );
     return response.data;
   }
@@ -198,12 +210,12 @@ export class DeclarationService {
   async submitPage(
     declarationId: string,
     pageName: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/${pageName}`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -215,12 +227,12 @@ export class DeclarationService {
   async updatePage(
     declarationId: string,
     pageName: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/${pageName}`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -231,11 +243,11 @@ export class DeclarationService {
    */
   async deletePage(
     declarationId: string,
-    pageName: string
+    pageName: string,
   ): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${declarationId}/${pageName}`,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -249,7 +261,7 @@ export class DeclarationService {
    */
   async submitPageDeGarde(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.submitPage(declarationId, "etats-financiers", data);
   }
@@ -259,7 +271,7 @@ export class DeclarationService {
    */
   async updatePageDeGarde(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.updatePage(declarationId, "etats-financiers", data);
   }
@@ -276,7 +288,7 @@ export class DeclarationService {
    */
   async submitFicheR1(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.submitPage(declarationId, "fiche-r1", data);
   }
@@ -286,7 +298,7 @@ export class DeclarationService {
    */
   async updateFicheR1(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.updatePage(declarationId, "fiche-r1", data);
   }
@@ -303,7 +315,7 @@ export class DeclarationService {
    */
   async submitFicheR2(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.submitPage(declarationId, "fiche-r2", data);
   }
@@ -313,7 +325,7 @@ export class DeclarationService {
    */
   async updateFicheR2(
     declarationId: string,
-    data: any
+    data: any,
   ): Promise<DGIPageResponse> {
     return this.updatePage(declarationId, "fiche-r2", data);
   }
@@ -335,12 +347,12 @@ export class DeclarationService {
    */
   async submitGrilleAnalyse(
     declarationId: string,
-    data: DGIGrilleAnalyseData
+    data: DGIGrilleAnalyseData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/grilledanalyse`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -351,12 +363,12 @@ export class DeclarationService {
    */
   async updateGrilleAnalyse(
     declarationId: string,
-    data: Partial<DGIGrilleAnalyseData>
+    data: Partial<DGIGrilleAnalyseData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/grilledanalyse`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -379,12 +391,12 @@ export class DeclarationService {
    */
   async submitSection2Model1BilanPaysage(
     declarationId: string,
-    data: DGISection2Model1BilanPaysageData
+    data: DGISection2Model1BilanPaysageData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/section2modelbilanpasage`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -395,12 +407,12 @@ export class DeclarationService {
    */
   async updateSection2Model1BilanPaysage(
     declarationId: string,
-    data: Partial<DGISection2Model1BilanPaysageData>
+    data: Partial<DGISection2Model1BilanPaysageData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/section2modelbilanpasage`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -410,7 +422,7 @@ export class DeclarationService {
    * DELETE /process/:declaration_id/section2modelbilanpasage
    */
   async deleteSection2Model1BilanPaysage(
-    declarationId: string
+    declarationId: string,
   ): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "section2modelbilanpasage");
   }
@@ -425,12 +437,12 @@ export class DeclarationService {
    */
   async submitSection2ModelCompteResultat(
     declarationId: string,
-    data: DGISection2ModelCompteResultatData
+    data: DGISection2ModelCompteResultatData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/section2modelresultat`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -441,12 +453,12 @@ export class DeclarationService {
    */
   async updateSection2ModelCompteResultat(
     declarationId: string,
-    data: Partial<DGISection2ModelCompteResultatData>
+    data: Partial<DGISection2ModelCompteResultatData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/section2modelresultat`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -456,7 +468,7 @@ export class DeclarationService {
    * DELETE /process/:declaration_id/section2modelresultat
    */
   async deleteSection2ModelCompteResultat(
-    declarationId: string
+    declarationId: string,
   ): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "section2modelresultat");
   }
@@ -471,12 +483,12 @@ export class DeclarationService {
    */
   async submitSection2ModelTableauFluxTresorerie(
     declarationId: string,
-    data: DGISection2ModelTableauFluxTresorerieData
+    data: DGISection2ModelTableauFluxTresorerieData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/section2modeltresori`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -487,12 +499,12 @@ export class DeclarationService {
    */
   async updateSection2ModelTableauFluxTresorerie(
     declarationId: string,
-    data: Partial<DGISection2ModelTableauFluxTresorerieData>
+    data: Partial<DGISection2ModelTableauFluxTresorerieData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/section2modeltresori`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -502,7 +514,7 @@ export class DeclarationService {
    * DELETE /process/:declaration_id/section2modeltresori
    */
   async deleteSection2ModelTableauFluxTresorerie(
-    declarationId: string
+    declarationId: string,
   ): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "section2modeltresori");
   }
@@ -517,12 +529,12 @@ export class DeclarationService {
    */
   async submitNote1(
     declarationId: string,
-    data: DGINote1Data
+    data: DGINote1Data,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note1`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -533,12 +545,12 @@ export class DeclarationService {
    */
   async updateNote1(
     declarationId: string,
-    data: Partial<DGINote1Data>
+    data: Partial<DGINote1Data>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note1`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -561,12 +573,12 @@ export class DeclarationService {
    */
   async submitNote2(
     declarationId: string,
-    data: DGINote2Data
+    data: DGINote2Data,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -577,12 +589,12 @@ export class DeclarationService {
    */
   async updateNote2(
     declarationId: string,
-    data: Partial<DGINote2Data>
+    data: Partial<DGINote2Data>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -605,12 +617,12 @@ export class DeclarationService {
    */
   async submitNote3A(
     declarationId: string,
-    data: DGINote3AData
+    data: DGINote3AData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note3a`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -621,12 +633,12 @@ export class DeclarationService {
    */
   async updateNote3A(
     declarationId: string,
-    data: Partial<DGINote3AData>
+    data: Partial<DGINote3AData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note3a`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -649,12 +661,12 @@ export class DeclarationService {
    */
   async submitNote3B(
     declarationId: string,
-    data: DGINote3BData
+    data: DGINote3BData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note3b`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -665,12 +677,12 @@ export class DeclarationService {
    */
   async updateNote3B(
     declarationId: string,
-    data: Partial<DGINote3BData>
+    data: Partial<DGINote3BData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note3b`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -693,12 +705,12 @@ export class DeclarationService {
    */
   async submitNote3C(
     declarationId: string,
-    data: DGINote3CData
+    data: DGINote3CData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note3c`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -709,12 +721,12 @@ export class DeclarationService {
    */
   async updateNote3C(
     declarationId: string,
-    data: Partial<DGINote3CData>
+    data: Partial<DGINote3CData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note3c`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -737,12 +749,12 @@ export class DeclarationService {
    */
   async submitCol1Note3C2(
     declarationId: string,
-    data: DGICol1Note3C2Data
+    data: DGICol1Note3C2Data,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/col1note3c2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -753,12 +765,12 @@ export class DeclarationService {
    */
   async updateCol1Note3C2(
     declarationId: string,
-    data: Partial<DGICol1Note3C2Data>
+    data: Partial<DGICol1Note3C2Data>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/col1note3c2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -782,12 +794,12 @@ export class DeclarationService {
    */
   async submitNote3D2(
     declarationId: string,
-    data: DGINote3D2Data
+    data: DGINote3D2Data,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note3d2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -798,12 +810,12 @@ export class DeclarationService {
    */
   async updateNote3D2(
     declarationId: string,
-    data: Partial<DGINote3D2Data>
+    data: Partial<DGINote3D2Data>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note3d2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -826,12 +838,12 @@ export class DeclarationService {
    */
   async submitNote3E2(
     declarationId: string,
-    data: DGINote3E2Data
+    data: DGINote3E2Data,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${declarationId}/note3e2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -842,12 +854,12 @@ export class DeclarationService {
    */
   async updateNote3E2(
     declarationId: string,
-    data: Partial<DGINote3E2Data>
+    data: Partial<DGINote3E2Data>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${declarationId}/note3e2`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -872,12 +884,12 @@ export class DeclarationService {
   async submitNote3F(
     year: string,
     type: string,
-    data: DGINote3FData
+    data: DGINote3FData,
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
       `/process/${year}/${type}/note3F`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -889,12 +901,12 @@ export class DeclarationService {
   async updateNote3F(
     year: string,
     type: string,
-    data: Partial<DGINote3FData>
+    data: Partial<DGINote3FData>,
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
       `/process/${year}/${type}/note3F`,
       data,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }
@@ -906,7 +918,107 @@ export class DeclarationService {
   async deleteNote3F(year: string, type: string): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${year}/${type}/note3F`,
-      { headers: this.getAuthHeaders() }
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 4 (Créances) Methods
+  // This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+  // The :declaration_page parameter is "note42"
+  // ============================================
+
+  /**
+   * Submit Note 4 (Créances) - full replace
+   * PUT /process/:declaration_id/note42
+   */
+  async submitNote4(
+    declarationId: string,
+    data: DGINote4Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note42`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 4 (Créances) - partial update
+   * PATCH /process/:declaration_id/note42
+   */
+  async updateNote4(
+    declarationId: string,
+    data: Partial<DGINote4Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note42`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 4 (Créances)
+   * DELETE /process/:declaration_id/note42
+   */
+  async deleteNote4(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note42`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 5 (Stocks) Methods
+  // This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+  // The :declaration_page parameter is "note52"
+  // ============================================
+
+  /**
+   * Submit Note 5 (Stocks) - full replace
+   * PUT /process/:declaration_id/note52
+   */
+  async submitNote5(
+    declarationId: string,
+    data: DGINote5Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note52`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 5 (Stocks) - partial update
+   * PATCH /process/:declaration_id/note52
+   */
+  async updateNote5(
+    declarationId: string,
+    data: Partial<DGINote5Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note52`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 5 (Stocks)
+   * DELETE /process/:declaration_id/note52
+   */
+  async deleteNote5(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note52`,
+      { headers: this.getAuthHeaders() },
     );
     return response.data;
   }

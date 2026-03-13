@@ -792,3 +792,246 @@ export interface ApiResponse<T = any> {
   message?: string;
   error?: DGIError;
 }
+
+// ============================================
+// Note 4 (Créances) Types
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note42"
+// ============================================
+
+export interface DGINote4R1 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+  denomination?: string;
+  localisationville?: string;
+  localisationpays?: string;
+  valeuredacquisition?: number;
+  detenu?: number;
+  montantdescapitau?: number;
+  resltaldernier?: number;
+}
+
+export interface DGINote4R2 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+  denomination?: string;
+  localisationville?: string;
+  localisationpays?: string;
+  valeuredacquisition?: number;
+  detenu?: number;
+  montantdescapitau?: number;
+  resltaldernier?: number;
+}
+
+export interface DGINote4R3 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+  denomination?: string;
+  localisationville?: string;
+  localisationpays?: string;
+  valeuredacquisition?: number;
+  detenu?: number;
+  montantdescapitau?: number;
+  resltaldernier?: number;
+}
+
+export interface DGINote4R4 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+  denomination?: string;
+  localisationville?: string;
+  localisationpays?: string;
+  valeuredacquisition?: number;
+  detenu?: number;
+  montantdescapitau?: number;
+  resltaldernier?: number;
+}
+
+export interface DGINote4R5 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+  denomination?: string;
+  localisationville?: string;
+  localisationpays?: string;
+  valeuredacquisition?: number;
+  detenu?: number;
+  montantdescapitau?: number;
+  resltaldernier?: number;
+}
+
+export interface DGINote4R6 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4R7 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4R8 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4R9 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4R10 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4R11 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote4Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote4R1;
+  r2?: DGINote4R2;
+  r3?: DGINote4R3;
+  r4?: DGINote4R4;
+  r5?: DGINote4R5;
+  r6?: DGINote4R6;
+  r7?: DGINote4R7;
+  r8?: DGINote4R8;
+  r9?: DGINote4R9;
+  r10?: DGINote4R10;
+  r11?: DGINote4R11;
+  commentaire?: string;
+}
+
+// ============================================
+// Note 5 (Stocks) Types
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note52"
+// ============================================
+
+export interface DGINote5R1_1 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R1_2 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R1_3 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R1_4 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R1_5 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R2_1 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R2_2 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R2_3 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R2_4 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5R2_5 {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote5Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1_1?: DGINote5R1_1;
+  r1_2?: DGINote5R1_2;
+  r1_3?: DGINote5R1_3;
+  r1_4?: DGINote5R1_4;
+  r1_5?: DGINote5R1_5;
+  r2_1?: DGINote5R2_1;
+  r2_2?: DGINote5R2_2;
+  r2_3?: DGINote5R2_3;
+  r2_4?: DGINote5R2_4;
+  r2_5?: DGINote5R2_5;
+  commentaire?: string;
+}

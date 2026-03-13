@@ -433,6 +433,54 @@ router.delete(
 );
 
 // ============================================
+// Note 4 (Créances) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note42"
+// ============================================
+
+// PUT /api/dgi/note4 - Submit Note 4 (full replace)
+router.put(
+  "/note4",
+  declarationController.submitNote4.bind(declarationController),
+);
+
+// PATCH /api/dgi/note4 - Update Note 4 (partial)
+router.patch(
+  "/note4",
+  declarationController.updateNote4.bind(declarationController),
+);
+
+// DELETE /api/dgi/note4 - Delete Note 4
+router.delete(
+  "/note4",
+  declarationController.deleteNote4.bind(declarationController),
+);
+
+// ============================================
+// Note 5 (Stocks) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note52"
+// ============================================
+
+// PUT /api/dgi/note5 - Submit Note 5 (full replace)
+router.put(
+  "/note5",
+  declarationController.submitNote5.bind(declarationController),
+);
+
+// PATCH /api/dgi/note5 - Update Note 5 (partial)
+router.patch(
+  "/note5",
+  declarationController.updateNote5.bind(declarationController),
+);
+
+// DELETE /api/dgi/note5 - Delete Note 5
+router.delete(
+  "/note5",
+  declarationController.deleteNote5.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
