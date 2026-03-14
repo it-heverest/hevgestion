@@ -39,9 +39,9 @@ export const config = {
     directory: process.env.UPLOAD_DIR || "./uploads",
   },
 
-  // DGI API
+  // DGI API (TAS Server)
   dgi: {
-    apiUrl: process.env.DGI_API_URL || "https://api.impots.cm",
+    apiUrl: process.env.DGI_API_URL || "http://tasserver.dgi.cm/api/v1",
     timeout: parseInt(process.env.DGI_TIMEOUT || "60000", 10),
   },
 
