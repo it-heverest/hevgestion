@@ -302,17 +302,19 @@ export class DGIClient {
   /**
    * Delete a declaration process
    * DELETE /process
-   * 
+   *
    * @param processId - The ID of the process to delete
    * @returns Delete confirmation
    */
-  async deleteDeclaration(processId: string): Promise<DGIDeleteDeclarationResponse> {
+  async deleteDeclaration(
+    processId: string,
+  ): Promise<DGIDeleteDeclarationResponse> {
     const response = await this.client.delete<DGIDeleteDeclarationResponse>(
       "/process",
       {
         headers: this.getAuthHeaders(),
         data: { id: processId },
-      }
+      },
     );
     return response.data;
   }
@@ -341,16 +343,22 @@ export class DGIClient {
   }
 
   /**
-   * Delete a process
-   * DELETE /process/:id
+   * Delete a declaration process
+   * DELETE /process
+   * 
+   * @param processId - The ID of the process to delete
+   * @returns Delete confirmation
    */
-  async deleteProcess(
+  async deleteDeclaration(
     processId: string,
-  ): Promise<{ action: string; status: string }> {
-    const response = await this.client.delete<{
-      action: string;
-      status: string;
-    }>(`/process/${processId}`, { headers: this.getAuthHeaders() });
+  ): Promise<DGIDeleteDeclarationResponse> {
+    const response = await this.client.delete<DGIDeleteDeclarationResponse>(
+      "/process",
+      {
+        headers: this.getAuthHeaders(),
+        data: { id: processId },
+      }
+    );
     return response.data;
   }
 

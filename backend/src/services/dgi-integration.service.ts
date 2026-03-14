@@ -1,4 +1,4 @@
- t/**
+ /**
  * DGI Service - Integration layer between your system and DGI API
  *
  * This service wraps the DGIClient and integrates with your database
@@ -341,9 +341,14 @@ export class DGIService {
   async deleteProcess(userId: string, processId: string): Promise<boolean> {
     try {
       await this.authenticateWithStoredCredentials(userId);
-      await dgiClient.deleteProcess(processId);
+      await dgiClient.deleteDeclaration(processId);
       return true;
     } catch (error: any) {
+      // Handle not found error
+      if (error.response?.data?.errorCode === 404) {
+        console.error("[DGI] Process not found:", error);
+        return false;
+      }
       console.error("[DGI] Failed to delete process:", error);
       return false;
     }
