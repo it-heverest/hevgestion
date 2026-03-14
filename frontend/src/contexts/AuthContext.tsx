@@ -21,7 +21,7 @@ export type { User, LoginCredentials, RegisterData, Tokens, AuthResponse, UserSe
 
 interface AuthContextType {
   user: User | null;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<{ requiresOtp?: boolean; user?: User }>;
   verifyOtp: (userId: string, otpCode: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -111,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ==================== AUTH ACTIONS ====================
 
-  const login = async (credentials: LoginCredentials): Promise<void> => {
+  const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
@@ -124,12 +124,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await authService.login(cleanPhone, credentials.password);
       if (result.success && result.user) {
         setUser(result.user);
+        return true; // Login successful
       } else {
-        throw new Error(result.error || "Échec de la connexion");
+        // Don't throw, just set the error message
+        const errorMsg = result.error || "Numéro de téléphone ou mot de passe incorrect";
+        setError(errorMsg);
+        return false; // Login failed
       }
     } catch (err: any) {
-      await handleInvalidSession();
-      handleAuthError(err, "Erreur lors de la connexion");
+      // For validation errors (before API call), set error
+      const errorMessage = err?.message || "Erreur lors de la connexion";
+      setError(errorMessage);
+      return false;
     } finally {
       setLoading(false);
     }

@@ -38,7 +38,7 @@ export interface ForgotPasswordState {
 }
 
 export function useLogin() {
-  const { login, register } = useAuth();
+  const { login, register, user, error: authError, clearError } = useAuth();
   const navigate = useNavigate();
 
   // États pour les tabs
@@ -115,28 +115,28 @@ export function useLogin() {
     setError(null);
 
     try {
-      // Combine country code and phone number for login
-      const fullPhone =
-        loginForm.phoneCountryCode && loginForm.phoneNumber
-          ? `${loginForm.phoneCountryCode}${loginForm.phoneNumber.replace(
-              /\s/g,
-              "",
-            )}`
-          : loginForm.phoneNumber || "";
-
-      await login({
+      // Call login and check if it was successful
+      const success = await login({
         phoneCountryCode: loginForm.phoneCountryCode,
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
-      
-      // Clear sensitive fields after successful login
+
+      // If login failed (success === false), don't navigate
+      if (!success) {
+        // Error is already set in AuthContext, sync it here
+        setError(authError || "Numéro de téléphone ou mot de passe incorrect");
+        setIsLoading(false);
+        return;
+      }
+
+      // Login successful - clear form and navigate
       setLoginForm((prev) => ({
         ...prev,
         phoneNumber: "",
         password: "",
       }));
-      
+
       navigate("/fr/web/user/select-country");
     } catch (err) {
       const errorMessage =
@@ -228,7 +228,7 @@ export function useLogin() {
           password: "",
           confirmPassword: "",
         }));
-        
+
         // Redirect to OTP verification page with user data
         navigate("/web/user/verify-otp", {
           state: {
@@ -245,7 +245,7 @@ export function useLogin() {
           password: "",
           confirmPassword: "",
         }));
-        
+
         // Direct registration success - redirect to country/client selection
         navigate("/web/user/select-country");
       }

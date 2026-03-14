@@ -32,6 +32,7 @@ interface LoginPageProps {
   onLoginChange: (field: keyof any, value: string) => void;
   onLoginSubmit: (e: React.FormEvent) => void;
   onSwitchToRegister: () => void;
+  error?: string | null;
 }
 
 export function LoginPage({
@@ -40,6 +41,7 @@ export function LoginPage({
   onLoginChange,
   onLoginSubmit,
   onSwitchToRegister,
+  error,
 }: LoginPageProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -124,6 +126,11 @@ export function LoginPage({
                 {t("forgotPassword")} ?
               </button>
             </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
                 type="submit"

@@ -159,7 +159,7 @@ class AuthService {
       case 400:
         return new Error(message || "Données invalides");
       case 401:
-        return new Error(message || "Non autorisé");
+        return new Error(message || "Numéro de téléphone ou mot de passe incorrect");
       case 403:
         return new Error(message || "Accès interdit");
       case 404:

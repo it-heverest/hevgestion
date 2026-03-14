@@ -25,6 +25,7 @@ export function Login() {
     nextStep,
     previousStep,
     isStepValid,
+    error,
   } = useLogin();
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -32,9 +33,15 @@ export function Login() {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent multiple submissions
+    if (isLoggingIn) return;
+    
     setIsLoggingIn(true);
     try {
       await handleLogin(e);
+    } catch (err) {
+      // Error is already handled in handleLogin, just prevent propagation
+      console.error("Login error:", err);
     } finally {
       setIsLoggingIn(false);
     }
@@ -107,6 +114,7 @@ export function Login() {
               onLoginChange={handleLoginChange as any}
               onLoginSubmit={handleLoginSubmit}
               onSwitchToRegister={() => setActiveTab("register")}
+              error={error}
             />
           </TabsContent>
 
