@@ -5,13 +5,14 @@ import * as path from "path";
 import { prisma } from "../lib/prisma";
 import { config } from "../config";
 import { NOTE_EXPORT_MAP } from "./excel/export-map";
+import { createTemplateCopy } from "./dsf-template.service";
 
 export class DsfFillerService {
     /**
-     * Get the template path for a user
+     * Get the template path for a folder
      */
-    private getTemplatePath(userId: string): string {
-        return path.join(config.upload.directory, "dsf-templates", userId, "template.xlsx");
+    private getTemplatePath(folderId: string): string {
+        return path.join(config.upload.directory, "dsf-templates", folderId, "template.xlsx");
     }
 
     /**
@@ -33,25 +34,28 @@ export class DsfFillerService {
 
     /**
      * Fill the template with folder data and return a buffer
+     * Creates a copy of the template first, then fills it
      */
-    async fillTemplate(userId: string, folderId: string): Promise<Buffer> {
-        const templatePath = this.getTemplatePath(userId);
-        if (!fs.existsSync(templatePath)) {
-            throw new Error("Aucun template DSF trouvé. Veuillez en importer un dans les paramètres.");
-        }
-
+    async fillTemplate(folderId: string, clientName: string): Promise<{ buffer: Buffer; filePath: string }> {
+        // First, create a copy of the template with client name
+        const copyPath = createTemplateCopy(folderId, clientName);
+        
         // Fetch report data
         const dsf = await prisma.dSF.findUnique({
             where: { folderId },
         });
 
         if (!dsf) {
+            // Clean up the copy if DSF not found
+            if (fs.existsSync(copyPath)) {
+                fs.unlinkSync(copyPath);
+            }
             throw new Error("Données DSF introuvables pour ce dossier. Veuillez d'abord générer ou importer les rapports.");
         }
 
-        // Load workbook
+        // Load the COPY (not the original template)
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.readFile(templatePath);
+        await workbook.xlsx.readFile(copyPath);
 
         let filledCount = 0;
 
@@ -73,10 +77,18 @@ export class DsfFillerService {
                 continue;
             }
 
-            // Fill Header (Entête)
+            // Fill Header (Entête) - but NOT the entity/company name
             if (mapping.entete && noteData.entete) {
                 for (const [field, cellRef] of Object.entries(mapping.entete)) {
                     if (typeof cellRef !== "string") continue;
+                    
+                    // Skip entity name fields - don't overwrite them in the template
+                    if (field.toLowerCase().includes("entity") || 
+                        field.toLowerCase().includes("company") ||
+                        field.toLowerCase().includes("nom") && field.toLowerCase().includes("entreprise")) {
+                        continue;
+                    }
+                    
                     const val = noteData.entete[field];
                     if (val !== undefined && val !== null) {
                         const cell = worksheet.getCell(cellRef);
@@ -119,17 +131,19 @@ export class DsfFillerService {
             filledCount++;
         }
 
-        // Fill Global Entête if available
-        if (dsf.entete) {
-            // We could fill company name, etc. globally if needed, 
-            // but usually it's already in the sheet-specific entetes.
-        }
+        console.log(`📊 Export DSF: Filled ${filledCount} notes into template for folder ${folderId}, client: ${clientName}`);
 
-        console.log(`📊 Export DSF: Filled ${filledCount} notes into template for user ${userId}, folder ${folderId}`);
+        // Save the filled workbook to the copy
+        await workbook.xlsx.writeFile(copyPath);
 
-        // Return as buffer
-        const buffer = await workbook.xlsx.writeBuffer();
-        return Buffer.from(buffer);
+        // Read the filled file and return as buffer
+        const buffer = fs.readFileSync(copyPath);
+        
+        // Clean up the temporary copy after reading
+        // (Optional: keep it if you want to keep history)
+        // fs.unlinkSync(copyPath);
+
+        return { buffer, filePath: copyPath };
     }
 }
 

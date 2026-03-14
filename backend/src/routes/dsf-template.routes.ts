@@ -12,6 +12,7 @@ import {
 } from "../services/dsf-template.service";
 import { dsfFillerService } from "../services/dsf-filler.service";
 import { NotesService } from "../services/notes.service";
+import { prisma } from "../lib/prisma";
 
 const notesService = new NotesService();
 
@@ -43,9 +44,21 @@ const upload = multer({
 
 const router = Router();
 
-// POST /api/dsf-template/upload — Upload DSF Excel template
+// Helper function to get folder info
+async function getFolderInfo(folderId: string) {
+    const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+        include: {
+            client: true
+        }
+    });
+    return folder;
+}
+
+// POST /api/dsf-template/upload — Upload DSF Excel template (user-level for backward compatibility)
+// OR /api/dsf-template/upload/:folderId (folder-level)
 router.post(
-    "/upload",
+    "/upload/:folderId?",
     authenticate,
     upload.single("file"),
     async (req: Request, res: Response) => {
@@ -61,12 +74,17 @@ router.post(
                     .json({ success: false, message: "Aucun fichier fourni" });
             }
 
-            saveTemplate(userId, req.file.path);
+            // Use folderId if provided, otherwise use userId for backward compatibility
+            const folderId = req.params.folderId;
+            const identifier = folderId || userId;
+
+            // Save template
+            saveTemplate(identifier, req.file.path);
 
             return res.json({
                 success: true,
                 message: "Template DSF importé avec succès",
-                data: getTemplateStatus(userId),
+                data: getTemplateStatus(identifier),
             });
         } catch (error: any) {
             console.error("Error uploading DSF template:", error);
@@ -77,17 +95,22 @@ router.post(
     }
 );
 
-// GET /api/dsf-template/status — Check if user has a template
-router.get("/status", authenticate, async (req: Request, res: Response) => {
+// GET /api/dsf-template/status — Check user-level template (backward compatibility)
+// OR /api/dsf-template/status/:folderId (folder-level)
+router.get("/status/:folderId?", authenticate, async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
 
+        // Use folderId if provided, otherwise use userId for backward compatibility
+        const folderId = req.params.folderId;
+        const identifier = folderId || userId;
+
         return res.json({
             success: true,
-            data: getTemplateStatus(userId),
+            data: getTemplateStatus(identifier),
         });
     } catch (error: any) {
         console.error("Error getting template status:", error);
@@ -97,15 +120,20 @@ router.get("/status", authenticate, async (req: Request, res: Response) => {
     }
 });
 
-// DELETE /api/dsf-template — Remove user's template
-router.delete("/", authenticate, async (req: Request, res: Response) => {
+// DELETE /api/dsf-template — Remove user template (backward compatibility)
+// OR /api/dsf-template/:folderId (folder-level)
+router.delete("/:folderId?", authenticate, async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
 
-        const deleted = deleteTemplate(userId);
+        // Use folderId if provided, otherwise use userId for backward compatibility
+        const folderId = req.params.folderId;
+        const identifier = folderId || userId;
+
+        const deleted = deleteTemplate(identifier);
         return res.json({
             success: true,
             message: deleted
@@ -120,19 +148,24 @@ router.delete("/", authenticate, async (req: Request, res: Response) => {
     }
 });
 
-// GET /api/dsf-template/download — Download the raw template file
-router.get("/download", authenticate, async (req: Request, res: Response) => {
+// GET /api/dsf-template/download — Download user template (backward compatibility)
+// OR /api/dsf-template/download/:folderId (folder-level)
+router.get("/download/:folderId?", authenticate, async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Non authentifié" });
         }
 
-        const buffer = getTemplateBuffer(userId);
+        // Use folderId if provided, otherwise use userId for backward compatibility
+        const folderId = req.params.folderId;
+        const identifier = folderId || userId;
+
+        const buffer = getTemplateBuffer(identifier);
         if (!buffer) {
             return res.status(404).json({
                 success: false,
-                message: "Aucun template DSF importé. Allez dans Paramètres → Template DSF pour en importer un.",
+                message: "Aucun template DSF trouvé.",
             });
         }
 
@@ -190,7 +223,7 @@ router.get(
     }
 );
 
-// GET /api/dsf-template/export/:folderId — Export filled Excel template
+// GET /api/dsf-template/export/:folderId — Export filled Excel template with client name
 router.get(
     "/export/:folderId",
     authenticate,
@@ -206,7 +239,20 @@ router.get(
                 return res.status(400).json({ success: false, message: "folderId requis" });
             }
 
-            const buffer = await dsfFillerService.fillTemplate(userId, folderId);
+            // Get folder and client info
+            const folder = await getFolderInfo(folderId);
+            if (!folder) {
+                return res.status(404).json({ success: false, message: "Dossier non trouvé" });
+            }
+
+            // Use client name for the export file
+            const clientName = folder.client?.name || "Client";
+
+            // Fill template - this creates a copy and fills it
+            const { buffer, filePath } = await dsfFillerService.fillTemplate(folderId, clientName);
+
+            // Get the filename from the created file
+            const fileName = path.basename(filePath);
 
             res.setHeader(
                 "Content-Type",
@@ -214,7 +260,7 @@ router.get(
             );
             res.setHeader(
                 "Content-Disposition",
-                `attachment; filename="DSF_Export_${folderId.substring(0, 8)}.xlsx"`
+                `attachment; filename="${fileName}"`
             );
 
             return res.send(buffer);

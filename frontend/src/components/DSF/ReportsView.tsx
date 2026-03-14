@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Loader2,
   FileSpreadsheet,
+  UploadCloud,
 } from "lucide-react";
 import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate } from "react-router-dom";
@@ -67,6 +68,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     component: React.ComponentType<any>;
   } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [templateStatus, setTemplateStatus] = useState<{ hasTemplate: boolean; fileName?: string } | null>(null);
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
 
   // Check for existing DSF on mount
   useEffect(() => {
@@ -158,13 +161,41 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     } catch (error: any) {
       const message =
         error.response?.data instanceof Blob
-          ? "Aucun template DSF importé. Allez dans Profil & Template pour en importer un."
+          ? "Aucun template DSF importé pour ce dossier. Veuillez importer un template ci-dessous."
           : error.response?.data?.message ||
             error.message ||
             "Erreur lors de l'export Excel";
       alert(message);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // Fetch template status when folderId changes
+  useEffect(() => {
+    if (folderId) {
+      dsfTemplateService.getTemplateStatus(folderId)
+        .then(status => setTemplateStatus(status))
+        .catch(console.error);
+    }
+  }, [folderId]);
+
+  // Handle template upload
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !folderId) return;
+
+    setIsUploadingTemplate(true);
+    try {
+      const status = await dsfTemplateService.uploadTemplate(file, folderId);
+      setTemplateStatus(status);
+      alert("Template importé avec succès!");
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de l'import du template");
+    } finally {
+      setIsUploadingTemplate(false);
+      // Reset input
+      e.target.value = "";
     }
   };
 
@@ -395,6 +426,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <FileEdit className="h-4 w-4 mr-2" />
                     Tous les Rapports
                   </button>
+                  
+                  {/* Template Upload Button */}
+                  <label className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors cursor-pointer disabled:opacity-50">
+                    {isUploadingTemplate ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <UploadCloud className="h-4 w-4 mr-2" />
+                    )}
+                    {templateStatus?.hasTemplate ? "Changer Template" : "Importer Template"}
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleTemplateUpload}
+                      disabled={isUploadingTemplate}
+                      className="hidden"
+                    />
+                  </label>
+                  
+                  {/* Show current template info */}
+                  {templateStatus?.hasTemplate && (
+                    <span className="inline-flex items-center px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg">
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      {templateStatus.fileName}
+                    </span>
+                  )}
+                  
                   <button
                     onClick={handleExportExcel}
                     disabled={isExporting}
