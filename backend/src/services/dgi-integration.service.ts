@@ -1,10 +1,15 @@
- /**
+/**
  * DGI Service - Integration layer between your system and DGI API
  *
  * This service wraps the DGIClient and integrates with your database
  */
 
-import { dgiClient, DGINote1Request, DGIDeclarationType } from "./dgi-api-client";
+import {
+  dgiClient,
+  DGINote1Request,
+  DGIDeclarationType,
+  DGIPageDeGardeData,
+} from "./dgi-api-client";
 import { prisma } from "../lib/prisma";
 import { EncryptionUtil } from "../utils/encryption";
 
@@ -194,7 +199,7 @@ export class DGIService {
   /**
    * Create a new declaration process
    * POST /process/:declaration_year/:declaration_type
-   * 
+   *
    * @param year - Declaration year (e.g., "2024")
    * @param declarationType - Type: "dsf", "dsfBanque", or "dsfAssurance"
    * @returns Process ID and status
@@ -202,36 +207,36 @@ export class DGIService {
   async createDeclaration(
     userId: string,
     year: string,
-    declarationType: DGIDeclarationType
+    declarationType: DGIDeclarationType,
   ): Promise<{ success: boolean; processId?: string; message: string }> {
     try {
       await this.authenticateWithStoredCredentials(userId);
-      
+
       const result = await dgiClient.createDeclaration(year, declarationType);
-      
+
       return {
         success: true,
         processId: result.id,
-        message: `Declaration created successfully for ${year}`
+        message: `Declaration created successfully for ${year}`,
       };
     } catch (error: any) {
       // Handle specific DGI errors
       if (error.response?.data?.errorCode === 409) {
         return {
           success: false,
-          message: "A declaration of this type already exists for this year"
+          message: "A declaration of this type already exists for this year",
         };
       }
       if (error.response?.data?.errorCode === 415) {
         return {
           success: false,
-          message: "Unsupported declaration type"
+          message: "Unsupported declaration type",
         };
       }
       console.error("[DGI] Failed to create declaration:", error);
       return {
         success: false,
-        message: error.message || "Failed to create declaration"
+        message: error.message || "Failed to create declaration",
       };
     }
   }
@@ -351,6 +356,28 @@ export class DGIService {
   }
 
   /**
+   * Get declarations by year and type
+   * GET /process/:declaration_year/:declaration_type
+   */
+  async getProcessesByYearAndType(
+    userId: string,
+    year: string,
+    declarationType: "dsf" | "dsfBanque" | "dsfAssurance",
+  ): Promise<any[]> {
+    try {
+      await this.authenticateWithStoredCredentials(userId);
+      const result = await dgiClient.getProcessesByYearAndType(
+        year,
+        declarationType,
+      );
+      return result.records;
+    } catch (error: any) {
+      console.error("[DGI] Failed to get processes by year and type:", error);
+      return [];
+    }
+  }
+
+  /**
    * Delete a process
    */
   async deleteProcess(userId: string, processId: string): Promise<boolean> {
@@ -454,6 +481,77 @@ export class DGIService {
    */
   async healthCheck(): Promise<boolean> {
     return await dgiClient.healthCheck();
+  }
+
+  // ========================================
+  // Page de Garde (Cover Page) Operations
+  // ========================================
+
+  /**
+   * Fill declaration page (wipes existing data)
+   * PUT /process/:declaration_id/:declaration_page
+   */
+  async fillDeclarationPage(
+    userId: string,
+    declarationId: string,
+    page: string,
+    data: DGIPageDeGardeData,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.authenticateWithStoredCredentials(userId);
+      const result = await dgiClient.fillDeclarationPage(
+        declarationId,
+        page,
+        data,
+      );
+      return { success: true, message: result.status };
+    } catch (error: any) {
+      console.error("[DGI] Failed to fill page:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Update declaration page (preserves existing data)
+   * PATCH /process/:declaration_id/:declaration_page
+   */
+  async updateDeclarationPage(
+    userId: string,
+    declarationId: string,
+    page: string,
+    data: DGIPageDeGardeData,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.authenticateWithStoredCredentials(userId);
+      const result = await dgiClient.updateDeclarationPage(
+        declarationId,
+        page,
+        data,
+      );
+      return { success: true, message: result.status };
+    } catch (error: any) {
+      console.error("[DGI] Failed to update page:", error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Delete declaration page data
+   * DELETE /process/:declaration_id/:declaration_page
+   */
+  async deleteDeclarationPage(
+    userId: string,
+    declarationId: string,
+    page: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await this.authenticateWithStoredCredentials(userId);
+      const result = await dgiClient.deleteDeclarationPage(declarationId, page);
+      return { success: true, message: result.status };
+    } catch (error: any) {
+      console.error("[DGI] Failed to delete page:", error);
+      return { success: false, message: error.message };
+    }
   }
 }
 

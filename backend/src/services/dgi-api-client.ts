@@ -121,6 +121,34 @@ export interface DGIDeleteDeclarationResponse {
   status: string;
 }
 
+// Page de garde (cover page) data interface
+export interface DGIPageDeGardeData {
+  republique?: string;
+  ministere?: string;
+  direction?: string;
+  centreDeDepot?: string;
+  exerClosLe?: string;
+  denomSoc?: string;
+  siglUsuel?: string;
+  addrComp?: string;
+  numIdentFiscal: string;  // MANDATORY
+  ficDide?: boolean;
+  bilan?: boolean;
+  comptRes?: boolean;
+  tabDesFluxTreso?: boolean;
+  notAnnex?: boolean;
+  nombreDePages?: string;
+  nombreDexamplaire?: string;
+  dateDepot?: string;
+  nomDeAgent?: string;
+  signDeLagent?: string;
+}
+
+export interface DGIPageResponse {
+  action: string;
+  status: string;
+}
+
 // ============================================
 // DGI API Client Class
 // ============================================
@@ -343,6 +371,21 @@ export class DGIClient {
   }
 
   /**
+   * Get declarations by year and type
+   * GET /process/:declaration_year/:declaration_type
+   */
+  async getProcessesByYearAndType(
+    year: string,
+    declarationType: DGIDeclarationType
+  ): Promise<DGIProcessListResponse> {
+    const response = await this.client.get<DGIProcessListResponse>(
+      `/process/${year}/${declarationType}`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
    * Delete a declaration process
    * DELETE /process
    * 
@@ -432,6 +475,70 @@ export class DGIClient {
       `/etats-financiers/${processusId}`,
       data,
       { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ========================================
+  // Page de Garde (Cover Page) Operations
+  // ========================================
+
+  /**
+   * Fill declaration page (wipes existing data)
+   * PUT /process/:declaration_id/:declaration_page
+   * 
+   * @param declarationId - The ID of the declaration
+   * @param page - The page name (e.g., "etatsFinanciers")
+   * @param data - Page data to submit
+   */
+  async fillDeclarationPage(
+    declarationId: string,
+    page: string,
+    data: DGIPageDeGardeData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/${page}`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update declaration page (preserves existing data)
+   * PATCH /process/:declaration_id/:declaration_page
+   * 
+   * @param declarationId - The ID of the declaration
+   * @param page - The page name (e.g., "etatsFinanciers")
+   * @param data - Page data to update
+   */
+  async updateDeclarationPage(
+    declarationId: string,
+    page: string,
+    data: DGIPageDeGardeData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/${page}`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete declaration page data
+   * DELETE /process/:declaration_id/:declaration_page
+   * 
+   * @param declarationId - The ID of the declaration
+   * @param page - The page name (e.g., "etatsFinanciers")
+   */
+  async deleteDeclarationPage(
+    declarationId: string,
+    page: string
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/${page}`,
+      { headers: this.getAuthHeaders() }
     );
     return response.data;
   }
