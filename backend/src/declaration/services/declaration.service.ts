@@ -21,6 +21,8 @@ import {
   DGISection2ModelCompteResultatData,
   DGISection2ModelTableauFluxTresorerieData,
   DGINote1Data,
+  DGINote2Data,
+  DGINote3AData,
   DGIError,
 } from "../types/declaration.types";
 
@@ -541,6 +543,94 @@ export class DeclarationService {
    */
   async deleteNote1(declarationId: string): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "note1");
+  }
+
+  // ============================================
+  // Note 2 (Informations Obligatoires) Methods
+  // ============================================
+
+  /**
+   * Submit Note 2 (Informations Obligatoires) - full replace
+   * PUT /process/:declaration_id/note2
+   */
+  async submitNote2(
+    declarationId: string,
+    data: DGINote2Data
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note2`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 2 (Informations Obligatoires) - partial update
+   * PATCH /process/:declaration_id/note2
+   */
+  async updateNote2(
+    declarationId: string,
+    data: Partial<DGINote2Data>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note2`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 2 (Informations Obligatoires)
+   * DELETE /process/:declaration_id/note2
+   */
+  async deleteNote2(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note2");
+  }
+
+  // ============================================
+  // Note 3A (Immobilisations Brutes) Methods
+  // ============================================
+
+  /**
+   * Submit Note 3A (Immobilisations Brutes) - full replace
+   * PUT /process/:declaration_id/note3a
+   */
+  async submitNote3A(
+    declarationId: string,
+    data: DGINote3AData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note3a`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 3A (Immobilisations Brutes) - partial update
+   * PATCH /process/:declaration_id/note3a
+   */
+  async updateNote3A(
+    declarationId: string,
+    data: Partial<DGINote3AData>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note3a`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 3A (Immobilisations Brutes)
+   * DELETE /process/:declaration_id/note3a
+   */
+  async deleteNote3A(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note3a");
   }
 
   // ============================================

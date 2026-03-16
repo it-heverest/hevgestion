@@ -388,6 +388,63 @@ export interface DGINote1Data {
 }
 
 // ============================================
+// Note 2 (Informations Obligatoires) Types
+// ============================================
+
+export interface DGINote2Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  aDeclaration?: string;
+  bRegies?: string;
+  cDerogat?: string;
+  dInfo?: string;
+}
+
+// ============================================
+// Note 3A (Immobilisations Brutes) Types
+// ============================================
+
+export interface DGINote3ARow {
+  montantbrut: number;
+  acquisition: number;
+  virements: number;
+  suiteareevalution: number;
+  cession: number;
+  virementdepos: number;
+  montantcloture: number;
+}
+
+export interface DGINote3AData {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote3ARow;
+  r2?: DGINote3ARow;
+  r3?: DGINote3ARow;
+  r4?: DGINote3ARow;
+  r5?: DGINote3ARow;
+  r6?: DGINote3ARow;
+  r7?: DGINote3ARow;
+  r8?: DGINote3ARow;
+  r9?: DGINote3ARow;
+  r10?: DGINote3ARow;
+  r11?: DGINote3ARow;
+  r12?: DGINote3ARow;
+  r13?: DGINote3ARow;
+  r14?: DGINote3ARow;
+  r15?: DGINote3ARow;
+  r16?: DGINote3ARow;
+  r17?: DGINote3ARow;
+  r18?: DGINote3ARow;
+  r19?: DGINote3ARow;
+  r20?: DGINote3ARow;
+  commentaires?: string;
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

@@ -205,6 +205,72 @@ router.delete(
 );
 
 // ============================================
+// Note 1 (Passif/Bilan) Routes
+// ============================================
+
+// PUT /api/dgi/note1 - Submit Note 1 (full replace)
+router.put(
+  "/note1",
+  declarationController.submitNote1.bind(declarationController),
+);
+
+// PATCH /api/dgi/note1 - Update Note 1 (partial)
+router.patch(
+  "/note1",
+  declarationController.updateNote1.bind(declarationController),
+);
+
+// DELETE /api/dgi/note1 - Delete Note 1
+router.delete(
+  "/note1",
+  declarationController.deleteNote1.bind(declarationController),
+);
+
+// ============================================
+// Note 2 (Informations Obligatoires) Routes
+// ============================================
+
+// PUT /api/dgi/note2 - Submit Note 2 (full replace)
+router.put(
+  "/note2",
+  declarationController.submitNote2.bind(declarationController),
+);
+
+// PATCH /api/dgi/note2 - Update Note 2 (partial)
+router.patch(
+  "/note2",
+  declarationController.updateNote2.bind(declarationController),
+);
+
+// DELETE /api/dgi/note2 - Delete Note 2
+router.delete(
+  "/note2",
+  declarationController.deleteNote2.bind(declarationController),
+);
+
+// ============================================
+// Note 3A (Immobilisations Brutes) Routes
+// ============================================
+
+// PUT /api/dgi/note3a - Submit Note 3A (full replace)
+router.put(
+  "/note3a",
+  declarationController.submitNote3A.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3a - Update Note 3A (partial)
+router.patch(
+  "/note3a",
+  declarationController.updateNote3A.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3a - Delete Note 3A
+router.delete(
+  "/note3a",
+  declarationController.deleteNote3A.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
