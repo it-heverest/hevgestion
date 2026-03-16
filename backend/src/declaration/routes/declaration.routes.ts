@@ -315,6 +315,28 @@ router.delete(
 );
 
 // ============================================
+// CO1-Note 3C (Tableau de Suivi des Amortissements) Routes
+// ============================================
+
+// PUT /api/dgi/col1-note3c2 - Submit CO1-Note 3C (full replace)
+router.put(
+  "/col1-note3c2",
+  declarationController.submitCol1Note3C2.bind(declarationController),
+);
+
+// PATCH /api/dgi/col1-note3c2 - Update CO1-Note 3C (partial)
+router.patch(
+  "/col1-note3c2",
+  declarationController.updateCol1Note3C2.bind(declarationController),
+);
+
+// DELETE /api/dgi/col1-note3c2 - Delete CO1-Note 3C
+router.delete(
+  "/col1-note3c2",
+  declarationController.deleteCol1Note3C2.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 

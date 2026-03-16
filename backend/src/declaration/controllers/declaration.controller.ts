@@ -2063,6 +2063,168 @@ export class DeclarationController {
       });
     }
   }
+
+  // ============================================
+  // CO1-Note 3C (Tableau de Suivi des Amortissements) Methods
+  // ============================================
+
+  /**
+   * PUT /api/dgi/col1-note3c2
+   * Submit CO1-Note 3C (Tableau de Suivi des Amortissements) - full replace
+   */
+  async submitCol1Note3C2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, col1Note3C2Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        col1Note3C2Data: DGICol1Note3C2Data;
+      };
+
+      if (!userId || !declarationId || !col1Note3C2Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, col1Note3C2Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.submitCol1Note3C2(declarationId, col1Note3C2Data);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Submit CO1-Note 3C error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to submit CO1-Note 3C",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/dgi/col1-note3c2
+   * Update CO1-Note 3C (Tableau de Suivi des Amortissements) - partial update
+   */
+  async updateCol1Note3C2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, col1Note3C2Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        col1Note3C2Data: Partial<DGICol1Note3C2Data>;
+      };
+
+      if (!userId || !declarationId || !col1Note3C2Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, col1Note3C2Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.updateCol1Note3C2(declarationId, col1Note3C2Data);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Update CO1-Note 3C error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to update CO1-Note 3C",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/dgi/col1-note3c2
+   * Delete CO1-Note 3C (Tableau de Suivi des Amortissements)
+   */
+  async deleteCol1Note3C2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId } = req.body as {
+        userId: string;
+        declarationId: string;
+      };
+
+      if (!userId || !declarationId) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.deleteCol1Note3C2(declarationId);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Delete CO1-Note 3C error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to delete CO1-Note 3C",
+      });
+    }
+  }
 }
 
 // ============================================
