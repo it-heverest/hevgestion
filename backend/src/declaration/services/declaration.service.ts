@@ -23,6 +23,8 @@ import {
   DGINote1Data,
   DGINote2Data,
   DGINote3AData,
+  DGINote3BData,
+  DGINote3CData,
   DGIError,
 } from "../types/declaration.types";
 
@@ -631,6 +633,94 @@ export class DeclarationService {
    */
   async deleteNote3A(declarationId: string): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "note3a");
+  }
+
+  // ============================================
+  // Note 3B (Biens Pris en Location Acquisition) Methods
+  // ============================================
+
+  /**
+   * Submit Note 3B (Biens Pris en Location Acquisition) - full replace
+   * PUT /process/:declaration_id/note3b
+   */
+  async submitNote3B(
+    declarationId: string,
+    data: DGINote3BData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note3b`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 3B (Biens Pris en Location Acquisition) - partial update
+   * PATCH /process/:declaration_id/note3b
+   */
+  async updateNote3B(
+    declarationId: string,
+    data: Partial<DGINote3BData>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note3b`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 3B (Biens Pris en Location Acquisition)
+   * DELETE /process/:declaration_id/note3b
+   */
+  async deleteNote3B(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note3b");
+  }
+
+  // ============================================
+  // Note 3C (Immobilisation - Amortissements) Methods
+  // ============================================
+
+  /**
+   * Submit Note 3C (Immobilisation - Amortissements) - full replace
+   * PUT /process/:declaration_id/note3c
+   */
+  async submitNote3C(
+    declarationId: string,
+    data: DGINote3CData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note3c`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 3C (Immobilisation - Amortissements) - partial update
+   * PATCH /process/:declaration_id/note3c
+   */
+  async updateNote3C(
+    declarationId: string,
+    data: Partial<DGINote3CData>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note3c`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 3C (Immobilisation - Amortissements)
+   * DELETE /process/:declaration_id/note3c
+   */
+  async deleteNote3C(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note3c");
   }
 
   // ============================================

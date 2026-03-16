@@ -445,6 +445,73 @@ export interface DGINote3AData {
 }
 
 // ============================================
+// Note 3B (Biens Pris en Location Acquisition) Types
+// ============================================
+
+export interface DGINote3BRow {
+  natureducontr: string;
+  montantbrut: number;
+  acquisitions: number;
+  cirementsdepos: number;
+  suiteaunereev: number;
+  cessions: number;
+  virementsdeposte: number;
+  montantbrutaexerc: number;
+}
+
+export interface DGINote3BData {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote3BRow;
+  r2?: DGINote3BRow;
+  r3?: DGINote3BRow;
+  r4?: DGINote3BRow;
+  r5?: DGINote3BRow;
+  r6?: DGINote3BRow;
+  r7?: DGINote3BRow;
+  r8?: DGINote3BRow;
+  r9?: DGINote3BRow;
+  r10?: DGINote3BRow;
+  r11?: DGINote3BRow;
+  commentaire?: string;
+}
+
+// ============================================
+// Note 3C (Immobilisation - Amortissements) Types
+// ============================================
+
+export interface DGINote3CRow {
+  ammortissement: number;
+  augmentation: number;
+  diminutions: number;
+  cumuldesamor: number;
+}
+
+export interface DGINote3CData {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote3CRow;
+  r2?: DGINote3CRow;
+  r3?: DGINote3CRow;
+  r4?: DGINote3CRow;
+  r5?: DGINote3CRow;
+  r6?: DGINote3CRow;
+  r7?: DGINote3CRow;
+  r8?: DGINote3CRow;
+  r9?: DGINote3CRow;
+  r10?: DGINote3CRow;
+  r11?: DGINote3CRow;
+  r12?: DGINote3CRow;
+  r13?: DGINote3CRow;
+  r14?: DGINote3CRow;
+  commentaires?: string;
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

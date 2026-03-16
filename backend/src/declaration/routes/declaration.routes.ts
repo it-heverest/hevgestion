@@ -271,6 +271,50 @@ router.delete(
 );
 
 // ============================================
+// Note 3B (Biens Pris en Location Acquisition) Routes
+// ============================================
+
+// PUT /api/dgi/note3b - Submit Note 3B (full replace)
+router.put(
+  "/note3b",
+  declarationController.submitNote3B.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3b - Update Note 3B (partial)
+router.patch(
+  "/note3b",
+  declarationController.updateNote3B.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3b - Delete Note 3B
+router.delete(
+  "/note3b",
+  declarationController.deleteNote3B.bind(declarationController),
+);
+
+// ============================================
+// Note 3C (Immobilisation - Amortissements) Routes
+// ============================================
+
+// PUT /api/dgi/note3c - Submit Note 3C (full replace)
+router.put(
+  "/note3c",
+  declarationController.submitNote3C.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3c - Update Note 3C (partial)
+router.patch(
+  "/note3c",
+  declarationController.updateNote3C.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3c - Delete Note 3C
+router.delete(
+  "/note3c",
+  declarationController.deleteNote3C.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
