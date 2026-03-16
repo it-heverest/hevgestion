@@ -512,6 +512,27 @@ export interface DGINote3CData {
 }
 
 // ============================================
+// CO1-Note 3C (Tableau de Suivi des Amortissements) Types
+// ============================================
+
+export interface DGICol1Note3C2Row {
+  reportdeamortisement: number;
+  amortissementsdif: number;
+  imputationsurex: number;
+  totaldureport: number;
+}
+
+export interface DGICol1Note3C2Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGICol1Note3C2Row;
+  r2?: DGICol1Note3C2Row;
+  r3?: DGICol1Note3C2Row;
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

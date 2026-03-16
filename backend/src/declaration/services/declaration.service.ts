@@ -25,6 +25,7 @@ import {
   DGINote3AData,
   DGINote3BData,
   DGINote3CData,
+  DGICol1Note3C2Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -721,6 +722,50 @@ export class DeclarationService {
    */
   async deleteNote3C(declarationId: string): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "note3c");
+  }
+
+  // ============================================
+  // CO1-Note 3C (Tableau de Suivi des Amortissements) Methods
+  // ============================================
+
+  /**
+   * Submit CO1-Note 3C (Tableau de Suivi des Amortissements) - full replace
+   * PUT /process/:declaration_id/col1note3c2
+   */
+  async submitCol1Note3C2(
+    declarationId: string,
+    data: DGICol1Note3C2Data
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/col1note3c2`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update CO1-Note 3C (Tableau de Suivi des Amortissements) - partial update
+   * PATCH /process/:declaration_id/col1note3c2
+   */
+  async updateCol1Note3C2(
+    declarationId: string,
+    data: Partial<DGICol1Note3C2Data>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/col1note3c2`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete CO1-Note 3C (Tableau de Suivi des Amortissements)
+   * DELETE /process/:declaration_id/col1note3c2
+   */
+  async deleteCol1Note3C2(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "col1note3c2");
   }
 
   // ============================================

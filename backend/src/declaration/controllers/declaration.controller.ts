@@ -20,6 +20,7 @@ import {
   DGINote3AData,
   DGINote3BData,
   DGINote3CData,
+  DGICol1Note3C2Data,
 } from "../types/declaration.types";
 
 export class DeclarationController {
