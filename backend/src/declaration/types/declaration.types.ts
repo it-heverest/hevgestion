@@ -533,6 +533,41 @@ export interface DGICol1Note3C2Data {
 }
 
 // ============================================
+// Note 3D2 (Immobilisations - Cessions) Types
+// ============================================
+
+export interface DGINote3D2Row {
+  montantbruta: number;
+  amortissements: number;
+  valeurcompt: number;
+  prixdecessions: number;
+  plusvalues: number;
+}
+
+export interface DGINote3D2Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote3D2Row;
+  r2?: DGINote3D2Row;
+  r3?: DGINote3D2Row;
+  r4?: DGINote3D2Row;
+  r5?: DGINote3D2Row;
+  r6?: DGINote3D2Row;
+  r7?: DGINote3D2Row;
+  r8?: DGINote3D2Row;
+  r9?: DGINote3D2Row;
+  r10?: DGINote3D2Row;
+  r11?: DGINote3D2Row;
+  r12?: DGINote3D2Row;
+  r13?: DGINote3D2Row;
+  r14?: DGINote3D2Row;
+  r15?: DGINote3D2Row;
+  commentaire?: string;
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

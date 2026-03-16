@@ -21,6 +21,7 @@ import {
   DGINote3BData,
   DGINote3CData,
   DGICol1Note3C2Data,
+  DGINote3D2Data,
 } from "../types/declaration.types";
 
 export class DeclarationController {
@@ -2222,6 +2223,173 @@ export class DeclarationController {
       res.status(error.response?.status || 500).json({
         success: false,
         message: error.response?.data?.message || "Failed to delete CO1-Note 3C",
+      });
+    }
+  }
+
+  // ============================================
+  // Note 3D2 (Immobilisations - Cessions) Methods
+  // This endpoint uses a different URL pattern: /process/:year/:type/:page
+  // ============================================
+
+  /**
+   * PUT /api/dgi/note3d2
+   * Submit Note 3D2 (Immobilisations - Cessions) - full replace
+   * Uses URL pattern: /process/:year/:type/note3d2
+   */
+  async submitNote3D2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, year, type, note3d2Data } = req.body as {
+        userId: string;
+        year: string;
+        type: string;
+        note3d2Data: DGINote3D2Data;
+      };
+
+      if (!userId || !year || !type || !note3d2Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, year, type, note3d2Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.submitNote3D2(year, type, note3d2Data);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Submit Note 3D2 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to submit Note 3D2",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/dgi/note3d2
+   * Update Note 3D2 (Immobilisations - Cessions) - partial update
+   */
+  async updateNote3D2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, year, type, note3d2Data } = req.body as {
+        userId: string;
+        year: string;
+        type: string;
+        note3d2Data: Partial<DGINote3D2Data>;
+      };
+
+      if (!userId || !year || !type || !note3d2Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, year, type, note3d2Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.updateNote3D2(year, type, note3d2Data);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Update Note 3D2 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to update Note 3D2",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/dgi/note3d2
+   * Delete Note 3D2 (Immobilisations - Cessions)
+   */
+  async deleteNote3D2(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, year, type } = req.body as {
+        userId: string;
+        year: string;
+        type: string;
+      };
+
+      if (!userId || !year || !type) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, year, type",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.deleteNote3D2(year, type);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Delete Note 3D2 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to delete Note 3D2",
       });
     }
   }

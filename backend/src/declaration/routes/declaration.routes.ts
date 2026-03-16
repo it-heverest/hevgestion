@@ -337,6 +337,29 @@ router.delete(
 );
 
 // ============================================
+// Note 3D2 (Immobilisations - Cessions) Routes
+// This endpoint uses a different URL pattern: /process/:year/:type/:page
+// ============================================
+
+// PUT /api/dgi/note3d2 - Submit Note 3D2 (full replace)
+router.put(
+  "/note3d2",
+  declarationController.submitNote3D2.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3d2 - Update Note 3D2 (partial)
+router.patch(
+  "/note3d2",
+  declarationController.updateNote3D2.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3d2 - Delete Note 3D2
+router.delete(
+  "/note3d2",
+  declarationController.deleteNote3D2.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
