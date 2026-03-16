@@ -15,12 +15,12 @@ import dsfRoutes from "./routes/dsf.routes";
 import dsfImportRoutes from "./routes/dsf-import.routes";
 import declarationRoutes from "./routes/declaration.routes";
 import dsfConfigRoutes from "./routes/dsf-config.routes";
-import dgiDeclarationRoutes from "./routes/dgi-declaration.routes";
 import assistantRoutes from "./routes/assistant.routes";
 // import reportRoutes from "./routes/report.routes";
 import auditRoutes from "./routes/audit.routes";
 import notesRoutes from "./routes/notes.routes";
 import dsfTemplateRoutes from "./routes/dsf-template.routes";
+import dgiRoutes from "./declaration/routes/declaration.routes";
 // import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
@@ -65,12 +65,12 @@ app.use("/api/dsf", dsfRoutes);
 app.use("/api/dsf-import", dsfImportRoutes);
 app.use("/api/declarations", declarationRoutes);
 app.use("/api/dsf-configs", dsfConfigRoutes);
-app.use("/api/dgi", dgiDeclarationRoutes);
 app.use("/api/assistants", assistantRoutes);
 // app.use("/api/reports", reportRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/notes", notesRoutes);
 app.use("/api/dsf-template", dsfTemplateRoutes);
+app.use("/api/dgi", dgiRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling
@@ -82,7 +82,6 @@ app.use((req: Request, res: Response) => {
 });
 
 const PORT = config.port || 5000;
-
 
 console.log(`🔑 JWT Secret loaded: ${config.jwt.secret ? "YES" : "NO"}`);
 console.log(

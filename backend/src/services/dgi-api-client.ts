@@ -149,6 +149,78 @@ export interface DGIPageResponse {
   status: string;
 }
 
+// Grille Analyse (Analysis Grid) data interface
+export interface DGIGridRow {
+  eco: string;
+  soc: string;
+  fisc: string;
+  cial: string;
+}
+
+export interface DGIGrilleAnalyseData {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGIGridRow;
+  r2?: DGIGridRow;
+  r3?: DGIGridRow;
+  r4?: DGIGridRow;
+  r5?: DGIGridRow;
+  r6?: DGIGridRow;
+  r7?: DGIGridRow;
+  r8?: DGIGridRow;
+  r9?: DGIGridRow;
+  r10?: DGIGridRow;
+  r11?: DGIGridRow;
+  r12?: DGIGridRow;
+  r13?: DGIGridRow;
+  r14?: DGIGridRow;
+  r15?: DGIGridRow;
+  r16?: DGIGridRow;
+  r17?: DGIGridRow;
+  r18?: DGIGridRow;
+  r19?: DGIGridRow;
+  r20?: DGIGridRow;
+  r21?: DGIGridRow;
+  r22?: DGIGridRow;
+  r23?: DGIGridRow;
+  r24?: DGIGridRow;
+  r25?: DGIGridRow;
+  r26?: DGIGridRow;
+  r27?: DGIGridRow;
+  r28?: DGIGridRow;
+  r29?: DGIGridRow;
+  r30?: DGIGridRow;
+  r31?: DGIGridRow;
+  r32?: DGIGridRow;
+  r33?: DGIGridRow;
+  r34?: DGIGridRow;
+  r35?: DGIGridRow;
+  r36?: DGIGridRow;
+  r37?: DGIGridRow;
+  r38?: DGIGridRow;
+  r39?: DGIGridRow;
+  r40?: DGIGridRow;
+  r41?: DGIGridRow;
+  r42?: DGIGridRow;
+  r43?: DGIGridRow;
+  r44?: DGIGridRow;
+  r45?: DGIGridRow;
+  r46?: DGIGridRow;
+  r50?: DGIGridRow;
+  r51?: DGIGridRow;
+  r52?: DGIGridRow;
+  r53?: DGIGridRow;
+  r54?: DGIGridRow;
+  r57?: DGIGridRow;
+  r58?: DGIGridRow;
+  r59?: DGIGridRow;
+  r60?: DGIGridRow;
+  r61?: DGIGridRow;
+  r62?: DGIGridRow;
+}
+
 // ============================================
 // DGI API Client Class
 // ============================================
@@ -358,53 +430,6 @@ export class DGIClient {
     return response.data;
   }
 
-  /**
-   * Get processes by year
-   * GET /process/:year
-   */
-  async getProcessesByYear(year: string): Promise<DGIProcessListResponse> {
-    const response = await this.client.get<DGIProcessListResponse>(
-      `/process/${year}`,
-      { headers: this.getAuthHeaders() },
-    );
-    return response.data;
-  }
-
-  /**
-   * Get declarations by year and type
-   * GET /process/:declaration_year/:declaration_type
-   */
-  async getProcessesByYearAndType(
-    year: string,
-    declarationType: DGIDeclarationType
-  ): Promise<DGIProcessListResponse> {
-    const response = await this.client.get<DGIProcessListResponse>(
-      `/process/${year}/${declarationType}`,
-      { headers: this.getAuthHeaders() },
-    );
-    return response.data;
-  }
-
-  /**
-   * Delete a declaration process
-   * DELETE /process
-   * 
-   * @param processId - The ID of the process to delete
-   * @returns Delete confirmation
-   */
-  async deleteDeclaration(
-    processId: string,
-  ): Promise<DGIDeleteDeclarationResponse> {
-    const response = await this.client.delete<DGIDeleteDeclarationResponse>(
-      "/process",
-      {
-        headers: this.getAuthHeaders(),
-        data: { id: processId },
-      }
-    );
-    return response.data;
-  }
-
   // ========================================
   // Note1 Operations
   // ========================================
@@ -541,6 +566,54 @@ export class DGIClient {
       { headers: this.getAuthHeaders() }
     );
     return response.data;
+  }
+
+  // ========================================
+  // Grille Analyse (Analysis Grid) Operations
+  // ========================================
+
+  /**
+   * Submit Grille Analyse (Analysis Grid) - Full replace
+   * PUT /process/:declaration_id/grilledanalyse
+   * WARNING: This will wipe all existing data!
+   */
+  async submitGrilleAnalyse(
+    declarationId: string,
+    data: DGIGrilleAnalyseData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/grilledanalyse`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Grille Analyse (Analysis Grid) - Partial update
+   * PATCH /process/:declaration_id/grilledanalyse
+   * Preserves existing data not in the request
+   */
+  async updateGrilleAnalyse(
+    declarationId: string,
+    data: Partial<DGIGrilleAnalyseData>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/grilledanalyse`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Grille Analyse (Analysis Grid)
+   * DELETE /process/:declaration_id/grilledanalyse
+   */
+  async deleteGrilleAnalyse(
+    declarationId: string
+  ): Promise<DGIPageResponse> {
+    return this.deleteDeclarationPage(declarationId, "grilledanalyse");
   }
 
   // ========================================
