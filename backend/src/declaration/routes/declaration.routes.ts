@@ -382,6 +382,29 @@ router.delete(
 );
 
 // ============================================
+// Note 3F (Frais d'Établissement) Routes
+// This endpoint uses the URL pattern: /process/:year/:type/:page
+// ============================================
+
+// PUT /api/dgi/note3f - Submit Note 3F (full replace)
+router.put(
+  "/note3f",
+  declarationController.submitNote3F.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3f - Update Note 3F (partial)
+router.patch(
+  "/note3f",
+  declarationController.updateNote3F.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3f - Delete Note 3F
+router.delete(
+  "/note3f",
+  declarationController.deleteNote3F.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 

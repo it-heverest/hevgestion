@@ -597,6 +597,116 @@ export interface DGINote3E2Data {
 }
 
 // ============================================
+// Note 3F (Frais d'Établissement) Types
+// This endpoint uses the URL pattern: /process/:year/:type/:page
+// ============================================
+
+export interface DGINote3FData {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  montantGlobalAEtait?: {
+    fraisDEtablissement?: number;
+    chargesARepartir?: number;
+    primesDeRemboursement?: number;
+  };
+  dureeDEtalement?: {
+    fraisDEtablissement?: number;
+    chargesARepartir?: number;
+    primesDeRemboursement?: number;
+  };
+  exerciseN?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  noRow1?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  noRow2?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  noRow3?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  noRow4?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalExerciceN?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalExerciceN1?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalExerciceN3?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalExerciceN4?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalExerciceN5?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+  totalGeneral?: {
+    comptes1?: number;
+    montants1?: number;
+    comptes2?: number;
+    montants2?: number;
+    comptes3?: number;
+    montants3?: number;
+  };
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

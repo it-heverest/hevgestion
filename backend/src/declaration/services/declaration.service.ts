@@ -28,6 +28,7 @@ import {
   DGICol1Note3C2Data,
   DGINote3D2Data,
   DGINote3E2Data,
+  DGINote3FData,
   DGIError,
 } from "../types/declaration.types";
 
@@ -857,6 +858,57 @@ export class DeclarationService {
    */
   async deleteNote3E2(declarationId: string): Promise<DGIPageResponse> {
     return this.deletePage(declarationId, "note3e2");
+  }
+
+  // ============================================
+  // Note 3F (Frais d'Établissement) Methods
+  // This endpoint uses the URL pattern: /process/:year/:type/:page
+  // ============================================
+
+  /**
+   * Submit Note 3F (Frais d'Établissement) - full replace
+   * PUT /process/:year/:type/note3F
+   */
+  async submitNote3F(
+    year: string,
+    type: string,
+    data: DGINote3FData
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${year}/${type}/note3F`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 3F (Frais d'Établissement) - partial update
+   * PATCH /process/:year/:type/note3F
+   */
+  async updateNote3F(
+    year: string,
+    type: string,
+    data: Partial<DGINote3FData>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${year}/${type}/note3F`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 3F (Frais d'Établissement)
+   * DELETE /process/:year/:type/note3F
+   */
+  async deleteNote3F(year: string, type: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${year}/${type}/note3F`,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
   }
 
   // ============================================
