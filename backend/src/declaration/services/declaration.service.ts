@@ -27,6 +27,7 @@ import {
   DGINote3CData,
   DGICol1Note3C2Data,
   DGINote3D2Data,
+  DGINote3E2Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -771,20 +772,19 @@ export class DeclarationService {
 
   // ============================================
   // Note 3D2 (Immobilisations - Cessions) Methods
-  // This endpoint uses a different URL pattern: /process/:year/:type/:page
+  // This endpoint uses the standard URL pattern: /process/:declaration_id/:page
   // ============================================
 
   /**
    * Submit Note 3D2 (Immobilisations - Cessions) - full replace
-   * PUT /process/:year/:type/note3d2
+   * PUT /process/:declaration_id/note3d2
    */
   async submitNote3D2(
-    year: string,
-    type: string,
+    declarationId: string,
     data: DGINote3D2Data
   ): Promise<DGIPageResponse> {
     const response = await this.client.put<DGIPageResponse>(
-      `/process/${year}/${type}/note3d2`,
+      `/process/${declarationId}/note3d2`,
       data,
       { headers: this.getAuthHeaders() }
     );
@@ -793,15 +793,14 @@ export class DeclarationService {
 
   /**
    * Update Note 3D2 (Immobilisations - Cessions) - partial update
-   * PATCH /process/:year/:type/note3d2
+   * PATCH /process/:declaration_id/note3d2
    */
   async updateNote3D2(
-    year: string,
-    type: string,
+    declarationId: string,
     data: Partial<DGINote3D2Data>
   ): Promise<DGIPageResponse> {
     const response = await this.client.patch<DGIPageResponse>(
-      `/process/${year}/${type}/note3d2`,
+      `/process/${declarationId}/note3d2`,
       data,
       { headers: this.getAuthHeaders() }
     );
@@ -810,14 +809,54 @@ export class DeclarationService {
 
   /**
    * Delete Note 3D2 (Immobilisations - Cessions)
-   * DELETE /process/:year/:type/note3d2
+   * DELETE /process/:declaration_id/note3d2
    */
-  async deleteNote3D2(year: string, type: string): Promise<DGIPageResponse> {
-    const response = await this.client.delete<DGIPageResponse>(
-      `/process/${year}/${type}/note3d2`,
+  async deleteNote3D2(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note3d2");
+  }
+
+  // ============================================
+  // Note 3E2 (Immobilisations - Réévaluation) Methods
+  // ============================================
+
+  /**
+   * Submit Note 3E2 (Immobilisations - Réévaluation) - full replace
+   * PUT /process/:declaration_id/note3e2
+   */
+  async submitNote3E2(
+    declarationId: string,
+    data: DGINote3E2Data
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note3e2`,
+      data,
       { headers: this.getAuthHeaders() }
     );
     return response.data;
+  }
+
+  /**
+   * Update Note 3E2 (Immobilisations - Réévaluation) - partial update
+   * PATCH /process/:declaration_id/note3e2
+   */
+  async updateNote3E2(
+    declarationId: string,
+    data: Partial<DGINote3E2Data>
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note3e2`,
+      data,
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 3E2 (Immobilisations - Réévaluation)
+   * DELETE /process/:declaration_id/note3e2
+   */
+  async deleteNote3E2(declarationId: string): Promise<DGIPageResponse> {
+    return this.deletePage(declarationId, "note3e2");
   }
 
   // ============================================

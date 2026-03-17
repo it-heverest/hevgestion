@@ -568,6 +568,35 @@ export interface DGINote3D2Data {
 }
 
 // ============================================
+// Note 3E2 (Immobilisations - Réévaluation) Types
+// ============================================
+
+export interface DGINote3E2Row {
+  elementsreevalue: string;
+  montatshist: string;
+  amortissement: string;
+}
+
+export interface DGINote3E2Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  natureetdate?: string;
+  r1?: DGINote3E2Row;
+  r2?: DGINote3E2Row;
+  r3?: DGINote3E2Row;
+  r4?: DGINote3E2Row;
+  r5?: DGINote3E2Row;
+  r6?: DGINote3E2Row;
+  r7?: DGINote3E2Row;
+  r8?: DGINote3E2Row;
+  methodereevalue?: string;
+  traitementfiscal?: string;
+  montantdelecart?: string;
+}
+
+// ============================================
 // Generic Page Response
 // ============================================
 

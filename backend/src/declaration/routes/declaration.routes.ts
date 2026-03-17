@@ -360,6 +360,28 @@ router.delete(
 );
 
 // ============================================
+// Note 3E2 (Immobilisations - Réévaluation) Routes
+// ============================================
+
+// PUT /api/dgi/note3e2 - Submit Note 3E2 (full replace)
+router.put(
+  "/note3e2",
+  declarationController.submitNote3E2.bind(declarationController),
+);
+
+// PATCH /api/dgi/note3e2 - Update Note 3E2 (partial)
+router.patch(
+  "/note3e2",
+  declarationController.updateNote3E2.bind(declarationController),
+);
+
+// DELETE /api/dgi/note3e2 - Delete Note 3E2
+router.delete(
+  "/note3e2",
+  declarationController.deleteNote3E2.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
