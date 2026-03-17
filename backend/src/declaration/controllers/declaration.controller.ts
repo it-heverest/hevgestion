@@ -42,7 +42,7 @@ export class DeclarationController {
       if (!username || !password) {
         res.status(400).json({
           success: false,
-          message: "Username and password are required",
+          message: "Le nom d'utilisateur et le mot de passe sont requis",
         });
         return;
       }
@@ -61,9 +61,23 @@ export class DeclarationController {
       });
     } catch (error: any) {
       console.error("[DGI] Authentication error:", error);
+
+      // Extract more detailed error message
+      let errorMessage = "Échec de l'authentification DGI";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
+        errorMessage =
+          "Serveur DGI inaccessible. Veuillez vérifier votre connexion.";
+      }
+
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Authentication failed",
+        message: errorMessage,
       });
     }
   }
@@ -1132,7 +1146,7 @@ export class DeclarationController {
    */
   async submitSection2ModelFluxTresorerie(
     req: AuthRequest,
-    res: Response
+    res: Response,
   ): Promise<void> {
     try {
       const { userId, declarationId, tresorerieData } = req.body as {
@@ -1142,13 +1156,19 @@ export class DeclarationController {
       };
 
       if (!userId || userId !== req.user?.userId) {
-        res.status(403).json({ success: false, message: "Unauthorized access" });
+        res
+          .status(403)
+          .json({ success: false, message: "Unauthorized access" });
         return;
       }
 
-      const dgiConfig = await prisma.dGIConfig.findUnique({ where: { userId } });
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
       if (!dgiConfig) {
-        res.status(400).json({ success: false, message: "DGI credentials not found" });
+        res
+          .status(400)
+          .json({ success: false, message: "DGI credentials not found" });
         return;
       }
 
@@ -1157,17 +1177,19 @@ export class DeclarationController {
         password: dgiConfig.password,
       });
 
-      const result = await declarationService.submitSection2ModelTableauFluxTresorerie(
-        declarationId,
-        tresorerieData
-      );
+      const result =
+        await declarationService.submitSection2ModelTableauFluxTresorerie(
+          declarationId,
+          tresorerieData,
+        );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
       console.error("[DGI] Submit Flux Tresorerie error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to submit Flux Tresorerie",
+        message:
+          error.response?.data?.message || "Failed to submit Flux Tresorerie",
       });
     }
   }
@@ -1178,7 +1200,7 @@ export class DeclarationController {
    */
   async updateSection2ModelFluxTresorerie(
     req: AuthRequest,
-    res: Response
+    res: Response,
   ): Promise<void> {
     try {
       const { userId, declarationId, tresorerieData } = req.body as {
@@ -1188,13 +1210,19 @@ export class DeclarationController {
       };
 
       if (!userId || userId !== req.user?.userId) {
-        res.status(403).json({ success: false, message: "Unauthorized access" });
+        res
+          .status(403)
+          .json({ success: false, message: "Unauthorized access" });
         return;
       }
 
-      const dgiConfig = await prisma.dGIConfig.findUnique({ where: { userId } });
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
       if (!dgiConfig) {
-        res.status(400).json({ success: false, message: "DGI credentials not found" });
+        res
+          .status(400)
+          .json({ success: false, message: "DGI credentials not found" });
         return;
       }
 
@@ -1203,17 +1231,19 @@ export class DeclarationController {
         password: dgiConfig.password,
       });
 
-      const result = await declarationService.updateSection2ModelTableauFluxTresorerie(
-        declarationId,
-        tresorerieData
-      );
+      const result =
+        await declarationService.updateSection2ModelTableauFluxTresorerie(
+          declarationId,
+          tresorerieData,
+        );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
       console.error("[DGI] Update Flux Tresorerie error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to update Flux Tresorerie",
+        message:
+          error.response?.data?.message || "Failed to update Flux Tresorerie",
       });
     }
   }
@@ -1224,19 +1254,25 @@ export class DeclarationController {
    */
   async deleteSection2ModelFluxTresorerie(
     req: AuthRequest,
-    res: Response
+    res: Response,
   ): Promise<void> {
     try {
       const { userId, declarationId } = req.body;
 
       if (!userId || userId !== req.user?.userId) {
-        res.status(403).json({ success: false, message: "Unauthorized access" });
+        res
+          .status(403)
+          .json({ success: false, message: "Unauthorized access" });
         return;
       }
 
-      const dgiConfig = await prisma.dGIConfig.findUnique({ where: { userId } });
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
       if (!dgiConfig) {
-        res.status(400).json({ success: false, message: "DGI credentials not found" });
+        res
+          .status(400)
+          .json({ success: false, message: "DGI credentials not found" });
         return;
       }
 
@@ -1245,14 +1281,18 @@ export class DeclarationController {
         password: dgiConfig.password,
       });
 
-      const result = await declarationService.deleteSection2ModelTableauFluxTresorerie(declarationId);
+      const result =
+        await declarationService.deleteSection2ModelTableauFluxTresorerie(
+          declarationId,
+        );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
       console.error("[DGI] Delete Flux Tresorerie error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to delete Flux Tresorerie",
+        message:
+          error.response?.data?.message || "Failed to delete Flux Tresorerie",
       });
     }
   }
@@ -1302,7 +1342,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote1(declarationId, note1Data);
+      const result = await declarationService.submitNote1(
+        declarationId,
+        note1Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1355,7 +1398,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote1(declarationId, note1Data);
+      const result = await declarationService.updateNote1(
+        declarationId,
+        note1Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1464,7 +1510,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote2(declarationId, note2Data);
+      const result = await declarationService.submitNote2(
+        declarationId,
+        note2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1517,7 +1566,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote2(declarationId, note2Data);
+      const result = await declarationService.updateNote2(
+        declarationId,
+        note2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1626,7 +1678,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3A(declarationId, note3aData);
+      const result = await declarationService.submitNote3A(
+        declarationId,
+        note3aData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1679,7 +1734,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3A(declarationId, note3aData);
+      const result = await declarationService.updateNote3A(
+        declarationId,
+        note3aData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1788,7 +1846,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3B(declarationId, note3bData);
+      const result = await declarationService.submitNote3B(
+        declarationId,
+        note3bData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1841,7 +1902,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3B(declarationId, note3bData);
+      const result = await declarationService.updateNote3B(
+        declarationId,
+        note3bData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -1950,7 +2014,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3C(declarationId, note3cData);
+      const result = await declarationService.submitNote3C(
+        declarationId,
+        note3cData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2003,7 +2070,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3C(declarationId, note3cData);
+      const result = await declarationService.updateNote3C(
+        declarationId,
+        note3cData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2086,7 +2156,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !col1Note3C2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, col1Note3C2Data",
+          message:
+            "Missing required fields: userId, declarationId, col1Note3C2Data",
         });
         return;
       }
@@ -2112,14 +2183,18 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitCol1Note3C2(declarationId, col1Note3C2Data);
+      const result = await declarationService.submitCol1Note3C2(
+        declarationId,
+        col1Note3C2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
       console.error("[DGI] Submit CO1-Note 3C error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to submit CO1-Note 3C",
+        message:
+          error.response?.data?.message || "Failed to submit CO1-Note 3C",
       });
     }
   }
@@ -2139,7 +2214,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !col1Note3C2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, col1Note3C2Data",
+          message:
+            "Missing required fields: userId, declarationId, col1Note3C2Data",
         });
         return;
       }
@@ -2165,14 +2241,18 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateCol1Note3C2(declarationId, col1Note3C2Data);
+      const result = await declarationService.updateCol1Note3C2(
+        declarationId,
+        col1Note3C2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
       console.error("[DGI] Update CO1-Note 3C error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to update CO1-Note 3C",
+        message:
+          error.response?.data?.message || "Failed to update CO1-Note 3C",
       });
     }
   }
@@ -2224,7 +2304,8 @@ export class DeclarationController {
       console.error("[DGI] Delete CO1-Note 3C error:", error);
       res.status(error.response?.status || 500).json({
         success: false,
-        message: error.response?.data?.message || "Failed to delete CO1-Note 3C",
+        message:
+          error.response?.data?.message || "Failed to delete CO1-Note 3C",
       });
     }
   }
@@ -2250,7 +2331,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !note3d2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, note3d2Data",
+          message:
+            "Missing required fields: userId, declarationId, note3d2Data",
         });
         return;
       }
@@ -2276,7 +2358,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3D2(declarationId, note3d2Data);
+      const result = await declarationService.submitNote3D2(
+        declarationId,
+        note3d2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2303,7 +2388,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !note3d2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, note3d2Data",
+          message:
+            "Missing required fields: userId, declarationId, note3d2Data",
         });
         return;
       }
@@ -2329,7 +2415,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3D2(declarationId, note3d2Data);
+      const result = await declarationService.updateNote3D2(
+        declarationId,
+        note3d2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2412,7 +2501,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !note3e2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, note3e2Data",
+          message:
+            "Missing required fields: userId, declarationId, note3e2Data",
         });
         return;
       }
@@ -2438,7 +2528,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3E2(declarationId, note3e2Data);
+      const result = await declarationService.submitNote3E2(
+        declarationId,
+        note3e2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2465,7 +2558,8 @@ export class DeclarationController {
       if (!userId || !declarationId || !note3e2Data) {
         res.status(400).json({
           success: false,
-          message: "Missing required fields: userId, declarationId, note3e2Data",
+          message:
+            "Missing required fields: userId, declarationId, note3e2Data",
         });
         return;
       }
@@ -2491,7 +2585,10 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3E2(declarationId, note3e2Data);
+      const result = await declarationService.updateNote3E2(
+        declarationId,
+        note3e2Data,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2603,7 +2700,11 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.submitNote3F(year, type, note3fData);
+      const result = await declarationService.submitNote3F(
+        year,
+        type,
+        note3fData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {
@@ -2657,7 +2758,11 @@ export class DeclarationController {
         });
       }
 
-      const result = await declarationService.updateNote3F(year, type, note3fData);
+      const result = await declarationService.updateNote3F(
+        year,
+        type,
+        note3fData,
+      );
 
       res.json({ success: true, data: result });
     } catch (error: any) {

@@ -10,17 +10,45 @@ import { authenticate } from "../../middleware/auth.middleware";
 
 const router = Router();
 
-// All routes require authentication
-router.use(authenticate);
-
 // ============================================
-// Authentication
+// Authentication (must be before authenticate middleware)
 // ============================================
 
 // POST /api/dgi/auth
 router.post(
   "/auth",
   declarationController.authenticate.bind(declarationController),
+);
+
+// All other routes require authentication
+router.use(authenticate);
+
+// ============================================
+// Process Operations (alias for declarations)
+// ============================================
+
+// POST /api/dgi/process/:year/:type - Create a new process
+router.post(
+  "/process/:year/:type",
+  declarationController.createDeclaration.bind(declarationController),
+);
+
+// GET /api/dgi/process - Get all processes
+router.get(
+  "/process",
+  declarationController.getAllDeclarations.bind(declarationController),
+);
+
+// GET /api/dgi/process/:year - Get processes by year
+router.get(
+  "/process/:year",
+  declarationController.getDeclarationsByYear.bind(declarationController),
+);
+
+// DELETE /api/dgi/process - Delete process
+router.delete(
+  "/process",
+  declarationController.deleteDeclaration.bind(declarationController),
 );
 
 // ============================================
