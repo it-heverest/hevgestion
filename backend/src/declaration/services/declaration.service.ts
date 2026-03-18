@@ -36,6 +36,7 @@ import {
   DGINote8Data,
   DGINote9Data,
   DGINote10Data,
+  DGINote11Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -1270,6 +1271,56 @@ export class DeclarationService {
   async deleteNote10(declarationId: string): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${declarationId}/note10`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 11 (Tableau des Immobilisations)
+  // Page parameter: note11
+  // Uses URL pattern: /process/:declaration_id/note11
+  // ============================================
+
+  /**
+   * Submit Note 11 (Tableau des Immobilisations) - full replace
+   * PUT /process/:declaration_id/note11
+   */
+  async submitNote11(
+    declarationId: string,
+    note11Data: DGINote11Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note11`,
+      note11Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 11 (Tableau des Immobilisations) - partial update
+   * PATCH /process/:declaration_id/note11
+   */
+  async updateNote11(
+    declarationId: string,
+    note11Data: Partial<DGINote11Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note11`,
+      note11Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 11 (Tableau des Immobilisations)
+   * DELETE /process/:declaration_id/note11
+   */
+  async deleteNote11(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note11`,
       { headers: this.getAuthHeaders() },
     );
     return response.data;

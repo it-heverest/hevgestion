@@ -1196,3 +1196,38 @@ export interface DGINote10Data {
   r9?: DGINote10Row;
   commentaire?: string;
 }
+
+// ============================================
+// Note 11 (Tableau des Immobilisations)
+// Page parameter: note11
+// Uses URL pattern: /process/:declaration_id/note11
+// ============================================
+
+export interface DGINote11Row {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote11Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote11Row;
+  r2?: DGINote11Row;
+  r3?: DGINote11Row;
+  r4?: DGINote11Row;
+  r5?: DGINote11Row;
+  r6?: DGINote11Row;
+  r7?: DGINote11Row;
+  r8?: DGINote11Row;
+  r9?: DGINote11Row;
+  r10?: DGINote11Row;
+  r11?: DGINote11Row;
+  r12?: DGINote11Row;
+  r13?: DGINote11Row;
+  r14?: DGINote11Row;
+  r15?: DGINote11Row;
+  commentaire?: string;
+}

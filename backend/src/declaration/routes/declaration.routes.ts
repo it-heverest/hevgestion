@@ -601,6 +601,30 @@ router.delete(
 );
 
 // ============================================
+// Note 11 (Tableau des Immobilisations) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note11"
+// ============================================
+
+// PUT /api/dgi/note11 - Submit Note 11 (full replace)
+router.put(
+  "/note11",
+  declarationController.submitNote11.bind(declarationController),
+);
+
+// PATCH /api/dgi/note11 - Update Note 11 (partial)
+router.patch(
+  "/note11",
+  declarationController.updateNote11.bind(declarationController),
+);
+
+// DELETE /api/dgi/note11 - Delete Note 11
+router.delete(
+  "/note11",
+  declarationController.deleteNote11.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
