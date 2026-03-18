@@ -625,6 +625,30 @@ router.delete(
 );
 
 // ============================================
+// Note 12 (Informations Complémentaires) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note12"
+// ============================================
+
+// PUT /api/dgi/note12 - Submit Note 12 (full replace)
+router.put(
+  "/note12",
+  declarationController.submitNote12.bind(declarationController),
+);
+
+// PATCH /api/dgi/note12 - Update Note 12 (partial)
+router.patch(
+  "/note12",
+  declarationController.updateNote12.bind(declarationController),
+);
+
+// DELETE /api/dgi/note12 - Delete Note 12
+router.delete(
+  "/note12",
+  declarationController.deleteNote12.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 

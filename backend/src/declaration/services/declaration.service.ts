@@ -37,6 +37,7 @@ import {
   DGINote9Data,
   DGINote10Data,
   DGINote11Data,
+  DGINote12Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -1321,6 +1322,56 @@ export class DeclarationService {
   async deleteNote11(declarationId: string): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${declarationId}/note11`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 12 (Informations Complémentaires)
+  // Page parameter: note12
+  // Uses URL pattern: /process/:declaration_id/note12
+  // ============================================
+
+  /**
+   * Submit Note 12 (Informations Complémentaires) - full replace
+   * PUT /process/:declaration_id/note12
+   */
+  async submitNote12(
+    declarationId: string,
+    note12Data: DGINote12Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note12`,
+      note12Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 12 (Informations Complémentaires) - partial update
+   * PATCH /process/:declaration_id/note12
+   */
+  async updateNote12(
+    declarationId: string,
+    note12Data: Partial<DGINote12Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note12`,
+      note12Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 12 (Informations Complémentaires)
+   * DELETE /process/:declaration_id/note12
+   */
+  async deleteNote12(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note12`,
       { headers: this.getAuthHeaders() },
     );
     return response.data;

@@ -1231,3 +1231,36 @@ export interface DGINote11Data {
   r15?: DGINote11Row;
   commentaire?: string;
 }
+
+// ============================================
+// Note 12 (Informations Complémentaires)
+// Page parameter: note12
+// Uses URL pattern: /process/:declaration_id/note12
+// ============================================
+
+export interface DGINote12Row1 {
+  devises?: string;
+  montant?: number;
+  coursuml?: number;
+  coursuml31?: number;
+  variation?: number;
+}
+
+export interface DGINote12Row2 {
+  anneen?: number;
+  anneemin1?: number;
+  variationperc?: number;
+}
+
+export interface DGINote12Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1_1?: DGINote12Row1;
+  r2_1?: DGINote12Row1;
+  commentaire1?: string;
+  r1_2?: DGINote12Row2;
+  r2_2?: DGINote12Row2;
+  commentaire?: string;
+}
