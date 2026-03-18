@@ -505,6 +505,78 @@ router.delete(
 );
 
 // ============================================
+// Note 7 (Créances - Accounts Receivable) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note72"
+// ============================================
+
+// PUT /api/dgi/note7 - Submit Note 7 (full replace)
+router.put(
+  "/note7",
+  declarationController.submitNote7.bind(declarationController),
+);
+
+// PATCH /api/dgi/note7 - Update Note 7 (partial)
+router.patch(
+  "/note7",
+  declarationController.updateNote7.bind(declarationController),
+);
+
+// DELETE /api/dgi/note7 - Delete Note 7
+router.delete(
+  "/note7",
+  declarationController.deleteNote7.bind(declarationController),
+);
+
+// ============================================
+// Note 8 (Dettes - Accounts Payable) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note82"
+// ============================================
+
+// PUT /api/dgi/note8 - Submit Note 8 (full replace)
+router.put(
+  "/note8",
+  declarationController.submitNote8.bind(declarationController),
+);
+
+// PATCH /api/dgi/note8 - Update Note 8 (partial)
+router.patch(
+  "/note8",
+  declarationController.updateNote8.bind(declarationController),
+);
+
+// DELETE /api/dgi/note8 - Delete Note 8
+router.delete(
+  "/note8",
+  declarationController.deleteNote8.bind(declarationController),
+);
+
+// ============================================
+// Note 9 (Investissements) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note92"
+// ============================================
+
+// PUT /api/dgi/note9 - Submit Note 9 (full replace)
+router.put(
+  "/note9",
+  declarationController.submitNote9.bind(declarationController),
+);
+
+// PATCH /api/dgi/note9 - Update Note 9 (partial)
+router.patch(
+  "/note9",
+  declarationController.updateNote9.bind(declarationController),
+);
+
+// DELETE /api/dgi/note9 - Delete Note 9
+router.delete(
+  "/note9",
+  declarationController.deleteNote9.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 

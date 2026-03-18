@@ -1066,3 +1066,104 @@ export interface DGINote6Data {
   r11?: DGINote6Row;
   rlast?: string;
 }
+
+// ============================================
+// Note 7 (Créances - Accounts Receivable)
+// Page parameter: note72
+// ============================================
+
+export interface DGINote7Row {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote7Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote7Row;
+  r2?: DGINote7Row;
+  r3?: DGINote7Row;
+  r4?: DGINote7Row;
+  r5?: DGINote7Row;
+  r6?: DGINote7Row;
+  r7?: DGINote7Row;
+  r8?: DGINote7Row;
+  r9?: DGINote7Row;
+  r10?: DGINote7Row;
+  r11?: DGINote7Row;
+  r12?: DGINote7Row;
+  r13?: DGINote7Row;
+  r14?: DGINote7Row;
+  r15?: DGINote7Row;
+  rlast?: string;
+}
+
+// ============================================
+// Note 8 (Dettes - Accounts Payable)
+// Page parameter: note82
+// ============================================
+
+export interface DGINote8Row {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+  creancesaunauplus?: number;
+  creancesaplus2ansauplus?: number;
+  creancesaplux2ans?: number;
+}
+
+export interface DGINote8Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote8Row;
+  r2?: DGINote8Row;
+  r3?: DGINote8Row;
+  r4?: DGINote8Row;
+  r5?: DGINote8Row;
+  r6?: DGINote8Row;
+  r7?: DGINote8Row;
+  r8?: DGINote8Row;
+  r9?: DGINote8Row;
+  r10?: DGINote8Row;
+  r11?: DGINote8Row;
+  r12?: DGINote8Row;
+  r13?: DGINote8Row;
+  commentaire?: string;
+}
+
+// ============================================
+// Note 9 (Investissements)
+// Page parameter: note92
+// ============================================
+
+export interface DGINote9Row {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote9Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote9Row;
+  r2?: DGINote9Row;
+  r3?: DGINote9Row;
+  r4?: DGINote9Row;
+  r5?: DGINote9Row;
+  r6?: DGINote9Row;
+  r7?: DGINote9Row;
+  r8?: DGINote9Row;
+  r9?: DGINote9Row;
+  r10?: DGINote9Row;
+  commentaire?: string;
+}

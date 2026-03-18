@@ -32,6 +32,9 @@ import {
   DGINote4Data,
   DGINote5Data,
   DGINote6Data,
+  DGINote7Data,
+  DGINote8Data,
+  DGINote9Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -1069,6 +1072,153 @@ export class DeclarationService {
   async deleteNote6(declarationId: string): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${declarationId}/note62`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 7 (Créances - Accounts Receivable)
+  // Page parameter: note72
+  // ============================================
+
+  /**
+   * Submit Note 7 (Créances) - full replace
+   * PUT /process/:declaration_id/note72
+   */
+  async submitNote7(
+    declarationId: string,
+    note7Data: DGINote7Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note72`,
+      note7Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 7 (Créances) - partial update
+   * PATCH /process/:declaration_id/note72
+   */
+  async updateNote7(
+    declarationId: string,
+    note7Data: Partial<DGINote7Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note72`,
+      note7Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 7 (Créances)
+   * DELETE /process/:declaration_id/note72
+   */
+  async deleteNote7(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note72`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 8 (Dettes - Accounts Payable)
+  // Page parameter: note82
+  // ============================================
+
+  /**
+   * Submit Note 8 (Dettes) - full replace
+   * PUT /process/:declaration_id/note82
+   */
+  async submitNote8(
+    declarationId: string,
+    note8Data: DGINote8Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note82`,
+      note8Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 8 (Dettes) - partial update
+   * PATCH /process/:declaration_id/note82
+   */
+  async updateNote8(
+    declarationId: string,
+    note8Data: Partial<DGINote8Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note82`,
+      note8Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 8 (Dettes)
+   * DELETE /process/:declaration_id/note82
+   */
+  async deleteNote8(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note82`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 9 (Investissements)
+  // Page parameter: note92
+  // ============================================
+
+  /**
+   * Submit Note 9 (Investissements) - full replace
+   * PUT /process/:declaration_id/note92
+   */
+  async submitNote9(
+    declarationId: string,
+    note9Data: DGINote9Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note92`,
+      note9Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 9 (Investissements) - partial update
+   * PATCH /process/:declaration_id/note92
+   */
+  async updateNote9(
+    declarationId: string,
+    note9Data: Partial<DGINote9Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note92`,
+      note9Data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 9 (Investissements)
+   * DELETE /process/:declaration_id/note92
+   */
+  async deleteNote9(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note92`,
       { headers: this.getAuthHeaders() },
     );
     return response.data;
