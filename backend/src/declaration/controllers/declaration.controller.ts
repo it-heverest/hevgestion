@@ -3841,6 +3841,171 @@ export class DeclarationController {
       });
     }
   }
+
+  /**
+   * PUT /api/dgi/note10
+   * Submit Note 10 (Immobilisations) - full replace
+   * Uses URL pattern: /process/:declaration_id/note10
+   */
+  async submitNote10(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note10Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note10Data: DGINote10Data;
+      };
+
+      if (!userId || !declarationId || !note10Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note10Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.submitNote10(
+        declarationId,
+        note10Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Submit Note 10 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to submit Note 10",
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/dgi/note10
+   * Update Note 10 (Immobilisations) - partial update
+   */
+  async updateNote10(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId, note10Data } = req.body as {
+        userId: string;
+        declarationId: string;
+        note10Data: Partial<DGINote10Data>;
+      };
+
+      if (!userId || !declarationId || !note10Data) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId, note10Data",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.updateNote10(
+        declarationId,
+        note10Data,
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Update Note 10 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to update Note 10",
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/dgi/note10
+   * Delete Note 10 (Immobilisations)
+   */
+  async deleteNote10(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { userId, declarationId } = req.body as {
+        userId: string;
+        declarationId: string;
+      };
+
+      if (!userId || !declarationId) {
+        res.status(400).json({
+          success: false,
+          message: "Missing required fields: userId, declarationId",
+        });
+        return;
+      }
+
+      // Get DGI config
+      const dgiConfig = await prisma.dGIConfig.findUnique({
+        where: { userId },
+      });
+
+      if (!dgiConfig) {
+        res.status(400).json({
+          success: false,
+          message: "DGI configuration not found for user",
+        });
+        return;
+      }
+
+      // Authenticate if not already
+      if (!declarationService.isAuthenticated()) {
+        await declarationService.authenticate({
+          username: dgiConfig.niu,
+          password: dgiConfig.password,
+        });
+      }
+
+      const result = await declarationService.deleteNote10(declarationId);
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[DGI] Delete Note 10 error:", error);
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: error.response?.data?.message || "Failed to delete Note 10",
+      });
+    }
+  }
 }
 
 // ============================================

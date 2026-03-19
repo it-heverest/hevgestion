@@ -577,6 +577,30 @@ router.delete(
 );
 
 // ============================================
+// Note 10 (Immobilisations) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note10"
+// ============================================
+
+// PUT /api/dgi/note10 - Submit Note 10 (full replace)
+router.put(
+  "/note10",
+  declarationController.submitNote10.bind(declarationController),
+);
+
+// PATCH /api/dgi/note10 - Update Note 10 (partial)
+router.patch(
+  "/note10",
+  declarationController.updateNote10.bind(declarationController),
+);
+
+// DELETE /api/dgi/note10 - Delete Note 10
+router.delete(
+  "/note10",
+  declarationController.deleteNote10.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
