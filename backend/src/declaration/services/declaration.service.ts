@@ -31,6 +31,7 @@ import {
   DGINote3FData,
   DGINote4Data,
   DGINote5Data,
+  DGINote6Data,
   DGIError,
 } from "../types/declaration.types";
 
@@ -1018,6 +1019,56 @@ export class DeclarationService {
   async deleteNote5(declarationId: string): Promise<DGIPageResponse> {
     const response = await this.client.delete<DGIPageResponse>(
       `/process/${declarationId}/note52`,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  // ============================================
+  // Note 6 (Provisions) Methods
+  // This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+  // The :declaration_page parameter is "note62"
+  // ============================================
+
+  /**
+   * Submit Note 6 (Provisions) - full replace
+   * PUT /process/:declaration_id/note62
+   */
+  async submitNote6(
+    declarationId: string,
+    data: DGINote6Data,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.put<DGIPageResponse>(
+      `/process/${declarationId}/note62`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Update Note 6 (Provisions) - partial update
+   * PATCH /process/:declaration_id/note62
+   */
+  async updateNote6(
+    declarationId: string,
+    data: Partial<DGINote6Data>,
+  ): Promise<DGIPageResponse> {
+    const response = await this.client.patch<DGIPageResponse>(
+      `/process/${declarationId}/note62`,
+      data,
+      { headers: this.getAuthHeaders() },
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete Note 6 (Provisions)
+   * DELETE /process/:declaration_id/note62
+   */
+  async deleteNote6(declarationId: string): Promise<DGIPageResponse> {
+    const response = await this.client.delete<DGIPageResponse>(
+      `/process/${declarationId}/note62`,
       { headers: this.getAuthHeaders() },
     );
     return response.data;

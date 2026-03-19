@@ -481,6 +481,30 @@ router.delete(
 );
 
 // ============================================
+// Note 6 (Provisions) Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note62"
+// ============================================
+
+// PUT /api/dgi/note6 - Submit Note 6 (full replace)
+router.put(
+  "/note6",
+  declarationController.submitNote6.bind(declarationController),
+);
+
+// PATCH /api/dgi/note6 - Update Note 6 (partial)
+router.patch(
+  "/note6",
+  declarationController.updateNote6.bind(declarationController),
+);
+
+// DELETE /api/dgi/note6 - Delete Note 6
+router.delete(
+  "/note6",
+  declarationController.deleteNote6.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 

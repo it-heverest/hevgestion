@@ -1035,3 +1035,34 @@ export interface DGINote5Data {
   r2_5?: DGINote5R2_5;
   commentaire?: string;
 }
+
+// ============================================
+// Note 6 (Provisions) Types
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note62"
+// ============================================
+
+export interface DGINote6Row {
+  anneen?: number;
+  anneenmin1?: number;
+  variation?: number;
+}
+
+export interface DGINote6Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote6Row;
+  r2?: DGINote6Row;
+  r3?: DGINote6Row;
+  r4?: DGINote6Row;
+  r5?: DGINote6Row;
+  r6?: DGINote6Row;
+  r7?: DGINote6Row;
+  r8?: DGINote6Row;
+  r9?: DGINote6Row;
+  r10?: DGINote6Row;
+  r11?: DGINote6Row;
+  rlast?: string;
+}
