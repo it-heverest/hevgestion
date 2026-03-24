@@ -1264,3 +1264,52 @@ export interface DGINote12Data {
   r2_2?: DGINote12Row2;
   commentaire?: string;
 }
+
+// ============================================
+// Note 13:CAPITAL
+// Page parameter: note13
+// Uses URL pattern: /process/:declaration_id/note13
+// ============================================
+
+export interface DGINote13R1_10 {
+  nomprenom?: string;
+  nationalite?: string;
+  naturedesact?: string;
+  nombre?: number;
+  montanttotal?: number;
+  cessions?: number;
+}
+
+export interface DGINote13R11 {
+  nationalite?: string;
+  naturedesact?: string;
+  nombre?: number;
+  montanttotal?: number;
+  cessions?: number;
+}
+
+export interface DGINote13R12 {
+  nombre?: number;
+  montanttotal?: number;
+  cessions?: number;
+}
+
+export interface DGINote13Data {
+  desigEntite?: string;
+  numerodIdent?: string;
+  exerciceClos?: string;
+  dureeMois?: number;
+  r1?: DGINote13R1_10;
+  r2?: DGINote13R1_10;
+  r3?: DGINote13R1_10;
+  r4?: DGINote13R1_10;
+  r5?: DGINote13R1_10;
+  r6?: DGINote13R1_10;
+  r7?: DGINote13R1_10;
+  r8?: DGINote13R1_10;
+  r9?: DGINote13R1_10;
+  r10?: DGINote13R1_10;
+  r11?: DGINote13R11;
+  r12?: DGINote13R12;
+  commentaire?: string;
+}

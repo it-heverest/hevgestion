@@ -649,6 +649,30 @@ router.delete(
 );
 
 // ============================================
+// Note 13:CAPITAL Routes
+// This endpoint uses the URL pattern: /process/:declaration_id/:declaration_page
+// The :declaration_page parameter is "note13"
+// ============================================
+
+// PUT /api/dgi/note13 - Submit Note 13 (full replace)
+router.put(
+  "/note13",
+  declarationController.submitNote13.bind(declarationController),
+);
+
+// PATCH /api/dgi/note13 - Update Note 13 (partial)
+router.patch(
+  "/note13",
+  declarationController.updateNote13.bind(declarationController),
+);
+
+// DELETE /api/dgi/note13 - Delete Note 13
+router.delete(
+  "/note13",
+  declarationController.deleteNote13.bind(declarationController),
+);
+
+// ============================================
 // Export
 // ============================================
 
