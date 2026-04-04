@@ -32,6 +32,7 @@ import { CompanySelector } from "./components/CompanySelector";
 import { DashboardGrid } from "./components/DashboardGrid";
 import { ExerciseSelector } from "./components/ExerciseSelector";
 import { AllReports } from "./components/AllReports";
+import { BalanceImporter } from "./components/BalanceImporter";
 import { SimpleSettings } from "./components/SimpleSettings";
 import { ExcelBalanceImporter } from "./components/ExcelBalanceImporter";
 import { StepByStepProcessor } from "./components/StepByStepProcessor";
@@ -365,9 +366,10 @@ export function ProtectedLayout({
 
   // Extract language prefix from URL
   const pathSegments = location.pathname.split("/").filter(Boolean);
-  const langPrefix = pathSegments[0] === "en" || pathSegments[0] === "fr"
-    ? pathSegments[0]
-    : "fr";
+  const langPrefix =
+    pathSegments[0] === "en" || pathSegments[0] === "fr"
+      ? pathSegments[0]
+      : "fr";
 
   useEffect(() => {
     const parts = location.pathname.split("/").filter(Boolean);
@@ -485,7 +487,9 @@ export function ProtectedLayout({
                   {selectedExercise && (
                     <div
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/${langPrefix}/web/user/exercise`)}
+                      onClick={() =>
+                        navigate(`/${langPrefix}/web/user/exercise`)
+                      }
                     >
                       <Calendar className="h-4 w-4" />
                       <span className="text-sm font-medium">
@@ -560,9 +564,7 @@ function AppRoutes() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">
-            {t("initializingAuth")}
-          </p>
+          <p className="text-gray-600">{t("initializingAuth")}</p>
         </div>
       </div>
     );
@@ -601,622 +603,601 @@ function AppRoutes() {
               )
             }
           >
-          <Route
-            index
-            element={
-              <Navigate
-                to={`/web/user/dashboard/${user?.id ?? "me"}`}
-                replace
-              />
-            }
-          />
-          <Route
-            path="dashboard/:userId/:actionId?"
-            element={
-              <DashboardGrid
-                companyName={selectedCompany?.name || ""}
-                currentExercise={
-                  selectedFolder?.fiscalYear || new Date().getFullYear()
-                }
-                onNavigate={setActiveRoute}
-              />
-            }
-          />
-          <Route
-            path="exercise/:userId/:actionId?"
-            element={<ExerciseSelector />}
-          />
-          <Route
-            path="import/:userId/:actionId?"
-            element={<ExcelBalanceImporter onComplete={() => { }} />}
-          />
-          <Route
-            path="traitement/:userId/:actionId?"
-            element={<StepByStepProcessor />}
-          />
-          <Route path="dsf-import/:folderId" element={<DSFImporter />} />
-          <Route
-            path="reports/:userId/reports/rapport/note1"
-            element={<Note1 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note2"
-            element={<Note2 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3a"
-            element={<Note3A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3b"
-            element={<Note3B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3c"
-            element={<Note3C />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3d"
-            element={<Note3D />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3f"
-            element={<Note3F />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note4"
-            element={<Note4 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note5"
-            element={<Note5 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note6"
-            element={<Note6 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note7"
-            element={<Note7 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note8"
-            element={<Note8 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note9"
-            element={<Note9 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note10"
-            element={<Note10 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note11"
-            element={<Note11 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note12"
-            element={<Note12 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note13"
-            element={<Note13 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note14"
-            element={<Note14 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note15a"
-            element={<Note15A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note15b"
-            element={<Note15B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note16a"
-            element={<Note16A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note16b"
-            element={<Note16B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note16bbis"
-            element={<Note16Bbis />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note16c"
-            element={<Note16C />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note17"
-            element={<Note17 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note18"
-            element={<Note18 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note19"
-            element={<Note19 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note20"
-            element={<Note20 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note21"
-            element={<Note21 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note22"
-            element={<Note22 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note23"
-            element={<Note23 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note24"
-            element={<Note24 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note25"
-            element={<Note25 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note26"
-            element={<Note26 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note27a"
-            element={<Note27A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note27b"
-            element={<Note27B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note28"
-            element={<Note28 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note29"
-            element={<Note29 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note30"
-            element={<Note30 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note31"
-            element={<Note31 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note32"
-            element={<Note32 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note33"
-            element={<Note33 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note34"
-            element={<Note34 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ficher3"
-            element={<FicheR3 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/pagedegarde"
-            element={<PageDeGarde />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/sommaire"
-            element={<Sommaire />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/bilanpaysage"
-            element={<BilanPaysage />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/compteresultat"
-            element={<CompteResultat />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableaufluxtresorerie"
-            element={<TableauFluxTresorerie />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/grilleanalysenotes"
-            element={<GrilleAnalyseNotes />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c01note3c"
-            element={<C01Note3C />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c1note17"
-            element={<C1Note17 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c1note25"
-            element={<C1Note25 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c1note27a"
-            element={<C1Note27A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c1note28"
-            element={<C1Note28 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c2note25"
-            element={<C2Note25 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/c2note28"
-            element={<C2Note28 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf1"
-            element={<CF1 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf1bis"
-            element={<CF1Bis />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf1ter"
-            element={<CF1Ter />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf1quater"
-            element={<CF1Quater />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf2"
-            element={<CF2 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf2bis"
-            element={<CF2Bis />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/cf2ter"
-            element={<CF2Ter />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/impot21"
-            element={<Impot21 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/impot22"
-            element={<Impot22 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/fiche1"
-            element={<Fiche1 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/fiche2"
-            element={<Fiche2 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/fiche3"
-            element={<Fiche3 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/fiche4"
-            element={<Fiche4 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/fiche5"
-            element={<Fiche5 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/bilanactif"
-            element={<BilanActif />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/bilanpassif"
-            element={<BilanPassif />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/charges"
-            element={<Charges />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/produits"
-            element={<Produits />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/comptegeneralpertesprofits"
-            element={<CompteGeneralPertesProfits />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/etatc4"
-            element={<EtatC4 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/etatc11"
-            element={<EtatC11 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/etatc11vie"
-            element={<EtatC11Vie />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/annexe6"
-            element={<Annexe6 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass1"
-            element={<Ass1 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass2"
-            element={<Ass2 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass3"
-            element={<Ass3 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass4"
-            element={<Ass4 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass5"
-            element={<Ass5 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass6"
-            element={<Ass6 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass7"
-            element={<Ass7 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass8"
-            element={<Ass8 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass9"
-            element={<Ass9 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass10"
-            element={<Ass10 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/ass11"
-            element={<Ass11 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/declarationannuel"
-            element={<DeclarationAnnuel />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/sommesverse"
-            element={<SommesVerse />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tva"
-            element={<TVA />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/versements"
-            element={<Versements />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau30"
-            element={<Tableau30 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau31"
-            element={<Tableau31 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau32"
-            element={<Tableau32 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau33"
-            element={<Tableau33 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau34"
-            element={<Tableau34 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau35a"
-            element={<Tableau35A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau35b"
-            element={<Tableau35B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau36"
-            element={<Tableau36 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau37"
-            element={<Tableau37 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau38"
-            element={<Tableau38 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau39"
-            element={<Tableau39 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau40"
-            element={<Tableau40 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau41a"
-            element={<Tableau41A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau41b"
-            element={<Tableau41B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau42"
-            element={<Tableau42 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau43a"
-            element={<Tableau43A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau43b"
-            element={<Tableau43B />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/tableau44a"
-            element={<Tableau44A />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/grilleanalysenotessmt"
-            element={<GrilleAnalyseNotesSMT />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/modbilan"
-            element={<ModBilan />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note1smt"
-            element={<Note1Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note2smt"
-            element={<Note2Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note3smt"
-            element={<Note3Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note4smt"
-            element={<Note4Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note5smt"
-            element={<Note5Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/note6smt"
-            element={<Note6Smt />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t1"
-            element={<T1 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t1bis"
-            element={<T1Bis />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t1ter"
-            element={<T1Ter />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t2"
-            element={<T2 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t3"
-            element={<T3 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t4"
-            element={<T4 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t5"
-            element={<T5 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t6"
-            element={<T6 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t7"
-            element={<T7 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t8"
-            element={<T8 />}
-          />
-          <Route
-            path="reports/:userId/reports/rapport/t9"
-            element={<T9 />}
-
-          />
-          <Route
-            path="reports/:userId/:actionId?"
-            element={
-              <AllReports
-                folderId={selectedFolder?.id}
-                checkExistingDSF={async (
-                  folderId: string,
-                ): Promise<ExtractionResult[] | null> => {
-                  try {
-                    const notes =
-                      await notesService.getNotesForFolder(folderId);
-                    if (notes?.length) {
-                      return notes.map((note: any) => ({
-                        noteName: `NOTE ${note.noteNumber}`,
-                        success: note.exists,
-                        data: note.data,
-                      })) as ExtractionResult[];
-                    }
-                    return null;
-                  } catch (err) {
-                    console.error("Error checking existing DSF:", err);
-                    return null;
+            <Route
+              index
+              element={
+                <Navigate
+                  to={`/web/user/dashboard/${user?.id ?? "me"}`}
+                  replace
+                />
+              }
+            />
+            <Route
+              path="dashboard/:userId/:actionId?"
+              element={
+                <DashboardGrid
+                  companyName={selectedCompany?.name || ""}
+                  currentExercise={
+                    selectedFolder?.fiscalYear || new Date().getFullYear()
                   }
-                }}
-              />
-            }
-          />
-          <Route
-            path="deadlines/:userId/:actionId?"
-            element={<TaxDeadlines />}
-          />
-          <Route path="history/:userId/:actionId?" element={<AuditHistory />} />
-          <Route
-            path="settings/:userId/:actionId?"
-            element={<SimpleSettings />}
-          />
-          <Route
-            path="televersion/:userId/:actionId?"
-            element={
-              <div className="p-6">
-                <DGIDeclarationProfessional />
-              </div>
-            }
-          />
-          <Route
-            path="other/:userId/:actionId?"
-            element={
-              <div className="p-6">
-                <DSFConfigInterface />
-              </div>
-            }
-          />
-        </Route>
+                  onNavigate={setActiveRoute}
+                />
+              }
+            />
+            <Route
+              path="exercise/:userId/:actionId?"
+              element={<ExerciseSelector />}
+            />
+            <Route
+              path="import/:userId/:actionId?"
+              element={<BalanceImporter />}
+            />
+            <Route
+              path="traitement/:userId/:actionId?"
+              element={<StepByStepProcessor />}
+            />
+            <Route path="dsf-import/:folderId" element={<DSFImporter />} />
+            <Route
+              path="balance-import/:folderId"
+              element={<BalanceImporter />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note1"
+              element={<Note1 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note2"
+              element={<Note2 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3a"
+              element={<Note3A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3b"
+              element={<Note3B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3c"
+              element={<Note3C />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3d"
+              element={<Note3D />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3f"
+              element={<Note3F />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note4"
+              element={<Note4 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note5"
+              element={<Note5 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note6"
+              element={<Note6 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note7"
+              element={<Note7 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note8"
+              element={<Note8 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note9"
+              element={<Note9 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note10"
+              element={<Note10 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note11"
+              element={<Note11 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note12"
+              element={<Note12 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note13"
+              element={<Note13 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note14"
+              element={<Note14 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note15a"
+              element={<Note15A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note15b"
+              element={<Note15B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note16a"
+              element={<Note16A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note16b"
+              element={<Note16B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note16bbis"
+              element={<Note16Bbis />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note16c"
+              element={<Note16C />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note17"
+              element={<Note17 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note18"
+              element={<Note18 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note19"
+              element={<Note19 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note20"
+              element={<Note20 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note21"
+              element={<Note21 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note22"
+              element={<Note22 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note23"
+              element={<Note23 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note24"
+              element={<Note24 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note25"
+              element={<Note25 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note26"
+              element={<Note26 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note27a"
+              element={<Note27A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note27b"
+              element={<Note27B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note28"
+              element={<Note28 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note29"
+              element={<Note29 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note30"
+              element={<Note30 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note31"
+              element={<Note31 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note32"
+              element={<Note32 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note33"
+              element={<Note33 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note34"
+              element={<Note34 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ficher3"
+              element={<FicheR3 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/pagedegarde"
+              element={<PageDeGarde />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/sommaire"
+              element={<Sommaire />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/bilanpaysage"
+              element={<BilanPaysage />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/compteresultat"
+              element={<CompteResultat />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableaufluxtresorerie"
+              element={<TableauFluxTresorerie />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/grilleanalysenotes"
+              element={<GrilleAnalyseNotes />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c01note3c"
+              element={<C01Note3C />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c1note17"
+              element={<C1Note17 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c1note25"
+              element={<C1Note25 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c1note27a"
+              element={<C1Note27A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c1note28"
+              element={<C1Note28 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c2note25"
+              element={<C2Note25 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/c2note28"
+              element={<C2Note28 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf1"
+              element={<CF1 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf1bis"
+              element={<CF1Bis />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf1ter"
+              element={<CF1Ter />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf1quater"
+              element={<CF1Quater />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf2"
+              element={<CF2 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf2bis"
+              element={<CF2Bis />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/cf2ter"
+              element={<CF2Ter />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/impot21"
+              element={<Impot21 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/impot22"
+              element={<Impot22 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/fiche1"
+              element={<Fiche1 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/fiche2"
+              element={<Fiche2 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/fiche3"
+              element={<Fiche3 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/fiche4"
+              element={<Fiche4 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/fiche5"
+              element={<Fiche5 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/bilanactif"
+              element={<BilanActif />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/bilanpassif"
+              element={<BilanPassif />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/charges"
+              element={<Charges />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/produits"
+              element={<Produits />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/comptegeneralpertesprofits"
+              element={<CompteGeneralPertesProfits />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/etatc4"
+              element={<EtatC4 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/etatc11"
+              element={<EtatC11 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/etatc11vie"
+              element={<EtatC11Vie />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/annexe6"
+              element={<Annexe6 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass1"
+              element={<Ass1 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass2"
+              element={<Ass2 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass3"
+              element={<Ass3 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass4"
+              element={<Ass4 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass5"
+              element={<Ass5 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass6"
+              element={<Ass6 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass7"
+              element={<Ass7 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass8"
+              element={<Ass8 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass9"
+              element={<Ass9 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass10"
+              element={<Ass10 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ass11"
+              element={<Ass11 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/declarationannuel"
+              element={<DeclarationAnnuel />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/sommesverse"
+              element={<SommesVerse />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tva"
+              element={<TVA />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/versements"
+              element={<Versements />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau30"
+              element={<Tableau30 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau31"
+              element={<Tableau31 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau32"
+              element={<Tableau32 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau33"
+              element={<Tableau33 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau34"
+              element={<Tableau34 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau35a"
+              element={<Tableau35A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau35b"
+              element={<Tableau35B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau36"
+              element={<Tableau36 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau37"
+              element={<Tableau37 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau38"
+              element={<Tableau38 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau39"
+              element={<Tableau39 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau40"
+              element={<Tableau40 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau41a"
+              element={<Tableau41A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau41b"
+              element={<Tableau41B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau42"
+              element={<Tableau42 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau43a"
+              element={<Tableau43A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau43b"
+              element={<Tableau43B />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/tableau44a"
+              element={<Tableau44A />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/grilleanalysenotessmt"
+              element={<GrilleAnalyseNotesSMT />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/modbilan"
+              element={<ModBilan />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note1smt"
+              element={<Note1Smt />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note2smt"
+              element={<Note2Smt />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3smt"
+              element={<Note3Smt />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note4smt"
+              element={<Note4Smt />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note5smt"
+              element={<Note5Smt />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note6smt"
+              element={<Note6Smt />}
+            />
+            <Route path="reports/:userId/reports/rapport/t1" element={<T1 />} />
+            <Route
+              path="reports/:userId/reports/rapport/t1bis"
+              element={<T1Bis />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/t1ter"
+              element={<T1Ter />}
+            />
+            <Route path="reports/:userId/reports/rapport/t2" element={<T2 />} />
+            <Route path="reports/:userId/reports/rapport/t3" element={<T3 />} />
+            <Route path="reports/:userId/reports/rapport/t4" element={<T4 />} />
+            <Route path="reports/:userId/reports/rapport/t5" element={<T5 />} />
+            <Route path="reports/:userId/reports/rapport/t6" element={<T6 />} />
+            <Route path="reports/:userId/reports/rapport/t7" element={<T7 />} />
+            <Route path="reports/:userId/reports/rapport/t8" element={<T8 />} />
+            <Route path="reports/:userId/reports/rapport/t9" element={<T9 />} />
+            <Route
+              path="reports/:userId/:actionId?"
+              element={
+                <AllReports
+                  folderId={selectedFolder?.id}
+                  checkExistingDSF={async (
+                    folderId: string,
+                  ): Promise<ExtractionResult[] | null> => {
+                    try {
+                      const notes =
+                        await notesService.getNotesForFolder(folderId);
+                      if (notes?.length) {
+                        return notes.map((note: any) => ({
+                          noteName: `NOTE ${note.noteNumber}`,
+                          success: note.exists,
+                          data: note.data,
+                        })) as ExtractionResult[];
+                      }
+                      return null;
+                    } catch (err) {
+                      console.error("Error checking existing DSF:", err);
+                      return null;
+                    }
+                  }}
+                />
+              }
+            />
+            <Route
+              path="deadlines/:userId/:actionId?"
+              element={<TaxDeadlines />}
+            />
+            <Route
+              path="history/:userId/:actionId?"
+              element={<AuditHistory />}
+            />
+            <Route
+              path="settings/:userId/:actionId?"
+              element={<SimpleSettings />}
+            />
+            <Route
+              path="televersion/:userId/:actionId?"
+              element={
+                <div className="p-6">
+                  <DGIDeclarationProfessional />
+                </div>
+              }
+            />
+            <Route
+              path="other/:userId/:actionId?"
+              element={
+                <div className="p-6">
+                  <DSFConfigInterface />
+                </div>
+              }
+            />
+          </Route>
         </Route>
 
         {/* Fallback redirect to default language (French) */}

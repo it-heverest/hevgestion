@@ -218,6 +218,21 @@ class ClientService {
     }
   }
 
+  async createBalanceFromTemplate(folderId: string): Promise<any> {
+    try {
+      const response = await this.api.post("/balances/create-from-template", {
+        folderId,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error creating balance from template:", error);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error("Erreur lors de la création du modèle de balance");
+    }
+  }
+
   async getBalancesByFolder(folderId: string): Promise<any> {
     try {
       const response = await this.api.get(`/balances/folder/${folderId}`);
@@ -323,6 +338,16 @@ class ClientService {
       }
 
       throw new Error("Erreur lors de la suppression de la balance");
+    }
+  }
+
+  async createBalanceTemplate(folderId: string): Promise<{ downloadUrl: string }> {
+    try {
+      const response = await this.api.post("/balances/create-from-template", { folderId });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error creating balance template:", error);
+      throw new Error("Erreur lors de la création du modèle");
     }
   }
 
