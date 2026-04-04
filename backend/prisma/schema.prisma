@@ -675,6 +675,7 @@ enum BalanceStatus {
   INVALID
   PROCESSING
   PROCESSED
+  UPDATED
 }
 
 enum IssueType {

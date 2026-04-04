@@ -52,14 +52,15 @@ router.get(
   balanceController.getBalancesByFolder,
 );
 router.get("/:id", authenticate, balanceController.getBalanceById);
-// router.post('/:id/check-equilibrium', authenticate, balanceController.checkEquilibrium);
-router.post(
-  "/:id/ventilation",
-  authenticate,
-  balanceController.performVentilation,
-);
-router.get("/:id/issues", authenticate, balanceController.getBalanceIssues);
-router.post("/:id/resolve-issue", authenticate, balanceController.resolveIssue);
-router.delete("/:id", authenticate, balanceController.deleteBalance);
+  // router.post('/:id/check-equilibrium', authenticate, balanceController.checkEquilibrium);
+  router.post(
+    "/:id/ventilation",
+    authenticate,
+    balanceController.performVentilation,
+  );
+  router.get("/:id/issues", authenticate, balanceController.getBalanceIssues);
+  router.post("/:id/resolve-issue", authenticate, balanceController.resolveIssue);
+  router.delete("/:id", authenticate, balanceController.deleteBalance);
+  router.put("/:id/rows", authenticate, balanceController.updateBalanceRows);
 
 export default router;

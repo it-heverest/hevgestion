@@ -123,10 +123,49 @@ export class ExcelService {
         "Solde Créditeur Clôture",
       ],
       sampleAccounts: [
-        { account: "101000", name: "Capital social", class: "1" },
-        { account: "211000", name: "Terrains", class: "2" },
-        { account: "401000", name: "Fournisseurs", class: "4" },
-        { account: "521000", name: "Banques", class: "5" },
+        // Classe 1 - Capitaux
+        { account: "101000", name: "Capital social", class: "1", debit: 0, credit: 500000 },
+        { account: "106100", name: "Réserve légale", class: "1", debit: 0, credit: 50000 },
+        { account: "120000", name: "Report à nouveau", class: "1", debit: 25000, credit: 0 },
+        
+        // Classe 2 - Immobilisations
+        { account: "211000", name: "Terrains", class: "2", debit: 150000, credit: 0 },
+        { account: "213000", name: "Constructions", class: "2", debit: 300000, credit: 0 },
+        { account: "218300", name: "Matériel de transport", class: "2", debit: 80000, credit: 0 },
+        { account: "281100", name: "Amortissements terrains", class: "2", debit: 0, credit: 15000 },
+        { account: "281300", name: "Amortissements constructions", class: "2", debit: 0, credit: 30000 },
+        
+        // Classe 3 - Stocks
+        { account: "311000", name: "Marchandises A", class: "3", debit: 120000, credit: 0 },
+        { account: "350000", name: "Produits finis", class: "3", debit: 85000, credit: 0 },
+        
+        // Classe 4 - Créances et dette
+        { account: "401000", name: "Fournisseurs", class: "4", debit: 0, credit: 95000 },
+        { account: "411000", name: "Clients", class: "4", debit: 180000, credit: 0 },
+        { account: "440000", name: "Organismes sociaux", class: "4", debit: 0, credit: 15000 },
+        
+        // Classe 5 - Disponibilités
+        { account: "521000", name: "Banque", class: "5", debit: 450000, credit: 0 },
+        { account: "530000", name: "Caisse", class: "5", debit: 25000, credit: 0 },
+        
+        // Classe 6 - Charges
+        { account: "601000", name: "Achats de marchandises", class: "6", debit: 200000, credit: 0 },
+        { account: "604000", name: "Achats de fournitures", class: "6", debit: 35000, credit: 0 },
+        { account: "622000", name: "Locations", class: "6", debit: 48000, credit: 0 },
+        { account: "623000", name: "Publicité", class: "6", debit: 25000, credit: 0 },
+        { account: "626000", name: "Frais postaux", class: "6", debit: 8000, credit: 0 },
+        { account: "641000", name: "Salaires", class: "6", debit: 180000, credit: 0 },
+        { account: "645000", name: "Charges sociales", class: "6", debit: 72000, credit: 0 },
+        { account: "661000", name: "Intérêts bancaires", class: "6", debit: 12000, credit: 0 },
+        
+        // Classe 7 - Produits
+        { account: "701000", name: "Ventes de marchandises", class: "7", debit: 0, credit: 450000 },
+        { account: "706000", name: "Prestations de services", class: "7", debit: 0, credit: 120000 },
+        { account: "752000", name: "Revenus des placements", class: "7", debit: 0, credit: 8000 },
+        
+        // Classe 8 - Autres
+        { account: "801000", name: "Charges constatées d'avance", class: "8", debit: 5000, credit: 0 },
+        { account: "802000", name: "Produits à recevoir", class: "8", debit: 15000, credit: 0 },
       ],
     };
   }
@@ -141,16 +180,33 @@ export class ExcelService {
     // Add headers
     data.push(template.headers);
 
-    // Add sample rows with zero values
+    // Add sample rows with calculated values
     template.sampleAccounts.forEach((acc: any) => {
-      data.push([acc.account, acc.name, 0, 0, 0, 0, 0, 0]);
+      // Calculate closing balance
+      const openingDebit = acc.debit || 0;
+      const openingCredit = acc.credit || 0;
+      const movementDebit = Math.floor(Math.random() * 50000); // Random movement for demo
+      const movementCredit = Math.floor(Math.random() * 40000);
+      const closingDebit = Math.max(0, openingDebit + movementDebit - movementCredit);
+      const closingCredit = Math.max(0, openingCredit + movementCredit - movementDebit);
+      
+      data.push([
+        acc.account, 
+        acc.name, 
+        openingDebit, 
+        openingCredit, 
+        movementDebit, 
+        movementCredit, 
+        closingDebit, 
+        closingCredit
+      ]);
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Balance");
 
     // Save file
-    const fileName = `balance_template_${fiscalYear}_${Date.now()}.xlsx`;
+    const fileName = `balance_modele_${fiscalYear}_${Date.now()}.xlsx`;
     const filePath = path.join(config.upload.directory, fileName);
 
     XLSX.writeFile(workbook, filePath);

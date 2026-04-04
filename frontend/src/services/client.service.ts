@@ -218,10 +218,11 @@ class ClientService {
     }
   }
 
-  async createBalanceFromTemplate(folderId: string): Promise<any> {
+  async createBalanceFromTemplate(folderId: string, type: "current" | "previous" = "current"): Promise<any> {
     try {
       const response = await this.api.post("/balances/create-from-template", {
         folderId,
+        type,
       });
       return response.data;
     } catch (error: any) {
@@ -338,6 +339,24 @@ class ClientService {
       }
 
       throw new Error("Erreur lors de la suppression de la balance");
+    }
+  }
+
+  async updateBalanceRows(balanceId: string, rows: any[]): Promise<any> {
+    try {
+      const response = await this.api.put(`/balances/${balanceId}/rows`, { rows });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error updating balance rows:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la mise à jour des lignes de la balance");
     }
   }
 

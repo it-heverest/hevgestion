@@ -169,7 +169,7 @@ class BalanceController {
     next: NextFunction
   ) {
     try {
-      const { folderId } = req.body;
+      const { folderId, type } = req.body;
 
       const folder = await prisma.folder.findUnique({
         where: { id: folderId },
@@ -179,18 +179,25 @@ class BalanceController {
         throw new NotFoundError("Exercise not found");
       }
 
+      // Determine year based on type
+      let year = folder.fiscalYear;
+      if (type === "previous") {
+        year = folder.fiscalYear - 1;
+      }
+
       // Get balance template from database
       const template = await ExcelService.getBalanceTemplate();
 
       // Create Excel file from template
       const filePath = await ExcelService.createBalanceFromTemplate(
         template,
-        folder.fiscalYear
+        year
       );
 
       res.json({
         message: "Balance created from template",
         downloadUrl: `/api/files/download/${path.basename(filePath)}`,
+        year: year,
       });
     } catch (error) {
       next(error);
@@ -521,6 +528,75 @@ class BalanceController {
 
       res.json({
         message: "Balance deleted successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateBalanceRows(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { rows } = req.body;
+
+      if (!id) {
+        throw new BadRequestError("Balance ID is required");
+      }
+
+      if (!rows || !Array.isArray(rows)) {
+        throw new BadRequestError("Rows array is required");
+      }
+
+      // Check if balance exists and user has access
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: {
+          folder: true,
+        },
+      });
+
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
+
+      // Check if user owns the folder
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
+      // Get current original data
+      const currentData = balance.originalData as any;
+      let currentRows = currentData?.rows || [];
+      
+      if (!Array.isArray(currentRows)) {
+        currentRows = [];
+      }
+
+      // Create a map of existing rows for quick lookup
+      const rowsMap = new Map(currentRows.map((row: any) => [row.accountNumber, row]));
+
+      // Update with new values
+      rows.forEach((updatedRow: any) => {
+        if (updatedRow.accountNumber) {
+          rowsMap.set(updatedRow.accountNumber, updatedRow);
+        }
+      });
+
+      // Convert map back to array
+      const updatedRows = Array.from(rowsMap.values());
+
+      // Update the balance
+      await prisma.balance.update({
+        where: { id },
+        data: {
+          originalData: { rows: updatedRows },
+          status: BalanceStatus.UPDATED,
+        },
+      });
+
+      res.json({
+        message: "Balance rows updated successfully",
+        updatedCount: rows.length,
       });
     } catch (error) {
       next(error);
