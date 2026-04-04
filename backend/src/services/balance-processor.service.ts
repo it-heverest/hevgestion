@@ -166,33 +166,39 @@ export class BalanceProcessor {
 
   async checkEquilibrium(balance: Balance): Promise<EquilibriumResult> {
     console.log("checkEquilibrium called with balance:", balance.id);
-    console.log("originalData:", balance.originalData);
 
     if (!balance.originalData) {
       throw new Error("Balance has no original data");
     }
 
     const data = balance.originalData as any;
-    console.log("data object:", data);
-
     if (!data.rows || !Array.isArray(data.rows)) {
       throw new Error("Balance data has no valid rows array");
     }
 
     const rows = data.rows as BalanceRow[];
-    console.log("Number of rows:", rows.length);
 
-    let totalOpeningDebit = 0;
-    let totalOpeningCredit = 0;
-    let totalMovementDebit = 0;
-    let totalMovementCredit = 0;
-    let totalClosingDebit = 0;
-    let totalClosingCredit = 0;
+    // Variables for each type (opening, movement, closing)
+    let openingDebit15 = 0;
+    let openingCredit15 = 0;
+    let openingDebit68 = 0;
+    let openingCredit68 = 0;
 
-    rows.forEach((row, index) => {
-      console.log(`Processing row ${index}:`, row);
+    let movementDebit15 = 0;
+    let movementCredit15 = 0;
+    let movementDebit68 = 0;
+    let movementCredit68 = 0;
 
-      // Ensure numeric values
+    let closingDebit15 = 0;
+    let closingCredit15 = 0;
+    let closingDebit68 = 0;
+    let closingCredit68 = 0;
+
+    rows.forEach((row) => {
+      const accountClass = row.accountNumber?.charAt(0) || "";
+      const isClass15 = ["1", "2", "3", "4", "5"].includes(accountClass);
+      const isClass68 = ["6", "7", "8"].includes(accountClass);
+
       const openingDebit = Number(row.openingDebit) || 0;
       const openingCredit = Number(row.openingCredit) || 0;
       const movementDebit = Number(row.movementDebit) || 0;
@@ -200,49 +206,68 @@ export class BalanceProcessor {
       const closingDebit = Number(row.closingDebit) || 0;
       const closingCredit = Number(row.closingCredit) || 0;
 
-      totalOpeningDebit += openingDebit;
-      totalOpeningCredit += openingCredit;
-      totalMovementDebit += movementDebit;
-      totalMovementCredit += movementCredit;
-      totalClosingDebit += closingDebit;
-      totalClosingCredit += closingCredit;
+      if (isClass15) {
+        openingDebit15 += openingDebit;
+        openingCredit15 += openingCredit;
+        movementDebit15 += movementDebit;
+        movementCredit15 += movementCredit;
+        closingDebit15 += closingDebit;
+        closingCredit15 += closingCredit;
+      } else if (isClass68) {
+        openingDebit68 += openingDebit;
+        openingCredit68 += openingCredit;
+        movementDebit68 += movementDebit;
+        movementCredit68 += movementCredit;
+        closingDebit68 += closingDebit;
+        closingCredit68 += closingCredit;
+      }
     });
 
-    console.log("Totals calculated:", {
-      totalOpeningDebit,
-      totalOpeningCredit,
-      totalMovementDebit,
-      totalMovementCredit,
-      totalClosingDebit,
-      totalClosingCredit,
-    });
+    // Calculate equilibrium for each type
+    // x = total debit (classes 1-5) - total credit (classes 1-5)
+    // y = total credit (classes 6-8) - total debit (classes 6-8)
+    // Balanced if x = y (meaning total debits = total credits across all classes)
 
-    // Check if balanced (with tolerance for floating point)
     const tolerance = 0.01;
-    const openingBalanced = Math.abs(totalOpeningDebit - totalOpeningCredit) < tolerance;
-    const movementBalanced = Math.abs(totalMovementDebit - totalMovementCredit) < tolerance;
-    const closingBalanced = Math.abs(totalClosingDebit - totalClosingCredit) < tolerance;
+
+    // Opening equilibrium
+    const openingX = openingDebit15 - openingCredit15;
+    const openingY = openingCredit68 - openingDebit68;
+    const openingBalanced = Math.abs(openingX - openingY) < tolerance;
+
+    // Movement equilibrium
+    const movementX = movementDebit15 - movementCredit15;
+    const movementY = movementCredit68 - movementDebit68;
+    const movementBalanced = Math.abs(movementX - movementY) < tolerance;
+
+    // Closing equilibrium
+    const closingX = closingDebit15 - closingCredit15;
+    const closingY = closingCredit68 - closingDebit68;
+    const closingBalanced = Math.abs(closingX - closingY) < tolerance;
 
     const isBalanced = openingBalanced && movementBalanced && closingBalanced;
 
     const anomalies: string[] = [];
     if (!openingBalanced) {
-      anomalies.push(`Opening balance discrepancy: ${(totalOpeningDebit - totalOpeningCredit).toFixed(2)}`);
+      anomalies.push(`Opening: Débits(1-5) - Crédits(1-5) = ${openingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${openingY.toFixed(2)}`);
     }
     if (!movementBalanced) {
-      anomalies.push(`Movement discrepancy: ${(totalMovementDebit - totalMovementCredit).toFixed(2)}`);
+      anomalies.push(`Mouvement: Débits(1-5) - Crédits(1-5) = ${movementX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${movementY.toFixed(2)}`);
     }
     if (!closingBalanced) {
-      anomalies.push(`Closing balance discrepancy: ${(totalClosingDebit - totalClosingCredit).toFixed(2)}`);
+      anomalies.push(`Clôture: Débits(1-5) - Crédits(1-5) = ${closingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${closingY.toFixed(2)}`);
     }
 
+    const totalDebit = closingDebit15 + closingDebit68;
+    const totalCredit = closingCredit15 + closingCredit68;
+
     const result = {
-      openingDebit: totalOpeningDebit,
-      openingCredit: totalOpeningCredit,
-      movementDebit: totalMovementDebit,
-      movementCredit: totalMovementCredit,
-      closingDebit: totalClosingDebit,
-      closingCredit: totalClosingCredit,
+      openingDebit: openingDebit15 + openingDebit68,
+      openingCredit: openingCredit15 + openingCredit68,
+      movementDebit: movementDebit15 + movementDebit68,
+      movementCredit: movementCredit15 + movementCredit68,
+      closingDebit: totalDebit,
+      closingCredit: totalCredit,
       isBalanced,
       anomalies: anomalies.length > 0 ? anomalies.join('; ') : undefined,
     };

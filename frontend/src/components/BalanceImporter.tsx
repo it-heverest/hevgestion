@@ -9,7 +9,6 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
-import { Separator } from "./ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +33,6 @@ import {
   XCircle,
   Download,
   Trash2,
-  ArrowLeft,
   RefreshCw,
   Play,
   Filter,
@@ -46,7 +44,8 @@ import {
   Calendar,
   Hash,
   LayoutList,
-  Plus,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
@@ -160,10 +159,14 @@ export function BalanceImporter() {
   const [balances, setBalances] = useState<BalanceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importBalanceType, setImportBalanceType] = useState<"current" | "previous">("current");
   const [selectedBalance, setSelectedBalance] = useState<BalanceData | null>(null);
+  const [showMissingPreviousAlert, setShowMissingPreviousAlert] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState(false);
 
   const effectiveFolderId = selectedFolder?.id || userId;
   const fiscalYear = selectedFolder?.fiscalYear || new Date().getFullYear();
+  const previousYear = fiscalYear - 1;
 
   useEffect(() => {
     if (effectiveFolderId) {
@@ -172,41 +175,24 @@ export function BalanceImporter() {
   }, [effectiveFolderId]);
 
   const loadBalances = async () => {
-    if (!effectiveFolderId) {
-      console.log("No effectiveFolderId, skipping load");
-      return;
-    }
+    if (!effectiveFolderId) return;
     setIsLoading(true);
-    console.log("Loading balances for folder:", effectiveFolderId);
     try {
       const response = await clientService.getBalancesByFolder(effectiveFolderId);
-      console.log("Full response:", response);
-      console.log("Balances in response:", response?.balances);
-      
-      // Handle different response structures
       const balancesList = response?.balances || response?.data?.balances || [];
-      console.log("Using balances:", balancesList);
-      
       setBalances(balancesList);
-      console.log("Balances state set to:", balancesList.length, "items");
       
-      // Select first balance if none selected or if current selection doesn't exist in new list
       if (balancesList.length > 0) {
         const currentId = selectedBalance?.id;
         const currentExists = balancesList.some((b: BalanceData) => b.id === currentId);
         if (!selectedBalance || !currentExists) {
           setSelectedBalance(balancesList[0]);
-          console.log("Selected first balance:", balancesList[0].id);
         }
       } else {
         setSelectedBalance(null);
-        console.log("No balances available, cleared selection");
       }
     } catch (err: any) {
       console.error("Error loading balances:", err);
-      if (err.response) {
-        console.error("Error response:", err.response.status, err.response.data);
-      }
       setBalances([]);
     } finally {
       setIsLoading(false);
@@ -215,14 +201,13 @@ export function BalanceImporter() {
 
   const handleBalanceImported = (balance: BalanceData) => {
     setShowImportDialog(false);
-    loadBalances(); // Refresh data from server to ensure consistency
+    setPendingUpload(false);
+    loadBalances();
   };
 
   const handleBalanceDeleted = async (balanceId: string) => {
-    console.log("Deleting balance:", balanceId);
     try {
-      const result = await clientService.deleteBalance(balanceId);
-      console.log("Delete result:", result);
+      await clientService.deleteBalance(balanceId);
       setSelectedBalance(null);
       loadBalances();
     } catch (err: any) {
@@ -231,7 +216,42 @@ export function BalanceImporter() {
     }
   };
 
-  const hasExistingBalance = balances.length > 0;
+  // Get current and previous year balances (using type field)
+  const currentYearBalance = balances.find(b => 
+    b.type?.toUpperCase() === "CURRENT_YEAR"
+  );
+  const previousYearBalance = balances.find(b => 
+    b.type?.toUpperCase() === "PREVIOUS_YEAR"
+  );
+  
+  console.log("Fiscal year:", fiscalYear, "Previous year:", previousYear);
+  console.log("Balances types:", balances.map(b => ({ id: b.id, type: b.type, period: b.period })));
+  console.log("Current year balance found:", currentYearBalance?.type);
+  console.log("Previous year balance found:", previousYearBalance?.type);
+
+  const openImportDialog = (type: "current" | "previous") => {
+    setImportBalanceType(type);
+    
+    // If importing current year (N), check if N-1 exists
+    if (type === "current" && !previousYearBalance) {
+      setShowMissingPreviousAlert(true);
+      return;
+    }
+    
+    setShowImportDialog(true);
+  };
+
+  const confirmImportDespiteMissingPrevious = () => {
+    setShowMissingPreviousAlert(false);
+    setShowImportDialog(true);
+  };
+
+  const hasCurrentYear = !!currentYearBalance;
+  const hasPreviousYear = !!previousYearBalance;
+
+  console.log("Current year balance:", currentYearBalance);
+  console.log("Previous year balance:", previousYearBalance);
+  console.log("All balances:", balances);
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -249,20 +269,45 @@ export function BalanceImporter() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Button for N-1 */}
             <Button
-              onClick={() => setShowImportDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-              disabled={hasExistingBalance}
-              title={hasExistingBalance ? "Supprimez d'abord la balance existante pour en importer une nouvelle" : ""}
+              onClick={() => openImportDialog("previous")}
+              variant={hasPreviousYear ? "outline" : "default"}
+              className={hasPreviousYear ? "" : "bg-green-600 hover:bg-green-700"}
+              title={hasPreviousYear ? "Balance N-1 déjà importée" : `Importer Balance N-1 (${previousYear})`}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              {hasExistingBalance ? "Balance existante" : "Importer Balance"}
+              {hasPreviousYear ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
+                  N-1 ({previousYear})
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-2" />
+                  N-1 ({previousYear})
+                </>
+              )}
             </Button>
-            {hasExistingBalance && (
-              <span className="text-xs text-gray-500">
-                Supprimez la balance existante pour en importer une nouvelle
-              </span>
-            )}
+            
+            {/* Button for N */}
+            <Button
+              onClick={() => openImportDialog("current")}
+              variant={hasCurrentYear ? "outline" : "default"}
+              className={hasCurrentYear ? "" : "bg-blue-600 hover:bg-blue-700"}
+              title={hasCurrentYear ? "Balance N déjà importée" : `Importer Balance N (${fiscalYear})`}
+            >
+              {hasCurrentYear ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
+                  N ({fiscalYear})
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  N ({fiscalYear})
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>
@@ -274,7 +319,7 @@ export function BalanceImporter() {
             <RefreshCw className="h-8 w-8 text-gray-400 animate-spin" />
           </div>
         ) : balances.length === 0 ? (
-          <EmptyState onImport={() => setShowImportDialog(true)} />
+          <EmptyState onImport={() => openImportDialog("current")} />
         ) : (
           <div className="flex flex-col h-full gap-4">
             {/* Balance List - Horizontal */}
@@ -295,10 +340,11 @@ export function BalanceImporter() {
               {selectedBalance ? (
                 <BalanceDetailView
                   balance={selectedBalance}
+                  previousYearBalance={previousYearBalance}
                   onDelete={() => handleBalanceDeleted(selectedBalance.id)}
                   onReimport={() => {
                     handleBalanceDeleted(selectedBalance.id);
-                    setShowImportDialog(true);
+                    openImportDialog(selectedBalance.type === "PREVIOUS_YEAR" ? "previous" : "current");
                   }}
                 />
               ) : (
@@ -313,17 +359,51 @@ export function BalanceImporter() {
         )}
       </div>
 
+      {/* Missing N-1 Alert Dialog */}
+      <Dialog open={showMissingPreviousAlert} onOpenChange={setShowMissingPreviousAlert}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Balance N-1 manquante
+            </DialogTitle>
+            <DialogDescription className="mt-2">
+              La balance de l'exercice précédent (N-1 : {previousYear}) n'a pas été importée. 
+              Pour une meilleure précision, il est recommandé d'importer d'abord la balance N-1 
+              car le système vérifiera que les soldes de clôture N-1 correspondent aux soldes d'ouverture N.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-2">
+            <p className="text-sm text-orange-800">
+              Voulez-vous continuer quand même ?
+            </p>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowMissingPreviousAlert(false)}>
+              Annuler
+            </Button>
+            <Button variant="default" onClick={confirmImportDespiteMissingPrevious} className="bg-blue-600">
+              <Upload className="h-4 w-4 mr-2" />
+              Importer quand même
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Importer une balance</DialogTitle>
+            <DialogTitle>
+              Importer la balance {importBalanceType === "current" ? `N (${fiscalYear})` : `N-1 (${previousYear})`}
+            </DialogTitle>
             <DialogDescription>
               Importez votre balance comptable au format Excel
             </DialogDescription>
           </DialogHeader>
           <BalanceImportForm
             folderId={effectiveFolderId || ""}
+            balanceType={importBalanceType}
             onSuccess={handleBalanceImported}
             onCancel={() => setShowImportDialog(false)}
           />
@@ -368,7 +448,7 @@ function BalanceListItem({
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  // Handle different originalData structures
+  
   const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
     if (!balance.originalData) return [];
     if (balance.originalData.rows) {
@@ -379,10 +459,19 @@ function BalanceListItem({
     }
     return [];
   };
+  
   const rows = getBalanceRows(balance);
   const totalDebit = rows.reduce((sum, r) => sum + (r.closingDebit || 0), 0);
   const totalCredit = rows.reduce((sum, r) => sum + (r.closingCredit || 0), 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+  
+  // Determine if balance is N or N-1 based on type
+  const balanceTypeUpper = balance.type?.toUpperCase() || "";
+  const isCurrentYear = balanceTypeUpper === "CURRENT_YEAR";
+  const isPreviousYear = balanceTypeUpper === "PREVIOUS_YEAR";
+  const balanceTypeLabel = isPreviousYear ? "N-1" : (isCurrentYear ? "N" : balance.period || "N");
+  
+  console.log("BalanceListItem - balance:", balance.id, "type:", balance.type);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -404,7 +493,7 @@ function BalanceListItem({
           <div className="flex items-center gap-2 mb-1">
             <Calendar className="h-4 w-4 text-gray-400" />
             <span className="font-medium text-gray-900">
-              {balance.period || "Balance"}
+              {balanceTypeLabel}
             </span>
             <Badge
               variant={isBalanced ? "default" : "destructive"}
@@ -457,10 +546,12 @@ function BalanceListItem({
 
 function BalanceDetailView({
   balance,
+  previousYearBalance,
   onDelete,
   onReimport,
 }: {
   balance: BalanceData;
+  previousYearBalance?: BalanceData;
   onDelete: () => void;
   onReimport: () => void;
 }) {
@@ -470,21 +561,14 @@ function BalanceDetailView({
   const [selectedClass, setSelectedClass] = useState("all");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [showOpeningMismatch, setShowOpeningMismatch] = useState(false);
+  const [openingMismatches, setOpeningMismatches] = useState<{account: string, name: string, n1Closing: number, nOpening: number}[]>([]);
 
-  const handleDeleteClick = async () => {
-    setIsDeleting(true);
-    setShowDeleteDialog(false);
-    await onDelete();
-    setIsDeleting(false);
-  };
   const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
     if (!balance.originalData) return [];
-    // If originalData has rows property (new format)
     if (balance.originalData.rows) {
       return balance.originalData.rows;
     }
-    // If originalData is directly an array (old format)
     if (Array.isArray(balance.originalData)) {
       return balance.originalData as BalanceRow[];
     }
@@ -492,6 +576,8 @@ function BalanceDetailView({
   };
 
   const balanceRows = getBalanceRows(balance);
+  const previousYearRows = previousYearBalance ? getBalanceRows(previousYearBalance) : [];
+
   const totals = balanceRows.reduce(
     (acc, row) => ({
       openingDebit: acc.openingDebit + (row.openingDebit || 0),
@@ -505,6 +591,119 @@ function BalanceDetailView({
   );
 
   const isBalanced = Math.abs(totals.closingDebit - totals.closingCredit) < 0.01;
+
+// Check opening balance matches previous year closing (group by first 3 digits)
+  const checkOpeningBalance = () => {
+    if (!previousYearBalance || previousYearRows.length === 0) return;
+    
+    // Group previous year by first 3 digits - aggregate all accounts under same root
+    const previousYearByRoot: {[key: string]: {debit: number, credit: number}} = {};
+    previousYearRows.forEach(row => {
+      const root = row.accountNumber?.substring(0, 3) || "";
+      if (!previousYearByRoot[root]) {
+        previousYearByRoot[root] = { debit: 0, credit: 0 };
+      }
+      previousYearByRoot[root].debit += row.closingDebit || 0;
+      previousYearByRoot[root].credit += row.closingCredit || 0;
+    });
+
+    // Group current year opening by first 3 digits - aggregate all accounts under same root
+    const currentYearByRoot: {[key: string]: {debit: number, credit: number}} = {};
+    balanceRows.forEach(row => {
+      const root = row.accountNumber?.substring(0, 3) || "";
+      if (!currentYearByRoot[root]) {
+        currentYearByRoot[root] = { debit: 0, credit: 0 };
+      }
+      currentYearByRoot[root].debit += row.openingDebit || 0;
+      currentYearByRoot[root].credit += row.openingCredit || 0;
+    });
+
+    // Compare sums by root and identify specific accounts with issues
+    const mismatches: {
+      root: string;
+      n1ClosingDebit: number;
+      n1ClosingCredit: number;
+      n1ClosingNet: number;
+      nOpeningDebit: number;
+      nOpeningCredit: number;
+      nOpeningNet: number;
+      difference: number;
+      accounts: {account: string, name: string, closingN1: number, openingN: number}[];
+    }[] = [];
+    
+    Object.keys(currentYearByRoot).forEach(root => {
+      const prevData = previousYearByRoot[root];
+      if (prevData) {
+        const prevClosingNet = prevData.debit - prevData.credit;
+        const currentOpeningNet = currentYearByRoot[root].debit - currentYearByRoot[root].credit;
+        
+        if (Math.abs(prevClosingNet - currentOpeningNet) > 0.01) {
+          // Find individual accounts in this root that have differences
+          const problemAccounts: {account: string, name: string, closingN1: number, openingN: number}[] = [];
+          
+          // Get accounts from N-1 for this root
+          const prevRootAccounts = previousYearRows.filter(r => r.accountNumber?.substring(0, 3) === root);
+          const prevRootAccountsMap: {[account: string]: {name: string, closingDebit: number, closingCredit: number}} = {};
+          prevRootAccounts.forEach(r => {
+            prevRootAccountsMap[r.accountNumber] = {
+              name: r.accountName,
+              closingDebit: r.closingDebit || 0,
+              closingCredit: r.closingCredit || 0
+            };
+          });
+          
+          // Get accounts from N for this root
+          const currRootAccounts = balanceRows.filter(r => r.accountNumber?.substring(0, 3) === root);
+          const currRootAccountsMap: {[account: string]: {name: string, openingDebit: number, openingCredit: number}} = {};
+          currRootAccounts.forEach(r => {
+            currRootAccountsMap[r.accountNumber] = {
+              name: r.accountName,
+              openingDebit: r.openingDebit || 0,
+              openingCredit: r.openingCredit || 0
+            };
+          });
+          
+          // Compare individual accounts
+          const allAccountKeys = new Set([...Object.keys(prevRootAccountsMap), ...Object.keys(currRootAccountsMap)]);
+          allAccountKeys.forEach(account => {
+            const prev = prevRootAccountsMap[account];
+            const curr = currRootAccountsMap[account];
+            
+            const closingN1 = prev ? (prev.closingDebit - prev.closingCredit) : 0;
+            const openingN = curr ? (curr.openingDebit - curr.openingCredit) : 0;
+            
+            if (Math.abs(closingN1 - openingN) > 0.01) {
+              problemAccounts.push({
+                account: account,
+                name: prev?.name || curr?.name || "",
+                closingN1: closingN1,
+                openingN: openingN
+              });
+            }
+          });
+          
+          mismatches.push({
+            root: root,
+            n1ClosingDebit: prevData.debit,
+            n1ClosingCredit: prevData.credit,
+            n1ClosingNet: prevClosingNet,
+            nOpeningDebit: currentYearByRoot[root].debit,
+            nOpeningCredit: currentYearByRoot[root].credit,
+            nOpeningNet: currentOpeningNet,
+            difference: currentOpeningNet - prevClosingNet,
+            accounts: problemAccounts
+          });
+        }
+      }
+    });
+
+    if (mismatches.length > 0) {
+      setOpeningMismatches(mismatches as any);
+      setShowOpeningMismatch(true);
+    } else {
+      alert("Les soldes d'ouverture correspondent aux soldes de clôture N-1 ✓");
+    }
+  };
 
   const filteredData = balanceRows
     .filter((row) => {
@@ -611,6 +810,12 @@ function BalanceDetailView({
           {isProcessing ? <RefreshCw className="h-4 w-4 mr-1 animate-spin" /> : <Play className="h-4 w-4 mr-1" />}
           Ventiler
         </Button>
+        {previousYearBalance && (
+          <Button variant="outline" size="sm" onClick={checkOpeningBalance}>
+            <CheckCircle2 className="h-4 w-4 mr-1" />
+            Vérifier ouverture N
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)}>
           <Trash2 className="h-4 w-4 mr-1 text-red-500" />
         </Button>
@@ -717,6 +922,85 @@ function BalanceDetailView({
         </div>
       </Card>
 
+      {/* Opening Mismatch Dialog */}
+      <Dialog open={showOpeningMismatch} onOpenChange={setShowOpeningMismatch}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Incohérence des soldes d'ouverture
+            </DialogTitle>
+            <DialogDescription>
+              Les soldes d'ouverture de la balance N ne correspondent pas aux soldes de clôture de la balance N-1.
+              Les incohérences sont groupées par racine de 3 chiffres.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto mt-2 space-y-4">
+            {openingMismatches.slice(0, 10).map((mismatch: any, idx) => (
+              <div key={idx} className="border rounded-lg overflow-hidden">
+                {/* Root summary */}
+                <div className="bg-red-50 p-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold">Racine {mismatch.root}</span>
+                    <span className="text-sm text-gray-600 ml-2">
+                      (Clôture N-1: {mismatch.n1ClosingNet.toLocaleString()} → Ouverture N: {mismatch.nOpeningNet.toLocaleString()})
+                    </span>
+                  </div>
+                  <span className="text-red-600 font-mono font-semibold">
+                    Diff: {mismatch.difference.toLocaleString()}
+                  </span>
+                </div>
+                
+                {/* Individual accounts */}
+                {mismatch.accounts && mismatch.accounts.length > 0 && (
+                  <div className="p-2 bg-white">
+                    <Table>
+                      <TableHeader className="bg-gray-50">
+                        <TableRow>
+                          <TableHead>Compte</TableHead>
+                          <TableHead>Libellé</TableHead>
+                          <TableHead className="text-right">Clôture N-1</TableHead>
+                          <TableHead className="text-right">Ouverture N</TableHead>
+                          <TableHead className="text-right">Écart</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {mismatch.accounts.slice(0, 10).map((acc: any, accIdx: number) => (
+                          <TableRow key={accIdx}>
+                            <TableCell className="font-mono text-sm">{acc.account}</TableCell>
+                            <TableCell className="text-sm">{acc.name}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">{acc.closingN1.toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">{acc.openingN.toLocaleString()}</TableCell>
+                            <TableCell className={`text-right font-mono text-sm ${Math.abs(acc.openingN - acc.closingN1) > 0.01 ? 'text-red-600 font-semibold' : ''}`}>
+                              {(acc.openingN - acc.closingN1).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {mismatch.accounts.length > 10 && (
+                      <p className="text-xs text-gray-500 p-2">
+                        ... et {mismatch.accounts.length - 10} autres comptes
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {openingMismatches.length > 10 && (
+            <p className="text-sm text-gray-500 mt-2">
+              ... et {openingMismatches.length - 10} autres racines avec incohérences
+            </p>
+          )}
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowOpeningMismatch(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
@@ -727,9 +1011,9 @@ function BalanceDetailView({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDeleteClick} disabled={isDeleting}>
-              {isDeleting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => { onDelete(); setShowDeleteDialog(false); }}>
+              <Trash2 className="h-4 w-4 mr-2" />
               Supprimer
             </Button>
           </DialogFooter>
@@ -741,10 +1025,12 @@ function BalanceDetailView({
 
 function BalanceImportForm({
   folderId,
+  balanceType,
   onSuccess,
   onCancel,
 }: {
   folderId: string;
+  balanceType: "current" | "previous";
   onSuccess: (balance: BalanceData) => void;
   onCancel: () => void;
 }) {
@@ -753,7 +1039,6 @@ function BalanceImportForm({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-  const [balanceType, setBalanceType] = useState<"current" | "previous">("current");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (selectedFile: File) => {
@@ -819,26 +1104,6 @@ function BalanceImportForm({
 
   return (
     <div className="space-y-4">
-      {/* Balance Type Selector */}
-      <div className="flex gap-2">
-        <Button
-          variant={balanceType === "current" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setBalanceType("current")}
-          className="flex-1"
-        >
-          Exercice en cours
-        </Button>
-        <Button
-          variant={balanceType === "previous" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setBalanceType("previous")}
-          className="flex-1"
-        >
-          Exercice précédent
-        </Button>
-      </div>
-
       {/* Drop Zone */}
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${

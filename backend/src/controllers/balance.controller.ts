@@ -79,7 +79,7 @@ class BalanceController {
         balancePeriod = folder.fiscalYear.toString();
       } else if (type === "previous") {
         balanceType = BalanceType.PREVIOUS_YEAR;
-        balancePeriod = folder.fiscalYear.toString();
+        balancePeriod = (folder.fiscalYear - 1).toString();
       } else {
         throw new BadRequestError(
           "Invalid balance type. Must be 'current' or 'previous'"
