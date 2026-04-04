@@ -36,3 +36,5 @@ coverage/
 .svelte-kit/
 dist-ssr/
 *.local
+# Add this to your .gitignore file
+backend/nul

@@ -165,6 +165,8 @@ export class ExcelService {
       compte: "accountNumber",
       libelle: "accountName",
       libellé: "accountName",
+      "nom du compte": "accountName",
+      "nom du compte ": "accountName",
       "ouverture debit": "openingDebit",
       "ouverture credit": "openingCredit",
       "mouvement debit": "movementDebit",
@@ -202,6 +204,42 @@ export class ExcelService {
       "solde créditeur clôture": "closingCredit",
       "solde crediteur cloture": "closingCredit",
       "sc cloture": "closingCredit",
+
+      // Headers with accents - debit opening
+      "débit ouverture": "openingDebit",
+      "debit ouverture": "openingDebit",
+      "débits ouverture": "openingDebit",
+      "debits ouverture": "openingDebit",
+      
+      // Headers with accents - credit opening
+      "crédit ouverture": "openingCredit",
+      "credit ouverture": "openingCredit",
+      "crédits ouverture": "openingCredit",
+      "credits ouverture": "openingCredit",
+
+      // Headers with accents - debit movement
+      "débit mouvement": "movementDebit",
+      "debit mouvement": "movementDebit",
+      "débits mouvement": "movementDebit",
+      "debits mouvement": "movementDebit",
+
+      // Headers with accents - credit movement
+      "crédit mouvement": "movementCredit",
+      "credit mouvement": "movementCredit",
+      "crédits mouvement": "movementCredit",
+      "credits mouvement": "movementCredit",
+
+      // Headers with accents - debit closing
+      "débit clôture": "closingDebit",
+      "debit cloture": "closingDebit",
+      "débits clôture": "closingDebit",
+      "debits cloture": "closingDebit",
+
+      // Headers with accents - credit closing
+      "crédit clôture": "closingCredit",
+      "credit cloture": "closingCredit",
+      "crédits clôture": "closingCredit",
+      "credits cloture": "closingCredit",
     };
 
     const normalized = header.toLowerCase().trim();

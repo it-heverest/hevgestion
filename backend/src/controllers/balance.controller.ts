@@ -239,7 +239,13 @@ class BalanceController {
         orderBy: { importedAt: "desc" },
       });
 
-      res.json({ balances });
+      // Map balances to include originalData (strip the 'rows' wrapper for cleaner API)
+      const balancesWithOriginalData = balances.map((balance) => ({
+        ...balance,
+        originalData: balance.originalData,
+      }));
+
+      res.json({ balances: balancesWithOriginalData });
     } catch (error) {
       next(error);
     }
@@ -265,7 +271,12 @@ class BalanceController {
         throw new NotFoundError("Balance not found");
       }
 
-      res.json({ balance });
+      // Check if user has access to the balance through the folder
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
+      res.json({ balance: { ...balance, originalData: balance.originalData } });
     } catch (error) {
       next(error);
     }

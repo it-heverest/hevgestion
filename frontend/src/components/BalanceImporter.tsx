@@ -172,35 +172,66 @@ export function BalanceImporter() {
   }, [effectiveFolderId]);
 
   const loadBalances = async () => {
-    if (!effectiveFolderId) return;
+    if (!effectiveFolderId) {
+      console.log("No effectiveFolderId, skipping load");
+      return;
+    }
     setIsLoading(true);
+    console.log("Loading balances for folder:", effectiveFolderId);
     try {
       const response = await clientService.getBalancesByFolder(effectiveFolderId);
-      if (response.balances) {
-        setBalances(response.balances);
-        if (response.balances.length > 0 && !selectedBalance) {
-          setSelectedBalance(response.balances[0]);
+      console.log("Full response:", response);
+      console.log("Balances in response:", response?.balances);
+      
+      // Handle different response structures
+      const balancesList = response?.balances || response?.data?.balances || [];
+      console.log("Using balances:", balancesList);
+      
+      setBalances(balancesList);
+      console.log("Balances state set to:", balancesList.length, "items");
+      
+      // Select first balance if none selected or if current selection doesn't exist in new list
+      if (balancesList.length > 0) {
+        const currentId = selectedBalance?.id;
+        const currentExists = balancesList.some((b: BalanceData) => b.id === currentId);
+        if (!selectedBalance || !currentExists) {
+          setSelectedBalance(balancesList[0]);
+          console.log("Selected first balance:", balancesList[0].id);
         }
+      } else {
+        setSelectedBalance(null);
+        console.log("No balances available, cleared selection");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error loading balances:", err);
+      if (err.response) {
+        console.error("Error response:", err.response.status, err.response.data);
+      }
+      setBalances([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleBalanceImported = (balance: BalanceData) => {
-    setBalances((prev) => [balance, ...prev]);
-    setSelectedBalance(balance);
     setShowImportDialog(false);
+    loadBalances(); // Refresh data from server to ensure consistency
   };
 
-  const handleBalanceDeleted = (balanceId: string) => {
-    setBalances((prev) => prev.filter((b) => b.id !== balanceId));
-    if (selectedBalance?.id === balanceId) {
-      setSelectedBalance(balances.length > 1 ? balances[0] : null);
+  const handleBalanceDeleted = async (balanceId: string) => {
+    console.log("Deleting balance:", balanceId);
+    try {
+      const result = await clientService.deleteBalance(balanceId);
+      console.log("Delete result:", result);
+      setSelectedBalance(null);
+      loadBalances();
+    } catch (err: any) {
+      console.error("Error deleting balance:", err);
+      alert(err.message || "Erreur lors de la suppression de la balance");
     }
   };
+
+  const hasExistingBalance = balances.length > 0;
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -221,10 +252,17 @@ export function BalanceImporter() {
             <Button
               onClick={() => setShowImportDialog(true)}
               className="bg-blue-600 hover:bg-blue-700"
+              disabled={hasExistingBalance}
+              title={hasExistingBalance ? "Supprimez d'abord la balance existante pour en importer une nouvelle" : ""}
             >
               <Upload className="h-4 w-4 mr-2" />
-              Importer Balance
+              {hasExistingBalance ? "Balance existante" : "Importer Balance"}
             </Button>
+            {hasExistingBalance && (
+              <span className="text-xs text-gray-500">
+                Supprimez la balance existante pour en importer une nouvelle
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -329,10 +367,28 @@ function BalanceListItem({
   onDelete: () => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const rows = balance.originalData?.rows || [];
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Handle different originalData structures
+  const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
+    if (!balance.originalData) return [];
+    if (balance.originalData.rows) {
+      return balance.originalData.rows;
+    }
+    if (Array.isArray(balance.originalData)) {
+      return balance.originalData as BalanceRow[];
+    }
+    return [];
+  };
+  const rows = getBalanceRows(balance);
   const totalDebit = rows.reduce((sum, r) => sum + (r.closingDebit || 0), 0);
   const totalCredit = rows.reduce((sum, r) => sum + (r.closingCredit || 0), 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    await onDelete();
+    setIsDeleting(false);
+  };
 
   return (
     <Card
@@ -376,14 +432,19 @@ function BalanceListItem({
           {showMenu && (
             <div className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg z-10 py-1 min-w-[120px]">
               <button
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600 disabled:opacity-50"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete();
+                  handleDelete();
                   setShowMenu(false);
                 }}
+                disabled={isDeleting}
               >
-                <Trash2 className="h-4 w-4" />
+                {isDeleting ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
                 Supprimer
               </button>
             </div>
@@ -409,8 +470,28 @@ function BalanceDetailView({
   const [selectedClass, setSelectedClass] = useState("all");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const balanceRows = balance.originalData?.rows || [];
+  const handleDeleteClick = async () => {
+    setIsDeleting(true);
+    setShowDeleteDialog(false);
+    await onDelete();
+    setIsDeleting(false);
+  };
+  const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
+    if (!balance.originalData) return [];
+    // If originalData has rows property (new format)
+    if (balance.originalData.rows) {
+      return balance.originalData.rows;
+    }
+    // If originalData is directly an array (old format)
+    if (Array.isArray(balance.originalData)) {
+      return balance.originalData as BalanceRow[];
+    }
+    return [];
+  };
+
+  const balanceRows = getBalanceRows(balance);
   const totals = balanceRows.reduce(
     (acc, row) => ({
       openingDebit: acc.openingDebit + (row.openingDebit || 0),
@@ -646,9 +727,9 @@ function BalanceDetailView({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={() => { onDelete(); setShowDeleteDialog(false); }}>
-              <Trash2 className="h-4 w-4 mr-2" />
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDeleteClick} disabled={isDeleting}>
+              {isDeleting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
               Supprimer
             </Button>
           </DialogFooter>

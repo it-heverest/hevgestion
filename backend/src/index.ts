@@ -55,6 +55,9 @@ app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Serve uploaded files
+app.use("/api/files/download", express.static(config.upload.directory));
+
 // API Routes
 app.use("/api/auth", authRoutes);
 // app.use("/api/countries", countryRoutes);
