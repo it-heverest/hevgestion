@@ -39,14 +39,14 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
     access: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax",
+      sameSite: "lax" as const,
       domain: cookieDomain,
       maxAge: 4 * 60 * 60 * 1000,
     },
     refresh: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax",
+      sameSite: "lax" as const,
       domain: cookieDomain,
     },
   };

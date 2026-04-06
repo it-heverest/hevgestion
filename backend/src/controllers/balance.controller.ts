@@ -541,14 +541,9 @@ class BalanceController {
         throw new ForbiddenError("You don't have access to this balance");
       }
 
-      // Soft delete - move to deleted folder for admin analysis
-      await prisma.balance.update({
+      // Hard delete
+      await prisma.balance.delete({
         where: { id },
-        data: { 
-          status: BalanceStatus.DELETED,
-          deletedAt: new Date(),
-          deletedBy: req.user?.userId,
-        },
       });
 
       res.json({
