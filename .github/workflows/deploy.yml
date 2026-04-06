@@ -16,13 +16,15 @@ jobs:
         with:
           node-version: "20"
 
-      # --- ETAPE FRONTEND ---
+      # --- 1. BUILD FRONTEND ---
       - name: Install & Build Frontend
         run: |
+          cd frontend
           npm install
           npm run build
         env:
           VITE_API_BASE_URL: /api
+          # Ajoute tes secrets ici (ex: VITE_FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }})
 
       - name: Deploy Frontend to Nginx
         uses: appleboy/scp-action@master
@@ -30,22 +32,29 @@ jobs:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*"
+          source: "frontend/dist/*"
           target: "/var/www/hevgestion"
-          strip_components: 1
+          strip_components: 2 # Enlève 'frontend/' et 'dist/' pour ne garder que le contenu
 
-      # --- ETAPE BACKEND (Si tu as aussi un dossier de build backend) ---
-      # Si ton backend est dans le même repo, tu dois aussi envoyer son dossier 'dist'
+      # --- 2. BUILD BACKEND ---
+      - name: Install & Build Backend
+        run: |
+          cd backend
+          npm install
+          npm run build # Génère le dossier dist/ dans backend/
+
       - name: Deploy Backend Files
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "backend_utils/dist/*" # Adapte ce chemin selon ton projet
-          target: "/home/it/backend_utils/dist"
-          strip_components: 2
+          # On envoie le dossier dist et le package.json pour le npm install sur le serveur
+          source: "backend/dist/*,backend/package.json"
+          target: "/home/it/backend_utils"
+          strip_components: 1 # Enlève 'backend/' mais garde 'dist/'
 
+      # --- 3. RESTART SERVICES ---
       - name: Restart Services on VPS
         uses: appleboy/ssh-action@master
         with:
@@ -53,9 +62,15 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Recharger Nginx pour le Frontend
+            # 1. Recharger Nginx pour le nouveau Frontend
             sudo systemctl reload nginx
-            # Mettre à jour et redémarrer le Backend
+
+            # 2. Configurer le Backend
             cd ~/backend_utils
+            # On installe les dépendances de prod si le package.json a changé
             npm install --production
+
+            # 3. Redémarrer l'API avec PM2
+            # On essaie de restart, sinon on start le fichier principal dans dist/
             pm2 restart hevgestion-api || pm2 start dist/index.js --name hevgestion-api
+            pm2 save
