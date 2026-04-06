@@ -48,7 +48,7 @@ interface RegisterPageProps {
   onNextStep: () => void;
   onPreviousStep: () => void;
   isStepValid: (step: number) => boolean;
-  onSwitchToLogin: () => void;
+  onSwitchToLogin?: () => void;
 }
 
 export function RegisterPage({
@@ -61,6 +61,7 @@ export function RegisterPage({
   onNextStep,
   onPreviousStep,
   isStepValid,
+  onSwitchToLogin = () => {},
 }: RegisterPageProps) {
   const { t } = useTranslation();
 
