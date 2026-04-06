@@ -2,6 +2,7 @@
 import * as XLSX from "xlsx";
 import * as fs from "fs";
 import * as path from "path";
+import { config } from "../config";
 
 export interface ExcelElement {
   id: number;
