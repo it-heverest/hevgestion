@@ -11,7 +11,7 @@ interface PlanComptableCompte {
   classe: number;
 }
 
-const PLAN_COMPTABLE_PATH = path.join(__dirname, "../../../frontend/plan_comptable/PLAN COMPTABLE UNIQUE.xlsx");
+const PLAN_COMPTABLE_PATH = path.join(config.rootDir, "frontend", "plan_comptable", "PLAN COMPTABLE UNIQUE.xlsx");
 
 let planComptableCache: PlanComptableCompte[] | null = null;
 

@@ -230,7 +230,7 @@ export function useLogin() {
         }));
 
         // Redirect to OTP verification page with user data
-        navigate("/web/user/verify-otp", {
+        navigate("/fr/web/user/verify-otp", {
           state: {
             user: result.user,
             message:
@@ -247,7 +247,7 @@ export function useLogin() {
         }));
 
         // Direct registration success - redirect to country/client selection
-        navigate("/web/user/select-country");
+        navigate("/fr/web/user/select-country");
       }
     } catch (err) {
       const errorMessage =

@@ -49,7 +49,9 @@ function setAuthCookies(
 ) {
   const isProduction = process.env.NODE_ENV === "production";
   const opts = makeCookieOptions(isProduction);
-  res.cookie("accessToken", accessToken, opts.access);
+  
+  // Split Storage: only set refreshToken as HttpOnly cookie
+  // Access token is returned in JSON for frontend to store in memory
   res.cookie("refreshToken", refreshToken, opts.refresh);
 }
 

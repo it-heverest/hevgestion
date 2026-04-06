@@ -19,7 +19,8 @@ const notesService = new NotesService();
 // Multer storage for template uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, config.upload.directory);
+        const templatesDir = path.join(config.upload.directory, config.upload.subDirectories.templates);
+        cb(null, templatesDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

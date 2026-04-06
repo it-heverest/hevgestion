@@ -19,3 +19,5 @@ coverage/
 dist-ssr/
 *.local
 .kilo
+assets/uploads/*
+!assets/uploads/.gitkeep

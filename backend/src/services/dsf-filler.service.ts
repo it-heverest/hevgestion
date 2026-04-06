@@ -12,7 +12,7 @@ export class DsfFillerService {
      * Get the template path for a folder
      */
     private getTemplatePath(folderId: string): string {
-        return path.join(config.upload.directory, "dsf-templates", folderId, "template.xlsx");
+        return path.join(config.upload.directory, config.upload.subDirectories.templates, folderId, "template.xlsx");
     }
 
     /**

@@ -57,9 +57,53 @@ app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Serve uploaded files
+// Debug endpoint - shows upload directory config
+app.get("/api/debug/config", (req: Request, res: Response) => {
+  res.json({
+    uploadDir: config.upload.directory,
+    subDirectories: config.upload.subDirectories,
+    isProduction: config.isProduction,
+  });
+});
+
+// Debug endpoint - list files in upload directory
+app.get("/api/debug/files", (req: Request, res: Response) => {
+  const uploadDir = config.upload.directory;
+  const subDir = req.query.subdir as string || "";
+  const targetDir = subDir ? path.join(uploadDir, subDir) : uploadDir;
+  
+  try {
+    if (!fs.existsSync(targetDir)) {
+      return res.json({ files: [], message: `Directory does not exist: ${targetDir}` });
+    }
+    const files = fs.readdirSync(targetDir);
+    res.json({ directory: targetDir, files: files.slice(0, 20) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve uploaded files - main uploads directory
+console.log(`📁 Serving files from: ${config.upload.directory}`);
 app.use("/api/files/download", express.static(config.upload.directory));
-app.use("/api/files/guide-utilisation.pdf", express.static(path.join(__dirname, "../public/uploads/guides")));
+
+// Serve guides from assets/uploads/guides
+const guidesPath = path.join(config.upload.directory, config.upload.subDirectories.guides);
+app.use("/api/files/guide-utilisation.pdf", express.static(guidesPath));
+
+// Ensure upload directories exist on startup
+import * as fs from 'fs';
+const ensureDirectories = () => {
+  const dirs = Object.values(config.upload.subDirectories);
+  dirs.forEach((dir: string) => {
+    const fullPath = path.join(config.upload.directory, dir);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+      console.log(`📁 Created directory: ${fullPath}`);
+    }
+  });
+};
+ensureDirectories();
 
 // API Routes
 app.use("/api/auth", authRoutes);

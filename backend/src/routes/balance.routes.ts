@@ -8,7 +8,8 @@ import { config } from "../config";
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, config.upload.directory);
+    const balanceDir = path.join(config.upload.directory, config.upload.subDirectories.balance);
+    cb(null, balanceDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);

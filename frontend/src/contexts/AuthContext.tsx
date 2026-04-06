@@ -76,6 +76,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const init = async () => {
       try {
         setLoading(true);
+        
+        // Try to refresh token using cookie first (if no accessToken in memory)
+        if (!authService.getToken()) {
+          try {
+            const refreshResult = await authService.refreshToken();
+            if (refreshResult) {
+              // Token refreshed successfully, now fetch profile
+              const profile = await fetchUserProfile();
+              if (mounted) {
+                setUser(profile);
+                setInitialized(true);
+              }
+              return;
+            }
+          } catch (refreshErr) {
+            // Refresh failed, try fetching profile anyway (cookie might be expired)
+            console.log("Token refresh failed, trying direct profile fetch");
+          }
+        }
+        
+        // Fallback: try to get profile directly
         const profile = await fetchUserProfile();
         if (mounted) {
           setUser(profile);

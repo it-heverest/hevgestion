@@ -31,59 +31,32 @@ export interface UpdateProfileData {
 }
 
 /**
- * Service d'authentification avec HttpOnly cookies
- * Gestion centralisée de toutes les opérations d'authentification
+ * Service d'authentification avec Split Storage (Best Practice)
+ * - Access Token: en mémoire (disparaît au refresh - sécurisé)
+ * - Refresh Token: cookie HttpOnly (géré par le serveur)
  */
 class AuthService {
   private baseURL = API_CONFIG.AUTH;
   private accessToken: string | null = null;
   private readonly TOKEN_BUFFER_TIME = 5 * 60 * 1000; // 5 minutes
-  private readonly TOKEN_KEY = "hevgestion_access_token";
 
   // ==================== GESTION DES TOKENS ====================
 
   constructor() {
-    this.loadTokenFromStorage();
-  }
-
-  private loadTokenFromStorage(): void {
-    try {
-      const stored = localStorage.getItem(this.TOKEN_KEY);
-      if (stored) {
-        this.accessToken = stored;
-      }
-    } catch {
-      this.accessToken = null;
-    }
-  }
-
-  private saveTokenToStorage(token: string): void {
-    try {
-      localStorage.setItem(this.TOKEN_KEY, token);
-    } catch {
-      console.error("Failed to save token to localStorage");
-    }
+    // Ne plus charger depuis localStorage - token en mémoire seulement
+    // Le refresh se fait via le cookie HttpOnly automatiquement
   }
 
   setAccessToken(token: string): void {
     this.accessToken = token;
-    this.saveTokenToStorage(token);
   }
 
   getToken(): string | null {
-    if (!this.accessToken) {
-      this.loadTokenFromStorage();
-    }
     return this.accessToken;
   }
 
   clearTokens(): void {
     this.accessToken = null;
-    try {
-      localStorage.removeItem(this.TOKEN_KEY);
-    } catch {
-      // Ignore errors
-    }
   }
 
   isAuthenticated(): boolean {
