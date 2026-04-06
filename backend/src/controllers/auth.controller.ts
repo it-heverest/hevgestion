@@ -17,6 +17,7 @@ import { Validators } from "../utils/validators";
 import { auditService } from "../services/audit.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { NotificationService } from "../services/notification.service";
+import { emailService } from "../services/email.service";
 
 // Reuse the same interface — no duplication
 type AuthenticatedRequest = AuthRequest;
@@ -110,11 +111,8 @@ class AuthController {
       // All public registrations are COMPTABLE
       const userRole = "COMPTABLE";
 
-      const otpCode =
-        process.env.NODE_ENV === "production"
-          ? Math.floor(100000 + Math.random() * 900000).toString()
-          : "123456";
-
+      // Generate 6-digit OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
       const user = await prisma.user.create({
@@ -134,18 +132,29 @@ class AuthController {
         } as any,
       });
 
-      console.log(`OTP for user ${user.id}: ${otpCode}`);
+      console.log(`OTP for user ${user.id} (${email}): ${otpCode}`);
+
+      // Send OTP via email
+      try {
+        await emailService.sendOTP(email, otpCode, `${firstName} ${lastName}`);
+      } catch (emailError) {
+        console.error("Failed to send OTP email:", emailError);
+        // Don't fail registration if email fails
+      }
 
       // Create welcome and guide notifications
       try {
         await NotificationService.createWelcomeNotification(user.id);
         await NotificationService.createGuideNotification(user.id);
+        
+        // Send welcome email
+        await emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
       } catch (notifError) {
         console.error("Error creating notifications:", notifError);
       }
 
       res.status(201).json({
-        message: "Un code de vérification a été envoyé à votre numéro de téléphone",
+        message: "Un code de vérification a été envoyé à votre adresse email",
         user: formatUser(user),
         requiresOtp: true,
       });
@@ -293,6 +302,63 @@ class AuthController {
         user: formatUser(verifiedUser),
         // Return accessToken in body so frontend can store it in memory
         accessToken,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        throw new BadRequestError("User ID is required");
+      }
+
+      const user = (await prisma.user.findUnique({
+        where: { id: userId },
+      })) as any;
+
+      if (!user) {
+        throw new BadRequestError("User not found");
+      }
+
+      // Check if user is already verified
+      if (user.isVerified) {
+        throw new BadRequestError("User is already verified");
+      }
+
+      // Generate new 6-digit OTP
+      const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          otpCode: newOtpCode,
+          otpExpiry: newOtpExpiry,
+        } as any,
+      });
+
+      // Send new OTP via email
+      if (user.email) {
+        try {
+          await emailService.sendOTP(
+            user.email,
+            newOtpCode,
+            `${user.firstName} ${user.lastName}`
+          );
+        } catch (emailError) {
+          console.error("Failed to resend OTP email:", emailError);
+        }
+      }
+
+      console.log(`New OTP for user ${userId} (${user.email}): ${newOtpCode}`);
+
+      res.json({
+        message: "Nouveau code OTP envoyé",
+        success: true,
       });
     } catch (error) {
       next(error);

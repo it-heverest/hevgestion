@@ -253,6 +253,24 @@ class AuthService {
     }
   }
 
+  async resendOtp(userId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await this.makeRequest<any>("post", "/resend-otp", {
+        userId,
+      });
+
+      return {
+        success: response.success || true,
+        message: response.message,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
+
   async logout(): Promise<void> {
     try {
       await this.makeRequest("post", "/logout", {});
