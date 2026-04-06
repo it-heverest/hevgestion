@@ -32,7 +32,7 @@ jobs:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "frontend/dist/*"
+          source: "frontend/build/*"
           target: "/var/www/hevgestion"
           strip_components: 2 # Enlève 'frontend/' et 'dist/' pour ne garder que le contenu
 
