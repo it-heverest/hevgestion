@@ -4,7 +4,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
-const path = require("path");
+import * as path from "path";
+import * as fs from "fs";
 import { config } from "./config";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth.routes";
@@ -92,7 +93,9 @@ const guidesPath = path.join(config.upload.directory, config.upload.subDirectori
 app.use("/api/files/guide-utilisation.pdf", express.static(guidesPath));
 
 // Ensure upload directories exist on startup
-import * as fs from 'fs';
+// ... existing code ...
+
+// Ensure upload directories exist on startup
 const ensureDirectories = () => {
   const dirs = Object.values(config.upload.subDirectories);
   dirs.forEach((dir: string) => {
@@ -104,6 +107,24 @@ const ensureDirectories = () => {
   });
 };
 ensureDirectories();
+
+// Generate plan comptable JSON from Excel if not exists
+const generatePlanComptable = async () => {
+  try {
+    const { planComptableService } = await import('./services/plan-comptable.service');
+    const jsonPath = path.join(config.rootDir, "assets", "data", "plan-comptable.json");
+    if (!fs.existsSync(jsonPath)) {
+      const excelPath = path.join(config.rootDir, "frontend", "plan_comptable", "PLAN COMPTABLE UNIQUE.xlsx");
+      if (fs.existsSync(excelPath)) {
+        console.log("📊 Generating plan comptable JSON from Excel...");
+        planComptableService.generateJsonFromExcel(excelPath);
+      }
+    }
+  } catch (error) {
+    console.error("Error generating plan comptable:", error);
+  }
+};
+generatePlanComptable();
 
 // API Routes
 app.use("/api/auth", authRoutes);

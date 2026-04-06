@@ -180,6 +180,10 @@ model Balance {
   importedAt  DateTime?  @default(now())
   processedAt DateTime?
   
+  // Soft delete fields
+  deletedAt  DateTime?
+  deletedBy  String?
+  
   @@map("balances")
 }
 
@@ -733,6 +737,7 @@ enum BalanceStatus {
   PROCESSING
   PROCESSED
   UPDATED
+  DELETED
 }
 
 enum IssueType {

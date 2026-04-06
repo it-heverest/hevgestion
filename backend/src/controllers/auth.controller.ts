@@ -24,21 +24,30 @@ type AuthenticatedRequest = AuthRequest;
 
 // ─── Cookie helpers ──────────────────────────────────────────────────────────
 
-function makeCookieOptions(isProduction: boolean) {
+function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
+  let cookieDomain: string | undefined;
+  if (isProduction && corsOrigin) {
+    try {
+      const url = new URL(corsOrigin.startsWith("http") ? corsOrigin : `https://${corsOrigin}`);
+      cookieDomain = url.hostname;
+    } catch {
+      cookieDomain = undefined;
+    }
+  }
+
   return {
     access: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? ("strict" as const) : ("lax" as const),
-      domain: isProduction ? undefined : "localhost",
-      maxAge: 4 * 60 * 60 * 1000, // 4 hours
+      sameSite: "lax",
+      domain: cookieDomain,
+      maxAge: 4 * 60 * 60 * 1000,
     },
     refresh: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? ("strict" as const) : ("lax" as const),
-      domain: isProduction ? undefined : "localhost",
-      // No maxAge — expires when browser tab closes
+      sameSite: "lax",
+      domain: cookieDomain,
     },
   };
 }
@@ -49,10 +58,9 @@ function setAuthCookies(
   refreshToken: string
 ) {
   const isProduction = process.env.NODE_ENV === "production";
-  const opts = makeCookieOptions(isProduction);
+  const corsOrigin = process.env.CORS_ORIGIN;
+  const opts = makeCookieOptions(isProduction, corsOrigin);
   
-  // Split Storage: only set refreshToken as HttpOnly cookie
-  // Access token is returned in JSON for frontend to store in memory
   res.cookie("refreshToken", refreshToken, opts.refresh);
 }
 
@@ -88,6 +96,11 @@ class AuthController {
         role,
         maxAssistants,
       } = req.body;
+
+      // Require at least one verification method
+      if (!email && !phoneNumber) {
+        throw new BadRequestError("Email or phone number is required");
+      }
 
       if (email) {
         const existing = await prisma.user.findUnique({ where: { email } });
@@ -132,14 +145,18 @@ class AuthController {
         } as any,
       });
 
-      console.log(`OTP for user ${user.id} (${email}): ${otpCode}`);
+      console.log(`OTP for user ${user.id} (${email || phoneNumber}): ${otpCode}`);
 
-      // Send OTP via email
-      try {
-        await emailService.sendOTP(email, otpCode, `${firstName} ${lastName}`);
-      } catch (emailError) {
-        console.error("Failed to send OTP email:", emailError);
-        // Don't fail registration if email fails
+      // Send OTP based on verification method
+      if (email) {
+        try {
+          await emailService.sendOTP(email, otpCode, `${firstName} ${lastName}`);
+        } catch (emailError) {
+          console.error("Failed to send OTP email:", emailError);
+        }
+      } else if (phoneNumber) {
+        // TODO: Implement SMS OTP sending
+        console.log(`SMS OTP for user ${user.id} (${phoneNumber}): ${otpCode}`);
       }
 
       // Create welcome and guide notifications
@@ -147,16 +164,23 @@ class AuthController {
         await NotificationService.createWelcomeNotification(user.id);
         await NotificationService.createGuideNotification(user.id);
         
-        // Send welcome email
-        await emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
+        // Send welcome email if email is provided
+        if (email) {
+          await emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
+        }
       } catch (notifError) {
         console.error("Error creating notifications:", notifError);
       }
 
+      const message = email 
+        ? "Un code de vérification a été envoyé à votre adresse email" 
+        : "Un code de vérification a été envoyé par SMS";
+
       res.status(201).json({
-        message: "Un code de vérification a été envoyé à votre adresse email",
+        message,
         user: formatUser(user),
         requiresOtp: true,
+        verificationMethod: email ? "email" : "phone",
       });
     } catch (error) {
       next(error);

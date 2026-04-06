@@ -118,13 +118,23 @@ class BalanceController {
 
       console.log(balancePeriod);
 
-      // Validate accounts against plan comptable
+      // Validate accounts against plan comptable (existence check)
       const accountValidation = await ExcelService.validateBalanceAccounts(data.rows || []);
       if (!accountValidation.valid) {
         await prisma.balance.delete({ where: { id: existingBalance?.id } }).catch(() => {});
         throw new BadRequestError(
           "Erreur de validation:\n- " + accountValidation.errors.slice(0, 10).join("\n- ") +
           (accountValidation.errors.length > 10 ? `\n... et ${accountValidation.errors.length - 10} autres erreurs` : "")
+        );
+      }
+
+      // Validate debit/credit positions against plan comptable rules
+      const positionValidation = ExcelService.validateBalanceWithPosition(data.rows || []);
+      if (!positionValidation.valid) {
+        await prisma.balance.delete({ where: { id: existingBalance?.id } }).catch(() => {});
+        throw new BadRequestError(
+          "Erreur de position (débit/crédit):\n- " + positionValidation.errors.slice(0, 10).join("\n- ") +
+          (positionValidation.errors.length > 10 ? `\n... et ${positionValidation.errors.length - 10} autres erreurs` : "")
         );
       }
 
@@ -531,9 +541,14 @@ class BalanceController {
         throw new ForbiddenError("You don't have access to this balance");
       }
 
-      // Delete the balance
-      await prisma.balance.delete({
+      // Soft delete - move to deleted folder for admin analysis
+      await prisma.balance.update({
         where: { id },
+        data: { 
+          status: BalanceStatus.DELETED,
+          deletedAt: new Date(),
+          deletedBy: req.user?.userId,
+        },
       });
 
       res.json({
