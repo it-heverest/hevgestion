@@ -35,7 +35,10 @@ jobs:
           source: "frontend/build/*"
           target: "/var/www/hevgestion/"
           strip_components: 2 # Enlève 'frontend/' et 'dist/' pour ne garder que le contenu
-          rm: true
+          rm: false
+          pre_shell: |
+            # On vide le contenu manuellement avant le transfert
+            rm -rf /var/www/hevgestion/*
 
       # --- 2. BUILD BACKEND ---
       - name: Install & Build Backend
