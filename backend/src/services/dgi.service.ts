@@ -341,11 +341,11 @@ export class DGIService {
         ),
       },
       // Financial data
-      bilan: dsf.balanceSheet,
-      compteResultat: dsf.incomeStatement,
-      tableauxFiscaux: dsf.taxTables,
-      notes: dsf.notes,
-      fiches: dsf.signaletics,
+      bilan: (dsf as any).balanceSheet,
+      compteResultat: (dsf as any).incomeStatement,
+      tableauxFiscaux: (dsf as any).taxTables,
+      notes: (dsf as any).notes,
+      fiches: (dsf as any).signaletics,
     };
   }
 
@@ -573,11 +573,11 @@ export class DGIService {
       // Add DSF data
       dsfData: dsf
         ? {
-            balanceSheet: dsf.balanceSheet,
-            incomeStatement: dsf.incomeStatement,
-            taxTables: dsf.taxTables,
-            notes: dsf.notes,
-            signaletics: dsf.signaletics,
+            balanceSheet: (dsf as any).balanceSheet,
+            incomeStatement: (dsf as any).incomeStatement,
+            taxTables: (dsf as any).taxTables,
+            notes: (dsf as any).notes,
+            signaletics: (dsf as any).signaletics,
             reports: (dsf as any).reports,
           }
         : null,

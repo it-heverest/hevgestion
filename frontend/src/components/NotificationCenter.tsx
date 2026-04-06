@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
@@ -15,67 +16,55 @@ import {
   Info,
   Clock,
   X,
-  Check
+  Check,
+  FileText,
+  RefreshCw
 } from 'lucide-react';
-
-interface Notification {
-  id: string;
-  type: 'success' | 'warning' | 'info' | 'deadline';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Balance importée',
-    message: 'Votre balance comptable a été importée avec succès',
-    timestamp: 'Il y a 5 min',
-    read: false
-  },
-  {
-    id: '2',
-    type: 'deadline',
-    title: 'Échéance TVA',
-    message: 'La déclaration TVA est due dans 5 jours',
-    timestamp: 'Il y a 1h',
-    read: false
-  },
-  {
-    id: '3',
-    type: 'warning',
-    title: 'Anomalie détectée',
-    message: '3 comptes nécessitent une vérification',
-    timestamp: 'Il y a 2h',
-    read: true
-  },
-  {
-    id: '4',
-    type: 'info',
-    title: 'Nouveau rapport',
-    message: 'Le bilan actif a été généré',
-    timestamp: 'Hier',
-    read: true
-  },
-];
+import { notificationService, Notification } from '../services/notification.service';
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    if (open) {
+      loadNotifications();
+    }
+  }, [open]);
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationService.markAsRead(id);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, isRead: true } : n
+      ));
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
   };
 
   const removeNotification = (id: string) => {
@@ -84,112 +73,127 @@ export function NotificationCenter() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'success':
-        return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-      case 'warning':
-        return <AlertCircle className="h-5 w-5 text-orange-600" />;
-      case 'deadline':
-        return <Clock className="h-5 w-5 text-blue-600" />;
+      case 'WELCOME':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'GUIDE':
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'BALANCE_IMPORTED':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'DSF_GENERATED':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'DEADLINE_APPROACHING':
+        return <AlertCircle className="h-4 w-4 text-orange-500" />;
       default:
-        return <Info className="h-5 w-5 text-blue-600" />;
+        return <Info className="h-4 w-4 text-blue-500" />;
     }
   };
 
   const getBackgroundColor = (type: string, read: boolean) => {
-    if (read) return 'bg-muted/50';
-    
+    if (read) return 'bg-gray-50';
     switch (type) {
-      case 'success':
-        return 'bg-green-50 dark:bg-green-900/10';
-      case 'warning':
-        return 'bg-orange-50 dark:bg-orange-900/10';
-      case 'deadline':
-        return 'bg-blue-50 dark:bg-blue-900/10';
+      case 'WELCOME':
+      case 'BALANCE_IMPORTED':
+      case 'DSF_GENERATED':
+        return 'bg-green-50';
+      case 'GUIDE':
+        return 'bg-blue-50';
+      case 'DEADLINE_APPROACHING':
+        return 'bg-orange-50';
       default:
-        return 'bg-blue-50 dark:bg-blue-900/10';
+        return 'bg-gray-50';
     }
+  };
+
+  const formatTimestamp = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    if (diffDays < 7) return `Il y a ${diffDays}j`;
+    return date.toLocaleDateString('fr');
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="relative">
-          <Bell className="h-4 w-4" />
+        <Button variant="ghost" size="sm" className="relative">
+          <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
-            >
-              {unreadCount}
-            </Badge>
+            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
           )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-3 border-b">
           <h3 className="font-semibold">Notifications</h3>
           {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 text-xs"
-              onClick={markAllAsRead}
-            >
+            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
               <Check className="h-3 w-3 mr-1" />
               Tout marquer lu
             </Button>
           )}
         </div>
         
-        {notifications.length === 0 ? (
-          <div className="p-8 text-center">
-            <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="text-sm text-muted-foreground">
-              Aucune notification
-            </p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[400px]">
-            <div className="p-2 space-y-2">
+        <ScrollArea className="h-72">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <RefreshCw className="h-5 w-5 animate-spin text-gray-400" />
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+              <Bell className="h-8 w-8 text-gray-300 mb-2" />
+              <p className="text-sm">Aucune notification</p>
+            </div>
+          ) : (
+            <div className="divide-y">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 rounded-lg transition-all ${getBackgroundColor(notification.type, notification.read)} ${
-                    !notification.read ? 'border-l-4 border-blue-600' : ''
+                  className={`p-3 transition-all ${getBackgroundColor(notification.type, notification.isRead)} ${
+                    !notification.isRead ? 'border-l-4 border-blue-600' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2">
                     <div className="flex-shrink-0 mt-0.5">
                       {getIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h4 className="text-sm font-medium">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium truncate">
                           {notification.title}
-                        </h4>
+                        </p>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 flex-shrink-0"
+                          size="icon"
+                          className="h-4 w-4 ml-1 flex-shrink-0"
                           onClick={() => removeNotification(notification.id)}
                         >
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">
+                      <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
                         {notification.message}
                       </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
-                          {notification.timestamp}
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-gray-400">
+                          {formatTimestamp(notification.createdAt)}
                         </span>
-                        {!notification.read && (
+                        {!notification.isRead && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-xs px-2"
+                            className="h-6 text-xs"
                             onClick={() => markAsRead(notification.id)}
                           >
+                            <Check className="h-3 w-3 mr-1" />
                             Marquer lu
                           </Button>
                         )}
@@ -199,17 +203,12 @@ export function NotificationCenter() {
                 </div>
               ))}
             </div>
-          </ScrollArea>
-        )}
+          )}
+        </ScrollArea>
         
-        <Separator />
-        
+        <Separator className="mt-auto" />
         <div className="p-2">
-          <Button 
-            variant="ghost" 
-            className="w-full text-sm"
-            onClick={() => setOpen(false)}
-          >
+          <Button variant="ghost" className="w-full text-sm" onClick={() => setOpen(false)}>
             Voir toutes les notifications
           </Button>
         </div>

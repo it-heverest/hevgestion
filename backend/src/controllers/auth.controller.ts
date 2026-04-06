@@ -16,6 +16,7 @@ import {
 import { Validators } from "../utils/validators";
 import { auditService } from "../services/audit.service";
 import { AuthRequest } from "../middleware/auth.middleware";
+import { NotificationService } from "../services/notification.service";
 
 // Reuse the same interface — no duplication
 type AuthenticatedRequest = AuthRequest;
@@ -133,6 +134,14 @@ class AuthController {
 
       console.log(`OTP for user ${user.id}: ${otpCode}`);
 
+      // Create welcome and guide notifications
+      try {
+        await NotificationService.createWelcomeNotification(user.id);
+        await NotificationService.createGuideNotification(user.id);
+      } catch (notifError) {
+        console.error("Error creating notifications:", notifError);
+      }
+
       res.status(201).json({
         message: "Un code de vérification a été envoyé à votre numéro de téléphone",
         user: formatUser(user),
@@ -178,7 +187,11 @@ class AuthController {
         phoneNumber: user.phoneNumber,
       });
 
-      res.json({ message: "Login successful", user: formatUser(user) });
+      res.json({ 
+        message: "Login successful", 
+        user: formatUser(user),
+        accessToken 
+      });
     } catch (error) {
       next(error);
     }

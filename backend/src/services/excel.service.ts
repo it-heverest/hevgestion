@@ -1,10 +1,120 @@
 // src/services/excel.service.ts
 import * as XLSX from "xlsx";
 import * as fs from "fs";
-import * as path from "path";
 import { config } from "../config";
 
+const path = require("path");
+
+interface PlanComptableCompte {
+  numero: string;
+  libelle: string;
+  classe: number;
+}
+
+const PLAN_COMPTABLE_PATH = path.join(__dirname, "../../../frontend/plan_comptable/PLAN COMPTABLE UNIQUE.xlsx");
+
+let planComptableCache: PlanComptableCompte[] | null = null;
+
 export class ExcelService {
+  static async loadPlanComptable(): Promise<PlanComptableCompte[]> {
+    if (planComptableCache) {
+      return planComptableCache;
+    }
+
+    try {
+      if (!fs.existsSync(PLAN_COMPTABLE_PATH)) {
+        console.warn("Plan comptable file not found, skipping validation");
+        return [];
+      }
+
+      const workbook = XLSX.readFile(PLAN_COMPTABLE_PATH);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      const accounts: PlanComptableCompte[] = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i] as any[];
+        if (row && row[0]) {
+          const numero = String(row[0]).trim();
+          const libelle = row[1] ? String(row[1]).trim() : "";
+          const classe = numero ? parseInt(numero.charAt(0)) : 0;
+          if (numero && /^1[0-9]0\d{2}$/.test(numero)) {
+            accounts.push({ numero, libelle, classe });
+          }
+        }
+      }
+
+      planComptableCache = accounts;
+      console.log(`Loaded ${accounts.length} accounts from plan comptable`);
+      return accounts;
+    } catch (error) {
+      console.error("Error loading plan comptable:", error);
+      return [];
+    }
+  }
+
+  static async validateAccount(
+    accountNumber: string,
+    accountName: string
+  ): Promise<{ valid: boolean; error?: string }> {
+    const planComptable = await ExcelService.loadPlanComptable();
+    
+    if (planComptable.length === 0) {
+      return { valid: true };
+    }
+
+    if (!accountNumber || accountNumber.length < 3) {
+      return { valid: false, error: `Numéro de compte invalide: ${accountNumber}` };
+    }
+
+    const rootAccount = accountNumber.substring(0, 3);
+    const found = planComptable.find(c => c.numero === rootAccount);
+
+    if (!found) {
+      return { 
+        valid: false, 
+        error: `Compte "${accountNumber}" n'existe pas dans le plan comptable OHADA (racine: ${rootAccount})` 
+      };
+    }
+
+    const nameLower = accountName.toLowerCase().trim();
+    const libelleLower = found.libelle.toLowerCase().trim();
+    if (libelleLower && nameLower && nameLower !== libelleLower && !nameLower.includes(libelleLower) && !libelleLower.includes(nameLower)) {
+      return {
+        valid: false,
+        error: `Le libellé "${accountName}" ne correspond pas au plan comptable. Attendu: "${found.libelle}"`
+      };
+    }
+
+    return { valid: true };
+  }
+
+  static async validateBalanceAccounts(
+    rows: { accountNumber: string; accountName: string }[]
+  ): Promise<{ valid: boolean; errors: string[] }> {
+    const errors: string[] = [];
+
+    for (const row of rows) {
+      if (!row.accountNumber) continue;
+
+      const root = row.accountNumber.substring(0, 3);
+      const firstDigit = root.charAt(0);
+      
+      if (!/^[1-8]$/.test(firstDigit)) {
+        errors.push(`Compte "${row.accountNumber}" doit commencer par 1-8 (classe OHADA)`);
+        continue;
+      }
+
+      const validation = await ExcelService.validateAccount(row.accountNumber, row.accountName);
+      if (!validation.valid && validation.error) {
+        errors.push(validation.error);
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
   static async parseBalanceFile(filePath: string): Promise<any> {
     try {
       console.log("ExcelService: Reading file:", filePath);
@@ -87,15 +197,34 @@ export class ExcelService {
 
         console.log(`ExcelService: Processed row ${i}:`, rowObj);
 
+        const openingDebit = parseFloat(rowObj.openingDebit || "0") || 0;
+        const openingCredit = parseFloat(rowObj.openingCredit || "0") || 0;
+        const movementDebit = parseFloat(rowObj.movementDebit || "0") || 0;
+        const movementCredit = parseFloat(rowObj.movementCredit || "0") || 0;
+        
+        const netOpening = openingDebit - openingCredit;
+        const netMovement = movementDebit - movementCredit;
+        const netClosing = netOpening + netMovement;
+        
+        const closingDebit = parseFloat(rowObj.closingDebit || "0") || 0;
+        const closingCredit = parseFloat(rowObj.closingCredit || "0") || 0;
+        
+        const expectedClosingDebit = netClosing > 0 ? netClosing : 0;
+        const expectedClosingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
+        
+        if (Math.abs(closingDebit - expectedClosingDebit) > 0.01 || Math.abs(closingCredit - expectedClosingCredit) > 0.01) {
+          console.warn(`Row ${i}: Closing balance mismatch for ${String(rowObj.accountNumber || "").trim()}. Expected D=${expectedClosingDebit}, C=${expectedClosingCredit}. Got D=${closingDebit}, C=${closingCredit}`);
+        }
+
         const processedRow = {
           accountNumber: String(rowObj.accountNumber || "").trim(),
           accountName: String(rowObj.accountName || "").trim(),
-          openingDebit: parseFloat(rowObj.openingDebit || "0") || 0,
-          openingCredit: parseFloat(rowObj.openingCredit || "0") || 0,
-          movementDebit: parseFloat(rowObj.movementDebit || "0") || 0,
-          movementCredit: parseFloat(rowObj.movementCredit || "0") || 0,
-          closingDebit: parseFloat(rowObj.closingDebit || "0") || 0,
-          closingCredit: parseFloat(rowObj.closingCredit || "0") || 0,
+          openingDebit,
+          openingCredit,
+          movementDebit,
+          movementCredit,
+          closingDebit: expectedClosingDebit,
+          closingCredit: expectedClosingCredit,
         };
 
         rows.push(processedRow);

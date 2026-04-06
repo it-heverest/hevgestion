@@ -42,6 +42,7 @@ type FolderWithFullRelations = {
     country: any;
     currency: string;
     createdBy: string;
+    clientType: any;
   };
   balances: {
     id: string;

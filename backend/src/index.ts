@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+const path = require("path");
 import { config } from "./config";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth.routes";
@@ -21,6 +22,7 @@ import auditRoutes from "./routes/audit.routes";
 import notesRoutes from "./routes/notes.routes";
 import dsfTemplateRoutes from "./routes/dsf-template.routes";
 import dgiRoutes from "./declaration/routes/declaration.routes";
+import notificationRoutes from "./routes/notification.routes";
 // import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
@@ -57,6 +59,7 @@ app.get("/health", (req: Request, res: Response) => {
 
 // Serve uploaded files
 app.use("/api/files/download", express.static(config.upload.directory));
+app.use("/api/files/guide-utilisation.pdf", express.static(path.join(__dirname, "../public/uploads/guides")));
 
 // API Routes
 app.use("/api/auth", authRoutes);
@@ -73,8 +76,9 @@ app.use("/api/assistants", assistantRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/notes", notesRoutes);
 app.use("/api/dsf-template", dsfTemplateRoutes);
-app.use("/api/dgi", dgiRoutes);
-// app.use("/api/dsf-mapping", dsfMappingRoutes);
+  app.use("/api/dgi", dgiRoutes);
+  app.use("/api/notifications", notificationRoutes);
+  // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling
 app.use(errorHandler);

@@ -667,10 +667,34 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   }, [balanceRows, previousYearRows, previousYearBalance]);
 
   const getAllRowsWithModifications = (): BalanceRow[] => {
-    return balanceRows.map(row => ({
-      ...row,
-      ...(modifiedRows[row.accountNumber] || {}),
-    }));
+    return balanceRows.map(row => {
+      const hasModification = !!modifiedRows[row.accountNumber];
+      const openingDebit = hasModification 
+        ? (modifiedRows[row.accountNumber].openingDebit ?? row.openingDebit ?? 0)
+        : (row.openingDebit ?? 0);
+      const openingCredit = hasModification 
+        ? (modifiedRows[row.accountNumber].openingCredit ?? row.openingCredit ?? 0)
+        : (row.openingCredit ?? 0);
+      const movementDebit = hasModification 
+        ? (modifiedRows[row.accountNumber].movementDebit ?? row.movementDebit ?? 0)
+        : (row.movementDebit ?? 0);
+      const movementCredit = hasModification 
+        ? (modifiedRows[row.accountNumber].movementCredit ?? row.movementCredit ?? 0)
+        : (row.movementCredit ?? 0);
+      const netOpening = openingDebit - openingCredit;
+      const netMovement = movementDebit - movementCredit;
+      const netClosing = netOpening + netMovement;
+      return {
+        accountNumber: row.accountNumber,
+        accountName: row.accountName,
+        openingDebit,
+        openingCredit,
+        movementDebit,
+        movementCredit,
+        closingDebit: netClosing > 0 ? netClosing : 0,
+        closingCredit: netClosing < 0 ? Math.abs(netClosing) : 0,
+      };
+    });
   };
 
   const allRowsModified = getAllRowsWithModifications();
@@ -867,30 +891,49 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const handleStartEdit = (row: BalanceRow) => {
     const modified = modifiedRows[row.accountNumber];
     setEditingAccount(row.accountNumber);
+    const openingDebit = modified?.openingDebit ?? row.openingDebit ?? 0;
+    const openingCredit = modified?.openingCredit ?? row.openingCredit ?? 0;
+    const movementDebit = modified?.movementDebit ?? row.movementDebit ?? 0;
+    const movementCredit = modified?.movementCredit ?? row.movementCredit ?? 0;
+    const closingDebit = openingDebit + movementDebit - openingCredit - movementCredit;
+    const closingCredit = openingCredit + movementCredit - openingDebit - movementDebit;
     setEditedValues({
-      openingDebit: modified?.openingDebit ?? row.openingDebit ?? 0,
-      openingCredit: modified?.openingCredit ?? row.openingCredit ?? 0,
-      movementDebit: modified?.movementDebit ?? row.movementDebit ?? 0,
-      movementCredit: modified?.movementCredit ?? row.movementCredit ?? 0,
-      closingDebit: modified?.closingDebit ?? row.closingDebit ?? 0,
-      closingCredit: modified?.closingCredit ?? row.closingCredit ?? 0,
+      openingDebit,
+      openingCredit,
+      movementDebit,
+      movementCredit,
+      closingDebit: closingDebit > 0 ? closingDebit : 0,
+      closingCredit: closingCredit > 0 ? closingCredit : 0,
     });
   };
 
   const handleSaveEdit = () => {
     if (!editingAccount || !editedValues) return;
     
+    const openingDebit = editedValues.openingDebit;
+    const openingCredit = editedValues.openingCredit;
+    const movementDebit = editedValues.movementDebit;
+    const movementCredit = editedValues.movementCredit;
+    
+    const netOpening = openingDebit - openingCredit;
+    const netMovement = movementDebit - movementCredit;
+    const netClosing = netOpening + netMovement;
+    
+    const closingDebit = netClosing > 0 ? netClosing : 0;
+    const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
+    
     setModifiedRows(prev => ({
       ...prev,
       [editingAccount]: {
         ...(prev[editingAccount] || balanceRows.find(r => r.accountNumber === editingAccount) || {}),
         accountNumber: editingAccount,
-        openingDebit: editedValues.openingDebit,
-        openingCredit: editedValues.openingCredit,
-        movementDebit: editedValues.movementDebit,
-        movementCredit: editedValues.movementCredit,
-        closingDebit: editedValues.closingDebit,
-        closingCredit: editedValues.closingCredit,
+        accountName: balanceRows.find(r => r.accountNumber === editingAccount)?.accountName || "",
+        openingDebit,
+        openingCredit,
+        movementDebit,
+        movementCredit,
+        closingDebit,
+        closingCredit,
       },
     }));
     setHasUnsavedChanges(true);
@@ -901,13 +944,23 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const handleApplySuggestedFix = (accountNumber: string) => {
     const suggested = getSuggestedValues(accountNumber);
     if (suggested) {
+      const openingDebit = suggested.openingDebit;
+      const openingCredit = suggested.openingCredit;
+      const movementDebit = 0;
+      const movementCredit = 0;
+      const netOpening = openingDebit - openingCredit;
+      const netClosing = netOpening + (movementDebit - movementCredit);
+      const closingDebit = netClosing > 0 ? netClosing : 0;
+      const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
+      
       setEditingAccount(accountNumber);
       setEditedValues({
-        ...suggested,
-        movementDebit: 0,
-        movementCredit: 0,
-        closingDebit: suggested.openingDebit,
-        closingCredit: suggested.openingCredit,
+        openingDebit,
+        openingCredit,
+        movementDebit,
+        movementCredit,
+        closingDebit,
+        closingCredit,
       });
     }
   };
@@ -942,11 +995,48 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
     setHasUnsavedChanges(false);
   };
 
+  const hasModificationInRow = (accountNumber: string): boolean => {
+    const modified = modifiedRows[accountNumber];
+    if (!modified) return false;
+    const original = balanceRows.find(r => r.accountNumber === accountNumber);
+    if (!original) return false;
+    return (
+      modified.openingDebit !== original.openingDebit ||
+      modified.openingCredit !== original.openingCredit ||
+      modified.movementDebit !== original.movementDebit ||
+      modified.movementCredit !== original.movementCredit
+    );
+  };
+
   const filteredData = balanceRows
-    .map(row => ({
-      ...row,
-      ...(modifiedRows[row.accountNumber] || {}),
-    }))
+    .map(row => {
+      const hasModification = !!modifiedRows[row.accountNumber];
+      const openingDebit = hasModification 
+        ? (modifiedRows[row.accountNumber].openingDebit ?? row.openingDebit ?? 0)
+        : (row.openingDebit ?? 0);
+      const openingCredit = hasModification 
+        ? (modifiedRows[row.accountNumber].openingCredit ?? row.openingCredit ?? 0)
+        : (row.openingCredit ?? 0);
+      const movementDebit = hasModification 
+        ? (modifiedRows[row.accountNumber].movementDebit ?? row.movementDebit ?? 0)
+        : (row.movementDebit ?? 0);
+      const movementCredit = hasModification 
+        ? (modifiedRows[row.accountNumber].movementCredit ?? row.movementCredit ?? 0)
+        : (row.movementCredit ?? 0);
+      const netOpening = openingDebit - openingCredit;
+      const netMovement = movementDebit - movementCredit;
+      const netClosing = netOpening + netMovement;
+      return {
+        accountNumber: row.accountNumber,
+        accountName: row.accountName,
+        openingDebit,
+        openingCredit,
+        movementDebit,
+        movementCredit,
+        closingDebit: netClosing > 0 ? netClosing : 0,
+        closingCredit: netClosing < 0 ? Math.abs(netClosing) : 0,
+      };
+    })
     .filter((row) => {
       const matchesSearch =
         row.accountNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -956,8 +1046,8 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
       return matchesSearch && matchesClass;
     })
     .sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
+      const aVal = (a as any)[sortField];
+      const bVal = (b as any)[sortField];
       if (typeof aVal === "string" && typeof bVal === "string") {
         return sortDirection === "asc"
           ? aVal.localeCompare(bVal)
@@ -1214,23 +1304,21 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                     Créd. Mvt <SortIcon field="movementCredit" />
                   </div>
                 </TableHead>
-                <TableHead
-                  className="text-right cursor-pointer"
-                  onClick={() => handleSort("closingDebit")}
-                >
-                  <div className="flex items-center justify-end">
-                    Déb. Clôt <SortIcon field="closingDebit" />
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end text-gray-400">
+                    Déb. Clôt
                   </div>
                 </TableHead>
-                <TableHead
-                  className="text-right cursor-pointer"
-                  onClick={() => handleSort("closingCredit")}
-                >
-                  <div className="flex items-center justify-end">
-                    Créd. Clôt <SortIcon field="closingCredit" />
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end text-gray-400">
+                    Créd. Clôt
                   </div>
                 </TableHead>
                 {previousYearBalance && (
+                  <TableHead className="text-center text-xs">
+                    Action
+                  </TableHead>
+                ) || (
                   <TableHead className="text-center text-xs">
                     Action
                   </TableHead>
@@ -1301,24 +1389,17 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                       className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
                       onClick={() => handleStartEdit(row)}
                     >
-                      {isEditing && editedValues ? (
-                        <>
-                          {editingAccount === row.accountNumber && (
-                            <Input
-                              type="number"
-                              value={editedValues?.movementDebit || 0}
-                              onChange={(e) => setEditedValues({
-                                ...editedValues!,
-                                movementDebit: parseFloat(e.target.value) || 0
-                              })}
-                              className="w-24 h-6 text-right"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          )}
-                          {(row.movementDebit || 0) > 0
-                            ? (row.movementDebit || 0).toLocaleString()
-                            : "-"}
-                        </>
+                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
+                        <Input
+                          type="number"
+                          value={editedValues?.movementDebit || 0}
+                          onChange={(e) => setEditedValues({
+                            ...editedValues!,
+                            movementDebit: parseFloat(e.target.value) || 0
+                          })}
+                          className="w-24 h-6 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       ) : (
                         (row.movementDebit || 0) > 0
                           ? (row.movementDebit || 0).toLocaleString()
@@ -1346,47 +1427,15 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                           : "-"
                       )}
                     </TableCell>
-                    <TableCell 
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.closingDebit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            closingDebit: parseFloat(e.target.value) || 0
-                          })}
-                          className="w-24 h-6 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        (row.closingDebit || 0) > 0
-                          ? (row.closingDebit || 0).toLocaleString()
-                          : "-"
-                      )}
+                    <TableCell className="text-right font-mono text-sm text-gray-500">
+                      {(row.closingDebit || 0) > 0
+                        ? (row.closingDebit || 0).toLocaleString()
+                        : "-"}
                     </TableCell>
-                    <TableCell 
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.closingCredit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            closingCredit: parseFloat(e.target.value) || 0
-                          })}
-                          className="w-24 h-6 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        (row.closingCredit || 0) > 0
-                          ? (row.closingCredit || 0).toLocaleString()
-                          : "-"
-                      )}
+                    <TableCell className="text-right font-mono text-sm text-gray-500">
+                      {(row.closingCredit || 0) > 0
+                        ? (row.closingCredit || 0).toLocaleString()
+                        : "-"}
                     </TableCell>
                     {isEditing && editingAccount === row.accountNumber && editedValues ? (
                       <TableCell className="text-center">
@@ -1410,7 +1459,7 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                           Corriger
                         </Button>
                       </TableCell>
-                    ) : modifiedRows[row.accountNumber] ? (
+                    ) : hasModificationInRow(row.accountNumber) ? (
                       <TableCell className="text-center">
                         <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700">
                           Modifié

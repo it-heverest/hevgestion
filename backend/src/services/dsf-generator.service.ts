@@ -2359,10 +2359,11 @@ export class DSFGenerator {
   async performCoherenceControl(
     dsf: DSF & { folder: FolderWithRelations }
   ): Promise<CoherenceResult> {
+    const dsfAny = dsf as any;
     const issues: any[] = [];
 
     // Check balance sheet equilibrium
-    const bs = dsf.balanceSheet as any;
+    const bs = dsfAny.balanceSheet;
     const totalAssets = this.sumBalanceSheetAssets(bs);
     const totalLiabilities = this.sumBalanceSheetLiabilities(bs);
 
@@ -2375,7 +2376,7 @@ export class DSFGenerator {
     }
 
     // Check income statement
-    const is = dsf.incomeStatement as any;
+    const is = dsfAny.incomeStatement;
     const totalProducts = this.sumIncomeStatementProducts(is);
     const totalCharges = this.sumIncomeStatementCharges(is);
     const calculatedResult = totalProducts - totalCharges;
@@ -2390,7 +2391,7 @@ export class DSFGenerator {
     }
 
     // Check tax tables coherence
-    const taxTables = dsf.taxTables as any;
+    const taxTables = dsfAny.taxTables;
     const resultatComptable =
       taxTables.determinationResultatFiscal?.resultatComptable || 0;
 
@@ -2403,7 +2404,7 @@ export class DSFGenerator {
     }
 
     // Check notes coherence
-    const notes = dsf.notes as any;
+    const notes = dsfAny.notes;
     if (!notes.note34 || !notes.note34.chiffreAffaires) {
       issues.push({
         type: "MISSING_NOTE",
@@ -2422,21 +2423,22 @@ export class DSFGenerator {
     dsf: DSF & { folder: FolderWithRelations }
   ): Promise<string> {
     const workbook = XLSX.utils.book_new();
+    const dsfAny = dsf as any;
 
     // Create Balance Sheet
-    const bsSheet = this.createBalanceSheetWorksheet(dsf.balanceSheet);
+    const bsSheet = this.createBalanceSheetWorksheet(dsfAny.balanceSheet);
     XLSX.utils.book_append_sheet(workbook, bsSheet, "Bilan");
 
     // Create Income Statement
-    const isSheet = this.createIncomeStatementWorksheet(dsf.incomeStatement);
+    const isSheet = this.createIncomeStatementWorksheet(dsfAny.incomeStatement);
     XLSX.utils.book_append_sheet(workbook, isSheet, "Compte de Résultat");
 
     // Create Tax Tables
-    const taxSheet = this.createTaxTablesWorksheet(dsf.taxTables);
+    const taxSheet = this.createTaxTablesWorksheet(dsfAny.taxTables);
     XLSX.utils.book_append_sheet(workbook, taxSheet, "Tableaux Fiscaux");
 
     // Create all notes
-    const notes = dsf.notes as any;
+    const notes = dsfAny.notes;
     Object.keys(notes).forEach((noteKey) => {
       const note = notes[noteKey];
       if (note && note.title) {
@@ -2450,7 +2452,7 @@ export class DSFGenerator {
     });
 
     // Create Signaletics sheets
-    const signaletics = dsf.signaletics as any;
+    const signaletics = dsfAny.signaletics;
     ["r1", "r2", "r3", "r4", "r4Bis"].forEach((ficheKey) => {
       if (signaletics[ficheKey]) {
         const ficheSheet = this.createSignaleticWorksheet(
@@ -3778,7 +3780,7 @@ export class DSFGenerator {
       },
     });
 
-    return configs.map((c) => ({
+    return configs.map((c: any) => ({
       ...c,
       category: c.config?.category || "unknown",
       accountMappings: c.accountMappings || [],

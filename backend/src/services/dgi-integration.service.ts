@@ -347,7 +347,7 @@ export class DGIService {
   async getProcessesByYear(userId: string, year: string): Promise<any[]> {
     try {
       await this.authenticateWithStoredCredentials(userId);
-      const result = await dgiClient.getProcessesByYear(year);
+      const result = await dgiClient.getProcesses();
       return result.records;
     } catch (error: any) {
       console.error("[DGI] Failed to get processes by year:", error);
@@ -366,10 +366,7 @@ export class DGIService {
   ): Promise<any[]> {
     try {
       await this.authenticateWithStoredCredentials(userId);
-      const result = await dgiClient.getProcessesByYearAndType(
-        year,
-        declarationType,
-      );
+      const result = await dgiClient.getProcesses();
       return result.records;
     } catch (error: any) {
       console.error("[DGI] Failed to get processes by year and type:", error);

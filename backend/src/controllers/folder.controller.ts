@@ -199,7 +199,7 @@ class FolderController {
 
       const timeline = await prisma.auditLog.findMany({
         where: { folderId: id },
-        orderBy: { createdAt: "desc" },
+        orderBy: { timestamp: "desc" },
         take: 50,
         include: {
           user: {
@@ -241,10 +241,11 @@ class FolderController {
       };
 
       // Only add name/description filter if query is not empty
-      if (query && query.trim() !== "") {
+      const queryStr = String(query || "");
+      if (queryStr.trim() !== "") {
         where.OR = [
-          { name: { contains: query as string, mode: "insensitive" } },
-          { description: { contains: query as string, mode: "insensitive" } },
+          { name: { contains: queryStr, mode: "insensitive" } },
+          { description: { contains: queryStr, mode: "insensitive" } },
         ];
       }
 
