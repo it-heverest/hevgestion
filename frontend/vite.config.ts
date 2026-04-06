@@ -1,9 +1,59 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
-import path from "path";
+import path, { join } from "path";
+import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
+
+function copyFolderRecursive(src: string, dest: string) {
+  if (!existsSync(src)) return;
+  
+  const entries = readdirSync(src);
+  
+  for (const entry of entries) {
+    const srcPath = join(src, entry);
+    const destPath = join(dest, entry);
+    
+    if (statSync(srcPath).isDirectory()) {
+      if (!existsSync(destPath)) {
+        mkdirSync(destPath, { recursive: true });
+      }
+      copyFolderRecursive(srcPath, destPath);
+    } else {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "copy-assets",
+      closeBundle() {
+        const assetsDir = join(__dirname, "build");
+        const publicSrc = join(__dirname, "public");
+        const srcLocales = join(__dirname, "src", "locales");
+        const srcGuidelines = join(__dirname, "src", "guidelines");
+        
+        if (!existsSync(assetsDir)) {
+          mkdirSync(assetsDir, { recursive: true });
+        }
+        
+        copyFolderRecursive(publicSrc, assetsDir);
+        
+        const buildLocales = join(assetsDir, "locales");
+        if (!existsSync(buildLocales)) {
+          mkdirSync(buildLocales, { recursive: true });
+        }
+        copyFolderRecursive(srcLocales, buildLocales);
+        
+        const buildGuidelines = join(assetsDir, "guidelines");
+        if (!existsSync(buildGuidelines)) {
+          mkdirSync(buildGuidelines, { recursive: true });
+        }
+        copyFolderRecursive(srcGuidelines, buildGuidelines);
+      },
+    },
+  ],
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
     alias: {
