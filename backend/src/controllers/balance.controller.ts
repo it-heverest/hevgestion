@@ -6,7 +6,9 @@ import { BadRequestError, NotFoundError, ForbiddenError } from "../lib/errors";
 import { BalanceType, BalanceStatus } from "@prisma/client";
 import { BalanceProcessor } from "../services/balance-processor.service";
 import { ExcelService } from "../services/excel.service";
+import { planComptableService } from "../services/plan-comptable.service";
 import * as path from "path";
+import { config } from "../config";
 
 class BalanceController {
   private balanceProcessor: BalanceProcessor;
@@ -32,7 +34,7 @@ class BalanceController {
               size: file.size,
               originalname: file.originalname,
             }
-          : "No file"
+          : "No file",
       );
 
       if (!file) {
@@ -82,7 +84,7 @@ class BalanceController {
         balancePeriod = (folder.fiscalYear - 1).toString();
       } else {
         throw new BadRequestError(
-          "Invalid balance type. Must be 'current' or 'previous'"
+          "Invalid balance type. Must be 'current' or 'previous'",
         );
       }
 
@@ -103,7 +105,17 @@ class BalanceController {
       if (existingBalance) {
         // Allow replacement of existing balance
         console.log("Replacing existing balance:", existingBalance.id);
-        // Delete the existing balance
+        // Delete related records first to avoid foreign key constraint violations
+        await prisma.accountIssue.deleteMany({
+          where: { balanceId: existingBalance.id },
+        });
+        await prisma.fixedAsset.deleteMany({
+          where: { balanceId: existingBalance.id },
+        });
+        await prisma.balanceEquilibrium.deleteMany({
+          where: { balanceId: existingBalance.id },
+        });
+        // Now delete the existing balance
         await prisma.balance.delete({
           where: { id: existingBalance.id },
         });
@@ -111,7 +123,13 @@ class BalanceController {
 
       // Read and parse Excel file
       console.log("Parsing Excel file:", file.path);
-      const data = await ExcelService.parseBalanceFile(file.path);
+      // Optional column mapping can be supplied in the request body as `mapping`.
+      // mapping keys: accountNumber, accountName, openingDebit, openingCredit,
+      // movementDebit, movementCredit, closingDebit, closingCredit
+      const mapping = req.body?.mapping as
+        | { [key: string]: number | string }
+        | undefined;
+      const data = await ExcelService.parseBalanceFile(file.path, mapping);
       console.log("Parsed data successfully:", {
         rowCount: data.rows?.length || 0,
       });
@@ -119,22 +137,36 @@ class BalanceController {
       console.log(balancePeriod);
 
       // Validate accounts against plan comptable (existence check)
-      const accountValidation = await ExcelService.validateBalanceAccounts(data.rows || []);
+      const accountValidation = await ExcelService.validateBalanceAccounts(
+        data.rows || [],
+      );
       if (!accountValidation.valid) {
-        await prisma.balance.delete({ where: { id: existingBalance?.id } }).catch(() => {});
+        await prisma.balance
+          .delete({ where: { id: existingBalance?.id } })
+          .catch(() => {});
         throw new BadRequestError(
-          "Erreur de validation:\n- " + accountValidation.errors.slice(0, 10).join("\n- ") +
-          (accountValidation.errors.length > 10 ? `\n... et ${accountValidation.errors.length - 10} autres erreurs` : "")
+          "Erreur de validation:\n- " +
+            accountValidation.errors.slice(0, 10).join("\n- ") +
+            (accountValidation.errors.length > 10
+              ? `\n... et ${accountValidation.errors.length - 10} autres erreurs`
+              : ""),
         );
       }
 
       // Validate debit/credit positions against plan comptable rules
-      const positionValidation = ExcelService.validateBalanceWithPosition(data.rows || []);
+      const positionValidation = ExcelService.validateBalanceWithPosition(
+        data.rows || [],
+      );
       if (!positionValidation.valid) {
-        await prisma.balance.delete({ where: { id: existingBalance?.id } }).catch(() => {});
+        await prisma.balance
+          .delete({ where: { id: existingBalance?.id } })
+          .catch(() => {});
         throw new BadRequestError(
-          "Erreur de position (débit/crédit):\n- " + positionValidation.errors.slice(0, 10).join("\n- ") +
-          (positionValidation.errors.length > 10 ? `\n... et ${positionValidation.errors.length - 10} autres erreurs` : "")
+          "Erreur de position (débit/crédit):\n- " +
+            positionValidation.errors.slice(0, 10).join("\n- ") +
+            (positionValidation.errors.length > 10
+              ? `\n... et ${positionValidation.errors.length - 10} autres erreurs`
+              : ""),
         );
       }
 
@@ -186,7 +218,7 @@ class BalanceController {
   async createFromTemplate(
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     try {
       const { folderId, type } = req.body;
@@ -211,13 +243,54 @@ class BalanceController {
       // Create Excel file from template
       const filePath = await ExcelService.createBalanceFromTemplate(
         template,
-        year
+        year,
       );
 
       res.json({
         message: "Balance created from template",
-        downloadUrl: `/api/files/download/${path.basename(filePath)}`,
+        downloadUrl: `/api/files/download/${config.upload.subDirectories.balance}/${path.basename(filePath)}`,
         year: year,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async validateAccounts(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { accounts } = req.body;
+
+      if (!accounts || !Array.isArray(accounts)) {
+        throw new BadRequestError("Accounts array is required");
+      }
+
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      for (const row of accounts) {
+        if (!row.accountNumber) continue;
+
+        const accountNum = String(row.accountNumber).trim();
+        const accountName = String(row.accountName || "").trim();
+
+        if (!/^[1-8]\d{2,}$/.test(accountNum)) {
+          errors.push(`Numéro de compte invalide: ${accountNum}`);
+          continue;
+        }
+
+        const validation = planComptableService.validateAccount(
+          accountNum,
+          accountName,
+        );
+        if (!validation.valid && validation.error) {
+          errors.push(validation.error);
+        }
+      }
+
+      res.json({
+        valid: errors.length === 0,
+        errors,
+        warnings,
       });
     } catch (error) {
       next(error);
@@ -227,7 +300,7 @@ class BalanceController {
   async getBalancesByFolder(
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     try {
       const { folderId } = req.params;
@@ -449,7 +522,7 @@ class BalanceController {
   async performVentilation(
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     try {
       const { id } = req.params;
@@ -541,6 +614,17 @@ class BalanceController {
         throw new ForbiddenError("You don't have access to this balance");
       }
 
+      // Delete related records first to avoid foreign key constraint violations
+      await prisma.accountIssue.deleteMany({
+        where: { balanceId: id },
+      });
+      await prisma.fixedAsset.deleteMany({
+        where: { balanceId: id },
+      });
+      await prisma.balanceEquilibrium.deleteMany({
+        where: { balanceId: id },
+      });
+
       // Hard delete
       await prisma.balance.delete({
         where: { id },
@@ -587,13 +671,15 @@ class BalanceController {
       // Get current original data
       const currentData = balance.originalData as any;
       let currentRows = currentData?.rows || [];
-      
+
       if (!Array.isArray(currentRows)) {
         currentRows = [];
       }
 
       // Create a map of existing rows for quick lookup
-      const rowsMap = new Map(currentRows.map((row: any) => [row.accountNumber, row]));
+      const rowsMap = new Map(
+        currentRows.map((row: any) => [row.accountNumber, row]),
+      );
 
       // Update with new values
       rows.forEach((updatedRow: any) => {

@@ -12,6 +12,7 @@ import {
   BalanceType,
 } from "@prisma/client";
 import * as path from "path";
+import { config } from "../config";
 import * as XLSX from "xlsx";
 import * as fs from "fs/promises";
 
@@ -83,7 +84,7 @@ class DSFController {
   checkDSFStatus = async (
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const { clientId, folderId } = req.query;
@@ -96,7 +97,7 @@ class DSFController {
       // Validate required parameters
       if (!clientId || !folderId) {
         throw new BadRequestError(
-          "clientId and folderId are required parameters"
+          "clientId and folderId are required parameters",
         );
       }
 
@@ -346,7 +347,7 @@ class DSFController {
     }
   };
 
-generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       // 1. Validating input from body
       const { folderId } = req.body;
@@ -377,17 +378,25 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
       }
 
       if (!folder.client) {
-        throw new BadRequestError("Informations client manquantes pour ce dossier");
+        throw new BadRequestError(
+          "Informations client manquantes pour ce dossier",
+        );
       }
 
-      const hasNBalance = folder.balances.some(b => b.type === BalanceType.CURRENT_YEAR);
+      const hasNBalance = folder.balances.some(
+        (b) => b.type === BalanceType.CURRENT_YEAR,
+      );
       if (!hasNBalance) {
-        throw new BadRequestError("Balance N (année en cours) introuvable ou non traitée");
+        throw new BadRequestError(
+          "Balance N (année en cours) introuvable ou non traitée",
+        );
       }
 
       // 4. Shared Generation Logic
       // Because we included the full client/balances above, TS accepts 'folder' directly
-      const reports = await this.dsfGenerator.generate(folder as unknown as FolderWithFullRelations);
+      const reports = await this.dsfGenerator.generate(
+        folder as unknown as FolderWithFullRelations,
+      );
 
       // 5. Database Atomic Operation (Transaction is safer here)
       const result = await prisma.$transaction(async (tx) => {
@@ -435,7 +444,6 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
           lastGeneratedAt: result.lastGeneratedAt,
         },
       });
-      
     } catch (error) {
       next(error);
     }
@@ -599,7 +607,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
 
       res.json({
         message: "DSF exported successfully",
-        downloadUrl: `/api/files/download/${path.basename(filePath)}`,
+        downloadUrl: `/api/files/download/${config.upload.subDirectories.exports}/${path.basename(filePath)}`,
       });
     } catch (error) {
       next(error);
@@ -626,7 +634,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
       const userId = req.user?.userId!;
       if (dsf.userId !== userId && dsf.folder.ownerId !== userId) {
         throw new BadRequestError(
-          "You don't have permission to update this DSF"
+          "You don't have permission to update this DSF",
         );
       }
 
@@ -639,7 +647,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
         // Update or add reports based on type
         reports.forEach((newReport: any) => {
           const existingIndex = updatedReports.findIndex(
-            (r) => r.type === newReport.type
+            (r) => r.type === newReport.type,
           );
 
           if (existingIndex !== -1) {
@@ -678,7 +686,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
   getCoherenceReport = async (
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     try {
       const { id } = req.params;
@@ -700,7 +708,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
 
       if (!coherenceControl) {
         throw new NotFoundError(
-          "Coherence control not found. Please validate DSF first."
+          "Coherence control not found. Please validate DSF first.",
         );
       }
 
@@ -735,19 +743,19 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
 
       if (folder.ownerId !== req.user?.userId) {
         throw new BadRequestError(
-          "You don't have permission to import DSF for this exercise"
+          "You don't have permission to import DSF for this exercise",
         );
       }
 
       // Validate DSF file
       const validationResult = await this.dsfValidationService.validateDSFFile(
-        file.path
+        file.path,
       );
       if (!validationResult.isValid) {
         // Clean up uploaded file
         await fs.unlink(file.path).catch(() => {}); // Ignore cleanup errors
         throw new BadRequestError(
-          `DSF validation failed: ${validationResult.errors.join(", ")}`
+          `DSF validation failed: ${validationResult.errors.join(", ")}`,
         );
       }
 
@@ -761,7 +769,7 @@ generateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
       // Validate extracted data structure
       if (!notes && !signaletics) {
         throw new BadRequestError(
-          "DSF file must contain at least notes or signaletics data"
+          "DSF file must contain at least notes or signaletics data",
         );
       }
 

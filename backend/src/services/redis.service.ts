@@ -1,3 +1,61 @@
+import redis from "../lib/redis";
+
+// OTP helpers
+const otpKey = (contact: string) => `otp:${contact}`;
+export const setOTP = async (
+  contact: string,
+  code: string,
+  ttlSeconds = 5 * 60,
+) => {
+  await redis.set(otpKey(contact), code, "EX", ttlSeconds);
+};
+
+export const getOTP = async (contact: string) => {
+  return await redis.get(otpKey(contact));
+};
+
+export const deleteOTP = async (contact: string) => {
+  await redis.del(otpKey(contact));
+};
+
+// JWT blacklist helpers
+const blacklistKey = (jti: string) => `bl:${jti}`;
+export const blacklistToken = async (jti: string, ttlSeconds: number) => {
+  await redis.set(blacklistKey(jti), "1", "EX", ttlSeconds);
+};
+
+export const isTokenBlacklisted = async (jti: string) => {
+  const v = await redis.get(blacklistKey(jti));
+  return Boolean(v);
+};
+
+// Simple cache helpers
+export const cacheSet = async (
+  key: string,
+  value: unknown,
+  ttlSeconds?: number,
+) => {
+  const str = typeof value === "string" ? value : JSON.stringify(value);
+  if (ttlSeconds) {
+    await redis.set(key, str, "EX", ttlSeconds);
+  } else {
+    await redis.set(key, str);
+  }
+};
+
+export const cacheGet = async (key: string) => {
+  const v = await redis.get(key);
+  if (!v) return null;
+  try {
+    return JSON.parse(v);
+  } catch (e) {
+    return v;
+  }
+};
+
+export const cacheDel = async (key: string) => {
+  await redis.del(key);
+};
 // backend/src/services/redis.service.ts
 import Redis from "ioredis";
 import { config } from "../config";
@@ -14,17 +72,30 @@ const LONG_TTL = 86400; // 24 hours
  * Get or create Redis client
  */
 export function getRedisClient(): Redis {
+  // Respect the same dev-disable flag as lib/redis
+  const disableRedis = (process.env.DISABLE_REDIS || "true") === "true" || process.env.NODE_ENV !== "production";
+  if (disableRedis) {
+    console.log("⚠️ Using lib/redis in-memory client (Redis disabled)");
+    // Use the client exported by lib/redis (in-memory dummy) when Redis is disabled
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (require("../lib/redis").default as any) as Redis;
+  }
+
   if (!redisClient) {
     redisClient = new Redis({
       host: config.redis?.host || "localhost",
       port: config.redis?.port || 6379,
       password: config.redis?.password || undefined,
       db: config.redis?.db || 0,
+      // Fail-fast settings when Redis is not available in dev environments
+      connectTimeout: 1000,
       retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
+        // very short backoff to avoid long blocking
+        const delay = Math.min(times * 50, 500);
         return delay;
       },
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
     });
 
     redisClient.on("connect", () => {

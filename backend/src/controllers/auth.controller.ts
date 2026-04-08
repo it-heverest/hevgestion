@@ -18,6 +18,8 @@ import { auditService } from "../services/audit.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { NotificationService } from "../services/notification.service";
 import { emailService } from "../services/email.service";
+import jwt from "jsonwebtoken";
+import { blacklistToken } from "../services/redis.service";
 
 // Reuse the same interface — no duplication
 type AuthenticatedRequest = AuthRequest;
@@ -28,7 +30,9 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
   let cookieDomain: string | undefined;
   if (isProduction && corsOrigin) {
     try {
-      const url = new URL(corsOrigin.startsWith("http") ? corsOrigin : `https://${corsOrigin}`);
+      const url = new URL(
+        corsOrigin.startsWith("http") ? corsOrigin : `https://${corsOrigin}`,
+      );
       cookieDomain = url.hostname;
     } catch {
       cookieDomain = undefined;
@@ -41,13 +45,16 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
       secure: isProduction,
       sameSite: "lax" as const,
       domain: cookieDomain,
-      maxAge: 4 * 60 * 60 * 1000,
+      // 6 hours
+      maxAge: 6 * 60 * 60 * 1000,
     },
     refresh: {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax" as const,
       domain: cookieDomain,
+      // keep refresh cookie aligned with access expiry for browser storage
+      maxAge: 6 * 60 * 60 * 1000,
     },
   };
 }
@@ -55,12 +62,12 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
 function setAuthCookies(
   res: Response,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
 ) {
   const isProduction = process.env.NODE_ENV === "production";
   const corsOrigin = process.env.CORS_ORIGIN;
   const opts = makeCookieOptions(isProduction, corsOrigin);
-  
+
   res.cookie("refreshToken", refreshToken, opts.refresh);
 }
 
@@ -75,9 +82,10 @@ function formatUser(user: any) {
     role: user.role,
     isActive: user.isActive,
     maxAssistants: user.maxAssistants,
-    createdAt: user.createdAt instanceof Date
-      ? user.createdAt.toISOString()
-      : user.createdAt,
+    createdAt:
+      user.createdAt instanceof Date
+        ? user.createdAt.toISOString()
+        : user.createdAt,
   };
 }
 
@@ -104,11 +112,14 @@ class AuthController {
 
       if (email) {
         const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing) throw new ConflictError("User with this email already exists");
+        if (existing)
+          throw new ConflictError("User with this email already exists");
       }
 
       if (phoneNumber) {
-        const existing = await prisma.user.findUnique({ where: { phoneNumber } });
+        const existing = await prisma.user.findUnique({
+          where: { phoneNumber },
+        });
         if (existing)
           throw new ConflictError("User with this phone number already exists");
       }
@@ -145,12 +156,18 @@ class AuthController {
         } as any,
       });
 
-      console.log(`OTP for user ${user.id} (${email || phoneNumber}): ${otpCode}`);
+      console.log(
+        `OTP for user ${user.id} (${email || phoneNumber}): ${otpCode}`,
+      );
 
       // Send OTP based on verification method
       if (email) {
         try {
-          await emailService.sendOTP(email, otpCode, `${firstName} ${lastName}`);
+          await emailService.sendOTP(
+            email,
+            otpCode,
+            `${firstName} ${lastName}`,
+          );
         } catch (emailError) {
           console.error("Failed to send OTP email:", emailError);
         }
@@ -163,17 +180,20 @@ class AuthController {
       try {
         await NotificationService.createWelcomeNotification(user.id);
         await NotificationService.createGuideNotification(user.id);
-        
+
         // Send welcome email if email is provided
         if (email) {
-          await emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
+          await emailService.sendWelcomeEmail(
+            email,
+            `${firstName} ${lastName}`,
+          );
         }
       } catch (notifError) {
         console.error("Error creating notifications:", notifError);
       }
 
-      const message = email 
-        ? "Un code de vérification a été envoyé à votre adresse email" 
+      const message = email
+        ? "Un code de vérification a été envoyé à votre adresse email"
         : "Un code de vérification a été envoyé par SMS";
 
       res.status(201).json({
@@ -197,11 +217,17 @@ class AuthController {
         where: { phoneNumber: phone },
       });
 
-      if (!user) throw new UnauthorizedError("Numéro de téléphone ou mot de passe incorrect");
+      if (!user)
+        throw new UnauthorizedError(
+          "Numéro de téléphone ou mot de passe incorrect",
+        );
       if (!user.isActive) throw new UnauthorizedError("Account is inactive");
 
       const isPasswordValid = await comparePassword(password, user.password);
-      if (!isPasswordValid) throw new UnauthorizedError("Numéro de téléphone ou mot de passe incorrect");
+      if (!isPasswordValid)
+        throw new UnauthorizedError(
+          "Numéro de téléphone ou mot de passe incorrect",
+        );
 
       const accessToken = generateAccessToken({
         userId: user.id,
@@ -222,10 +248,10 @@ class AuthController {
         phoneNumber: user.phoneNumber,
       });
 
-      res.json({ 
-        message: "Login successful", 
+      res.json({
+        message: "Login successful",
         user: formatUser(user),
-        accessToken 
+        accessToken,
       });
     } catch (error) {
       next(error);
@@ -292,8 +318,10 @@ class AuthController {
       })) as any;
 
       if (!user) throw new BadRequestError("User not found");
-      if (user.isVerified) throw new BadRequestError("User is already verified");
-      if (user.otpCode !== otpCode) throw new BadRequestError("Invalid OTP code");
+      if (user.isVerified)
+        throw new BadRequestError("User is already verified");
+      if (user.otpCode !== otpCode)
+        throw new BadRequestError("Invalid OTP code");
       if (!user.otpExpiry || user.otpExpiry < new Date()) {
         throw new BadRequestError("OTP code has expired");
       }
@@ -371,7 +399,7 @@ class AuthController {
           await emailService.sendOTP(
             user.email,
             newOtpCode,
-            `${user.firstName} ${user.lastName}`
+            `${user.firstName} ${user.lastName}`,
           );
         } catch (emailError) {
           console.error("Failed to resend OTP email:", emailError);
@@ -398,6 +426,53 @@ class AuthController {
         });
       }
 
+      // Blacklist refresh token (and access token if present) in Redis so they cannot be reused.
+      try {
+        const refreshToken =
+          req.cookies?.refreshToken ?? req.body?.refreshToken;
+        if (refreshToken) {
+          const decoded: any = jwt.decode(refreshToken) as any;
+          if (decoded && decoded.exp) {
+            const ttlSeconds = Math.max(
+              0,
+              decoded.exp - Math.floor(Date.now() / 1000),
+            );
+            const hash = require("crypto")
+              .createHash("sha256")
+              .update(refreshToken)
+              .digest("hex");
+            if (ttlSeconds > 0) {
+              await blacklistToken(`tok:${hash}`, ttlSeconds);
+            }
+          }
+        }
+
+        // Also blacklist access token if provided in Authorization header
+        const authHeader = req.headers["authorization"] as string | undefined;
+        if (authHeader) {
+          const parts = authHeader.split(" ");
+          if (parts.length === 2) {
+            const accessToken = parts[1];
+            const decodedAcc: any = jwt.decode(accessToken) as any;
+            if (decodedAcc && decodedAcc.exp) {
+              const ttl = Math.max(
+                0,
+                decodedAcc.exp - Math.floor(Date.now() / 1000),
+              );
+              const accHash = require("crypto")
+                .createHash("sha256")
+                .update(accessToken)
+                .digest("hex");
+              if (ttl > 0) {
+                await blacklistToken(`tok:${accHash}`, ttl);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to blacklist token on logout:", e);
+      }
+
       res.clearCookie("accessToken");
       res.clearCookie("refreshToken");
 
@@ -416,7 +491,9 @@ class AuthController {
 
       if (!user) {
         // Don't reveal whether the email exists
-        return res.json({ message: "If the email exists, a reset link has been sent" });
+        return res.json({
+          message: "If the email exists, a reset link has been sent",
+        });
       }
 
       const resetToken =
@@ -426,7 +503,8 @@ class AuthController {
 
       res.json({
         message: "If the email exists, a reset link has been sent",
-        resetToken: process.env.NODE_ENV === "development" ? resetToken : undefined,
+        resetToken:
+          process.env.NODE_ENV === "development" ? resetToken : undefined,
       });
     } catch (error) {
       next(error);
@@ -441,7 +519,9 @@ class AuthController {
         throw new BadRequestError("Token and new password are required");
       }
       if (newPassword.length < 8) {
-        throw new BadRequestError("Password must be at least 8 characters long");
+        throw new BadRequestError(
+          "Password must be at least 8 characters long",
+        );
       }
 
       console.log(`Password reset attempted with token: ${token}`);
@@ -452,10 +532,16 @@ class AuthController {
     }
   }
 
-  async getProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async getProfile(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       if (!req.user?.userId) {
-        return res.status(401).json({ success: false, error: "Authentication required" });
+        return res
+          .status(401)
+          .json({ success: false, error: "Authentication required" });
       }
 
       const user = await prisma.user.findUnique({
@@ -481,7 +567,9 @@ class AuthController {
       });
 
       if (!user) {
-        return res.status(404).json({ success: false, error: "User not found" });
+        return res
+          .status(404)
+          .json({ success: false, error: "User not found" });
       }
 
       const {
@@ -520,10 +608,16 @@ class AuthController {
    * PATCH /auth/profile
    * Update firstName, lastName, email, phoneCountryCode, phoneNumber.
    */
-  async updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async updateProfile(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       if (!req.user?.userId) {
-        return res.status(401).json({ success: false, error: "Authentication required" });
+        return res
+          .status(401)
+          .json({ success: false, error: "Authentication required" });
       }
 
       const { firstName, lastName, email, phoneCountryCode, phoneNumber } =
@@ -539,7 +633,9 @@ class AuthController {
 
       // If changing phone, check uniqueness
       if (phoneNumber) {
-        const existing = await prisma.user.findUnique({ where: { phoneNumber } });
+        const existing = await prisma.user.findUnique({
+          where: { phoneNumber },
+        });
         if (existing && existing.id !== req.user.userId) {
           throw new ConflictError("Phone number already in use");
         }
@@ -566,16 +662,24 @@ class AuthController {
    * POST /auth/change-password
    * Body: { currentPassword, newPassword }
    */
-  async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async changePassword(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       if (!req.user?.userId) {
-        return res.status(401).json({ success: false, error: "Authentication required" });
+        return res
+          .status(401)
+          .json({ success: false, error: "Authentication required" });
       }
 
       const { currentPassword, newPassword } = req.body;
 
       if (!currentPassword || !newPassword) {
-        throw new BadRequestError("currentPassword and newPassword are required");
+        throw new BadRequestError(
+          "currentPassword and newPassword are required",
+        );
       }
       if (newPassword.length < 8) {
         throw new BadRequestError("New password must be at least 8 characters");
@@ -587,7 +691,8 @@ class AuthController {
       if (!user) throw new UnauthorizedError("User not found");
 
       const isValid = await comparePassword(currentPassword, user.password);
-      if (!isValid) throw new UnauthorizedError("Current password is incorrect");
+      if (!isValid)
+        throw new UnauthorizedError("Current password is incorrect");
 
       const hashed = await hashPassword(newPassword);
 
@@ -608,10 +713,16 @@ class AuthController {
    * Persists arbitrary user preferences in a JSON column (if your schema has one).
    * Falls back to a simple acknowledgement if the schema has no settings column.
    */
-  async updateSettings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  async updateSettings(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       if (!req.user?.userId) {
-        return res.status(401).json({ success: false, error: "Authentication required" });
+        return res
+          .status(401)
+          .json({ success: false, error: "Authentication required" });
       }
 
       const { settings } = req.body;

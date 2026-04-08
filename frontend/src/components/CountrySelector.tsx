@@ -75,11 +75,8 @@ export function CountrySelector() {
     reloadInitialData,
   } = useApp();
 
-
-
-
   const [newClient, setNewClient] = useState<Partial<Client>>({
-  name: "",
+    name: "",
     legalForm: "SARL",
     clientType: "NORMAL",
     taxNumber: "",
@@ -87,7 +84,7 @@ export function CountrySelector() {
     city: "",
     phone: "",
     email: "",
-  })
+  });
 
   // Step 1: Handle authentication and initialization using AppContext
   useEffect(() => {
@@ -100,11 +97,10 @@ export function CountrySelector() {
         return;
       }
 
-      // If not authenticated, redirect to login with new route
+      // If not authenticated, do not redirect — allow local mode with a loader/banner
       if (!isAuthenticated) {
-        console.log("🚫 Not authenticated, redirecting to login");
-        navigate("fr/web/user/login");
-        return;
+        console.warn("🚫 Not authenticated — continuing in local mode");
+        // proceed without redirect so UI remains visible
       }
 
       // Restore selections from encrypted storage using AppContext
@@ -144,7 +140,7 @@ export function CountrySelector() {
       setSelectedCountry(countryCode);
       // AppContext will automatically save to encrypted storage via useEffect
     },
-    [setSelectedCountry]
+    [setSelectedCountry],
   );
 
   // Filter clients based on user role and ownership
@@ -161,7 +157,7 @@ export function CountrySelector() {
         accessibleClients = clients;
         console.log(
           "👑 ADMIN: Access to all clients",
-          accessibleClients.length
+          accessibleClients.length,
         );
         break;
 
@@ -172,7 +168,7 @@ export function CountrySelector() {
         });
         console.log(
           "📊 COMPTABLE: Access to owned clients",
-          accessibleClients.length
+          accessibleClients.length,
         );
         break;
 
@@ -188,7 +184,7 @@ export function CountrySelector() {
     // Apply country filter if selected
     if (selectedCountry) {
       accessibleClients = accessibleClients.filter(
-        (client) => client.country === selectedCountry
+        (client) => client.country === selectedCountry,
       );
     }
 
@@ -214,7 +210,7 @@ export function CountrySelector() {
         }
       });
     },
-    [user]
+    [user],
   );
 
   // Recherche en temps réel
@@ -249,9 +245,9 @@ export function CountrySelector() {
       user?.role === "ADMIN" || user?.role === "COMPTABLE"
         ? countries
         : countries.filter((country) =>
-          accessibleClients.some((client) => client.country === country.code)
-        ),
-    [user?.role, countries, accessibleClients]
+            accessibleClients.some((client) => client.country === country.code),
+          ),
+    [user?.role, countries, accessibleClients],
   );
 
   // Ensure selected country is valid (has accessible clients)
@@ -267,71 +263,73 @@ export function CountrySelector() {
   }, [isDialogOpen, selectedCountry, availableCountries, setSelectedCountry]);
 
   const handleCreateClient = async () => {
-  // 1. Better Validation: check legalForm to satisfy the TS error
-  if (!newClient.name || !selectedCountry || !newClient.legalForm) {
-    alert("Veuillez remplir les informations obligatoires (Nom, Pays, Forme Juridique)");
-    return;
-  }
+    // 1. Better Validation: check legalForm to satisfy the TS error
+    if (!newClient.name || !selectedCountry || !newClient.legalForm) {
+      alert(
+        "Veuillez remplir les informations obligatoires (Nom, Pays, Forme Juridique)",
+      );
+      return;
+    }
 
-  setIsCreating(true);
-  try {
-    // 2. Type casting only if strictly necessary, but better to spread
-    const clientData = {
-      ...newClient,
-      country: selectedCountry,
-    } as Client; 
+    setIsCreating(true);
+    try {
+      // 2. Type casting only if strictly necessary, but better to spread
+      const clientData = {
+        ...newClient,
+        country: selectedCountry,
+      } as Client;
 
-    const client = await createClient(clientData);
+      const client = await createClient(clientData);
 
-    setIsDialogOpen(false);
-    
-    // 3. Reset form to match your interface defaults
-    setNewClient({
-      name: "",
-      legalForm: "SARL",
-      clientType: "NORMAL",
-      taxNumber: "",
-      address: "",
-      city: "",
-      phone: "",
-      email: "",
-    });
+      setIsDialogOpen(false);
 
-    setShowSuccess(true);
-    setSelectedClient(client);
+      // 3. Reset form to match your interface defaults
+      setNewClient({
+        name: "",
+        legalForm: "SARL",
+        clientType: "NORMAL",
+        taxNumber: "",
+        address: "",
+        city: "",
+        phone: "",
+        email: "",
+      });
 
-    // 4. Critical: Using a template literal correctly for the URL
-    // Ensure the path starts with a / if it's an absolute path
-    const uid = user?.id || "me";
-    const targetPath = `/fr/web/user/dashboard/${uid}/dashboard`;
+      setShowSuccess(true);
+      setSelectedClient(client);
 
-    setTimeout(() => {
-      setShowSuccess(false);
-      navigate(targetPath);
-    }, 1000);
-  } catch (error) {
-    console.error("Erreur création client:", error);
-    // Suggestion: Add a toast/alert for the user here
-  } finally {
-    setIsCreating(false);
-  }
-};
+      // 4. Critical: Using a template literal correctly for the URL
+      // Ensure the path starts with a / if it's an absolute path
+      const uid = user?.id || "me";
+      const targetPath = `/fr/web/user/dashboard/${uid}/dashboard`;
 
-const handleSelectClient = useCallback(
-  (client: Client) => {
-    setSelectedClient(client);
-    const uid = user?.id || "me";
-    // Added leading slash to ensure navigation from root
-    navigate(`/fr/web/user/dashboard/${uid}/dashboard`);
-  },
-  [setSelectedClient, navigate, user]
-);
- 
+      setTimeout(() => {
+        setShowSuccess(false);
+        navigate(targetPath);
+      }, 1000);
+    } catch (error) {
+      console.error("Erreur création client:", error);
+      // Suggestion: Add a toast/alert for the user here
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleSelectClient = useCallback(
+    (client: Client) => {
+      setSelectedClient(client);
+      const uid = user?.id || "me";
+      // Added leading slash to ensure navigation from root
+      navigate(`/fr/web/user/dashboard/${uid}/dashboard`);
+    },
+    [setSelectedClient, navigate, user],
+  );
+
   const getCountryName = useCallback(
     (countryCode: string) => {
       return countries.find((c) => c.code === countryCode)?.name || countryCode;
     },
-    [countries]
+    [countries],
   );
 
   const getCountryFlag = useCallback((countryCode: string) => {
@@ -373,18 +371,38 @@ const handleSelectClient = useCallback(
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 mx-auto animate-spin text-blue-600" />
-          <p className="text-muted-foreground">
-            Chargement ...
-          </p>
+          <p className="text-muted-foreground">Chargement ...</p>
         </div>
       </div>
     );
   }
 
-  // Don't render anything if not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return null;
+  // Show error state with retry when app context reports an error
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="bg-red-50 border border-red-200 p-6 rounded">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-6 w-6 text-red-600 mt-1" />
+              <div>
+                <h3 className="font-semibold text-red-800">Erreur</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <div className="mt-4 flex gap-2">
+                  <Button onClick={() => reloadInitialData()}>Réessayer</Button>
+                  <Button variant="outline" onClick={() => clearAppData()}>
+                    Réinitialiser
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  // If not authenticated, show app in local mode but surface a banner
 
   // Regular client selection for existing users
   return (
@@ -398,12 +416,21 @@ const handleSelectClient = useCallback(
             </div> */}
             <div className="text-align-center">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-               HevGestion
+                HevGestion
               </h1>
               <p className="text-sm text-muted-foreground">
                 Sélectionnez votre client
               </p>
             </div>
+            {!isAuthenticated && (
+              <div className="mx-auto mt-4 max-w-xl bg-yellow-50 border border-yellow-200 text-yellow-800 rounded p-3 flex items-center justify-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-yellow-700" />
+                <div className="text-sm">
+                  Mode déconnecté — authentification désactivée (affichage
+                  local)
+                </div>
+              </div>
+            )}
           </div>
 
           {/* User info badge */}
@@ -447,7 +474,7 @@ const handleSelectClient = useCallback(
               <SelectContent>
                 {availableCountries.map((country) => {
                   const countryClientCount = accessibleClients.filter(
-                    (client) => client.country === country.code
+                    (client) => client.country === country.code,
                   ).length;
 
                   return (
@@ -463,9 +490,9 @@ const handleSelectClient = useCallback(
                           </Badge>
                         </div>
                         {/* {user?.role !== "ADMIN" && ( */}
-                          <Badge variant="secondary" className="text-xs">
-                            {countryClientCount} client(s)
-                          </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {countryClientCount} client(s)
+                        </Badge>
                         {/* )} */}
                       </div>
                     </SelectItem>
@@ -528,16 +555,16 @@ const handleSelectClient = useCallback(
                           setNewClient({ ...newClient, name: e.target.value })
                         }
                         placeholder="Entrez le nom du client"
-                            autoComplete="off"
+                        autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="legal-form">Forme juridique *</Label>
                       <Select
                         onValueChange={(value: string) =>
-                          setNewClient({ 
-                            ...newClient, 
-                            legalForm: value as Client["legalForm"] 
+                          setNewClient({
+                            ...newClient,
+                            legalForm: value as Client["legalForm"],
                           })
                         }
                       >
@@ -592,7 +619,7 @@ const handleSelectClient = useCallback(
                         })
                       }
                       placeholder="Entrez le numéro fiscal"
-                            autoComplete="off"
+                      autoComplete="off"
                     />
                   </div>
 
@@ -620,7 +647,7 @@ const handleSelectClient = useCallback(
                           setNewClient({ ...newClient, city: e.target.value })
                         }
                         placeholder="Entrez la ville"
-                              autoComplete="off"
+                        autoComplete="off"
                       />
                     </div>
                   </div>
@@ -635,7 +662,7 @@ const handleSelectClient = useCallback(
                           setNewClient({ ...newClient, phone: e.target.value })
                         }
                         placeholder="Entrez le numéro de téléphone"
-                              autoComplete="off"
+                        autoComplete="off"
                       />
                     </div>
                     <div className="space-y-2">
@@ -738,11 +765,11 @@ const handleSelectClient = useCallback(
                 <p className="text-muted-foreground mb-4">
                   {searchTerm
                     ? `Aucun client accessible ne correspond à "${searchTerm}" pour ${getCountryName(
-                      selectedCountry
-                    )}`
+                        selectedCountry,
+                      )}`
                     : `Aucun client n'est accessible pour ${getCountryName(
-                      selectedCountry
-                    )} avec votre rôle (${user?.role})`}
+                        selectedCountry,
+                      )} avec votre rôle (${user?.role})`}
                 </p>
                 {(user?.role === "ADMIN" || user?.role === "COMPTABLE") && (
                   <Button

@@ -35,7 +35,7 @@ export function Login() {
     e.preventDefault();
     // Prevent multiple submissions
     if (isLoggingIn) return;
-    
+
     setIsLoggingIn(true);
     try {
       await handleLogin(e);
@@ -131,6 +131,7 @@ export function Login() {
               onPreviousStep={previousStep}
               isStepValid={isStepValid}
               onSwitchToLogin={() => setActiveTab("login")}
+              error={error}
             />
           </TabsContent>
         </Tabs>

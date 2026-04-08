@@ -43,12 +43,16 @@ interface RegisterPageProps {
   registerStep: number;
   registerProgress: number;
   isRegistering: boolean;
-  onRegisterChange: (field: keyof RegisterFormData, value: string | number) => void;
+  onRegisterChange: (
+    field: keyof RegisterFormData,
+    value: string | number,
+  ) => void;
   onRegisterSubmit: (e: React.FormEvent) => void;
   onNextStep: () => void;
   onPreviousStep: () => void;
+  onSwitchToLogin: () => void;
   isStepValid: (step: number) => boolean;
-  onSwitchToLogin?: () => void;
+  error?: string | null;
 }
 
 export function RegisterPage({
@@ -60,13 +64,18 @@ export function RegisterPage({
   onRegisterSubmit,
   onNextStep,
   onPreviousStep,
+  onSwitchToLogin,
   isStepValid,
-  onSwitchToLogin = () => {},
+  error,
 }: RegisterPageProps) {
   const { t } = useTranslation();
 
-  // Step 0: Choose verification method
-  const [verificationMethod, setVerificationMethod] = React.useState<"email" | "phone" | null>(registerForm.email ? "email" : (registerForm.phoneNumber ? "phone" : null));
+  // Verification method (chosen during verification step)
+  const [verificationMethod, setVerificationMethod] = React.useState<
+    "email" | "phone" | null
+  >(
+    registerForm.email ? "email" : registerForm.phoneNumber ? "phone" : "email",
+  );
 
   const stepVariants = {
     initial: { opacity: 0, x: 20 },
@@ -74,7 +83,8 @@ export function RegisterPage({
     exit: { opacity: 0, x: -20 },
   };
 
-  const totalSteps = registerForm.role === "COMPTABLE" ? 5 : 4;
+  // Steps: 1=Personal, 2=Assistants (conditional for COMPTABLE), 3=Password, 4=Verification (OTP)
+  const totalSteps = registerForm.role === "COMPTABLE" ? 4 : 3;
 
   const isValidCameroonPhone = (phoneNumber: string): boolean => {
     const cleanNumber = phoneNumber.replace(/\D/g, "");
@@ -91,7 +101,13 @@ export function RegisterPage({
     const hasNumber = /[0-9]/.test(password);
     const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
     const hasMinLength = password.length >= 8;
-    return hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar && hasMinLength;
+    return (
+      hasUpperCase &&
+      hasLowerCase &&
+      hasNumber &&
+      hasSpecialChar &&
+      hasMinLength
+    );
   };
 
   const handleVerificationMethodSelect = (method: "email" | "phone") => {
@@ -103,96 +119,9 @@ export function RegisterPage({
     }
   };
 
-  const renderStep0Verification = () => (
+  const renderStepPersonal = () => (
     <motion.div
-      key="step0"
-      variants={stepVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className="space-y-6"
-    >
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">
-          Comment souhaitez-vous vérifier votre compte ?
-        </h2>
-        <p className="text-slate-500">
-          Choisissez une méthode pour recevoir votre code de vérification
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Email Option */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => handleVerificationMethodSelect("email")}
-          className={`p-6 rounded-xl border-2 transition-all text-left ${
-            verificationMethod === "email"
-              ? "border-blue-500 bg-blue-50"
-              : "border-slate-200 hover:border-blue-300"
-          }`}
-        >
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${
-            verificationMethod === "email" ? "bg-blue-500" : "bg-slate-100"
-          }`}>
-            <Mail className={`h-7 w-7 ${verificationMethod === "email" ? "text-white" : "text-slate-600"}`} />
-          </div>
-          <h3 className="font-semibold text-lg text-slate-900 mb-1">Par Email</h3>
-          <p className="text-sm text-slate-500">
-            Recevez votre code de vérification par email
-          </p>
-          {verificationMethod === "email" && (
-            <CheckCircle2 className="w-5 h-5 text-blue-500 mt-3" />
-          )}
-        </motion.button>
-
-        {/* Phone Option */}
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => handleVerificationMethodSelect("phone")}
-          className={`p-6 rounded-xl border-2 transition-all text-left ${
-            verificationMethod === "phone"
-              ? "border-blue-500 bg-blue-50"
-              : "border-slate-200 hover:border-blue-300"
-          }`}
-        >
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${
-            verificationMethod === "phone" ? "bg-blue-500" : "bg-slate-100"
-          }`}>
-            <MessageSquare className={`h-7 w-7 ${verificationMethod === "phone" ? "text-white" : "text-slate-600"}`} />
-          </div>
-          <h3 className="font-semibold text-lg text-slate-900 mb-1">Par SMS</h3>
-          <p className="text-sm text-slate-500">
-            Recevez votre code de vérification par SMS
-          </p>
-          {verificationMethod === "phone" && (
-            <CheckCircle2 className="w-5 h-5 text-blue-500 mt-3" />
-          )}
-        </motion.button>
-      </div>
-
-      {verificationMethod && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Button
-            onClick={onNextStep}
-            className="w-full h-12 text-base font-medium mt-4"
-          >
-            Continuer
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-
-  const renderStep1Personal = () => (
-    <motion.div
-      key="step1"
+      key="personal"
       variants={stepVariants}
       initial="initial"
       animate="animate"
@@ -230,10 +159,9 @@ export function RegisterPage({
         </div>
       </div>
 
-      {/* Conditional input based on verification method */}
-      {verificationMethod === "email" ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Adresse email *</Label>
+          <Label htmlFor="email">Email *</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <Input
@@ -246,23 +174,79 @@ export function RegisterPage({
             />
           </div>
         </div>
-      ) : (
         <div className="space-y-2">
-          <Label htmlFor="phoneNumber">{t("phoneNumber")} *</Label>
+          <Label htmlFor="phoneNumber">Numéro de téléphone *</Label>
           <div className="relative">
             <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <Input
               id="phoneNumber"
               type="tel"
               placeholder="6XX XXX XXX"
-              value={registerForm.phoneNumber}
+              value={registerForm.phoneNumber || ""}
               onChange={(e) => onRegisterChange("phoneNumber", e.target.value)}
               className="pl-10"
             />
           </div>
-          <p className="text-xs text-slate-500">
-            Numéro valide Cameroon (MTN: 67x/68x/69x, Orange: 65x/66x)
-          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t("registerAs")} *</Label>
+        <Select
+          value={registerForm.role}
+          onValueChange={(value: "ASSISTANT" | "COMPTABLE" | "ADMIN") => {
+            onRegisterChange("role", value);
+            if (value === "ASSISTANT") onRegisterChange("maxAssistants", 0);
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={t("selectRole")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="COMPTABLE">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                <span>Expert Comptable</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="ASSISTANT">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span>Assistant</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </motion.div>
+  );
+
+  const renderStep2Assistants = () => (
+    <motion.div
+      key="assistants"
+      variants={stepVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="space-y-4"
+    >
+      {registerForm.role === "COMPTABLE" ? (
+        <div className="space-y-2">
+          <Label htmlFor="maxAssistants">Number of assistants *</Label>
+          <Input
+            id="maxAssistants"
+            type="number"
+            min="0"
+            max="10"
+            value={registerForm.maxAssistants || 0}
+            onChange={(e) =>
+              onRegisterChange("maxAssistants", parseInt(e.target.value) || 0)
+            }
+          />
+        </div>
+      ) : (
+        <div className="p-4 bg-slate-50 rounded">
+          This step is optional for your selected role. Click Next to continue.
         </div>
       )}
     </motion.div>
@@ -300,7 +284,9 @@ export function RegisterPage({
             type="password"
             placeholder={t("confirmPassword")}
             value={registerForm.confirmPassword}
-            onChange={(e) => onRegisterChange("confirmPassword", e.target.value)}
+            onChange={(e) =>
+              onRegisterChange("confirmPassword", e.target.value)
+            }
             className="pl-10"
           />
         </div>
@@ -308,25 +294,47 @@ export function RegisterPage({
       <div className="bg-slate-50 p-4 rounded-lg">
         <p className="text-sm font-medium text-slate-700 mb-2">Requirements:</p>
         <ul className="text-xs text-slate-500 space-y-1">
-          <li className={registerForm.password.length >= 8 ? "text-green-600" : ""}>
+          <li
+            className={
+              registerForm.password.length >= 8 ? "text-green-600" : ""
+            }
+          >
             ✓ At least 8 characters
           </li>
-          <li className={/[A-Z]/.test(registerForm.password) ? "text-green-600" : ""}>
+          <li
+            className={
+              /[A-Z]/.test(registerForm.password) ? "text-green-600" : ""
+            }
+          >
             ✓ At least one uppercase letter
           </li>
-          <li className={/[a-z]/.test(registerForm.password) ? "text-green-600" : ""}>
+          <li
+            className={
+              /[a-z]/.test(registerForm.password) ? "text-green-600" : ""
+            }
+          >
             ✓ At least one lowercase letter
           </li>
-          <li className={/[0-9]/.test(registerForm.password) ? "text-green-600" : ""}>
+          <li
+            className={
+              /[0-9]/.test(registerForm.password) ? "text-green-600" : ""
+            }
+          >
             ✓ At least one number
           </li>
-          <li className={/[^A-Za-z0-9]/.test(registerForm.password) ? "text-green-600" : ""}>
+          <li
+            className={
+              /[^A-Za-z0-9]/.test(registerForm.password) ? "text-green-600" : ""
+            }
+          >
             ✓ At least one special character
           </li>
         </ul>
       </div>
     </motion.div>
   );
+
+  const renderStep3Password = () => renderStep2Password();
 
   const renderStep3Role = () => (
     <motion.div
@@ -377,7 +385,9 @@ export function RegisterPage({
             min="0"
             max="10"
             value={registerForm.maxAssistants || 0}
-            onChange={(e) => onRegisterChange("maxAssistants", parseInt(e.target.value) || 0)}
+            onChange={(e) =>
+              onRegisterChange("maxAssistants", parseInt(e.target.value) || 0)
+            }
           />
         </div>
       )}
@@ -476,66 +486,131 @@ export function RegisterPage({
       </div>
     </motion.div>
   );
+  const renderStep4Verification = () => (
+    <motion.div
+      key="verification"
+      variants={stepVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      className="space-y-6"
+    >
+      <div className="text-center mb-4">
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">
+          Vérification du compte
+        </h2>
+        <p className="text-slate-500">
+          Entrez le code OTP envoyé ou modifiez la méthode de vérification
+          ci-dessous.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Méthode de vérification</Label>
+        <div className="flex gap-3">
+          <Button
+            variant={verificationMethod === "email" ? undefined : "outline"}
+            onClick={() => handleVerificationMethodSelect("email")}
+            className={verificationMethod === "email" ? "flex-1" : "flex-1"}
+          >
+            Email
+          </Button>
+          <Button
+            variant={verificationMethod === "phone" ? undefined : "outline"}
+            onClick={() => handleVerificationMethodSelect("phone")}
+            className="flex-1"
+          >
+            SMS
+          </Button>
+        </div>
+
+        <div>
+          <Label htmlFor="verificationContact">
+            {verificationMethod === "email"
+              ? "Adresse email *"
+              : "Numéro de téléphone *"}
+          </Label>
+          <div className="relative">
+            {verificationMethod === "email" ? (
+              <>
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="verificationContact"
+                  type="email"
+                  placeholder="exemple@email.com"
+                  value={registerForm.email || ""}
+                  onChange={(e) => onRegisterChange("email", e.target.value)}
+                  className="pl-10"
+                />
+              </>
+            ) : (
+              <>
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="verificationContact"
+                  type="tel"
+                  placeholder="6XX XXX XXX"
+                  value={registerForm.phoneNumber || ""}
+                  onChange={(e) =>
+                    onRegisterChange("phoneNumber", e.target.value)
+                  }
+                  className="pl-10"
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input id="allowChangeOtp" type="checkbox" checked={false} readOnly />
+          <label htmlFor="allowChangeOtp" className="text-sm text-slate-500">
+            Allow user to change OTP verification method later
+          </label>
+        </div>
+      </div>
+    </motion.div>
+  );
 
   const getStepContent = () => {
-    if (registerStep === 1 && !verificationMethod) {
-      return renderStep0Verification();
-    }
-    if (registerStep === 1) {
-      return renderStep1Personal();
-    }
-    if (registerStep === 2) {
-      return renderStep2Password();
-    }
-    if (registerStep === 3) {
-      return renderStep3Role();
-    }
-    if (registerStep === 4) {
-      return renderStep4Company();
-    }
+    if (registerStep === 1) return renderStepPersonal();
+    if (registerStep === 2) return renderStep2Assistants();
+    if (registerStep === 3) return renderStep3Password();
+    if (registerStep === 4) return renderStep4Verification();
     return null;
   };
 
   const getStepTitle = () => {
-    if (registerStep === 1 && !verificationMethod) {
-      return "Choisissez votre méthode de vérification";
-    }
-    if (registerStep === 1) {
-      return "Informations personnelles";
-    }
-    if (registerStep === 2) {
-      return "Sécurité du compte";
-    }
-    if (registerStep === 3) {
-      return "Type de compte";
-    }
-    if (registerStep === 4) {
-      return "Informations de l'entreprise";
-    }
+    if (registerStep === 1) return "Informations personnelles";
+    if (registerStep === 2) return "Nombre d'assistants";
+    if (registerStep === 3) return "Sécurité du compte";
+    if (registerStep === 4) return "Vérification du compte";
     return "";
   };
 
-  const currentStep = verificationMethod ? registerStep : 0;
-  const adjustedTotalSteps = verificationMethod ? totalSteps : 1;
-  const progress = verificationMethod 
-    ? ((currentStep - 1) / (adjustedTotalSteps - 1)) * 100 
-    : 0;
+  const currentStep = registerStep;
+  const progress = ((currentStep - 1) / Math.max(1, totalSteps - 1)) * 100;
 
   return (
     <div className="w-full max-w-2xl mx-auto p-6">
       <div className="mb-8">
         <Progress value={progress} className="h-2" />
         <div className="flex justify-between mt-2 text-xs text-slate-500">
-          <span>Step {currentStep} of {adjustedTotalSteps}</span>
+          <span>
+            Step {currentStep} of {totalSteps}
+          </span>
           <span>{Math.round(progress)}% completed</span>
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {getStepContent()}
-      </AnimatePresence>
+      <form onSubmit={onRegisterSubmit} noValidate>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+            {error}
+          </div>
+        )}
 
-      {verificationMethod && registerStep > 1 && (
+        <AnimatePresence mode="wait">{getStepContent()}</AnimatePresence>
+
         <div className="flex gap-3 mt-8">
           {registerStep > 1 && (
             <Button
@@ -548,7 +623,26 @@ export function RegisterPage({
               Back
             </Button>
           )}
-          {registerStep < adjustedTotalSteps ? (
+
+          {registerStep === 3 ? (
+            <Button
+              type="submit"
+              disabled={isRegistering || !isStepValid(registerStep)}
+              className="flex-1"
+            >
+              {isRegistering ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  <Shield className="mr-2 h-4 w-4" />
+                  Register
+                </>
+              )}
+            </Button>
+          ) : registerStep < totalSteps ? (
             <Button
               type="button"
               onClick={onNextStep}
@@ -561,8 +655,7 @@ export function RegisterPage({
           ) : (
             <Button
               type="submit"
-              onClick={onRegisterSubmit}
-              disabled={isRegistering}
+              disabled={isRegistering || !isStepValid(registerStep)}
               className="flex-1"
             >
               {isRegistering ? (
@@ -579,7 +672,7 @@ export function RegisterPage({
             </Button>
           )}
         </div>
-      )}
+      </form>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-slate-500">

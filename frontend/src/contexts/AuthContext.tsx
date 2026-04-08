@@ -60,10 +60,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authService.clearTokens();
     setUser(null);
     setError(null);
-    // Clear all localStorage items related to session
-    localStorage.removeItem("onboarding_completed");
-    localStorage.removeItem("hevgestion_access_token");
+    // Clear all localStorage
+    localStorage.clear();
+    // Clear all sessionStorage
     sessionStorage.clear();
+    // Clear cookies by setting them to expire
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
   }, []);
 
   const handleAuthError = useCallback((err: any, defaultMessage: string) => {

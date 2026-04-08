@@ -514,6 +514,7 @@ class ClientController {
     try {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
+      console.log(`🔎 getCountries called by user=${userId} role=${userRole}`);
 
       // Get available countries based on user role and access
       let availableCountries: CountrySelection[] = [];
@@ -544,6 +545,11 @@ class ClientController {
         timezone: "Africa/Douala", // All countries use the same timezone for now
         flag: ClientController.getCountryFlag(country),
       }));
+
+      console.log(
+        `🔔 getCountries: returning ${countryDetails.length} countries ->`,
+        countryDetails.map((c) => c.code).join(", ")
+      );
 
       res.json({ countries: countryDetails });
     } catch (error) {

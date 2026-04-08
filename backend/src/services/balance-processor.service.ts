@@ -1,14 +1,21 @@
-
 // src/services/balance-processor.service.ts
-import { prisma } from '../lib/prisma';
-import { Balance, BalanceStatus, IssueType, Severity, AssetMovementType, ActivityType } from '@prisma/client';
-import { BadRequestError } from '../lib/errors';
+import { prisma } from "../lib/prisma";
+import {
+  Balance,
+  BalanceStatus,
+  IssueType,
+  Severity,
+  AssetMovementType,
+  ActivityType,
+} from "@prisma/client";
+import { BadRequestError } from "../lib/errors";
+import { planComptableService } from "./plan-comptable.service";
 
 interface BalanceRow {
   accountNumber: string;
   accountName: string;
-  openingDebit: number;
-  openingCredit: number;
+  openingDebit?: number;
+  openingCredit?: number;
   movementDebit: number;
   movementCredit: number;
   closingDebit: number;
@@ -28,18 +35,18 @@ interface EquilibriumResult {
 
 export class BalanceProcessor {
   // Account classification rules
-  private readonly ASSET_ACCOUNTS = ['1', '2', '3', '4', '5'];
-  private readonly LIABILITY_ACCOUNTS = ['1', '4'];
-  private readonly EQUITY_ACCOUNTS = ['1'];
-  private readonly FIXED_ASSET_ACCOUNTS = ['2'];
-  
+  private readonly ASSET_ACCOUNTS = ["1", "2", "3", "4", "5"];
+  private readonly LIABILITY_ACCOUNTS = ["1", "4"];
+  private readonly EQUITY_ACCOUNTS = ["1"];
+  private readonly FIXED_ASSET_ACCOUNTS = ["2"];
+
   async processBalance(balanceId: string): Promise<void> {
     const balance = await prisma.balance.findUnique({
       where: { id: balanceId },
     });
 
     if (!balance) {
-      throw new BadRequestError('Balance not found');
+      throw new BadRequestError("Balance not found");
     }
 
     // Update status to validating
@@ -51,7 +58,7 @@ export class BalanceProcessor {
     try {
       // 1. Validate syntax and structure
       const validationErrors = await this.validateBalance(balance);
-      
+
       if (validationErrors.length > 0) {
         await prisma.balance.update({
           where: { id: balanceId },
@@ -68,6 +75,12 @@ export class BalanceProcessor {
 
       // 3. Detect account issues
       const issues = await this.detectAccountIssues(balance);
+
+      // 3b. Compare with previous year's balance (opening vs previous closing)
+      const openingIssues = await this.compareWithPrevious(balance);
+      if (openingIssues && openingIssues.length > 0) {
+        issues.push(...openingIssues);
+      }
 
       // 4. Extract fixed assets
       const fixedAssets = await this.extractFixedAssets(balance);
@@ -96,12 +109,13 @@ export class BalanceProcessor {
 
       console.log(`Balance ${balanceId} processed successfully`);
     } catch (error) {
-      console.error('Balance processing error:', error);
+      console.error("Balance processing error:", error);
       await prisma.balance.update({
         where: { id: balanceId },
         data: {
           status: BalanceStatus.INVALID,
-          validationErrors: error instanceof Error ? error.message : 'Processing failed',
+          validationErrors:
+            error instanceof Error ? error.message : "Processing failed",
         },
       });
       throw error;
@@ -113,50 +127,71 @@ export class BalanceProcessor {
     const data = balance.originalData as any;
 
     if (!data || !Array.isArray(data.rows)) {
-      errors.push('Invalid balance data structure');
+      errors.push("Invalid balance data structure");
       return errors;
     }
 
     const rows = data.rows as BalanceRow[];
 
-    // Check required columns
+    // Check required columns (opening balances are optional)
     const requiredFields = [
-      'accountNumber',
-      'accountName',
-      'openingDebit',
-      'openingCredit',
-      'movementDebit',
-      'movementCredit',
-      'closingDebit',
-      'closingCredit',
+      "accountNumber",
+      "accountName",
+      "movementDebit",
+      "movementCredit",
+      "closingDebit",
+      "closingCredit",
+    ];
+
+    const optionalFields = [
+      "openingDebit",
+      "openingCredit",
     ];
 
     rows.forEach((row, index) => {
       requiredFields.forEach((field) => {
-        if (row[field as keyof BalanceRow] === undefined || row[field as keyof BalanceRow] === null) {
+        if (
+          row[field as keyof BalanceRow] === undefined ||
+          row[field as keyof BalanceRow] === null
+        ) {
           errors.push(`Row ${index + 1}: Missing required field '${field}'`);
+        }
+      });
+
+      // Optional fields should default to 0 if missing
+      optionalFields.forEach((field) => {
+        if (
+          row[field as keyof BalanceRow] === undefined ||
+          row[field as keyof BalanceRow] === null
+        ) {
+          (row as any)[field] = 0;
         }
       });
 
       // Validate account number format (should be numeric)
       if (row.accountNumber && !/^\d+$/.test(row.accountNumber)) {
-        errors.push(`Row ${index + 1}: Invalid account number format '${row.accountNumber}'`);
+        errors.push(
+          `Row ${index + 1}: Invalid account number format '${row.accountNumber}'`,
+        );
       }
 
       // Validate numeric values
       const numericFields = [
-        'openingDebit',
-        'openingCredit',
-        'movementDebit',
-        'movementCredit',
-        'closingDebit',
-        'closingCredit',
+        "openingDebit",
+        "openingCredit",
+        "movementDebit",
+        "movementCredit",
+        "closingDebit",
+        "closingCredit",
       ];
 
       numericFields.forEach((field) => {
         const value = row[field as keyof BalanceRow];
-        if (typeof value !== 'number' || isNaN(value) || value < 0) {
-          errors.push(`Row ${index + 1}: Invalid value for '${field}'`);
+        // Allow undefined/null for optional fields
+        if (value !== undefined && value !== null) {
+          if (typeof value !== "number" || isNaN(value) || value < 0) {
+            errors.push(`Row ${index + 1}: Invalid value for '${field}'`);
+          }
         }
       });
     });
@@ -249,13 +284,19 @@ export class BalanceProcessor {
 
     const anomalies: string[] = [];
     if (!openingBalanced) {
-      anomalies.push(`Opening: Débits(1-5) - Crédits(1-5) = ${openingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${openingY.toFixed(2)}`);
+      anomalies.push(
+        `Opening: Débits(1-5) - Crédits(1-5) = ${openingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${openingY.toFixed(2)}`,
+      );
     }
     if (!movementBalanced) {
-      anomalies.push(`Mouvement: Débits(1-5) - Crédits(1-5) = ${movementX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${movementY.toFixed(2)}`);
+      anomalies.push(
+        `Mouvement: Débits(1-5) - Crédits(1-5) = ${movementX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${movementY.toFixed(2)}`,
+      );
     }
     if (!closingBalanced) {
-      anomalies.push(`Clôture: Débits(1-5) - Crédits(1-5) = ${closingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${closingY.toFixed(2)}`);
+      anomalies.push(
+        `Clôture: Débits(1-5) - Crédits(1-5) = ${closingX.toFixed(2)} ≠ Crédits(6-8) - Débits(6-8) = ${closingY.toFixed(2)}`,
+      );
     }
 
     const totalDebit = closingDebit15 + closingDebit68;
@@ -269,7 +310,7 @@ export class BalanceProcessor {
       closingDebit: totalDebit,
       closingCredit: totalCredit,
       isBalanced,
-      anomalies: anomalies.length > 0 ? anomalies.join('; ') : undefined,
+      anomalies: anomalies.length > 0 ? anomalies.join("; ") : undefined,
     };
 
     console.log("Equilibrium result:", result);
@@ -282,28 +323,33 @@ export class BalanceProcessor {
     const issues: any[] = [];
 
     rows.forEach((row) => {
-      // Check for non-compliant accounts
-      if (!this.isValidAccountNumber(row.accountNumber)) {
+      // Use planComptableService to validate account existence and position
+      const accValidation = planComptableService.validateAccount(
+        row.accountNumber,
+        row.accountName || "",
+      );
+      if (!accValidation.valid && accValidation.error) {
         issues.push({
           accountNumber: row.accountNumber,
           accountName: row.accountName,
           issueType: IssueType.NON_COMPLIANT_ACCOUNT,
-          description: 'Account number does not comply with OHADA chart of accounts',
+          description: accValidation.error,
           severity: Severity.ERROR,
         });
       }
 
-      // Check balance position
-      const accountClass = row.accountNumber.charAt(0);
-      const hasDebitBalance = row.closingDebit > row.closingCredit;
-      const hasCreditBalance = row.closingCredit > row.closingDebit;
-
-      if (this.ASSET_ACCOUNTS.includes(accountClass) && hasCreditBalance) {
+      // Validate position using plan comptable (closing position)
+      const posValidation = planComptableService.validatePosition(
+        row.accountNumber,
+        row.closingDebit || 0,
+        row.closingCredit || 0,
+      );
+      if (!posValidation.valid && posValidation.error) {
         issues.push({
           accountNumber: row.accountNumber,
           accountName: row.accountName,
           issueType: IssueType.WRONG_BALANCE_POSITION,
-          description: 'Asset account has credit balance',
+          description: posValidation.error,
           severity: Severity.WARNING,
         });
       }
@@ -314,7 +360,7 @@ export class BalanceProcessor {
           accountNumber: row.accountNumber,
           accountName: row.accountName,
           issueType: IssueType.MISSING_SPECIFICATION,
-          description: 'Account requires additional specifications for DSF',
+          description: "Account requires additional specifications for DSF",
           severity: Severity.INFO,
         });
       }
@@ -380,39 +426,40 @@ export class BalanceProcessor {
       const netBalance = row.closingDebit - row.closingCredit;
 
       switch (accountClass) {
-        case '2': // Fixed assets
+        case "2": // Fixed assets
           ventilation.assets.fixed += Math.abs(netBalance);
           break;
-        case '3': // Inventory
-        case '4': // Receivables (if debit)
-        case '5': // Cash
+        case "3": // Inventory
+        case "4": // Receivables (if debit)
+        case "5": // Cash
           if (netBalance > 0) {
             ventilation.assets.current += netBalance;
           }
           break;
-        case '1': // Capital and reserves
+        case "1": // Capital and reserves
           if (netBalance < 0) {
             ventilation.liabilities.equity += Math.abs(netBalance);
           }
           break;
-        case '4': // Payables (if credit)
+        case "4": // Payables (if credit)
           if (netBalance < 0) {
             ventilation.liabilities.current += Math.abs(netBalance);
           }
           break;
-        case '6': // Expenses
+        case "6": // Expenses
           ventilation.expenses += Math.abs(netBalance);
           break;
-        case '7': // Income
+        case "7": // Income
           ventilation.income += Math.abs(netBalance);
           break;
       }
     });
 
-    ventilation.assets.total = ventilation.assets.current + ventilation.assets.fixed;
-    ventilation.liabilities.total = 
-      ventilation.liabilities.current + 
-      ventilation.liabilities.longTerm + 
+    ventilation.assets.total =
+      ventilation.assets.current + ventilation.assets.fixed;
+    ventilation.liabilities.total =
+      ventilation.liabilities.current +
+      ventilation.liabilities.longTerm +
       ventilation.liabilities.equity;
 
     return ventilation;
@@ -426,7 +473,18 @@ export class BalanceProcessor {
 
   private requiresSpecification(accountNumber: string): boolean {
     // Accounts that require specifications (e.g., bank accounts, specific liabilities)
-    const needsSpec = ['10', '11', '16', '17', '40', '41', '42', '50', '51', '52'];
+    const needsSpec = [
+      "10",
+      "11",
+      "16",
+      "17",
+      "40",
+      "41",
+      "42",
+      "50",
+      "51",
+      "52",
+    ];
     const prefix = accountNumber.substring(0, 2);
     return needsSpec.includes(prefix);
   }
@@ -436,5 +494,74 @@ export class BalanceProcessor {
     const grossValue = row.closingDebit || 0;
     const netValue = row.closingDebit - row.closingCredit;
     return grossValue - netValue;
+  }
+
+  // Compare current balance openings with previous balance closings aggregated by root (first 3 digits)
+  private async compareWithPrevious(balance: Balance): Promise<any[]> {
+    const issues: any[] = [];
+    try {
+      const folderId = balance.folderId;
+      const periodNum = parseInt(balance.period || "0");
+      if (!folderId || !periodNum) return [];
+
+      const prevPeriod = (periodNum - 1).toString();
+      const previous = await prisma.balance.findFirst({
+        where: { folderId, period: prevPeriod },
+      });
+
+      if (!previous || !previous.originalData) return [];
+
+      const currRows = (balance.originalData as any).rows || [];
+      const prevRows = (previous.originalData as any).rows || [];
+
+      // Aggregate by root (first 3 digits)
+      const agg = (rows: any[], keyField: string) => {
+        const map: Record<string, number> = {};
+        rows.forEach((r) => {
+          const root = (r.accountNumber || "").substring(0, 3);
+          const val = Number(r[keyField] || 0);
+          if (!map[root]) map[root] = 0;
+          map[root] += val;
+        });
+        return map;
+      };
+
+      const prevClosingByRootDebit = agg(prevRows, "closingDebit");
+      const prevClosingByRootCredit = agg(prevRows, "closingCredit");
+
+      const currOpeningByRootDebit = agg(currRows, "openingDebit");
+      const currOpeningByRootCredit = agg(currRows, "openingCredit");
+
+      const tolerance = 0.01;
+
+      const roots = new Set<string>([
+        ...Object.keys(prevClosingByRootDebit),
+        ...Object.keys(prevClosingByRootCredit),
+        ...Object.keys(currOpeningByRootDebit),
+        ...Object.keys(currOpeningByRootCredit),
+      ]);
+
+      roots.forEach((root) => {
+        const prevNet =
+          (prevClosingByRootDebit[root] || 0) -
+          (prevClosingByRootCredit[root] || 0);
+        const currNet =
+          (currOpeningByRootDebit[root] || 0) -
+          (currOpeningByRootCredit[root] || 0);
+        if (Math.abs(prevNet - currNet) > tolerance) {
+          issues.push({
+            accountNumber: root,
+            accountName: `Root ${root} mismatch between N-1 closing and N opening`,
+            issueType: IssueType.EQUILIBRIUM_ERROR,
+            description: `Mismatch for root ${root}: previous closing net=${prevNet.toFixed(2)}, current opening net=${currNet.toFixed(2)}`,
+            severity: Severity.WARNING,
+          });
+        }
+      });
+    } catch (err) {
+      console.error("Error comparing with previous balance:", err);
+    }
+
+    return issues;
   }
 }

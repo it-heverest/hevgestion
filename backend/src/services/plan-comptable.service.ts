@@ -89,22 +89,6 @@ class PlanComptableService {
       };
     }
 
-    // Validate account name
-    const nameLower = accountName.toLowerCase().trim();
-    const libelleLower = found.libelle.toLowerCase().trim();
-    if (
-      libelleLower &&
-      nameLower &&
-      nameLower !== libelleLower &&
-      !nameLower.includes(libelleLower) &&
-      !libelleLower.includes(nameLower)
-    ) {
-      return {
-        valid: false,
-        error: `Le libellé "${accountName}" ne correspond pas au plan comptable. Attendu: "${found.libelle}"`,
-      };
-    }
-
     return { valid: true };
   }
 

@@ -52,13 +52,18 @@ interface BalanceRow {
   id?: string;
   accountNumber: string;
   accountName: string;
-  openingDebit: number;
-  openingCredit: number;
+  openingDebit?: number;
+  openingCredit?: number;
   movementDebit: number;
   movementCredit: number;
   closingDebit: number;
   closingCredit: number;
 }
+
+type OriginalDataType = 
+  | { rows: BalanceRow[] }
+  | BalanceRow[]
+  | string;
 
 interface BalanceData {
   id: string;
@@ -66,9 +71,7 @@ interface BalanceData {
   period: string;
   fileName: string;
   status: string;
-  originalData: {
-    rows: BalanceRow[];
-  };
+  originalData: OriginalDataType;
   equilibrium?: {
     isBalanced: boolean;
     totalDebit: number;
@@ -127,18 +130,42 @@ const validateBalanceFile = (preview: {
 }): string[] => {
   const errors: string[] = [];
 
-  if (preview.headers.length !== 8) {
+  if (preview.headers.length < 8) {
     errors.push(
-      `Nombre de colonnes invalide: ${preview.headers.length} colonnes détectées (8 attendues)`,
+      `Nombre de colonnes insuffisant: ${preview.headers.length} colonnes détectées (8 minimum attendues)`,
     );
   }
 
   if (preview.rows.length > 0) {
     preview.rows.forEach((row, idx) => {
-      if (row.length >= 1 && row[0]?.trim()) {
-        const accountNum = row[0].trim();
+      const accountNum = row[0]?.trim().replace(/[^0-9]/g, "") || "";
+      const nameCell = row[1]?.trim() || "";
+      
+      const numericCols = row.slice(2).map(c => {
+        const cleaned = c?.trim().replace(/[^0-9.-]/g, "");
+        return cleaned === "" || cleaned === "-" ? null : parseFloat(cleaned);
+      });
+      const hasNumericData = numericCols.some(v => v !== null && v !== 0);
+      
+      if (accountNum) {
         if (!/^[1-8]\d{2,}$/.test(accountNum)) {
           errors.push(`Ligne ${idx + 2}: Compte "${accountNum}" invalide`);
+        }
+      }
+      
+      if (!accountNum && !nameCell && !hasNumericData) {
+        return;
+      }
+      
+      if (accountNum && !nameCell) {
+        errors.push(`Ligne ${idx + 2}: Libellé de compte manquant`);
+      }
+      
+      for (let colIdx = 2; colIdx < Math.min(row.length, 10); colIdx++) {
+        const cellVal = row[colIdx]?.trim();
+        const cleaned = cellVal?.replace(/[^0-9.-]/g, "") || "";
+        if (cellVal && cellVal !== "-" && cellVal !== "" && cleaned !== "" && isNaN(parseFloat(cleaned))) {
+          errors.push(`Ligne ${idx + 2}: Valeur numérique invalide dans la colonne ${colIdx + 1}`);
         }
       }
     });
@@ -180,7 +207,24 @@ export function BalanceImporter() {
     try {
       const response =
         await clientService.getBalancesByFolder(effectiveFolderId);
-      const balancesList = response?.balances || response?.data?.balances || [];
+      
+      let balancesList = response?.balances || response?.data?.balances || [];
+      
+      // Handle case where originalData is a JSON string
+      balancesList = balancesList.map((b: any) => {
+        let originalData = b.originalData;
+        if (typeof originalData === 'string') {
+          try {
+            originalData = JSON.parse(originalData);
+          } catch (e) {
+            console.error('Failed to parse originalData:', e);
+            originalData = null;
+          }
+        }
+        return { ...b, originalData };
+      });
+      
+      
       setBalances(balancesList);
 
       if (balancesList.length > 0) {
@@ -227,14 +271,6 @@ export function BalanceImporter() {
     (b) => b.type?.toUpperCase() === "PREVIOUS_YEAR",
   );
 
-  console.log("Fiscal year:", fiscalYear, "Previous year:", previousYear);
-  console.log(
-    "Balances types:",
-    balances.map((b) => ({ id: b.id, type: b.type, period: b.period })),
-  );
-  console.log("Current year balance found:", currentYearBalance?.type);
-  console.log("Previous year balance found:", previousYearBalance?.type);
-
   const openImportDialog = (type: "current" | "previous") => {
     setImportBalanceType(type);
 
@@ -254,10 +290,6 @@ export function BalanceImporter() {
 
   const hasCurrentYear = !!currentYearBalance;
   const hasPreviousYear = !!previousYearBalance;
-
-  console.log("Current year balance:", currentYearBalance);
-  console.log("Previous year balance:", previousYearBalance);
-  console.log("All balances:", balances);
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -380,8 +412,9 @@ export function BalanceImporter() {
       <Dialog
         open={showMissingPreviousAlert}
         onOpenChange={setShowMissingPreviousAlert}
+        style={{ width: "50%" }}
       >
-        <DialogContent>
+        <DialogContent className="w-[50vw] max-w-[50vw]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
@@ -419,8 +452,12 @@ export function BalanceImporter() {
       </Dialog>
 
       {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        style={{ width: "60%" }}
+      >
+        <DialogContent className="w-[60vw] max-w-[60vw]">
           <DialogHeader>
             <DialogTitle>
               Importer la balance{" "}
@@ -483,11 +520,23 @@ function BalanceListItem({
 
   const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
     if (!balance.originalData) return [];
-    if (balance.originalData.rows) {
-      return balance.originalData.rows;
+    
+    let data = balance.originalData;
+    
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        console.error('Failed to parse originalData:', e);
+        return [];
+      }
     }
-    if (Array.isArray(balance.originalData)) {
-      return balance.originalData as BalanceRow[];
+    
+    if (data && typeof data === 'object' && 'rows' in data) {
+      return data.rows as BalanceRow[];
+    }
+    if (Array.isArray(data)) {
+      return data as BalanceRow[];
     }
     return [];
   };
@@ -506,8 +555,6 @@ function BalanceListItem({
     : isCurrentYear
       ? "N"
       : balance.period || "N";
-
-  console.log("BalanceListItem - balance:", balance.id, "type:", balance.type);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -602,7 +649,7 @@ function BalanceDetailView({
   const [openingMismatches, setOpeningMismatches] = useState<
     { account: string; name: string; n1Closing: number; nOpening: number }[]
   >([]);
-const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<{
     openingDebit: number;
     openingCredit: number;
@@ -611,17 +658,31 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
     closingDebit: number;
     closingCredit: number;
   } | null>(null);
-  const [modifiedRows, setModifiedRows] = useState<{[key: string]: BalanceRow}>({});
+  const [modifiedRows, setModifiedRows] = useState<{
+    [key: string]: BalanceRow;
+  }>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
     if (!balance.originalData) return [];
-    if (balance.originalData.rows) {
-      return balance.originalData.rows;
+    
+    let data = balance.originalData;
+    
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        console.error('Failed to parse originalData:', e);
+        return [];
+      }
     }
-    if (Array.isArray(balance.originalData)) {
-      return balance.originalData as BalanceRow[];
+    
+    if (data && typeof data === 'object' && 'rows' in data) {
+      return data.rows as BalanceRow[];
+    }
+    if (Array.isArray(data)) {
+      return data as BalanceRow[];
     }
     return [];
   };
@@ -630,56 +691,70 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const previousYearRows = previousYearBalance
     ? getBalanceRows(previousYearBalance)
     : [];
-
+  
   // Calculate accounts with opening balance issues
   const accountsWithIssues = useMemo(() => {
-    if (!previousYearBalance || previousYearRows.length === 0) return new Set<string>();
-    
+    if (!previousYearBalance || previousYearRows.length === 0)
+      return new Set<string>();
+
     const issues = new Set<string>();
-    
-    // Group previous year by first 3 digits
-    const previousYearByRoot: {[key: string]: {debit: number, credit: number}} = {};
-    previousYearRows.forEach(row => {
-      const root = row.accountNumber?.substring(0, 3) || "";
-      if (!previousYearByRoot[root]) {
-        previousYearByRoot[root] = { debit: 0, credit: 0 };
+
+    // Create a map of previous year accounts by account number
+    const previousYearAccounts: {
+      [key: string]: { debit: number; credit: number };
+    } = {};
+    previousYearRows.forEach((row) => {
+      const accNum = row.accountNumber?.trim() || "";
+      if (accNum) {
+        previousYearAccounts[accNum] = {
+          debit: row.closingDebit || 0,
+          credit: row.closingCredit || 0,
+        };
       }
-      previousYearByRoot[root].debit += row.closingDebit || 0;
-      previousYearByRoot[root].credit += row.closingCredit || 0;
     });
 
-    // Check each account in current year
-    balanceRows.forEach(row => {
-      const root = row.accountNumber?.substring(0, 3) || "";
-      const prevData = previousYearByRoot[root];
+    // Check each account in current year - only flag if account existed in N-1
+    // and the opening balance doesn't match the previous closing
+    balanceRows.forEach((row) => {
+      const accNum = row.accountNumber?.trim() || "";
+      if (!accNum) return;
       
+      const prevData = previousYearAccounts[accNum];
       if (prevData) {
         const prevClosing = prevData.debit - prevData.credit;
         const currentOpening = (row.openingDebit || 0) - (row.openingCredit || 0);
-        
+
         if (Math.abs(prevClosing - currentOpening) > 0.01) {
-          issues.add(row.accountNumber);
+          issues.add(accNum);
         }
       }
     });
-    
+
     return issues;
   }, [balanceRows, previousYearRows, previousYearBalance]);
 
   const getAllRowsWithModifications = (): BalanceRow[] => {
-    return balanceRows.map(row => {
+    return balanceRows.map((row) => {
       const hasModification = !!modifiedRows[row.accountNumber];
-      const openingDebit = hasModification 
-        ? (modifiedRows[row.accountNumber].openingDebit ?? row.openingDebit ?? 0)
+      const openingDebit = hasModification
+        ? (modifiedRows[row.accountNumber].openingDebit ??
+          row.openingDebit ??
+          0)
         : (row.openingDebit ?? 0);
-      const openingCredit = hasModification 
-        ? (modifiedRows[row.accountNumber].openingCredit ?? row.openingCredit ?? 0)
+      const openingCredit = hasModification
+        ? (modifiedRows[row.accountNumber].openingCredit ??
+          row.openingCredit ??
+          0)
         : (row.openingCredit ?? 0);
-      const movementDebit = hasModification 
-        ? (modifiedRows[row.accountNumber].movementDebit ?? row.movementDebit ?? 0)
+      const movementDebit = hasModification
+        ? (modifiedRows[row.accountNumber].movementDebit ??
+          row.movementDebit ??
+          0)
         : (row.movementDebit ?? 0);
-      const movementCredit = hasModification 
-        ? (modifiedRows[row.accountNumber].movementCredit ?? row.movementCredit ?? 0)
+      const movementCredit = hasModification
+        ? (modifiedRows[row.accountNumber].movementCredit ??
+          row.movementCredit ??
+          0)
         : (row.movementCredit ?? 0);
       const netOpening = openingDebit - openingCredit;
       const netMovement = movementDebit - movementCredit;
@@ -870,16 +945,22 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   // Calculate suggested values for fixing
   const getSuggestedValues = (accountNumber: string) => {
     if (!previousYearBalance || previousYearRows.length === 0) return null;
-    
+
     const root = accountNumber.substring(0, 3);
-    const prevRootAccounts = previousYearRows.filter(r => 
-      r.accountNumber?.substring(0, 3) === root
+    const prevRootAccounts = previousYearRows.filter(
+      (r) => r.accountNumber?.substring(0, 3) === root,
     );
-    
-    const totalDebit = prevRootAccounts.reduce((sum, r) => sum + (r.closingDebit || 0), 0);
-    const totalCredit = prevRootAccounts.reduce((sum, r) => sum + (r.closingCredit || 0), 0);
+
+    const totalDebit = prevRootAccounts.reduce(
+      (sum, r) => sum + (r.closingDebit || 0),
+      0,
+    );
+    const totalCredit = prevRootAccounts.reduce(
+      (sum, r) => sum + (r.closingCredit || 0),
+      0,
+    );
     const net = totalDebit - totalCredit;
-    
+
     if (net > 0) {
       return { openingDebit: net, openingCredit: 0 };
     } else if (net < 0) {
@@ -895,8 +976,10 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
     const openingCredit = modified?.openingCredit ?? row.openingCredit ?? 0;
     const movementDebit = modified?.movementDebit ?? row.movementDebit ?? 0;
     const movementCredit = modified?.movementCredit ?? row.movementCredit ?? 0;
-    const closingDebit = openingDebit + movementDebit - openingCredit - movementCredit;
-    const closingCredit = openingCredit + movementCredit - openingDebit - movementDebit;
+    const closingDebit =
+      openingDebit + movementDebit - openingCredit - movementCredit;
+    const closingCredit =
+      openingCredit + movementCredit - openingDebit - movementDebit;
     setEditedValues({
       openingDebit,
       openingCredit,
@@ -909,25 +992,29 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
 
   const handleSaveEdit = () => {
     if (!editingAccount || !editedValues) return;
-    
+
     const openingDebit = editedValues.openingDebit;
     const openingCredit = editedValues.openingCredit;
     const movementDebit = editedValues.movementDebit;
     const movementCredit = editedValues.movementCredit;
-    
+
     const netOpening = openingDebit - openingCredit;
     const netMovement = movementDebit - movementCredit;
     const netClosing = netOpening + netMovement;
-    
+
     const closingDebit = netClosing > 0 ? netClosing : 0;
     const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
-    
-    setModifiedRows(prev => ({
+
+    setModifiedRows((prev) => ({
       ...prev,
       [editingAccount]: {
-        ...(prev[editingAccount] || balanceRows.find(r => r.accountNumber === editingAccount) || {}),
+        ...(prev[editingAccount] ||
+          balanceRows.find((r) => r.accountNumber === editingAccount) ||
+          {}),
         accountNumber: editingAccount,
-        accountName: balanceRows.find(r => r.accountNumber === editingAccount)?.accountName || "",
+        accountName:
+          balanceRows.find((r) => r.accountNumber === editingAccount)
+            ?.accountName || "",
         openingDebit,
         openingCredit,
         movementDebit,
@@ -952,7 +1039,7 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
       const netClosing = netOpening + (movementDebit - movementCredit);
       const closingDebit = netClosing > 0 ? netClosing : 0;
       const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
-      
+
       setEditingAccount(accountNumber);
       setEditedValues({
         openingDebit,
@@ -965,7 +1052,10 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
     }
   };
 
-  const getEffectiveValue = (row: BalanceRow, field: keyof BalanceRow): number => {
+  const getEffectiveValue = (
+    row: BalanceRow,
+    field: keyof BalanceRow,
+  ): number => {
     const modified = modifiedRows[row.accountNumber];
     if (modified) {
       const value = modified[field];
@@ -998,7 +1088,7 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const hasModificationInRow = (accountNumber: string): boolean => {
     const modified = modifiedRows[accountNumber];
     if (!modified) return false;
-    const original = balanceRows.find(r => r.accountNumber === accountNumber);
+    const original = balanceRows.find((r) => r.accountNumber === accountNumber);
     if (!original) return false;
     return (
       modified.openingDebit !== original.openingDebit ||
@@ -1009,23 +1099,32 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
   };
 
   const filteredData = balanceRows
-    .map(row => {
+    .map((row) => {
       const hasModification = !!modifiedRows[row.accountNumber];
-      const openingDebit = hasModification 
-        ? (modifiedRows[row.accountNumber].openingDebit ?? row.openingDebit ?? 0)
+      const openingDebit = hasModification
+        ? (modifiedRows[row.accountNumber].openingDebit ??
+          row.openingDebit ??
+          0)
         : (row.openingDebit ?? 0);
-      const openingCredit = hasModification 
-        ? (modifiedRows[row.accountNumber].openingCredit ?? row.openingCredit ?? 0)
+      const openingCredit = hasModification
+        ? (modifiedRows[row.accountNumber].openingCredit ??
+          row.openingCredit ??
+          0)
         : (row.openingCredit ?? 0);
-      const movementDebit = hasModification 
-        ? (modifiedRows[row.accountNumber].movementDebit ?? row.movementDebit ?? 0)
+      const movementDebit = hasModification
+        ? (modifiedRows[row.accountNumber].movementDebit ??
+          row.movementDebit ??
+          0)
         : (row.movementDebit ?? 0);
-      const movementCredit = hasModification 
-        ? (modifiedRows[row.accountNumber].movementCredit ?? row.movementCredit ?? 0)
+      const movementCredit = hasModification
+        ? (modifiedRows[row.accountNumber].movementCredit ??
+          row.movementCredit ??
+          0)
         : (row.movementCredit ?? 0);
       const netOpening = openingDebit - openingCredit;
       const netMovement = movementDebit - movementCredit;
       const netClosing = netOpening + netMovement;
+      
       return {
         accountNumber: row.accountNumber,
         accountName: row.accountName,
@@ -1112,8 +1211,7 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <AlertTriangle className="h-3 w-3 text-orange-500" />
-              À problème
+              <AlertTriangle className="h-3 w-3 text-orange-500" />À problème
             </div>
             <p className="text-xl font-semibold text-orange-600">
               {accountsWithIssues.size}
@@ -1179,8 +1277,8 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
         </Button>
         {hasUnsavedChanges && (
           <>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleCancelChanges}
               className="text-orange-700 border-orange-300 hover:bg-orange-50"
@@ -1188,7 +1286,7 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
               <X className="h-4 w-4 mr-1" />
               Annuler
             </Button>
-            <Button 
+            <Button
               size="sm"
               onClick={handleSaveToBackend}
               disabled={isSaving}
@@ -1314,14 +1412,10 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                     Créd. Clôt
                   </div>
                 </TableHead>
-                {previousYearBalance && (
-                  <TableHead className="text-center text-xs">
-                    Action
-                  </TableHead>
-                ) || (
-                  <TableHead className="text-center text-xs">
-                    Action
-                  </TableHead>
+                {(previousYearBalance && (
+                  <TableHead className="text-center text-xs">Action</TableHead>
+                )) || (
+                  <TableHead className="text-center text-xs">Action</TableHead>
                 )}
               </TableRow>
             </TableHeader>
@@ -1329,102 +1423,125 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
               {filteredData.slice(0, 100).map((row, idx) => {
                 const hasIssue = accountsWithIssues.has(row.accountNumber);
                 const isEditing = editingAccount === row.accountNumber;
-                
+
                 return (
-                  <TableRow 
+                  <TableRow
                     key={idx}
                     className={hasIssue ? "bg-red-50 hover:bg-red-100" : ""}
                   >
-                    <TableCell className={`font-mono text-sm ${hasIssue ? "font-bold text-red-700" : ""}`}>
-                      {row.accountNumber}
+                    <TableCell
+                      className={`font-mono text-sm ${hasIssue ? "font-bold text-red-700" : ""}`}
+                    >
+                      {row.accountNumber?.replace(/[^0-9]/g, "") || row.accountNumber}
                       {hasIssue && (
-                        <span className="ml-2 text-xs text-red-600" title="Incohérence avec N-1">⚠️</span>
+                        <span
+                          className="ml-2 text-xs text-red-600"
+                          title="Incohérence avec N-1"
+                        >
+                          ⚠️
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm">{row.accountName}</TableCell>
-                    <TableCell 
+                    <TableCell
                       className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
                       onClick={() => handleStartEdit(row)}
                     >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
+                      {isEditing &&
+                      editedValues &&
+                      editingAccount === row.accountNumber ? (
                         <Input
                           type="number"
                           value={editedValues?.openingDebit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            openingDebit: parseFloat(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            setEditedValues({
+                              ...editedValues!,
+                              openingDebit: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           className="w-24 h-6 text-right"
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
                         />
+                      ) : (row.openingDebit || 0) > 0 ? (
+                        (row.openingDebit || 0).toLocaleString()
                       ) : (
-                        (row.openingDebit || 0) > 0
-                          ? (row.openingDebit || 0).toLocaleString()
-                          : "-"
+                        "-"
                       )}
                     </TableCell>
-                    <TableCell 
+                    <TableCell
                       className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
                       onClick={() => handleStartEdit(row)}
                     >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
+                      {isEditing &&
+                      editedValues &&
+                      editingAccount === row.accountNumber ? (
                         <Input
                           type="number"
                           value={editedValues?.openingCredit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            openingCredit: parseFloat(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            setEditedValues({
+                              ...editedValues!,
+                              openingCredit: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           className="w-24 h-6 text-right"
                           onClick={(e) => e.stopPropagation()}
                         />
+                      ) : (row.openingCredit || 0) > 0 ? (
+                        (row.openingCredit || 0).toLocaleString()
                       ) : (
-                        (row.openingCredit || 0) > 0
-                          ? (row.openingCredit || 0).toLocaleString()
-                          : "-"
+                        "-"
                       )}
                     </TableCell>
-                    <TableCell 
+                    <TableCell
                       className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
                       onClick={() => handleStartEdit(row)}
                     >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
+                      {isEditing &&
+                      editedValues &&
+                      editingAccount === row.accountNumber ? (
                         <Input
                           type="number"
                           value={editedValues?.movementDebit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            movementDebit: parseFloat(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            setEditedValues({
+                              ...editedValues!,
+                              movementDebit: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           className="w-24 h-6 text-right"
                           onClick={(e) => e.stopPropagation()}
                         />
+                      ) : (row.movementDebit || 0) > 0 ? (
+                        (row.movementDebit || 0).toLocaleString()
                       ) : (
-                        (row.movementDebit || 0) > 0
-                          ? (row.movementDebit || 0).toLocaleString()
-                          : "-"
+                        "-"
                       )}
                     </TableCell>
-                    <TableCell 
+                    <TableCell
                       className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
                       onClick={() => handleStartEdit(row)}
                     >
-                      {isEditing && editedValues && editingAccount === row.accountNumber ? (
+                      {isEditing &&
+                      editedValues &&
+                      editingAccount === row.accountNumber ? (
                         <Input
                           type="number"
                           value={editedValues?.movementCredit || 0}
-                          onChange={(e) => setEditedValues({
-                            ...editedValues!,
-                            movementCredit: parseFloat(e.target.value) || 0
-                          })}
+                          onChange={(e) =>
+                            setEditedValues({
+                              ...editedValues!,
+                              movementCredit: parseFloat(e.target.value) || 0,
+                            })
+                          }
                           className="w-24 h-6 text-right"
                           onClick={(e) => e.stopPropagation()}
                         />
+                      ) : (row.movementCredit || 0) > 0 ? (
+                        (row.movementCredit || 0).toLocaleString()
                       ) : (
-                        (row.movementCredit || 0) > 0
-                          ? (row.movementCredit || 0).toLocaleString()
-                          : "-"
+                        "-"
                       )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-gray-500">
@@ -1437,7 +1554,9 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                         ? (row.closingCredit || 0).toLocaleString()
                         : "-"}
                     </TableCell>
-                    {isEditing && editingAccount === row.accountNumber && editedValues ? (
+                    {isEditing &&
+                    editingAccount === row.accountNumber &&
+                    editedValues ? (
                       <TableCell className="text-center">
                         <Button
                           size="sm"
@@ -1453,7 +1572,9 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                           size="sm"
                           variant="outline"
                           className="text-xs h-6"
-                          onClick={() => handleApplySuggestedFix(row.accountNumber)}
+                          onClick={() =>
+                            handleApplySuggestedFix(row.accountNumber)
+                          }
                           title="Appliquer la valeur suggérée depuis N-1"
                         >
                           Corriger
@@ -1461,7 +1582,10 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
                       </TableCell>
                     ) : hasModificationInRow(row.accountNumber) ? (
                       <TableCell className="text-center">
-                        <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-yellow-50 text-yellow-700"
+                        >
                           Modifié
                         </Badge>
                       </TableCell>
@@ -1626,11 +1750,15 @@ const [editingAccount, setEditingAccount] = useState<string | null>(null);
               {openingMismatches.length > 5 && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 mr-auto">
                   <p className="text-sm text-orange-800 font-semibold">
-                    ⚠️ {openingMismatches.length} racines présentent des incohérences
+                    ⚠️ {openingMismatches.length} racines présentent des
+                    incohérences
                   </p>
                 </div>
               )}
-              <Button variant="outline" onClick={() => setShowOpeningMismatch(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowOpeningMismatch(false)}
+              >
                 Fermer
               </Button>
             </div>
@@ -1746,7 +1874,10 @@ function BalanceImportForm({
 
   const handleDownloadTemplate = async () => {
     try {
-      const result = await clientService.createBalanceFromTemplate(folderId, balanceType);
+      const result = await clientService.createBalanceFromTemplate(
+        folderId,
+        balanceType,
+      );
       if (result.downloadUrl) {
         window.open(result.downloadUrl, "_blank");
       }
@@ -1757,7 +1888,10 @@ function BalanceImportForm({
 
   const downloadPreviousTemplate = async () => {
     try {
-      const result = await clientService.createBalanceFromTemplate(folderId, "previous");
+      const result = await clientService.createBalanceFromTemplate(
+        folderId,
+        "previous",
+      );
       if (result.downloadUrl) {
         window.open(result.downloadUrl, "_blank");
       }
@@ -1768,7 +1902,10 @@ function BalanceImportForm({
 
   const downloadCurrentTemplate = async () => {
     try {
-      const result = await clientService.createBalanceFromTemplate(folderId, "current");
+      const result = await clientService.createBalanceFromTemplate(
+        folderId,
+        "current",
+      );
       if (result.downloadUrl) {
         window.open(result.downloadUrl, "_blank");
       }
@@ -1847,15 +1984,20 @@ function BalanceImportForm({
           <div className="bg-red-50 px-3 py-2 border-b border-red-200 flex items-center gap-2">
             <XCircle className="h-4 w-4 text-red-600" />
             <span className="text-sm font-medium text-red-700">
-              {validationErrors.length} erreur{validationErrors.length > 1 ? "s" : ""} de validation
+              {validationErrors.length} erreur
+              {validationErrors.length > 1 ? "s" : ""} de validation
             </span>
           </div>
           <div className="max-h-48 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-red-50 sticky top-0">
                 <tr>
-                  <th className="px-3 py-2 text-left text-red-700 font-medium">#</th>
-                  <th className="px-3 py-2 text-left text-red-700 font-medium">Erreur</th>
+                  <th className="px-3 py-2 text-left text-red-700 font-medium">
+                    #
+                  </th>
+                  <th className="px-3 py-2 text-left text-red-700 font-medium">
+                    Erreur
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-100">
@@ -1892,41 +2034,46 @@ function BalanceImportForm({
       )}
 
       {/* Actions */}
-      <div className="flex justify-between pt-4">
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={downloadPreviousTemplate}>
-            <Download className="h-4 w-4 mr-2" />
-            Modèle N-1
-          </Button>
-          <Button variant="outline" onClick={downloadCurrentTemplate}>
-            <Download className="h-4 w-4 mr-2" />
-            Modèle N
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleUpload}
-            disabled={
-              !file ||
-              isUploading ||
-              isValidating ||
-              validationErrors.length > 0
-            }
-            className="bg-blue-600"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Importer
-          </Button>
+      <div className="pt-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={downloadPreviousTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Modèle N-1
+            </Button>
+            <Button variant="outline" onClick={downloadCurrentTemplate}>
+              <Download className="h-4 w-4 mr-2" />
+              Modèle N
+            </Button>
+          </div>
+
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Button variant="outline" onClick={onCancel}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={
+                !file ||
+                isUploading ||
+                isValidating ||
+                validationErrors.length > 0
+              }
+              className="bg-blue-600"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importer
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Format Info */}
-      <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+      <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg max-w-full">
         <p className="font-medium mb-1">Format attendu:</p>
-        <p>8 colonnes: N° compte, Nom, DO, CO, DM, CM, DC, CC</p>
+        <p className="break-words">
+          8 colonnes: N° compte, Nom, DO, CO, DM, CM, DC, CC
+        </p>
       </div>
     </div>
   );
