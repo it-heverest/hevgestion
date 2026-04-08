@@ -48,17 +48,7 @@ import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
 import * as XLSX from "xlsx";
 
-interface BalanceRow {
-  id?: string;
-  accountNumber: string;
-  accountName: string;
-  openingDebit?: number;
-  openingCredit?: number;
-  movementDebit: number;
-  movementCredit: number;
-  closingDebit: number;
-  closingCredit: number;
-}
+import { BalanceRow, normalizeRow } from "../types/balance.types";
 
 type OriginalDataType = 
   | { rows: BalanceRow[] }
@@ -756,9 +746,18 @@ function BalanceDetailView({
           row.movementCredit ??
           0)
         : (row.movementCredit ?? 0);
-      const netOpening = openingDebit - openingCredit;
-      const netMovement = movementDebit - movementCredit;
-      const netClosing = netOpening + netMovement;
+      // Use closing balances as imported from Excel, don't recalculate
+      const closingDebit = hasModification
+        ? (modifiedRows[row.accountNumber].closingDebit ??
+          row.closingDebit ??
+          0)
+        : (row.closingDebit ?? 0);
+      const closingCredit = hasModification
+        ? (modifiedRows[row.accountNumber].closingCredit ??
+          row.closingCredit ??
+          0)
+        : (row.closingCredit ?? 0);
+
       return {
         accountNumber: row.accountNumber,
         accountName: row.accountName,
@@ -766,8 +765,8 @@ function BalanceDetailView({
         openingCredit,
         movementDebit,
         movementCredit,
-        closingDebit: netClosing > 0 ? netClosing : 0,
-        closingCredit: netClosing < 0 ? Math.abs(netClosing) : 0,
+        closingDebit,
+        closingCredit,
       };
     });
   };
@@ -1121,10 +1120,18 @@ function BalanceDetailView({
           row.movementCredit ??
           0)
         : (row.movementCredit ?? 0);
-      const netOpening = openingDebit - openingCredit;
-      const netMovement = movementDebit - movementCredit;
-      const netClosing = netOpening + netMovement;
-      
+      // Use closing balances as imported from Excel, don't recalculate
+      const closingDebit = hasModification
+        ? (modifiedRows[row.accountNumber].closingDebit ??
+          row.closingDebit ??
+          0)
+        : (row.closingDebit ?? 0);
+      const closingCredit = hasModification
+        ? (modifiedRows[row.accountNumber].closingCredit ??
+          row.closingCredit ??
+          0)
+        : (row.closingCredit ?? 0);
+
       return {
         accountNumber: row.accountNumber,
         accountName: row.accountName,
@@ -1132,8 +1139,8 @@ function BalanceDetailView({
         openingCredit,
         movementDebit,
         movementCredit,
-        closingDebit: netClosing > 0 ? netClosing : 0,
-        closingCredit: netClosing < 0 ? Math.abs(netClosing) : 0,
+        closingDebit,
+        closingCredit,
       };
     })
     .filter((row) => {

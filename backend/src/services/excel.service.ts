@@ -12,6 +12,30 @@ interface PlanComptableCompte {
   classe: number;
 }
 
+interface BalanceRow {
+  accountNumber: string;
+  accountName: string;
+  openingDebit?: number;
+  openingCredit?: number;
+  movementDebit: number;
+  movementCredit: number;
+  closingDebit?: number;
+  closingCredit?: number;
+}
+
+function normalizeRow(row: any): BalanceRow {
+  return {
+    accountNumber: String(row.accountNumber ?? row.compte ?? row.comptes ?? row["n° compte"] ?? "").trim(),
+    accountName: String(row.accountName ?? row.libelle ?? row.libellé ?? "").trim(),
+    openingDebit: Number(row.openingDebit ?? row["déb. ouv."] ?? row.ouverture_debit ?? row.entre_debit) || 0,
+    openingCredit: Number(row.openingCredit ?? row["créd. ouv."] ?? row.ouverture_credit ?? row.entre_credit) || 0,
+    movementDebit: Number(row.movementDebit ?? row["déb. mvt"] ?? row.mouvement_debit) || 0,
+    movementCredit: Number(row.movementCredit ?? row["créd. mvt"] ?? row.mouvement_credit) || 0,
+    closingDebit: Number(row.closingDebit ?? row["déb. clôt"] ?? row.solde_debit) || 0,
+    closingCredit: Number(row.closingCredit ?? row["créd. clôt"] ?? row.solde_credit) || 0,
+  };
+}
+
 const PLAN_COMPTABLE_PATH = path.join(
   config.rootDir,
   "frontend",
@@ -674,22 +698,43 @@ export class ExcelService {
 
     const rows: any[] = [];
     // Try to detect the header row: scan the first few rows for a header that looks
-    // like it contains an account column (handles files with extra top rows).
+    // like it contains accounting columns (handles files with extra top rows).
     const isHeaderCell = (val: any) => {
       if (!val) return false;
       const s = String(val)
         .replace(/\uFEFF|\u200B/g, "")
-        .toLowerCase();
-      return /compte|n\s*compte|account|n\u00B0|n\u00BA/.test(s);
+        .toLowerCase()
+        .trim();
+
+      // Check for account-related headers
+      if (/compte|n\s*compte|account|n\u00B0|n\u00BA|n°|numero|numéro/.test(s)) {
+        return true;
+      }
+
+      // Check for amount-related headers
+      if (/débit|debit|crédit|credit|ouv|ouverture|opening|mvt|mouvement|movement|solde|closing|clôture|cloture/.test(s)) {
+        return true;
+      }
+
+      return false;
     };
 
     let headerRowIndex = 0;
-    for (let r = 0; r < Math.min(6, jsonData.length); r++) {
+    let bestScore = 0;
+
+    // Scan first 10 rows for the best header candidate
+    for (let r = 0; r < Math.min(10, jsonData.length); r++) {
       const row = jsonData[r] as any[];
       if (!row) continue;
-      if (row.some((c) => isHeaderCell(c))) {
+
+      const score = row.reduce((acc, cell) => {
+        return acc + (isHeaderCell(cell) ? 1 : 0);
+      }, 0);
+
+      // Prefer rows with multiple accounting headers
+      if (score > bestScore && score >= 3) {
+        bestScore = score;
         headerRowIndex = r;
-        break;
       }
     }
 
@@ -734,6 +779,8 @@ export class ExcelService {
       headers.map((h) => ({ original: h.original, normalized: h.normalized })),
     );
 
+    console.log("🔍 Column detection starting...");
+
     const mapped = (headers as any)._mapped || {};
 
     const patternToRegex = (p: string | RegExp) => {
@@ -759,13 +806,19 @@ export class ExcelService {
       headers.find((h) =>
         colMatches(h, [
           "compte",
+          "comptes",
           "n compte",
-          "n\s*compte",
+          "n° compte",
           "numero",
           "num",
+          "numéro",
           "account",
           "accountnumber",
-          "account number",
+          "compte général",
+          "code compte",
+          "ref compte",
+          "numero compte",
+          "numéro compte",
         ]),
       );
     if (!accountCol) {
@@ -783,7 +836,24 @@ export class ExcelService {
 
     let nameCol =
       mapped.accountName ||
-      headers.find((h) => colMatches(h, ["libell", "nom", "intitul"]));
+      headers.find((h) =>
+        colMatches(h, [
+          "libell",
+          "libellé",
+          "libelle",
+          "nom",
+          "intitul",
+          "intitulé",
+          "intitule",
+          "designation",
+          "désignation",
+          "label",
+          "description",
+          "account name",
+          "nom compte",
+          "intitulé compte",
+        ]),
+      );
     let openDebitCol =
       mapped.openingDebit ||
       headers.find((h) =>
@@ -797,6 +867,21 @@ export class ExcelService {
           "ouverture debit",
           "opening",
           "opening debit",
+          "débit ouv",
+          "débit ouverture",
+          "ouv débit",
+          "ouv débits",
+          "débit initial",
+          "débit d'ouverture",
+          "débit ouverture",
+          "débit ouvr",
+          "initial debit",
+          "debit ouverture",
+          "debit ouv",
+          "ouv debit",
+          "debit opening",
+          "opening deb",
+          "deb opening",
         ]),
       );
     let openCreditCol =
@@ -813,6 +898,23 @@ export class ExcelService {
           "ouverture credit",
           "opening",
           "opening credit",
+          "crédit ouv",
+          "crédit ouverture",
+          "ouv crédit",
+          "ouv crédits",
+          "crédit initial",
+          "crédit d'ouverture",
+          "crédit ouverture",
+          "crédit ouvr",
+          "initial credit",
+          "credit ouverture",
+          "credit ouv",
+          "ouv credit",
+          "credit opening",
+          "opening cred",
+          "cred opening",
+          "cre ouv",
+          "ouv cre",
         ]),
       );
     let moveDebitCol =
@@ -828,6 +930,17 @@ export class ExcelService {
           "debit",
           "deb",
           "movement d",
+          "débit mvt",
+          "débit mouvement",
+          "mvt débit",
+          "mouvement débit",
+          "mvt débits",
+          "débit de mouvement",
+          "mouvement déb",
+          "deb mouvement",
+          "debit movement",
+          "movement deb",
+          "mvt deb",
         ]),
       );
     let moveCreditCol =
@@ -844,6 +957,18 @@ export class ExcelService {
           "credit",
           "cre",
           "movement c",
+          "crédit mvt",
+          "crédit mouvement",
+          "mvt crédit",
+          "mouvement crédit",
+          "mvt crédits",
+          "crédit de mouvement",
+          "mouvement créd",
+          "cred mouvement",
+          "credit movement",
+          "movement cred",
+          "mvt cred",
+          "cre mvt",
         ]),
       );
     let closeDebitCol =
@@ -860,6 +985,21 @@ export class ExcelService {
           "debit clot",
           "deb solde",
           "debit solde",
+          "clôture",
+          "clôt",
+          "solde clôture",
+          "clôture débit",
+          "débit clôture",
+          "débit solde",
+          "solde débit",
+          "débit de clôture",
+          "clôture déb",
+          "deb cloture",
+          "debit closing",
+          "closing deb",
+          "deb closing",
+          "final debit",
+          "solde finale deb",
         ]),
       );
     let closeCreditCol =
@@ -878,6 +1018,21 @@ export class ExcelService {
           "cre solde",
           "credit solde",
           "cred solde",
+          "clôture",
+          "clôt",
+          "solde clôture",
+          "clôture crédit",
+          "crédit clôture",
+          "crédit solde",
+          "solde crédit",
+          "crédit de clôture",
+          "clôture créd",
+          "cred cloture",
+          "credit closing",
+          "closing cred",
+          "cred closing",
+          "final credit",
+          "solde finale cred",
         ]),
       );
 
@@ -926,6 +1081,31 @@ export class ExcelService {
       moveDebitCol = moveDebitCol || headers[mouvementIndices[0]];
       moveCreditCol = moveCreditCol || headers[mouvementIndices[1]];
     }
+
+    // Try index-based mapping if keyword mapping failed
+    const hasKeywordMapping = accountCol && nameCol && (openDebitCol || openCreditCol || moveDebitCol || moveCreditCol || closeDebitCol || closeCreditCol);
+
+    if (!hasKeywordMapping && headers.length >= 8) {
+      console.log("🔄 Falling back to index-based mapping");
+      accountCol = accountCol || headers[0]; // Column 0: Account number
+      nameCol = nameCol || headers[1];       // Column 1: Account name
+      openDebitCol = openDebitCol || headers[2];   // Column 2: Opening debit
+      openCreditCol = openCreditCol || headers[3]; // Column 3: Opening credit
+      moveDebitCol = moveDebitCol || headers[4];   // Column 4: Movement debit
+      moveCreditCol = moveCreditCol || headers[5]; // Column 5: Movement credit
+      closeDebitCol = closeDebitCol || headers[6]; // Column 6: Closing debit
+      closeCreditCol = closeCreditCol || headers[7]; // Column 7: Closing credit
+    }
+
+    console.log("📊 Final column mapping results:");
+    console.log("Account:", accountCol ? `✓ ${accountCol.original} (col ${accountCol.index})` : "✗ Not found");
+    console.log("Name:", nameCol ? `✓ ${nameCol.original} (col ${nameCol.index})` : "✗ Not found");
+    console.log("Opening Debit:", openDebitCol ? `✓ ${openDebitCol.original} (col ${openDebitCol.index})` : "✗ Not found");
+    console.log("Opening Credit:", openCreditCol ? `✓ ${openCreditCol.original} (col ${openCreditCol.index})` : "✗ Not found");
+    console.log("Movement Debit:", moveDebitCol ? `✓ ${moveDebitCol.original} (col ${moveDebitCol.index})` : "✗ Not found");
+    console.log("Movement Credit:", moveCreditCol ? `✓ ${moveCreditCol.original} (col ${moveCreditCol.index})` : "✗ Not found");
+    console.log("Closing Debit:", closeDebitCol ? `✓ ${closeDebitCol.original} (col ${closeDebitCol.index})` : "✗ Not found");
+    console.log("Closing Credit:", closeCreditCol ? `✓ ${closeCreditCol.original} (col ${closeCreditCol.index})` : "✗ Not found");
 
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i] as any[];
@@ -1010,47 +1190,33 @@ export class ExcelService {
         );
       }
 
-      // Clean account number: remove non-digit characters (some files include annotations/emojis)
-      const accountNumber = rawAccount.replace(/[^0-9]/g, "").trim();
-
-      const rowData: any = {
-        accountNumber,
+      // Build raw row object with detected column values
+      const rawRow: any = {
+        accountNumber: rawAccount.replace(/[^0-9]/g, "").trim(),
         accountName: nameCol ? String(row[nameCol.index] || "").trim() : "",
       };
 
-      if (openDebitCol && hasNumericValue(row[openDebitCol.index])) {
-        rowData.openingDebit = getNumericValue(row[openDebitCol.index]);
+      if (openDebitCol) {
+        rawRow.openingDebit = hasNumericValue(row[openDebitCol.index]) ? getNumericValue(row[openDebitCol.index]) : 0;
       }
-      if (openCreditCol && hasNumericValue(row[openCreditCol.index])) {
-        rowData.openingCredit = getNumericValue(row[openCreditCol.index]);
+      if (openCreditCol) {
+        rawRow.openingCredit = hasNumericValue(row[openCreditCol.index]) ? getNumericValue(row[openCreditCol.index]) : 0;
       }
-      if (moveDebitCol && hasNumericValue(row[moveDebitCol.index])) {
-        rowData.movementDebit = getNumericValue(row[moveDebitCol.index]);
+      if (moveDebitCol) {
+        rawRow.movementDebit = hasNumericValue(row[moveDebitCol.index]) ? getNumericValue(row[moveDebitCol.index]) : 0;
       }
-      if (moveCreditCol && hasNumericValue(row[moveCreditCol.index])) {
-        rowData.movementCredit = getNumericValue(row[moveCreditCol.index]);
+      if (moveCreditCol) {
+        rawRow.movementCredit = hasNumericValue(row[moveCreditCol.index]) ? getNumericValue(row[moveCreditCol.index]) : 0;
       }
-      if (closeDebitCol && hasNumericValue(row[closeDebitCol.index])) {
-        rowData.closingDebit = getNumericValue(row[closeDebitCol.index]);
+      if (closeDebitCol) {
+        rawRow.closingDebit = hasNumericValue(row[closeDebitCol.index]) ? getNumericValue(row[closeDebitCol.index]) : 0;
       }
-      if (closeCreditCol && hasNumericValue(row[closeCreditCol.index])) {
-        rowData.closingCredit = getNumericValue(row[closeCreditCol.index]);
+      if (closeCreditCol) {
+        rawRow.closingCredit = hasNumericValue(row[closeCreditCol.index]) ? getNumericValue(row[closeCreditCol.index]) : 0;
       }
 
-      if (!rowData.closingDebit && !rowData.closingCredit) {
-        rowData.closingDebit = Math.max(
-          0,
-          (rowData.openingDebit || 0) +
-            (rowData.movementDebit || 0) -
-            (rowData.movementCredit || 0),
-        );
-        rowData.closingCredit = Math.max(
-          0,
-          (rowData.openingCredit || 0) +
-            (rowData.movementCredit || 0) -
-            (rowData.movementDebit || 0),
-        );
-      }
+      // Normalize the row using the shared function
+      const rowData = normalizeRow(rawRow);
 
       rows.push(rowData);
     }

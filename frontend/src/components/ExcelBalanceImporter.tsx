@@ -40,20 +40,10 @@ import {
 import { FullExcelEditor } from "./FullExcelEditor";
 import { clientService } from "../services/client.service";
 import { folderService } from "../services/folder.service";
+import { BalanceRow, normalizeRow } from "../types/balance.types";
 
 interface ExcelBalanceImporterProps {
   onComplete?: () => void;
-}
-
-interface BalanceRow {
-  compte: string;
-  libelle: string;
-  entre_debit: number;
-  entre_credit: number;
-  mouvement_debit: number;
-  mouvement_credit: number;
-  solde_debit?: number;
-  solde_credit?: number;
 }
 
 interface StoredBalance {

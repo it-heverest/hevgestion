@@ -18,8 +18,21 @@ interface BalanceRow {
   openingCredit?: number;
   movementDebit: number;
   movementCredit: number;
-  closingDebit: number;
-  closingCredit: number;
+  closingDebit?: number;
+  closingCredit?: number;
+}
+
+function normalizeRow(row: any): BalanceRow {
+  return {
+    accountNumber: String(row.accountNumber ?? row.compte ?? row.comptes ?? row["n° compte"] ?? "").trim(),
+    accountName: String(row.accountName ?? row.libelle ?? row.libellé ?? "").trim(),
+    openingDebit: Number(row.openingDebit ?? row["déb. ouv."] ?? row.ouverture_debit ?? row.entre_debit) || 0,
+    openingCredit: Number(row.openingCredit ?? row["créd. ouv."] ?? row.ouverture_credit ?? row.entre_credit) || 0,
+    movementDebit: Number(row.movementDebit ?? row["déb. mvt"] ?? row.mouvement_debit) || 0,
+    movementCredit: Number(row.movementCredit ?? row["créd. mvt"] ?? row.mouvement_credit) || 0,
+    closingDebit: Number(row.closingDebit ?? row["déb. clôt"] ?? row.solde_debit) || 0,
+    closingCredit: Number(row.closingCredit ?? row["créd. clôt"] ?? row.solde_credit) || 0,
+  };
 }
 
 interface EquilibriumResult {
@@ -390,7 +403,7 @@ export class BalanceProcessor {
           accountNumber: row.accountNumber,
           accountName: row.accountName,
           grossValue,
-          netValue: row.closingDebit - row.closingCredit,
+          netValue: (row.closingDebit || 0) - (row.closingCredit || 0),
           depreciation: this.calculateDepreciation(row),
           movementType,
           activityType: ActivityType.ORDINARY,
@@ -423,7 +436,7 @@ export class BalanceProcessor {
 
     rows.forEach((row) => {
       const accountClass = row.accountNumber.charAt(0);
-      const netBalance = row.closingDebit - row.closingCredit;
+      const netBalance = (row.closingDebit || 0) - (row.closingCredit || 0);
 
       switch (accountClass) {
         case "2": // Fixed assets
@@ -492,7 +505,7 @@ export class BalanceProcessor {
   private calculateDepreciation(row: BalanceRow): number {
     // Simple depreciation calculation (can be enhanced)
     const grossValue = row.closingDebit || 0;
-    const netValue = row.closingDebit - row.closingCredit;
+    const netValue = (row.closingDebit || 0) - (row.closingCredit || 0);
     return grossValue - netValue;
   }
 
