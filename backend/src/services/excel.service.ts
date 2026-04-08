@@ -690,6 +690,7 @@ export class ExcelService {
   static async parseBalanceFile(
     filePath: string,
     mapping?: { [key: string]: number | string },
+    options?: { useIndexMapping?: boolean },
   ): Promise<any> {
     const workbook = XLSX.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
@@ -781,320 +782,272 @@ export class ExcelService {
 
     console.log("🔍 Column detection starting...");
 
+    // Declare all column variables
+    let accountCol: any = null;
+    let nameCol: any = null;
+    let openDebitCol: any = null;
+    let openCreditCol: any = null;
+    let moveDebitCol: any = null;
+    let moveCreditCol: any = null;
+    let closeDebitCol: any = null;
+    let closeCreditCol: any = null;
+
     const mapped = (headers as any)._mapped || {};
 
-    const patternToRegex = (p: string | RegExp) => {
-      if (p instanceof RegExp) return p;
-      // if pattern contains regex meta chars, treat as regex
-      if (/[\\^$.*+?()[\]{}|]/.test(p)) return new RegExp(p, "i");
-      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const spaced = escaped.replace(/\s+/g, "\\s*");
-      return new RegExp(spaced, "i");
-    };
+    // Use index-based mapping if requested
+    if (options?.useIndexMapping && headers.length >= 8) {
+      console.log("🔢 Using index-based mapping");
+      accountCol = headers[0]; // Column 0: Account number
+      nameCol = headers[1];    // Column 1: Account name
+      openDebitCol = headers[2];   // Column 2: Opening debit
+      openCreditCol = headers[3];  // Column 3: Opening credit
+      moveDebitCol = headers[4];   // Column 4: Movement debit
+      moveCreditCol = headers[5];  // Column 5: Movement credit
+      closeDebitCol = headers[6];  // Column 6: Closing debit
+      closeCreditCol = headers[7];  // Column 7: Closing credit
+    } else {
+      console.log("🔤 Using keyword-based mapping");
+      // Try keyword-based mapping first
 
-    const colMatches = (h: any, patterns: Array<string | RegExp>) => {
-      const orig = (h.original || "").toString();
-      const norm = (h.normalized || "").toString();
-      return patterns.some((p) => {
-        const re = patternToRegex(p);
-        return re.test(norm) || re.test(orig);
-      });
-    };
+      const colMatches = (header: any, patterns: string[]): boolean => {
+        if (!header) return false;
+        const normalized = this.normalizeHeader(header.original || "").toLowerCase();
+        return patterns.some(pattern => {
+          const re = new RegExp(pattern.replace(/\s+/g, '\\s*').toLowerCase());
+          return re.test(normalized) || re.test((header.original || "").toLowerCase());
+        });
+      };
 
-    let accountCol =
-      mapped.accountNumber ||
-      headers.find((h) =>
-        colMatches(h, [
-          "compte",
-          "comptes",
-          "n compte",
-          "n° compte",
-          "numero",
-          "num",
-          "numéro",
-          "account",
-          "accountnumber",
-          "compte général",
-          "code compte",
-          "ref compte",
-          "numero compte",
-          "numéro compte",
-        ]),
-      );
-    if (!accountCol) {
-      console.warn(
-        "Colonne 'Compte' non trouvée via en-têtes — will attempt fallback detection",
-      );
-      console.debug(
-        "Headers found:",
-        headers.map((h) => ({
-          original: h.original,
-          normalized: h.normalized,
-        })),
-      );
-    }
+      accountCol =
+        mapped.accountNumber ||
+        headers.find((h) =>
+          colMatches(h, [
+            "compte",
+            "comptes",
+            "n compte",
+            "n° compte",
+            "numero",
+            "num",
+            "numéro",
+            "account",
+            "accountnumber",
+            "compte général",
+            "code compte",
+            "ref compte",
+            "numero compte",
+            "numéro compte",
+          ]),
+        );
+      if (!accountCol) {
+        console.warn(
+          "Colonne 'Compte' non trouvée via en-têtes — will attempt fallback detection",
+        );
+        console.debug(
+          "Headers found:",
 
-    let nameCol =
-      mapped.accountName ||
-      headers.find((h) =>
-        colMatches(h, [
-          "libell",
-          "libellé",
-          "libelle",
-          "nom",
-          "intitul",
-          "intitulé",
-          "intitule",
-          "designation",
-          "désignation",
-          "label",
-          "description",
-          "account name",
-          "nom compte",
-          "intitulé compte",
-        ]),
-      );
-    let openDebitCol =
-      mapped.openingDebit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "deb ouv",
-          "debit ouv",
-          "ouv deb",
-          "ouv debit",
-          "debit initial",
-          "ouverture",
-          "ouverture debit",
-          "opening",
-          "opening debit",
-          "débit ouv",
-          "débit ouverture",
-          "ouv débit",
-          "ouv débits",
-          "débit initial",
-          "débit d'ouverture",
-          "débit ouverture",
-          "débit ouvr",
-          "initial debit",
-          "debit ouverture",
-          "debit ouv",
-          "ouv debit",
-          "debit opening",
-          "opening deb",
-          "deb opening",
-        ]),
-      );
-    let openCreditCol =
-      mapped.openingCredit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "cred ouv",
-          "credit ouv",
-          "ouv cred",
-          "ouv credit",
-          "ouv cre",
-          "credit initial",
-          "ouverture",
-          "ouverture credit",
-          "opening",
-          "opening credit",
-          "crédit ouv",
-          "crédit ouverture",
-          "ouv crédit",
-          "ouv crédits",
-          "crédit initial",
-          "crédit d'ouverture",
-          "crédit ouverture",
-          "crédit ouvr",
-          "initial credit",
-          "credit ouverture",
-          "credit ouv",
-          "ouv credit",
-          "credit opening",
-          "opening cred",
-          "cred opening",
-          "cre ouv",
-          "ouv cre",
-        ]),
-      );
-    let moveDebitCol =
-      mapped.movementDebit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "mvt deb",
-          "mvt debit",
-          "deb mvt",
-          "debit mvt",
-          "movement debit",
-          "mouvement debit",
-          "debit",
-          "deb",
-          "movement d",
-          "débit mvt",
-          "débit mouvement",
-          "mvt débit",
-          "mouvement débit",
-          "mvt débits",
-          "débit de mouvement",
-          "mouvement déb",
-          "deb mouvement",
-          "debit movement",
-          "movement deb",
-          "mvt deb",
-        ]),
-      );
-    let moveCreditCol =
-      mapped.movementCredit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "mvt cre",
-          "mvt credit",
-          "cre mvt",
-          "credit mvt",
-          "cred mvt",
-          "movement credit",
-          "mouvement credit",
-          "credit",
-          "cre",
-          "movement c",
-          "crédit mvt",
-          "crédit mouvement",
-          "mvt crédit",
-          "mouvement crédit",
-          "mvt crédits",
-          "crédit de mouvement",
-          "mouvement créd",
-          "cred mouvement",
-          "credit movement",
-          "movement cred",
-          "mvt cred",
-          "cre mvt",
-        ]),
-      );
-    let closeDebitCol =
-      mapped.closingDebit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "clot",
-          "cloture",
-          "closing",
-          "closing debit",
-          "solde deb",
-          "solde debiteur",
-          "deb clot",
-          "debit clot",
-          "deb solde",
-          "debit solde",
-          "clôture",
-          "clôt",
-          "solde clôture",
-          "clôture débit",
-          "débit clôture",
-          "débit solde",
-          "solde débit",
-          "débit de clôture",
-          "clôture déb",
-          "deb cloture",
-          "debit closing",
-          "closing deb",
-          "deb closing",
-          "final debit",
-          "solde finale deb",
-        ]),
-      );
-    let closeCreditCol =
-      mapped.closingCredit ||
-      headers.find((h) =>
-        colMatches(h, [
-          "clot",
-          "cloture",
-          "closing",
-          "closing credit",
-          "solde cre",
-          "solde crediteur",
-          "solde cred",
-          "cre clot",
-          "credit clot",
-          "cre solde",
-          "credit solde",
-          "cred solde",
-          "clôture",
-          "clôt",
-          "solde clôture",
-          "clôture crédit",
-          "crédit clôture",
-          "crédit solde",
-          "solde crédit",
-          "crédit de clôture",
-          "clôture créd",
-          "cred cloture",
-          "credit closing",
-          "closing cred",
-          "cred closing",
-          "final credit",
-          "solde finale cred",
-        ]),
-      );
-
-    // Heuristics for files with ambiguous/repeated headers (e.g. 'Solde', 'Mouvement')
-    // Build lowercase originals for easier positional heuristics
-    const headerTexts = headers.map((h) =>
-      (h.original || "").toLowerCase().trim(),
-    );
-
-    const soldeIndices: number[] = headerTexts
-      .map((t, idx) => ({ t, idx }))
-      .filter(
-        ({ t }) =>
-          t.includes("solde") ||
-          t.includes("solde déb") ||
-          t.includes("solde crédit") ||
-          t.includes("clôt") ||
-          t.includes("clot"),
-      )
-      .map(({ idx }) => idx);
-
-    const mouvementIndices: number[] = headerTexts
-      .map((t, idx) => ({ t, idx }))
-      .filter(
-        ({ t }) =>
-          t.includes("mouvement") || t.includes("mvt") || t === "mouvement",
-      )
-      .map(({ idx }) => idx);
-
-    // If opening columns not detected but file has repeated 'solde' columns, assume first two are opening
-    if ((!openDebitCol || !openCreditCol) && soldeIndices.length >= 2) {
-      openDebitCol = openDebitCol || headers[soldeIndices[0]];
-      openCreditCol = openCreditCol || headers[soldeIndices[1]];
-    }
-
-    // If closing columns not detected but there are many 'solde' columns, assume last two are closing
-    if ((!closeDebitCol || !closeCreditCol) && soldeIndices.length >= 4) {
-      const last = soldeIndices[soldeIndices.length - 1];
-      const secondLast = soldeIndices[soldeIndices.length - 2];
-      closeDebitCol = closeDebitCol || headers[secondLast];
-      closeCreditCol = closeCreditCol || headers[last];
-    }
-
-    // If movement columns are explicitly labelled, use them; otherwise try to infer from 'mouvement' labels
-    if ((!moveDebitCol || !moveCreditCol) && mouvementIndices.length >= 2) {
-      moveDebitCol = moveDebitCol || headers[mouvementIndices[0]];
-      moveCreditCol = moveCreditCol || headers[mouvementIndices[1]];
-    }
-
-    // Try index-based mapping if keyword mapping failed
-    const hasKeywordMapping = accountCol && nameCol && (openDebitCol || openCreditCol || moveDebitCol || moveCreditCol || closeDebitCol || closeCreditCol);
-
-    if (!hasKeywordMapping && headers.length >= 8) {
-      console.log("🔄 Falling back to index-based mapping");
-      accountCol = accountCol || headers[0]; // Column 0: Account number
-      nameCol = nameCol || headers[1];       // Column 1: Account name
-      openDebitCol = openDebitCol || headers[2];   // Column 2: Opening debit
-      openCreditCol = openCreditCol || headers[3]; // Column 3: Opening credit
-      moveDebitCol = moveDebitCol || headers[4];   // Column 4: Movement debit
-      moveCreditCol = moveCreditCol || headers[5]; // Column 5: Movement credit
-      closeDebitCol = closeDebitCol || headers[6]; // Column 6: Closing debit
-      closeCreditCol = closeCreditCol || headers[7]; // Column 7: Closing credit
+        );
+      }
+      nameCol =
+        mapped.accountName ||
+        headers.find((h) =>
+          colMatches(h, [
+            "libell",
+            "libellé",
+            "libelle",
+            "nom",
+            "intitul",
+            "intitulé",
+            "intitule",
+            "designation",
+            "désignation",
+            "label",
+            "description",
+            "account name",
+            "nom compte",
+            "intitulé compte",
+          ]),
+        );
+      openDebitCol =
+        mapped.openingDebit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "deb ouv",
+            "debit ouv",
+            "ouv deb",
+            "ouv debit",
+            "debit initial",
+            "ouverture",
+            "ouverture debit",
+            "opening",
+            "opening debit",
+            "débit ouv",
+            "débit ouverture",
+            "ouv débit",
+            "ouv débits",
+            "débit initial",
+            "débit d'ouverture",
+            "débit ouverture",
+            "débit ouvr",
+            "initial debit",
+            "debit ouverture",
+            "debit ouv",
+            "ouv debit",
+            "debit opening",
+            "opening deb",
+            "deb opening",
+          ]),
+        );
+      openCreditCol =
+        mapped.openingCredit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "cred ouv",
+            "credit ouv",
+            "ouv cred",
+            "ouv credit",
+            "ouv cre",
+            "credit initial",
+            "ouverture",
+            "ouverture credit",
+            "opening",
+            "opening credit",
+            "crédit ouv",
+            "crédit ouverture",
+            "ouv crédit",
+            "ouv crédits",
+            "crédit initial",
+            "crédit d'ouverture",
+            "crédit ouverture",
+            "crédit ouvr",
+            "initial credit",
+            "credit ouverture",
+            "credit ouv",
+            "ouv credit",
+            "credit opening",
+            "opening cred",
+            "cred opening",
+            "cre ouv",
+            "ouv cre",
+          ]),
+        );
+      moveDebitCol =
+        mapped.movementDebit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "mvt deb",
+            "mvt debit",
+            "deb mvt",
+            "debit mvt",
+            "movement debit",
+            "mouvement debit",
+            "debit",
+            "deb",
+            "movement d",
+            "débit mvt",
+            "débit mouvement",
+            "mvt débit",
+            "mouvement débit",
+            "mvt débits",
+            "débit de mouvement",
+            "mouvement déb",
+            "deb mouvement",
+            "debit movement",
+            "movement deb",
+            "mvt deb",
+          ]),
+        );
+      moveCreditCol =
+        mapped.movementCredit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "mvt cre",
+            "mvt credit",
+            "cre mvt",
+            "credit mvt",
+            "cred mvt",
+            "movement credit",
+            "mouvement credit",
+            "credit",
+            "cre",
+            "movement c",
+            "crédit mvt",
+            "crédit mouvement",
+            "mvt crédit",
+            "mouvement crédit",
+            "mvt crédits",
+            "crédit de mouvement",
+            "mouvement créd",
+            "cred mouvement",
+            "credit movement",
+            "movement cred",
+            "mvt cred",
+            "cre mvt",
+          ]),
+        );
+      closeDebitCol =
+        mapped.closingDebit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "clot",
+            "cloture",
+            "closing",
+            "closing debit",
+            "solde deb",
+            "solde debiteur",
+            "deb clot",
+            "debit clot",
+            "deb solde",
+            "debit solde",
+            "clôture",
+            "clôt",
+            "solde clôture",
+            "clôture débit",
+            "débit clôture",
+            "débit solde",
+            "solde débit",
+            "débit de clôture",
+            "clôture déb",
+            "deb cloture",
+            "debit closing",
+            "closing deb",
+            "deb closing",
+            "final debit",
+            "solde finale deb",
+          ]),
+        );
+      closeCreditCol =
+        mapped.closingCredit ||
+        headers.find((h) =>
+          colMatches(h, [
+            "clot",
+            "cloture",
+            "closing",
+            "closing credit",
+            "solde cre",
+            "solde crediteur",
+            "solde cred",
+            "cre clot",
+            "credit clot",
+            "cre solde",
+            "credit solde",
+            "cred solde",
+            "clôture",
+            "clôt",
+            "solde clôture",
+            "clôture crédit",
+            "crédit clôture",
+            "crédit solde",
+            "solde crédit",
+            "crédit de clôture",
+            "clôture créd",
+            "cred cloture",
+            "credit closing",
+            "closing cred",
+            "cred closing",
+            "final credit",
+            "solde finale cred",
+          ]),
+        );
     }
 
     console.log("📊 Final column mapping results:");

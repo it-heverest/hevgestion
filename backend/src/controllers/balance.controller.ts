@@ -129,7 +129,7 @@ class BalanceController {
       const mapping = req.body?.mapping as
         | { [key: string]: number | string }
         | undefined;
-      const data = await ExcelService.parseBalanceFile(file.path, mapping);
+      const data = await ExcelService.parseBalanceFile(file.path, mapping, { useIndexMapping: true });
       console.log("Parsed data successfully:", {
         rowCount: data.rows?.length || 0,
       });
