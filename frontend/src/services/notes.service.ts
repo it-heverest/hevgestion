@@ -2055,11 +2055,12 @@ class NotesService {
       const response = await fetch(
         `/api/notes/${encodedNote}?folderId=${encodeURIComponent(folderId)}`,
       );
+      // Return null for 401 (auth expired) or 404 (not found) - don't throw
+      if (response.status === 401 || response.status === 404) {
+        return null;
+      }
       if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        throw new Error(
-          `Failed to fetch Note ${noteNumber}: ${response.status} ${errorText}`,
-        );
+        return null; // Silently fail for other errors
       }
       const { data } = await response.json();
       return data;

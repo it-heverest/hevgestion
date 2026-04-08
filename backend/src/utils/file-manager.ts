@@ -14,6 +14,29 @@ export class FileManager {
     }
   }
 
+  async ensureSubDirectory(subDir: keyof typeof config.upload.subDirectories): Promise<string> {
+    const dirName = config.upload.subDirectories[subDir];
+    const fullPath = path.join(this.uploadDir, dirName);
+    try {
+      await fs.access(fullPath);
+    } catch {
+      await fs.mkdir(fullPath, { recursive: true });
+    }
+    return fullPath;
+  }
+
+  getSubDirectory(subDir: keyof typeof config.upload.subDirectories): string {
+    const dirName = config.upload.subDirectories[subDir];
+    return path.join(this.uploadDir, dirName);
+  }
+
+  getFullPath(filename: string, subDir?: keyof typeof config.upload.subDirectories): string {
+    if (subDir) {
+      return path.join(this.getSubDirectory(subDir), filename);
+    }
+    return path.join(this.uploadDir, filename);
+  }
+
   async deleteFile(filePath: string): Promise<void> {
     try {
       await fs.unlink(filePath);
@@ -47,3 +70,5 @@ export class FileManager {
     return `${basename}-${timestamp}-${random}${ext}`;
   }
 }
+
+export const fileManager = new FileManager();

@@ -1843,8 +1843,31 @@ function BalanceImportForm({
 
       {/* Errors */}
       {validationErrors.length > 0 && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">{validationErrors[0]}</p>
+        <div className="border border-red-200 rounded-lg overflow-hidden">
+          <div className="bg-red-50 px-3 py-2 border-b border-red-200 flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <span className="text-sm font-medium text-red-700">
+              {validationErrors.length} erreur{validationErrors.length > 1 ? "s" : ""} de validation
+            </span>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-red-50 sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left text-red-700 font-medium">#</th>
+                  <th className="px-3 py-2 text-left text-red-700 font-medium">Erreur</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-red-100">
+                {validationErrors.map((error, idx) => (
+                  <tr key={idx} className="bg-white">
+                    <td className="px-3 py-2 text-red-500">{idx + 1}</td>
+                    <td className="px-3 py-2 text-red-600">{error}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -104,32 +104,30 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
       const missing: string[] = [];
 
       try {
+        // Use bulk load to get all notes at once - avoids multiple API calls
+        const allNotes = await notesService.getNotesForFolder(folderId);
+        const notesMap = new Map(
+          (allNotes || []).map((n: any) => [n.noteNumber, n.data])
+        );
+
         // Check each note for missing header info
         for (const noteNumber of ALL_NOTE_NUMBERS) {
-          try {
-            const noteData: any = await notesService.getNoteData(
-              folderId,
-              noteNumber,
-            );
+          const noteData = notesMap.get(noteNumber);
 
-            // If note doesn't exist or has no header, it's missing
-            if (!noteData || !noteData.entete) {
-              missing.push(noteNumber);
-              continue;
-            }
+          // If note doesn't exist or has no header, it's missing
+          if (!noteData || !noteData.entete) {
+            missing.push(noteNumber);
+            continue;
+          }
 
-            // Check if header has required fields
-            const entete = noteData.entete;
-            if (
-              !entete.entityName ||
-              !entete.fiscalYear ||
-              !entete.idNumber ||
-              !entete.duration
-            ) {
-              missing.push(noteNumber);
-            }
-          } catch (error) {
-            // If there's an error, assume note is missing
+          // Check if header has required fields
+          const entete = noteData.entete;
+          if (
+            !entete.entityName ||
+            !entete.fiscalYear ||
+            !entete.idNumber ||
+            !entete.duration
+          ) {
             missing.push(noteNumber);
           }
         }

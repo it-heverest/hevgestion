@@ -2,6 +2,7 @@
 import * as XLSX from "xlsx";
 import * as fs from "fs";
 import { config } from "../config";
+import { planComptableService } from "./plan-comptable.service";
 
 const path = require("path");
 
@@ -11,7 +12,7 @@ interface PlanComptableCompte {
   classe: number;
 }
 
-const PLAN_COMPTABLE_PATH = path.join(__dirname, "../../../frontend/plan_comptable/PLAN COMPTABLE UNIQUE.xlsx");
+const PLAN_COMPTABLE_PATH = path.join(config.rootDir, "frontend", "plan_comptable", "PLAN COMPTABLE UNIQUE.xlsx");
 
 let planComptableCache: PlanComptableCompte[] | null = null;
 
@@ -58,6 +59,9 @@ export class ExcelService {
     accountNumber: string,
     accountName: string
   ): Promise<{ valid: boolean; error?: string }> {
+    const result = planComptableService.validateAccount(accountNumber, accountName);
+    if (!result.valid) return result;
+
     const planComptable = await ExcelService.loadPlanComptable();
     
     if (planComptable.length === 0) {
@@ -78,15 +82,6 @@ export class ExcelService {
       };
     }
 
-    const nameLower = accountName.toLowerCase().trim();
-    const libelleLower = found.libelle.toLowerCase().trim();
-    if (libelleLower && nameLower && nameLower !== libelleLower && !nameLower.includes(libelleLower) && !libelleLower.includes(nameLower)) {
-      return {
-        valid: false,
-        error: `Le libellé "${accountName}" ne correspond pas au plan comptable. Attendu: "${found.libelle}"`
-      };
-    }
-
     return { valid: true };
   }
 
@@ -98,15 +93,7 @@ export class ExcelService {
     for (const row of rows) {
       if (!row.accountNumber) continue;
 
-      const root = row.accountNumber.substring(0, 3);
-      const firstDigit = root.charAt(0);
-      
-      if (!/^[1-8]$/.test(firstDigit)) {
-        errors.push(`Compte "${row.accountNumber}" doit commencer par 1-8 (classe OHADA)`);
-        continue;
-      }
-
-      const validation = await ExcelService.validateAccount(row.accountNumber, row.accountName);
+      const validation = await ExcelService.validateAccount(row.accountNumber, row.accountName || "");
       if (!validation.valid && validation.error) {
         errors.push(validation.error);
       }
@@ -115,184 +102,80 @@ export class ExcelService {
     return { valid: errors.length === 0, errors };
   }
 
-  static async parseBalanceFile(filePath: string): Promise<any> {
-    try {
-      console.log("ExcelService: Reading file:", filePath);
-
-      // Check if file exists
-      if (!require("fs").existsSync(filePath)) {
-        throw new Error(`File not found: ${filePath}`);
-      }
-
-      const workbook = XLSX.readFile(filePath);
-
-      if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-        throw new Error("Excel file has no sheets");
-      }
-
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-
-      if (!worksheet) {
-        throw new Error(`Sheet '${sheetName}' not found in Excel file`);
-      }
-
-      console.log("ExcelService: Sheet name:", sheetName);
-      const data: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      console.log("ExcelService: Raw data rows:", data.length);
-
-      if (!data || data.length === 0) {
-        throw new Error("Excel file is empty or invalid");
-      }
-
-      // Find the first non-empty row as headers
-      let headerRowIndex = 0;
-      for (let i = 0; i < Math.min(data.length, 10); i++) {
-        const row = data[i];
-        if (
-          row &&
-          row.some(
-            (cell: any) =>
-              cell !== null && cell !== undefined && String(cell).trim() !== ""
-          )
-        ) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-
-      const headers = data[headerRowIndex] as string[];
-      console.log(
-        "ExcelService: Headers found at row",
-        headerRowIndex,
-        ":",
-        headers
-      );
-
-      if (!headers || headers.length === 0) {
-        throw new Error("No headers found in Excel file");
-      }
-
-      // Skip the header row for data processing
-      const dataStartIndex = headerRowIndex + 1;
-      const rows: any[] = [];
-
-      for (let i = dataStartIndex; i < data.length; i++) {
-        const row = data[i] as any[];
-        if (!row || row.length === 0) continue;
-
-        console.log(
-          `ExcelService: Processing row ${i}, row length:`,
-          row.length
-        );
-
-        const rowObj: any = {};
-        headers.forEach((header, index) => {
-          const normalizedHeader = ExcelService.normalizeHeader(header);
-          rowObj[normalizedHeader] = row[index];
-          console.log(
-            `ExcelService: Header ${header} -> ${normalizedHeader} = ${row[index]}`
-          );
-        });
-
-        console.log(`ExcelService: Processed row ${i}:`, rowObj);
-
-        const openingDebit = parseFloat(rowObj.openingDebit || "0") || 0;
-        const openingCredit = parseFloat(rowObj.openingCredit || "0") || 0;
-        const movementDebit = parseFloat(rowObj.movementDebit || "0") || 0;
-        const movementCredit = parseFloat(rowObj.movementCredit || "0") || 0;
-        
-        const netOpening = openingDebit - openingCredit;
-        const netMovement = movementDebit - movementCredit;
-        const netClosing = netOpening + netMovement;
-        
-        const closingDebit = parseFloat(rowObj.closingDebit || "0") || 0;
-        const closingCredit = parseFloat(rowObj.closingCredit || "0") || 0;
-        
-        const expectedClosingDebit = netClosing > 0 ? netClosing : 0;
-        const expectedClosingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
-        
-        if (Math.abs(closingDebit - expectedClosingDebit) > 0.01 || Math.abs(closingCredit - expectedClosingCredit) > 0.01) {
-          console.warn(`Row ${i}: Closing balance mismatch for ${String(rowObj.accountNumber || "").trim()}. Expected D=${expectedClosingDebit}, C=${expectedClosingCredit}. Got D=${closingDebit}, C=${closingCredit}`);
-        }
-
-        const processedRow = {
-          accountNumber: String(rowObj.accountNumber || "").trim(),
-          accountName: String(rowObj.accountName || "").trim(),
-          openingDebit,
-          openingCredit,
-          movementDebit,
-          movementCredit,
-          closingDebit: expectedClosingDebit,
-          closingCredit: expectedClosingCredit,
-        };
-
-        rows.push(processedRow);
-      }
-
-      console.log("ExcelService: Final processed rows:", rows.length);
-      return { rows };
-    } catch (error) {
-      console.error("ExcelService: Error parsing file:", error);
-      throw error;
-    }
+  static validateBalanceWithPosition(
+    rows: { accountNumber: string; accountName: string; debit?: number; credit?: number }[]
+  ): { valid: boolean; errors: string[] } {
+    const normalizedRows = rows.map(r => ({
+      accountNumber: r.accountNumber,
+      accountName: r.accountName,
+      debit: r.debit || 0,
+      credit: r.credit || 0,
+    }));
+    return planComptableService.validateBalanceRows(normalizedRows);
   }
 
-  static async getBalanceTemplate(): Promise<any> {
-    // In production, this would come from database
+  // ============ BALANCE TEMPLATE METHODS ============
+
+  static async getBalanceTemplate() {
     return {
-      headers: [
-        "Numéro de Compte",
-        "Intitulé du Compte",
-        "Solde Débiteur Ouverture",
-        "Solde Créditeur Ouverture",
-        "Mouvement Débit",
-        "Mouvement Crédit",
-        "Solde Débiteur Clôture",
-        "Solde Créditeur Clôture",
-      ],
+      headers: ["Compte", "Libellé", "Opening Debit", "Opening Credit", "Movement Debit", "Movement Credit", "Closing Debit", "Closing Credit"],
       sampleAccounts: [
-        // Classe 1 - Capitaux
-        { account: "101000", name: "Capital social", class: "1", debit: 0, credit: 500000 },
-        { account: "106100", name: "Réserve légale", class: "1", debit: 0, credit: 50000 },
-        { account: "120000", name: "Report à nouveau", class: "1", debit: 25000, credit: 0 },
-        
-        // Classe 2 - Immobilisations
-        { account: "211000", name: "Terrains", class: "2", debit: 150000, credit: 0 },
-        { account: "213000", name: "Constructions", class: "2", debit: 300000, credit: 0 },
-        { account: "218300", name: "Matériel de transport", class: "2", debit: 80000, credit: 0 },
-        { account: "281100", name: "Amortissements terrains", class: "2", debit: 0, credit: 15000 },
-        { account: "281300", name: "Amortissements constructions", class: "2", debit: 0, credit: 30000 },
-        
-        // Classe 3 - Stocks
-        { account: "311000", name: "Marchandises A", class: "3", debit: 120000, credit: 0 },
-        { account: "350000", name: "Produits finis", class: "3", debit: 85000, credit: 0 },
-        
-        // Classe 4 - Créances et dette
-        { account: "401000", name: "Fournisseurs", class: "4", debit: 0, credit: 95000 },
-        { account: "411000", name: "Clients", class: "4", debit: 180000, credit: 0 },
-        { account: "440000", name: "Organismes sociaux", class: "4", debit: 0, credit: 15000 },
-        
-        // Classe 5 - Disponibilités
-        { account: "521000", name: "Banque", class: "5", debit: 450000, credit: 0 },
-        { account: "530000", name: "Caisse", class: "5", debit: 25000, credit: 0 },
-        
-        // Classe 6 - Charges
-        { account: "601000", name: "Achats de marchandises", class: "6", debit: 200000, credit: 0 },
-        { account: "604000", name: "Achats de fournitures", class: "6", debit: 35000, credit: 0 },
-        { account: "622000", name: "Locations", class: "6", debit: 48000, credit: 0 },
-        { account: "623000", name: "Publicité", class: "6", debit: 25000, credit: 0 },
-        { account: "626000", name: "Frais postaux", class: "6", debit: 8000, credit: 0 },
-        { account: "641000", name: "Salaires", class: "6", debit: 180000, credit: 0 },
-        { account: "645000", name: "Charges sociales", class: "6", debit: 72000, credit: 0 },
-        { account: "661000", name: "Intérêts bancaires", class: "6", debit: 12000, credit: 0 },
-        
-        // Classe 7 - Produits
-        { account: "701000", name: "Ventes de marchandises", class: "7", debit: 0, credit: 450000 },
-        { account: "706000", name: "Prestations de services", class: "7", debit: 0, credit: 120000 },
-        { account: "752000", name: "Revenus des placements", class: "7", debit: 0, credit: 8000 },
-        
-        // Classe 8 - Autres
+        { account: "101000", name: "Capital social", class: "1", debit: 0, credit: 10000000 },
+        { account: "109000", name: "Capital souscrit non appelé", class: "1", debit: 0, credit: 0 },
+        { account: "110000", name: "Report à nouveau (solde créditeur)", class: "1", debit: 0, credit: 0 },
+        { account: "120000", name: "Résultat net de l'exercice", class: "1", debit: 0, credit: 0 },
+        { account: "201000", name: "Frais d'établissement", class: "2", debit: 0, credit: 0 },
+        { account: "203000", name: "Frais de recherche et développement", class: "2", debit: 0, credit: 0 },
+        { account: "205000", name: "Concessions et droits similaires", class: "2", debit: 0, credit: 0 },
+        { account: "211000", name: "Terrains", class: "2", debit: 0, credit: 0 },
+        { account: "213000", name: "Constructions", class: "2", debit: 0, credit: 0 },
+        { account: "215000", name: "Installations techniques", class: "2", debit: 0, credit: 0 },
+        { account: "218100", name: "Matériel de transport", class: "2", debit: 0, credit: 0 },
+        { account: "218200", name: "Matériel informatique", class: "2", debit: 0, credit: 0 },
+        { account: "218300", name: "Mobilier de bureau", class: "2", debit: 0, credit: 0 },
+        { account: "281100", name: "Amortissements constructions", class: "2", debit: 0, credit: 0 },
+        { account: "301000", name: "Marchandises", class: "3", debit: 0, credit: 0 },
+        { account: "311000", name: "Matières premières", class: "3", debit: 0, credit: 0 },
+        { account: "331000", name: "Produits finis", class: "3", debit: 0, credit: 0 },
+        { account: "401000", name: "Fournisseurs - Achats de biens", class: "4", debit: 0, credit: 0 },
+        { account: "411000", name: "Clients", class: "4", debit: 0, credit: 0 },
+        { account: "421000", name: "Personnel - Rémunérations dues", class: "4", debit: 0, credit: 0 },
+        { account: "431000", name: "Sécurité sociale", class: "4", debit: 0, credit: 0 },
+        { account: "441100", name: "État - TVA due", class: "4", debit: 0, credit: 0 },
+        { account: "445200", name: "État - TVA récupérer", class: "4", debit: 0, credit: 0 },
+        { account: "521000", name: "Banques", class: "5", debit: 0, credit: 0 },
+        { account: "531000", name: "Caisse", class: "5", debit: 0, credit: 0 },
+        { account: "601000", name: "Achats de marchandises", class: "6", debit: 0, credit: 0 },
+        { account: "602000", name: "Achats de matières premières", class: "6", debit: 0, credit: 0 },
+        { account: "604000", name: "Achats de fournitures", class: "6", debit: 0, credit: 0 },
+        { account: "605000", name: "Achats d'études et prestations", class: "6", debit: 0, credit: 0 },
+        { account: "622000", name: "Rémunérations d'intermédiaires", class: "6", debit: 0, credit: 0 },
+        { account: "623000", name: "Publicité, publications", class: "6", debit: 0, credit: 0 },
+        { account: "624000", name: "Transports", class: "6", debit: 0, credit: 0 },
+        { account: "625000", name: "Déplacements, missions", class: "6", debit: 0, credit: 0 },
+        { account: "626000", name: "Frais postaux", class: "6", debit: 0, credit: 0 },
+        { account: "627000", name: "Services bancaires", class: "6", debit: 0, credit: 0 },
+        { account: "628000", name: "Autres services extérieurs", class: "6", debit: 0, credit: 0 },
+        { account: "631000", name: "Impôts et taxes", class: "6", debit: 0, credit: 0 },
+        { account: "641000", name: "Salaires et appointements", class: "6", debit: 0, credit: 0 },
+        { account: "645000", name: "Charges de sécurité sociale", class: "6", debit: 0, credit: 0 },
+        { account: "661000", name: "Charges d'intérêt", class: "6", debit: 0, credit: 0 },
+        { account: "671000", name: "Pénalités et amendes", class: "6", debit: 0, credit: 0 },
+        { account: "681000", name: "Dotations aux amortissements", class: "6", debit: 0, credit: 0 },
+        { account: "691000", name: "Impôts sur les bénéfices", class: "6", debit: 0, credit: 0 },
+        { account: "701000", name: "Ventes de marchandises", class: "7", debit: 0, credit: 0 },
+        { account: "702000", name: "Ventes de produits finis", class: "7", debit: 0, credit: 0 },
+        { account: "706000", name: "Prestations de services", class: "7", debit: 0, credit: 0 },
+        { account: "707000", name: "Ventes de fournitures", class: "7", debit: 0, credit: 0 },
+        { account: "708000", name: "Produits des activités annexes", class: "7", debit: 0, credit: 0 },
+        { account: "709000", name: "Rabais, remises et ristournes accordés", class: "7", debit: 0, credit: 0 },
+        { account: "741000", name: "Subventions d'exploitation", class: "7", debit: 0, credit: 0 },
+        { account: "751000", name: "Revenus des immeubles", class: "7", debit: 0, credit: 0 },
+        { account: "761000", name: "Produits financiers", class: "7", debit: 0, credit: 0 },
+        { account: "771000", name: "Subventions d'équilibre", class: "7", debit: 0, credit: 0 },
+        { account: "781000", name: "Reprises sur provisions", class: "7", debit: 0, credit: 0 },
+        { account: "791000", name: "Transferts de charges", class: "7", debit: 0, credit: 0 },
+        // Classe 8 - Résultats
         { account: "801000", name: "Charges constatées d'avance", class: "8", debit: 5000, credit: 0 },
         { account: "802000", name: "Produits à recevoir", class: "8", debit: 15000, credit: 0 },
       ],
@@ -306,15 +189,12 @@ export class ExcelService {
     const workbook = XLSX.utils.book_new();
     const data: any[][] = [];
 
-    // Add headers
     data.push(template.headers);
 
-    // Add sample rows with calculated values
     template.sampleAccounts.forEach((acc: any) => {
-      // Calculate closing balance
       const openingDebit = acc.debit || 0;
       const openingCredit = acc.credit || 0;
-      const movementDebit = Math.floor(Math.random() * 50000); // Random movement for demo
+      const movementDebit = Math.floor(Math.random() * 50000);
       const movementCredit = Math.floor(Math.random() * 40000);
       const closingDebit = Math.max(0, openingDebit + movementDebit - movementCredit);
       const closingCredit = Math.max(0, openingCredit + movementCredit - movementDebit);
@@ -334,9 +214,8 @@ export class ExcelService {
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Balance");
 
-    // Save file
     const fileName = `balance_modele_${fiscalYear}_${Date.now()}.xlsx`;
-    const filePath = path.join(config.upload.directory, fileName);
+    const filePath = path.join(config.upload.directory, config.upload.subDirectories.balance, fileName);
 
     XLSX.writeFile(workbook, filePath);
 
@@ -345,93 +224,142 @@ export class ExcelService {
 
   private static normalizeHeader(header: string): string {
     const mapping: { [key: string]: string } = {
-      // Headers français simplifiés du template
+      // Account number
       comptes: "accountNumber",
       compte: "accountNumber",
+      "n° compte": "accountNumber",
+      "numéro compte": "accountNumber",
+      "n° de compte": "accountNumber",
+      "numero de compte": "accountNumber",
+      "account number": "accountNumber",
+      account: "accountNumber",
+      // Account name
       libelle: "accountName",
       libellé: "accountName",
       "nom du compte": "accountName",
       "nom du compte ": "accountName",
-      "ouverture debit": "openingDebit",
-      "ouverture credit": "openingCredit",
-      "mouvement debit": "movementDebit",
-      "mouvement credit": "movementCredit",
-      "solde debit": "closingDebit",
-      "solde credit": "closingCredit",
-
-      // Headers français détaillés (pour compatibilité)
-      "numéro de compte": "accountNumber",
-      "numero de compte": "accountNumber",
-      libellés: "accountName",
       "intitulé du compte": "accountName",
-      "intitule du compte": "accountName",
-      "entrée débit": "openingDebit",
-      "entrée debit": "openingDebit",
-      "solde débiteur ouverture": "openingDebit",
-      "solde debiteur ouverture": "openingDebit",
-      "sd ouverture": "openingDebit",
-      "entrée crédit": "openingCredit",
-      "entrée credit": "openingCredit",
-      "solde créditeur ouverture": "openingCredit",
-      "solde crediteur ouverture": "openingCredit",
-      "sc ouverture": "openingCredit",
-      "mouvement débit": "movementDebit",
-      "mvt debit": "movementDebit",
-      "mouvement crédit": "movementCredit",
-      "mvt credit": "movementCredit",
-      "sortie débit": "closingDebit",
-      "sortie debit": "closingDebit",
-      "solde débiteur clôture": "closingDebit",
-      "solde debiteur cloture": "closingDebit",
-      "sd cloture": "closingDebit",
-      "sortie crédit": "closingCredit",
-      "sortie credit": "closingCredit",
-      "solde créditeur clôture": "closingCredit",
-      "solde crediteur cloture": "closingCredit",
-      "sc cloture": "closingCredit",
-
-      // Headers with accents - debit opening
-      "débit ouverture": "openingDebit",
-      "debit ouverture": "openingDebit",
-      "débits ouverture": "openingDebit",
-      "debits ouverture": "openingDebit",
-      
-      // Headers with accents - credit opening
-      "crédit ouverture": "openingCredit",
-      "credit ouverture": "openingCredit",
-      "crédits ouverture": "openingCredit",
-      "credits ouverture": "openingCredit",
-
-      // Headers with accents - debit movement
+      nom: "accountName",
+      // Opening balance
+      "débit initial": "openingDebit",
+      "crédit initial": "openingCredit",
+      "debit initial": "openingDebit",
+      "credit initial": "openingCredit",
+      // Movement
+      débit: "movementDebit",
+      crédit: "movementCredit",
       "débit mouvement": "movementDebit",
-      "debit mouvement": "movementDebit",
-      "débits mouvement": "movementDebit",
-      "debits mouvement": "movementDebit",
-
-      // Headers with accents - credit movement
       "crédit mouvement": "movementCredit",
-      "credit mouvement": "movementCredit",
-      "crédits mouvement": "movementCredit",
-      "credits mouvement": "movementCredit",
-
-      // Headers with accents - debit closing
-      "débit clôture": "closingDebit",
-      "debit cloture": "closingDebit",
-      "débits clôture": "closingDebit",
-      "debits cloture": "closingDebit",
-
-      // Headers with accents - credit closing
-      "crédit clôture": "closingCredit",
-      "credit cloture": "closingCredit",
-      "crédits clôture": "closingCredit",
-      "credits cloture": "closingCredit",
+      // Closing balance
+      "solde débiteur": "closingDebit",
+      "solde créditeur": "closingCredit",
+      "solde": "balance",
     };
 
     const normalized = header.toLowerCase().trim();
-    const result = mapping[normalized] || header;
-    console.log(
-      `ExcelService: Header "${header}" -> normalized "${normalized}" -> mapped to "${result}"`
+    return mapping[normalized] || normalized;
+  }
+
+  static async parseBalanceFile(filePath: string): Promise<any> {
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    
+    const rows: any[] = [];
+    const headers = (jsonData[0] as string[]).map((h, idx) => ({
+      index: idx,
+      original: h,
+      normalized: this.normalizeHeader(h || ""),
+    }));
+
+    const accountCol = headers.find(h => 
+      h.normalized === "accountNumber" || 
+      h.original?.toLowerCase().includes("compte") ||
+      h.original?.toLowerCase().includes("account")
     );
-    return result;
+    if (!accountCol) {
+      console.error("Headers found:", headers.map(h => ({ original: h.original, normalized: h.normalized })));
+      throw new Error("Colonne 'Compte' non trouvée dans le fichier Excel");
+    }
+    
+    const colMatches = (h: any, keywords: string[]) => {
+      const orig = h.original?.toLowerCase() || "";
+      const norm = h.normalized?.toLowerCase() || "";
+      return keywords.some(k => orig.includes(k) || norm.includes(k));
+    };
+
+    const nameCol = headers.find(h => colMatches(h, ["libell", "nom", "intitul"]));
+    const openDebitCol = headers.find(h => colMatches(h, ["débit initial", "debit initial", "debiteur initial", "débiteur initial"]));
+    const openCreditCol = headers.find(h => colMatches(h, ["crédit initial", "credit initial", "crediteur initial", "créditeur initial"]));
+    const moveDebitCol = headers.find(h => colMatches(h, ["débit", "debit"]));
+    const moveCreditCol = headers.find(h => colMatches(h, ["crédit", "credit"]));
+    const closeDebitCol = headers.find(h => colMatches(h, ["solde débiteur", "solde debiteur", "solde final"]));
+    const closeCreditCol = headers.find(h => colMatches(h, ["solde créditeur", "solde crediteur"]));
+
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i] as any[];
+      if (!row || !row[accountCol?.index || 0]) continue;
+
+      const accountNumber = String(row[accountCol.index] || "").trim();
+      if (!accountNumber || accountNumber.length < 3) continue;
+
+      const hasNumericValue = (val: any) => {
+        if (typeof val === "number") return true;
+        if (typeof val === "string") {
+          const cleaned = val.replace(/[<>,]/g, "").trim();
+          return cleaned !== "" && !isNaN(parseFloat(cleaned));
+        }
+        return false;
+      };
+
+      const getNumericValue = (val: any): number => {
+        if (typeof val === "number") return val;
+        if (typeof val === "string") {
+          const cleaned = val.replace(/[<>,]/g, "").trim();
+          return parseFloat(cleaned) || 0;
+        }
+        return 0;
+      };
+
+      const rowData: any = {
+        accountNumber,
+        accountName: nameCol ? String(row[nameCol.index] || "").trim() : "",
+      };
+
+      if (openDebitCol && hasNumericValue(row[openDebitCol.index])) {
+        rowData.openingDebit = getNumericValue(row[openDebitCol.index]);
+      }
+      if (openCreditCol && hasNumericValue(row[openCreditCol.index])) {
+        rowData.openingCredit = getNumericValue(row[openCreditCol.index]);
+      }
+      if (moveDebitCol && hasNumericValue(row[moveDebitCol.index])) {
+        rowData.movementDebit = getNumericValue(row[moveDebitCol.index]);
+      }
+      if (moveCreditCol && hasNumericValue(row[moveCreditCol.index])) {
+        rowData.movementCredit = getNumericValue(row[moveCreditCol.index]);
+      }
+      if (closeDebitCol && hasNumericValue(row[closeDebitCol.index])) {
+        rowData.closingDebit = getNumericValue(row[closeDebitCol.index]);
+      }
+      if (closeCreditCol && hasNumericValue(row[closeCreditCol.index])) {
+        rowData.closingCredit = getNumericValue(row[closeCreditCol.index]);
+      }
+
+      if (!rowData.closingDebit && !rowData.closingCredit) {
+        rowData.closingDebit = Math.max(0, (rowData.openingDebit || 0) + (rowData.movementDebit || 0) - (rowData.movementCredit || 0));
+        rowData.closingCredit = Math.max(0, (rowData.openingCredit || 0) + (rowData.movementCredit || 0) - (rowData.movementDebit || 0));
+      }
+
+      rows.push(rowData);
+    }
+
+    return {
+      rows,
+      meta: {
+        sheetName,
+        totalRows: rows.length,
+      },
+    };
   }
 }

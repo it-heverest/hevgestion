@@ -17,27 +17,37 @@ import { Validators } from "../utils/validators";
 import { auditService } from "../services/audit.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { NotificationService } from "../services/notification.service";
+import { emailService } from "../services/email.service";
 
 // Reuse the same interface — no duplication
 type AuthenticatedRequest = AuthRequest;
 
 // ─── Cookie helpers ──────────────────────────────────────────────────────────
 
-function makeCookieOptions(isProduction: boolean) {
+function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
+  let cookieDomain: string | undefined;
+  if (isProduction && corsOrigin) {
+    try {
+      const url = new URL(corsOrigin.startsWith("http") ? corsOrigin : `https://${corsOrigin}`);
+      cookieDomain = url.hostname;
+    } catch {
+      cookieDomain = undefined;
+    }
+  }
+
   return {
     access: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? ("strict" as const) : ("lax" as const),
-      domain: isProduction ? undefined : "localhost",
-      maxAge: 4 * 60 * 60 * 1000, // 4 hours
+      sameSite: "lax" as const,
+      domain: cookieDomain,
+      maxAge: 4 * 60 * 60 * 1000,
     },
     refresh: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? ("strict" as const) : ("lax" as const),
-      domain: isProduction ? undefined : "localhost",
-      // No maxAge — expires when browser tab closes
+      sameSite: "lax" as const,
+      domain: cookieDomain,
     },
   };
 }
@@ -48,8 +58,9 @@ function setAuthCookies(
   refreshToken: string
 ) {
   const isProduction = process.env.NODE_ENV === "production";
-  const opts = makeCookieOptions(isProduction);
-  res.cookie("accessToken", accessToken, opts.access);
+  const corsOrigin = process.env.CORS_ORIGIN;
+  const opts = makeCookieOptions(isProduction, corsOrigin);
+  
   res.cookie("refreshToken", refreshToken, opts.refresh);
 }
 
@@ -86,6 +97,11 @@ class AuthController {
         maxAssistants,
       } = req.body;
 
+      // Require at least one verification method
+      if (!email && !phoneNumber) {
+        throw new BadRequestError("Email or phone number is required");
+      }
+
       if (email) {
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) throw new ConflictError("User with this email already exists");
@@ -108,11 +124,8 @@ class AuthController {
       // All public registrations are COMPTABLE
       const userRole = "COMPTABLE";
 
-      const otpCode =
-        process.env.NODE_ENV === "production"
-          ? Math.floor(100000 + Math.random() * 900000).toString()
-          : "123456";
-
+      // Generate 6-digit OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
       const user = await prisma.user.create({
@@ -132,20 +145,42 @@ class AuthController {
         } as any,
       });
 
-      console.log(`OTP for user ${user.id}: ${otpCode}`);
+      console.log(`OTP for user ${user.id} (${email || phoneNumber}): ${otpCode}`);
+
+      // Send OTP based on verification method
+      if (email) {
+        try {
+          await emailService.sendOTP(email, otpCode, `${firstName} ${lastName}`);
+        } catch (emailError) {
+          console.error("Failed to send OTP email:", emailError);
+        }
+      } else if (phoneNumber) {
+        // TODO: Implement SMS OTP sending
+        console.log(`SMS OTP for user ${user.id} (${phoneNumber}): ${otpCode}`);
+      }
 
       // Create welcome and guide notifications
       try {
         await NotificationService.createWelcomeNotification(user.id);
         await NotificationService.createGuideNotification(user.id);
+        
+        // Send welcome email if email is provided
+        if (email) {
+          await emailService.sendWelcomeEmail(email, `${firstName} ${lastName}`);
+        }
       } catch (notifError) {
         console.error("Error creating notifications:", notifError);
       }
 
+      const message = email 
+        ? "Un code de vérification a été envoyé à votre adresse email" 
+        : "Un code de vérification a été envoyé par SMS";
+
       res.status(201).json({
-        message: "Un code de vérification a été envoyé à votre numéro de téléphone",
+        message,
         user: formatUser(user),
         requiresOtp: true,
+        verificationMethod: email ? "email" : "phone",
       });
     } catch (error) {
       next(error);
@@ -291,6 +326,63 @@ class AuthController {
         user: formatUser(verifiedUser),
         // Return accessToken in body so frontend can store it in memory
         accessToken,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        throw new BadRequestError("User ID is required");
+      }
+
+      const user = (await prisma.user.findUnique({
+        where: { id: userId },
+      })) as any;
+
+      if (!user) {
+        throw new BadRequestError("User not found");
+      }
+
+      // Check if user is already verified
+      if (user.isVerified) {
+        throw new BadRequestError("User is already verified");
+      }
+
+      // Generate new 6-digit OTP
+      const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          otpCode: newOtpCode,
+          otpExpiry: newOtpExpiry,
+        } as any,
+      });
+
+      // Send new OTP via email
+      if (user.email) {
+        try {
+          await emailService.sendOTP(
+            user.email,
+            newOtpCode,
+            `${user.firstName} ${user.lastName}`
+          );
+        } catch (emailError) {
+          console.error("Failed to resend OTP email:", emailError);
+        }
+      }
+
+      console.log(`New OTP for user ${userId} (${user.email}): ${newOtpCode}`);
+
+      res.json({
+        message: "Nouveau code OTP envoyé",
+        success: true,
       });
     } catch (error) {
       next(error);

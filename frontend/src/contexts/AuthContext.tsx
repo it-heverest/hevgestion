@@ -24,6 +24,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<{ requiresOtp?: boolean; user?: User }>;
   verifyOtp: (userId: string, otpCode: string) => Promise<void>;
+  resendOtp: (userId: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
@@ -59,6 +60,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authService.clearTokens();
     setUser(null);
     setError(null);
+    // Clear all localStorage items related to session
+    localStorage.removeItem("onboarding_completed");
+    localStorage.removeItem("hevgestion_access_token");
+    sessionStorage.clear();
   }, []);
 
   const handleAuthError = useCallback((err: any, defaultMessage: string) => {
@@ -76,6 +81,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const init = async () => {
       try {
         setLoading(true);
+        
+        // Try to refresh token using cookie first (if no accessToken in memory)
+        if (!authService.getToken()) {
+          try {
+            const refreshResult = await authService.refreshToken();
+            if (refreshResult) {
+              // Token refreshed successfully, now fetch profile
+              const profile = await fetchUserProfile();
+              if (mounted) {
+                setUser(profile);
+                setInitialized(true);
+              }
+              return;
+            }
+          } catch (refreshErr) {
+            // Refresh failed, try fetching profile anyway (cookie might be expired)
+            console.log("Token refresh failed, trying direct profile fetch");
+          }
+        }
+        
+        // Fallback: try to get profile directly
         const profile = await fetchUserProfile();
         if (mounted) {
           setUser(profile);
@@ -176,6 +202,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err: any) {
       handleAuthError(err, "Erreur lors de la vérification OTP");
       throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendOtp = async (userId: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await authService.resendOtp(userId);
+      return result;
+    } catch (err: any) {
+      const message = err?.message || "Erreur lors de l'envoi du code";
+      setError(message);
+      return { success: false, message };
     } finally {
       setLoading(false);
     }
@@ -283,6 +324,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     register,
     verifyOtp,
+    resendOtp,
     logout,
     isAuthenticated: !!user,
     loading,

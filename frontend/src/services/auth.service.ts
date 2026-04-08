@@ -31,8 +31,9 @@ export interface UpdateProfileData {
 }
 
 /**
- * Service d'authentification avec HttpOnly cookies
- * Gestion centralisée de toutes les opérations d'authentification
+ * Service d'authentification avec Split Storage (Best Practice)
+ * - Access Token: en mémoire (disparaît au refresh - sécurisé)
+ * - Refresh Token: cookie HttpOnly (géré par le serveur)
  */
 class AuthService {
   private baseURL = API_CONFIG.AUTH;
@@ -40,6 +41,11 @@ class AuthService {
   private readonly TOKEN_BUFFER_TIME = 5 * 60 * 1000; // 5 minutes
 
   // ==================== GESTION DES TOKENS ====================
+
+  constructor() {
+    // Ne plus charger depuis localStorage - token en mémoire seulement
+    // Le refresh se fait via le cookie HttpOnly automatiquement
+  }
 
   setAccessToken(token: string): void {
     this.accessToken = token;
@@ -243,6 +249,24 @@ class AuthService {
       return {
         success: false,
         error: error.message,
+      };
+    }
+  }
+
+  async resendOtp(userId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await this.makeRequest<any>("post", "/resend-otp", {
+        userId,
+      });
+
+      return {
+        success: response.success || true,
+        message: response.message,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message,
       };
     }
   }

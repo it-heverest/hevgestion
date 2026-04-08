@@ -9,10 +9,10 @@ import { config } from "../config";
 function getTemplateDir(identifier: string, isUserId: boolean = false): string {
     if (isUserId) {
         // Backward compatibility: store per user
-        return path.join(config.upload.directory, "dsf-templates", identifier);
+        return path.join(config.upload.directory, config.upload.subDirectories.templates, identifier);
     }
     // New: store per folder
-    return path.join(config.upload.directory, "dsf-templates", identifier);
+    return path.join(config.upload.directory, config.upload.subDirectories.templates, identifier);
 }
 
 /**
@@ -108,7 +108,7 @@ export function createTemplateCopy(folderId: string, clientName: string): string
     }
 
     // Create exports directory if needed
-    const exportsDir = path.join(config.upload.directory, "dsf-exports");
+    const exportsDir = path.join(config.upload.directory, config.upload.subDirectories.exports);
     if (!fs.existsSync(exportsDir)) {
         fs.mkdirSync(exportsDir, { recursive: true });
     }

@@ -2,6 +2,7 @@
 import * as XLSX from "xlsx";
 import * as fs from "fs";
 import * as path from "path";
+import { config } from "../config";
 
 export interface ExcelElement {
   id: number;
@@ -33,8 +34,8 @@ export async function loadExcelReportConfig(): Promise<ExcelValidationResult> {
   };
 
   try {
-    // Path to the Excel file
-    const filePath = path.join(process.cwd(), "../frontend/public/upload/reportconfig.xlsx");
+    // Use frontend public/upload directory
+    const filePath = path.join(config.rootDir, "frontend", "public", "upload", "reportconfig.xlsx");
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`Fichier non trouvé: ${filePath}`);
