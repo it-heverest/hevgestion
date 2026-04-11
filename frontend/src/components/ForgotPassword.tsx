@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
+  Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { authService } from "../services/auth.service";
@@ -33,17 +34,21 @@ export function ForgotPassword({
 }: ForgotPasswordProps) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
+  const [step, setStep] = useState<"email" | "otp" | "reset">("email");
+  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null);
 
   // Gestionnaires de navigation avec fallback
   const handleBackToLogin = () => {
     if (onBackToLogin) {
       onBackToLogin();
     } else {
-      navigate("/login");
+      navigate("/fr/web/user/login");
     }
   };
 
@@ -51,11 +56,11 @@ export function ForgotPassword({
     if (onSwitchToRegister) {
       onSwitchToRegister();
     } else {
-      navigate("/register");
+      navigate("/fr/web/user/register");
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation de l'email
@@ -74,14 +79,16 @@ export function ForgotPassword({
       if (result.success) {
         setSuccessMessage(
           result.message ||
-          "Un lien de réinitialisation a été envoyé à votre adresse email."
+          "Un code de réinitialisation a été envoyé à votre adresse email."
         );
-        setEmailSent(true);
+        setStep("otp");
       } else {
         setError(
+          result.message ||
           result.error ||
-          "Une erreur est survenue lors de l'envoi du lien de réinitialisation."
+          "Une erreur est survenue lors de l'envoi du code de réinitialisation."
         );
+        // Don't proceed to OTP step if email doesn't exist
       }
     } catch (err: any) {
       console.error("Forgot password error:", err);
@@ -91,11 +98,95 @@ export function ForgotPassword({
     }
   };
 
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!otp || otp.length !== 6) {
+      setError("Veuillez saisir un code de 6 chiffres valide");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await authService.verifyPasswordResetOtp(email, otp);
+
+      if (result.success && result.userId) {
+        setVerifiedUserId(result.userId);
+        setStep("reset");
+        setSuccessMessage("Code vérifié avec succès. Vous pouvez maintenant définir un nouveau mot de passe.");
+      } else {
+        setError(
+          result.error ||
+          "Code invalide ou expiré."
+        );
+      }
+    } catch (err: any) {
+      console.error("OTP verification error:", err);
+      setError("Erreur de connexion. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newPassword || newPassword.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      setError("Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial");
+      return;
+    }
+
+    if (!verifiedUserId) {
+      setError("Session expirée. Veuillez recommencer le processus.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await authService.resetPassword(verifiedUserId, newPassword);
+
+      if (result.success) {
+        setSuccessMessage("Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      } else {
+        setError(
+          result.error ||
+          "Une erreur est survenue lors de la réinitialisation du mot de passe."
+        );
+      }
+    } catch (err: any) {
+      console.error("Password reset error:", err);
+      setError("Erreur de connexion. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleReset = () => {
     setEmail("");
+    setOtp("");
+    setNewPassword("");
+    setConfirmPassword("");
     setError(null);
     setSuccessMessage(null);
-    setEmailSent(false);
+    setStep("email");
+    setVerifiedUserId(null);
   };
 
   const isValidEmail = (email: string): boolean => {
@@ -128,24 +219,26 @@ export function ForgotPassword({
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <CardTitle className="text-xl flex-1">
-                {emailSent ? "Email envoyé" : "Mot de passe oublié"}
+                {step === "email" && "Mot de passe oublié"}
+                {step === "otp" && "Vérification du code"}
+                {step === "reset" && "Nouveau mot de passe"}
               </CardTitle>
             </div>
             <CardDescription>
-              {emailSent
-                ? "Consultez votre boîte email pour réinitialiser votre mot de passe"
-                : "Saisissez votre email pour recevoir un lien de réinitialisation"}
+              {step === "email" && "Saisissez votre email pour recevoir un code de réinitialisation"}
+              {step === "otp" && "Saisissez le code de 6 chiffres envoyé à votre email"}
+              {step === "reset" && "Définissez votre nouveau mot de passe"}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <AnimatePresence mode="wait">
-              {!emailSent ? (
+              {step === "email" && (
                 <motion.form
-                  key="forgot-form"
+                  key="email-form"
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  onSubmit={handleSubmit}
+                  onSubmit={handleEmailSubmit}
                   className="space-y-4"
                 >
                   {/* Alert d'erreur */}
@@ -172,7 +265,10 @@ export function ForgotPassword({
                         id="forgot-email"
                         type="email"
                         value={email}
-                        onChange={(e) => handleEmailChange(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (error) setError(null);
+                        }}
                         placeholder="votre@email.com"
                         className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
                         autoComplete="off"
@@ -181,8 +277,7 @@ export function ForgotPassword({
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Vous recevrez un lien sécurisé pour réinitialiser votre
-                      mot de passe
+                      Vous recevrez un code de 6 chiffres pour réinitialiser votre mot de passe
                     </p>
                   </div>
 
@@ -201,7 +296,7 @@ export function ForgotPassword({
                           Envoi en cours...
                         </>
                       ) : (
-                        "Envoyer le lien de réinitialisation"
+                        "Envoyer le code de réinitialisation"
                       )}
                     </Button>
                   </motion.div>
@@ -217,71 +312,213 @@ export function ForgotPassword({
                     </Button>
                   </div>
                 </motion.form>
-              ) : (
-                <motion.div
-                  key="success-message"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-6 text-center"
+              )}
+
+              {step === "otp" && (
+                <motion.form
+                  key="otp-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleOtpSubmit}
+                  className="space-y-4"
                 >
-                  {/* Icône de succès */}
-                  <div className="flex justify-center">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.2, type: "spring" }}
-                      className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center"
-                    >
-                      <CheckCircle2 className="h-8 w-8 text-green-600" />
-                    </motion.div>
-                  </div>
+                  {/* Alert d'erreur */}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <Alert variant="destructive" className="mb-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                  {/* Message de succès */}
+                  {/* Success message */}
+                  <AnimatePresence>
+                    {successMessage && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <Alert className="mb-4 border-green-200 bg-green-50">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+                        </Alert>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">
-                      Email envoyé avec succès !
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {successMessage}
+                    <Label htmlFor="otp-code">Code de vérification</Label>
+                    <div className="relative">
+                      <Input
+                        id="otp-code"
+                        type="text"
+                        value={otp}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setOtp(value);
+                          if (error) setError(null);
+                        }}
+                        placeholder="123456"
+                        className="text-center text-2xl tracking-widest transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        autoComplete="off"
+                        required
+                        disabled={isLoading}
+                        maxLength={6}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Code envoyé à {email}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Le code expire dans 5 minutes
                     </p>
                   </div>
 
-                  {/* Instructions supplémentaires */}
-                  <div className="bg-blue-50 p-4 rounded-lg text-left space-y-2">
-                    <p className="text-sm font-medium text-blue-800">
-                      📧 Consultez votre boîte email
-                    </p>
-                    <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
-                      <li>
-                        Vérifiez votre dossier de spam si vous ne voyez pas
-                        l'email
-                      </li>
-                      <li>Le lien de réinitialisation expire dans 1 heure</li>
-                      <li>
-                        Cliquez sur le lien pour créer un nouveau mot de passe
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="space-y-3">
+                  <motion.div
+                    whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                    whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                  >
                     <Button
+                      type="submit"
+                      className="w-full transition-all duration-200"
+                      disabled={isLoading || otp.length !== 6}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Vérification...
+                        </>
+                      ) : (
+                        "Vérifier le code"
+                      )}
+                    </Button>
+                  </motion.div>
+
+                  <div className="text-center space-y-2">
+                    <Button
+                      variant="link"
                       onClick={handleReset}
-                      variant="outline"
-                      className="w-full"
+                      className="text-sm text-muted-foreground"
+                      disabled={isLoading}
                     >
-                      Réinitialiser un autre mot de passe
-                    </Button>
-
-                    <Button
-                      onClick={handleBackToLogin}
-                      variant="ghost"
-                      className="w-full"
-                    >
-                      Retour à la connexion
+                      Renvoyer le code
                     </Button>
                   </div>
-                </motion.div>
+                </motion.form>
+              )}
+
+              {step === "reset" && (
+                <motion.form
+                  key="reset-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handlePasswordReset}
+                  className="space-y-4"
+                >
+                  {/* Alert d'erreur */}
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <Alert variant="destructive" className="mb-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Success message */}
+                  <AnimatePresence>
+                    {successMessage && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <Alert className="mb-4 border-green-200 bg-green-50">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+                        </Alert>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Nouveau mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          if (error) setError(null);
+                        }}
+                        placeholder="Votre nouveau mot de passe"
+                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        autoComplete="new-password"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (error) setError(null);
+                        }}
+                        placeholder="Confirmer votre nouveau mot de passe"
+                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        autoComplete="new-password"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <motion.div
+                    whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                    whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                  >
+                    <Button
+                      type="submit"
+                      className="w-full transition-all duration-200"
+                      disabled={isLoading || !newPassword || !confirmPassword}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Réinitialisation...
+                        </>
+                      ) : (
+                        "Réinitialiser le mot de passe"
+                      )}
+                    </Button>
+                  </motion.div>
+                </motion.form>
               )}
             </AnimatePresence>
 

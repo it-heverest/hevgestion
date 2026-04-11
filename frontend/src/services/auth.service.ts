@@ -159,7 +159,7 @@ class AuthService {
     }
 
     const status = error.response.status;
-    const message = error.response.data?.message || "Une erreur s'est produite";
+    const message = error.response.data?.error || error.response.data?.message || "Une erreur s'est produite";
 
     switch (status) {
       case 400:
@@ -377,7 +377,31 @@ class AuthService {
       });
 
       return {
+        success: response.success ?? true,
+        message: response.message,
+        error: response.error,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  async verifyPasswordResetOtp(
+    email: string,
+    otp: string,
+  ): Promise<{ success: boolean; userId?: string; message?: string; error?: string }> {
+    try {
+      const response = await this.makeRequest<any>("post", "/verify-password-reset-otp", {
+        email,
+        otp,
+      });
+
+      return {
         success: true,
+        userId: response.userId,
         message: response.message,
       };
     } catch (error: any) {
@@ -389,12 +413,12 @@ class AuthService {
   }
 
   async resetPassword(
-    token: string,
+    userId: string,
     newPassword: string,
   ): Promise<PasswordResetResponse> {
     try {
       const response = await this.makeRequest<any>("post", "/reset-password", {
-        token,
+        userId,
         newPassword,
       });
 

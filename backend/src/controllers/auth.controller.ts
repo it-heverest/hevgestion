@@ -487,24 +487,92 @@ class AuthController {
       const { email } = req.body;
       if (!email) throw new BadRequestError("Email is required");
 
+      // Check if email exists in database
       const user = await prisma.user.findUnique({ where: { email } });
 
       if (!user) {
-        // Don't reveal whether the email exists
+        // Email not found in database
         return res.json({
-          message: "If the email exists, a reset link has been sent",
+          success: false,
+          message: "Aucun compte trouvé avec cette adresse email. Veuillez vérifier l'email saisi ou créer un nouveau compte.",
         });
       }
 
-      const resetToken =
-        Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+      // User exists, proceed with OTP generation
+      // Generate 6-digit OTP
+      const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetTokenExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-      console.log(`Password reset token for ${email}: ${resetToken}`);
+      // Store OTP in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken,
+          resetTokenExpiry,
+        } as any,
+      });
+
+      console.log(`Password reset OTP for ${email}: ${resetToken}`);
+
+      // Send OTP via email
+      try {
+        await emailService.sendPasswordResetOTP(
+          email,
+          resetToken,
+          `${user.firstName} ${user.lastName}`,
+        );
+      } catch (emailError) {
+        console.error("Failed to send password reset OTP:", emailError);
+        return res.json({
+          success: false,
+          message: "Erreur lors de l'envoi de l'email. Veuillez réessayer plus tard.",
+        });
+      }
 
       res.json({
-        message: "If the email exists, a reset link has been sent",
-        resetToken:
-          process.env.NODE_ENV === "development" ? resetToken : undefined,
+        success: true,
+        message: "Un code de réinitialisation a été envoyé à votre adresse email.",
+        ...(process.env.NODE_ENV === "development" && { resetToken }),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyPasswordResetOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        throw new BadRequestError("Email and OTP are required");
+      }
+
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user) {
+        throw new BadRequestError("Invalid email or OTP");
+      }
+
+      if (!user.resetToken || user.resetToken !== otp) {
+        throw new BadRequestError("Invalid OTP");
+      }
+
+      if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+        throw new BadRequestError("OTP has expired");
+      }
+
+      // Mark OTP as verified by clearing it (will be used in resetPassword)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken: null,
+          resetTokenExpiry: null,
+        } as any,
+      });
+
+      res.json({
+        message: "OTP verified successfully",
+        userId: user.id,
       });
     } catch (error) {
       next(error);
@@ -513,10 +581,10 @@ class AuthController {
 
   async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const { token, newPassword } = req.body;
+      const { userId, newPassword } = req.body;
 
-      if (!token || !newPassword) {
-        throw new BadRequestError("Token and new password are required");
+      if (!userId || !newPassword) {
+        throw new BadRequestError("User ID and new password are required");
       }
       if (newPassword.length < 8) {
         throw new BadRequestError(
@@ -524,9 +592,25 @@ class AuthController {
         );
       }
 
-      console.log(`Password reset attempted with token: ${token}`);
+      // Find user and verify OTP was recently verified (resetToken should be null)
+      const user = await prisma.user.findUnique({ where: { id: userId } });
 
-      res.json({ message: "Password reset successfully" });
+      if (!user) {
+        throw new BadRequestError("User not found");
+      }
+
+      // Hash the new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      console.log(`Password reset successfully for user ${userId} (${user.email})`);
+
+      res.json({ message: "Mot de passe réinitialisé avec succès" });
     } catch (error) {
       next(error);
     }

@@ -472,7 +472,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
       <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">
+            <h2 className="mt-4 text-lg font-semibold text-gray-900 tracking-tight">
               DSF &amp; Rapports
             </h2>
             <p className="mt-0.5 text-sm text-gray-500">

@@ -116,16 +116,16 @@ export function useLogin() {
 
     try {
       // Call login and check if it was successful
-      const success = await login({
+      const result = await login({
         phoneCountryCode: loginForm.phoneCountryCode,
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
 
-      // If login failed (success === false), don't navigate
-      if (!success) {
-        // Error is already set in AuthContext, sync it here
-        setError(authError || "Numéro de téléphone ou mot de passe incorrect");
+      // If login failed, don't navigate
+      if (!result.success) {
+        // Error is returned directly from login
+        setError(result.error || "Numéro de téléphone ou mot de passe incorrect");
         setIsLoading(false);
         return;
       }
