@@ -44,6 +44,7 @@ import { ReportNavigation } from "./components/DSF/ReportNavigation";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { EntityHeader } from "./components/EntityHeader";
+import { AuthLoader } from "./components/AuthLoader";
 import {
   LayoutDashboard,
   Upload,
@@ -62,6 +63,7 @@ import {
 import { Button } from "./components/ui/button";
 import DGIDeclarationProfessional from "./components/DGIDeclarationProfessional";
 import { ForgotPassword } from "./components/ForgotPassword";
+import { NotFound } from "./components/NotFound";
 import { OtpVerificationPage } from "./components/OtpVerificationPage";
 import DSFConfigInterface from "./components/DSFConfigInterface";
 import { notesService } from "./services/notes.service";
@@ -519,7 +521,7 @@ export function ProtectedLayout({
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, isInitializing } = useAuth();
   const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -549,15 +551,8 @@ function AppRoutes() {
     localStorage.setItem("onboarding_completed", "true");
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">{t("initializingAuth")}</p>
-        </div>
-      </div>
-    );
+  if (isInitializing) {
+    return <AuthLoader />;
   }
 
   return (
@@ -579,7 +574,9 @@ function AppRoutes() {
           <Route
             path="web/user/*"
             element={
-              isAuthenticated ? (
+              isInitializing ? (
+                <AuthLoader />
+              ) : isAuthenticated ? (
                 <ProtectedLayout
                   selectedCountry={selectedCountry}
                   setSelectedCountry={setSelectedCountry}
@@ -1188,22 +1185,13 @@ function AppRoutes() {
               }
             />
           </Route>
+
+          {/* 404 Not Found - outside protected routes to avoid sidebar/navbar */}
+          <Route path="*" element={<NotFound />} />
         </Route>
 
-        {/* Fallback redirect to default language (French) */}
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to={
-                isAuthenticated
-                  ? `/fr/web/user/dashboard/${user?.id ?? "me"}`
-                  : "/fr/web/user/login"
-              }
-              replace
-            />
-          }
-        />
+        {/* 404 Not Found for unauthenticated/invalid language routes */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
 
       <OnboardingGuide

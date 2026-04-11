@@ -116,16 +116,16 @@ export function useLogin() {
 
     try {
       // Call login and check if it was successful
-      const success = await login({
+      const result = await login({
         phoneCountryCode: loginForm.phoneCountryCode,
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
 
-      // If login failed (success === false), don't navigate
-      if (!success) {
-        // Error is already set in AuthContext, sync it here
-        setError(authError || "Numéro de téléphone ou mot de passe incorrect");
+      // If login failed, don't navigate
+      if (!result.success) {
+        // Error is returned directly from login
+        setError(result.error || "Numéro de téléphone ou mot de passe incorrect");
         setIsLoading(false);
         return;
       }
@@ -321,8 +321,11 @@ export function useLogin() {
 
   // Navigation entre les étapes
   const nextStep = () => {
-    const maxSteps = registerForm.role === "COMPTABLE" ? 5 : 4;
-    const stepIncrement = registerForm.role === "COMPTABLE" ? 20 : 25;
+    // Step 1: Personal info (names, email, phone, role)
+    // Step 2: Number of assistants (COMPTABLE only)
+    // Step 3: Password + submit (goes to OTP)
+    const maxSteps = 3;
+    const stepIncrement = 100 / maxSteps;
 
     if (registerStep < maxSteps && isStepValid(registerStep)) {
       setRegisterStep(registerStep + 1);
@@ -333,7 +336,7 @@ export function useLogin() {
   const previousStep = () => {
     if (registerStep > 1) {
       setRegisterStep(registerStep - 1);
-      const stepIncrement = registerForm.role === "COMPTABLE" ? 20 : 25;
+      const stepIncrement = 100 / 3;
       setRegisterProgress((registerStep - 1) * stepIncrement);
     }
   };
@@ -341,52 +344,26 @@ export function useLogin() {
   // Validation des étapes
   const isStepValid = (step: number): boolean => {
     switch (step) {
-      case 0: // Verification method selection
-        return true; // Always valid - user must select a method to proceed
+      case 1: // Personal info - names, email/phone, role (all compulsory)
+        const hasNames = !!registerForm.firstName && registerForm.firstName.length >= 2 &&
+          !!registerForm.lastName && registerForm.lastName.length >= 2;
+        const hasRole = !!registerForm.role;
+        const hasContact = (registerForm.email && isValidEmail(registerForm.email)) || 
+          (registerForm.phoneNumber && registerForm.phoneNumber.length >= 8);
+        return hasNames && hasRole && hasContact;
 
-      case 1: // Informations personnelles
-        // Check based on verification method
-        const hasBasicInfo = !!registerForm.firstName &&
-          registerForm.firstName.length >= 2 &&
-          !!registerForm.lastName &&
-          registerForm.lastName.length >= 2;
-        
-        // If email is provided (verification by email), validate it
-        const hasEmailVerification = registerForm.email && isValidEmail(registerForm.email);
-        // If phone is provided (verification by phone), validate it  
-        const hasPhoneVerification = registerForm.phoneNumber && registerForm.phoneNumber.length >= 8;
-        
-        return hasBasicInfo && (hasEmailVerification || hasPhoneVerification);
-
-      case 2: // Informations de contact (country)
-        return !!registerForm.country;
-
-      case 3: // Rôle et type de compte
-        return !!registerForm.role;
-
-      case 4: // Password (for COMPTABLE) or Assistant count (for others)
+      case 2: // Number of assistants (COMPTABLE only)
         if (registerForm.role === "COMPTABLE") {
-          const passwordValidation = validatePasswordStrength(registerForm.password);
-          return (
-            passwordValidation.isValid &&
-            registerForm.password === registerForm.confirmPassword
-          );
-        } else {
-          return (
-            registerForm.maxAssistants !== undefined &&
-            registerForm.maxAssistants >= 0
-          );
+          return registerForm.maxAssistants !== undefined && registerForm.maxAssistants >= 0;
         }
+        return true;
 
-      case 5: // Password (only for COMPTABLE)
-        if (registerForm.role === "COMPTABLE") {
-          const passwordValidation = validatePasswordStrength(registerForm.password);
-          return (
-            passwordValidation.isValid &&
-            registerForm.password === registerForm.confirmPassword
-          );
-        }
-        return false;
+      case 3: // Password
+        const passwordValidation = validatePasswordStrength(registerForm.password);
+        return (
+          passwordValidation.isValid &&
+          registerForm.password === registerForm.confirmPassword
+        );
 
       default:
         return false;

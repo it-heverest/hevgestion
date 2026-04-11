@@ -87,6 +87,67 @@ class EmailService {
     }
   }
 
+  async sendPasswordResetOTP(email: string, otp: string, userName: string): Promise<boolean> {
+    try {
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: `"HevGestion DSF" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Code de réinitialisation de mot de passe - HevGestion DSF",
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 30px; text-align: center; }
+                .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
+                .content { padding: 40px 30px; }
+                .otp-box { background: #fef2f2; border: 2px dashed #dc2626; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+                .otp-code { font-size: 32px; font-weight: bold; color: #dc2626; letter-spacing: 4px; }
+                .footer { background: #f1f5f9; padding: 20px; text-align: center; color: #64748b; font-size: 12px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🔑 HevGestion DSF</h1>
+                </div>
+                <div class="content">
+                  <h2 style="color: #1e293b; margin-top: 0;">Bonjour ${userName},</h2>
+                  <p style="color: #475569; line-height: 1.6;">
+                    Vous avez demandé la réinitialisation de votre mot de passe HevGestion DSF.
+                  </p>
+                  <div class="otp-box">
+                    <p style="color: #64748b; margin: 0 0 10px 0; font-size: 14px;">Votre code de réinitialisation :</p>
+                    <div class="otp-code">${otp}</div>
+                  </div>
+                  <p style="color: #64748b; font-size: 13px;">
+                    Ce code expire dans <strong>5 minutes</strong>.
+                  </p>
+                  <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                    Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.
+                  </p>
+                </div>
+                <div class="footer">
+                  <p>© ${new Date().getFullYear()} HevGestion DSF - Tous droits réservés</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Password reset OTP email sent to ${email}`);
+      return true;
+    } catch (error) {
+      console.error("❌ Erreur envoi password reset OTP email:", error);
+      return false;
+    }
+  }
+
   async sendWelcomeEmail(email: string, userName: string): Promise<boolean> {
     try {
       const mailOptions: nodemailer.SendMailOptions = {

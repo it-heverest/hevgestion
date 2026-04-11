@@ -60,11 +60,8 @@ export function useAppData() {
    */
   const loadInitialData = useCallback(
     async (forceReload = false) => {
-      // Only load if user is authenticated (AuthContext handles validation)
-      if (!user) {
-        console.log("🔐 Skipping data load - user not authenticated");
-        return;
-      }
+      // Load public data (countries) even if user is not authenticated so
+      // UI components like CountrySelector can function in local/offline modes.
 
       // Réinitialiser les flags si forceReload
       if (forceReload) {
@@ -89,14 +86,26 @@ export function useAppData() {
       try {
         console.log("🚀 Chargement des données initiales...");
 
-        // Get user info for role-based access
-        const userProfile = await authService.getProfile();
-        const userRole = userProfile?.user?.role || user.role;
+        // Get countries first (public endpoint) so selector can render
+        const countriesData = (await clientService.getCountries().catch((e) => {
+          console.warn("Warning: failed to load countries:", e?.message || e);
+          return [] as Country[];
+        })) as Country[];
 
-        const [countriesData, clientsData] = await Promise.all([
-          clientService.getCountries() as Promise<Country[]>,
-          clientService.getClients() as Promise<Client[]>,
-        ]);
+        // Only load clients if user is authenticated
+        let clientsData: Client[] = [];
+        if (user) {
+          try {
+            // Get user info for role-based access
+            const userProfile = await authService.getProfile();
+            const userRole = userProfile?.user?.role || user.role;
+
+            clientsData = (await clientService.getClients()) as Client[];
+          } catch (e) {
+            console.warn("Warning: failed to load clients:", e?.message || e);
+            clientsData = [];
+          }
+        }
 
         console.log("📊 Données reçues:", {
           countries: countriesData.length,

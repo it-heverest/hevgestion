@@ -61,7 +61,8 @@ export function LoginPage({
         </CardHeader>
         <CardContent>
           <form onSubmit={onLoginSubmit} className="space-y-4">
-            <div className="space-y-2 pb-2">{t("phoneNumber")}
+            <div className="space-y-2 pb-2">
+              {t("phoneNumber")}
               {/* <Label htmlFor="login-phone">Numéro de téléphone</Label> */}
               <div className="flex gap-2 mt-2">
                 <Select
@@ -120,7 +121,7 @@ export function LoginPage({
                 type="button"
                 className=" text-sm mb-4 text-blue-600 hover:underline font-medium transition-all duration-200"
                 onClick={() => {
-                  navigate("fr/web/user/forgot-password");
+                  navigate("/fr/web/user/forgot-password");
                 }}
               >
                 {t("forgotPassword")} ?

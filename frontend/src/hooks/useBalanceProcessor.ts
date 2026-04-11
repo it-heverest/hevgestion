@@ -2,18 +2,11 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
+import { BalanceRow, normalizeRow } from "../types/balance.types";
 
-export interface BalanceRow {
-  comptes: string;
-  libelle: string;
-  ouverture_debit: number;
-  ouverture_credit: number;
-  mouvement_debit: number;
-  mouvement_credit: number;
-  solde_debit: number;
-  solde_credit: number;
+export interface ProcessedBalanceRow extends BalanceRow {
   traitement: string;
-  sous_comptes?: BalanceRow[];
+  sous_comptes?: ProcessedBalanceRow[];
 }
 
 export function useBalanceProcessor() {

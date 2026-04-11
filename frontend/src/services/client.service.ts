@@ -218,6 +218,19 @@ class ClientService {
     }
   }
 
+  async validateAccounts(accounts: { accountNumber: string; accountName: string }[]): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+    try {
+      const response = await this.api.post("/balances/validate-accounts", { accounts });
+      return response.data;
+    } catch (error: any) {
+      console.error("Error validating accounts:", error);
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error("Erreur lors de la validation des comptes");
+    }
+  }
+
   async createBalanceFromTemplate(folderId: string, type: "current" | "previous" = "current"): Promise<any> {
     try {
       const response = await this.api.post("/balances/create-from-template", {

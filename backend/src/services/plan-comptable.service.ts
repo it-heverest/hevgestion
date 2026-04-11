@@ -79,29 +79,27 @@ class PlanComptableService {
       return { valid: true }; // Skip validation if no plan comptable loaded
     }
 
-    const rootAccount = accountNumber.substring(0, 3);
-    const found = this.accountsMap.get(rootAccount);
+    // Clean the account number (remove non-digits)
+    const cleanAccountNumber = accountNumber.replace(/[^0-9]/g, "");
 
-    if (!found) {
-      return {
-        valid: false,
-        error: `Compte "${accountNumber}" n'existe pas dans le plan comptable OHADA (racine: ${rootAccount})`,
-      };
+    // Check if the account exists (either full account or root account)
+    let found = this.accountsMap.get(cleanAccountNumber);
+
+    // If not found, try root account for backward compatibility
+    if (!found && cleanAccountNumber.length >= 3) {
+      const rootAccount = cleanAccountNumber.substring(0, 3);
+      found = this.accountsMap.get(rootAccount);
     }
 
-    // Validate account name
-    const nameLower = accountName.toLowerCase().trim();
-    const libelleLower = found.libelle.toLowerCase().trim();
-    if (
-      libelleLower &&
-      nameLower &&
-      nameLower !== libelleLower &&
-      !nameLower.includes(libelleLower) &&
-      !libelleLower.includes(nameLower)
-    ) {
+    // For OHADA plan comptable, any account starting with valid class numbers (1-8) is considered valid
+    if (!found) {
+      const firstDigit = parseInt(cleanAccountNumber.charAt(0));
+      if (firstDigit >= 1 && firstDigit <= 8 && cleanAccountNumber.length >= 3) {
+        return { valid: true }; // Accept OHADA-compliant account numbers
+      }
       return {
         valid: false,
-        error: `Le libellé "${accountName}" ne correspond pas au plan comptable. Attendu: "${found.libelle}"`,
+        error: `Compte "${cleanAccountNumber}" n'existe pas dans le plan comptable OHADA`,
       };
     }
 
@@ -123,8 +121,17 @@ class PlanComptableService {
       return { valid: true }; // Skip if no plan comptable loaded
     }
 
-    const rootAccount = accountNumber.substring(0, 3);
-    const found = this.accountsMap.get(rootAccount);
+    // Clean the account number (remove non-digits)
+    const cleanAccountNumber = accountNumber.replace(/[^0-9]/g, "");
+
+    // First try the full account number
+    let found = this.accountsMap.get(cleanAccountNumber);
+
+    // If not found and account is longer than 3 digits, try the root account (first 3 digits)
+    if (!found && cleanAccountNumber.length > 3) {
+      const rootAccount = cleanAccountNumber.substring(0, 3);
+      found = this.accountsMap.get(rootAccount);
+    }
 
     if (!found) {
       return { valid: true }; // Skip if not found (handled by validateAccount)

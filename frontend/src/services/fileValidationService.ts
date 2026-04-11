@@ -21,31 +21,16 @@ export const balanceValidationRules: ValidationRule[] = [
     }),
   },
   {
-    name: "HEADERS_FORMAT",
+    name: "HEADERS_PRESENT",
     validate: (data: any[][]) => {
-      const expectedHeaders = [
-        "comptes",
-        "libelle",
-        "ouverture debit",
-        "ouverture credit",
-        "mouvement debit",
-        "mouvement credit",
-        "solde debit",
-        "solde credit",
-      ];
-
-      const headers = data[0]?.map((h: any) => String(h || "").trim().toLowerCase()) || [];
-
-      const missingHeaders = expectedHeaders.filter(
-        (expected, index) => headers[index] !== expected
-      );
+      const headers = data[0];
+      const hasHeaders = headers && headers.length >= 8 && headers.some(h => h);
 
       return {
-        isValid: missingHeaders.length === 0,
-        message:
-          missingHeaders.length > 0
-            ? `En-têtes manquants ou incorrects: ${missingHeaders.join(", ")}`
-            : "Format des en-têtes correct",
+        isValid: !!hasHeaders,
+        message: hasHeaders
+          ? "En-têtes détectés"
+          : "Aucun en-tête trouvé - le fichier doit contenir au moins 8 colonnes avec des en-têtes",
       };
     },
   },

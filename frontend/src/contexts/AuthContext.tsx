@@ -21,13 +21,14 @@ export type { User, LoginCredentials, RegisterData, Tokens, AuthResponse, UserSe
 
 interface AuthContextType {
   user: User | null;
-  login: (credentials: LoginCredentials) => Promise<boolean>;
+  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>;
   register: (userData: RegisterData) => Promise<{ requiresOtp?: boolean; user?: User }>;
   verifyOtp: (userId: string, otpCode: string) => Promise<void>;
   resendOtp: (userId: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
+  isInitializing: boolean;
   error: string | null;
   clearError: () => void;
   refreshSession: () => Promise<void>;
@@ -41,7 +42,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
@@ -60,10 +62,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authService.clearTokens();
     setUser(null);
     setError(null);
-    // Clear all localStorage items related to session
-    localStorage.removeItem("onboarding_completed");
-    localStorage.removeItem("hevgestion_access_token");
+    // Clear all localStorage
+    localStorage.clear();
+    // Clear all sessionStorage
     sessionStorage.clear();
+    // Clear cookies by setting them to expire
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
   }, []);
 
   const handleAuthError = useCallback((err: any, defaultMessage: string) => {
@@ -113,7 +119,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setInitialized(true);
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setIsInitializing(false);
+        }
       }
     };
 
@@ -137,7 +146,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ==================== AUTH ACTIONS ====================
 
-  const login = async (credentials: LoginCredentials): Promise<boolean> => {
+  const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
       setError(null);
@@ -150,18 +159,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const result = await authService.login(cleanPhone, credentials.password);
       if (result.success && result.user) {
         setUser(result.user);
-        return true; // Login successful
+        return { success: true }; // Login successful
       } else {
         // Don't throw, just set the error message
         const errorMsg = result.error || "Numéro de téléphone ou mot de passe incorrect";
         setError(errorMsg);
-        return false; // Login failed
+        return { success: false, error: errorMsg }; // Login failed
       }
     } catch (err: any) {
       // For validation errors (before API call), set error
       const errorMessage = err?.message || "Erreur lors de la connexion";
       setError(errorMessage);
-      return false;
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -328,6 +337,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     isAuthenticated: !!user,
     loading,
+    isInitializing,
     error,
     clearError,
     refreshSession,

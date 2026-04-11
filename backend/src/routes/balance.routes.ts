@@ -8,7 +8,10 @@ import { config } from "../config";
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const balanceDir = path.join(config.upload.directory, config.upload.subDirectories.balance);
+    const balanceDir = path.join(
+      config.upload.directory,
+      config.upload.subDirectories.balance,
+    );
     cb(null, balanceDir);
   },
   filename: (req, file, cb) => {
@@ -40,28 +43,53 @@ router.post(
   "/upload",
   authenticate,
   upload.fields([{ name: "file", maxCount: 1 }]),
-  balanceController.uploadBalance,
+  balanceController.uploadBalance.bind(balanceController),
+);
+router.post(
+  "/validate-accounts",
+  authenticate,
+  balanceController.validateAccounts.bind(balanceController),
 );
 router.post(
   "/create-from-template",
   authenticate,
-  balanceController.createFromTemplate,
+  balanceController.createFromTemplate.bind(balanceController),
 );
 router.get(
   "/folder/:folderId",
   authenticate,
-  balanceController.getBalancesByFolder,
+  balanceController.getBalancesByFolder.bind(balanceController),
 );
-router.get("/:id", authenticate, balanceController.getBalanceById);
-  // router.post('/:id/check-equilibrium', authenticate, balanceController.checkEquilibrium);
-  router.post(
-    "/:id/ventilation",
-    authenticate,
-    balanceController.performVentilation,
-  );
-  router.get("/:id/issues", authenticate, balanceController.getBalanceIssues);
-  router.post("/:id/resolve-issue", authenticate, balanceController.resolveIssue);
-  router.delete("/:id", authenticate, balanceController.deleteBalance);
-  router.put("/:id/rows", authenticate, balanceController.updateBalanceRows);
+router.get(
+  "/:id",
+  authenticate,
+  balanceController.getBalanceById.bind(balanceController),
+);
+// router.post('/:id/check-equilibrium', authenticate, balanceController.checkEquilibrium);
+router.post(
+  "/:id/ventilation",
+  authenticate,
+  balanceController.performVentilation.bind(balanceController),
+);
+router.get(
+  "/:id/issues",
+  authenticate,
+  balanceController.getBalanceIssues.bind(balanceController),
+);
+router.post(
+  "/:id/resolve-issue",
+  authenticate,
+  balanceController.resolveIssue.bind(balanceController),
+);
+router.delete(
+  "/:id",
+  authenticate,
+  balanceController.deleteBalance.bind(balanceController),
+);
+router.put(
+  "/:id/rows",
+  authenticate,
+  balanceController.updateBalanceRows.bind(balanceController),
+);
 
 export default router;

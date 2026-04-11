@@ -14,6 +14,7 @@ router.post("/resend-otp", authController.resendOtp.bind(authController));
 router.post("/login", validate(loginSchema), authController.login.bind(authController));
 router.post("/refresh", authController.refreshToken.bind(authController));
 router.post("/forgot-password", authController.forgotPassword.bind(authController));
+router.post("/verify-password-reset-otp", authController.verifyPasswordResetOtp.bind(authController));
 router.post("/reset-password", authController.resetPassword.bind(authController));
 
 // ─── Protected routes ────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+import jwtBlacklistMiddleware from "./middleware/jwtBlacklist.middleware";
 import * as path from "path";
 import * as fs from "fs";
 import { config } from "./config";
@@ -24,6 +25,7 @@ import notesRoutes from "./routes/notes.routes";
 import dsfTemplateRoutes from "./routes/dsf-template.routes";
 import dgiRoutes from "./declaration/routes/declaration.routes";
 import notificationRoutes from "./routes/notification.routes";
+import redisRoutes from "./routes/redis.routes";
 // import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
@@ -53,6 +55,9 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Cookie parsing for HttpOnly cookies
 app.use(cookieParser());
 
+// JWT blacklist middleware (checks revoked tokens stored in Redis)
+app.use(jwtBlacklistMiddleware);
+
 // Health check
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -70,12 +75,15 @@ app.get("/api/debug/config", (req: Request, res: Response) => {
 // Debug endpoint - list files in upload directory
 app.get("/api/debug/files", (req: Request, res: Response) => {
   const uploadDir = config.upload.directory;
-  const subDir = req.query.subdir as string || "";
+  const subDir = (req.query.subdir as string) || "";
   const targetDir = subDir ? path.join(uploadDir, subDir) : uploadDir;
-  
+
   try {
     if (!fs.existsSync(targetDir)) {
-      return res.json({ files: [], message: `Directory does not exist: ${targetDir}` });
+      return res.json({
+        files: [],
+        message: `Directory does not exist: ${targetDir}`,
+      });
     }
     const files = fs.readdirSync(targetDir);
     res.json({ directory: targetDir, files: files.slice(0, 20) });
@@ -89,7 +97,10 @@ console.log(`📁 Serving files from: ${config.upload.directory}`);
 app.use("/api/files/download", express.static(config.upload.directory));
 
 // Serve guides from assets/uploads/guides
-const guidesPath = path.join(config.upload.directory, config.upload.subDirectories.guides);
+const guidesPath = path.join(
+  config.upload.directory,
+  config.upload.subDirectories.guides,
+);
 app.use("/api/files/guide-utilisation.pdf", express.static(guidesPath));
 
 // Ensure upload directories exist on startup
@@ -111,10 +122,22 @@ ensureDirectories();
 // Generate plan comptable JSON from Excel if not exists
 const generatePlanComptable = async () => {
   try {
-    const { planComptableService } = await import('./services/plan-comptable.service');
-    const jsonPath = path.join(config.rootDir, "assets", "data", "plan-comptable.json");
+    const { planComptableService } = await import(
+      "./services/plan-comptable.service"
+    );
+    const jsonPath = path.join(
+      config.rootDir,
+      "assets",
+      "data",
+      "plan-comptable.json",
+    );
     if (!fs.existsSync(jsonPath)) {
-      const excelPath = path.join(config.rootDir, "frontend", "plan_comptable", "PLAN COMPTABLE UNIQUE.xlsx");
+      const excelPath = path.join(
+        config.rootDir,
+        "frontend",
+        "plan_comptable",
+        "PLAN COMPTABLE UNIQUE.xlsx",
+      );
       if (fs.existsSync(excelPath)) {
         console.log("📊 Generating plan comptable JSON from Excel...");
         planComptableService.generateJsonFromExcel(excelPath);
@@ -141,9 +164,10 @@ app.use("/api/assistants", assistantRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/notes", notesRoutes);
 app.use("/api/dsf-template", dsfTemplateRoutes);
-  app.use("/api/dgi", dgiRoutes);
-  app.use("/api/notifications", notificationRoutes);
-  // app.use("/api/dsf-mapping", dsfMappingRoutes);
+app.use("/api/dgi", dgiRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/debug/redis", redisRoutes);
+// app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling
 app.use(errorHandler);

@@ -2,17 +2,7 @@
 // Calculation service for DSF reports using DSF config mappings
 
 import { dsfService } from "./dsf.service";
-
-export interface BalanceRow {
-  accountNumber: string;
-  accountName?: string;
-  openingDebit: number;
-  openingCredit: number;
-  movementDebit: number;
-  movementCredit: number;
-  closingDebit: number;
-  closingCredit: number;
-}
+import { BalanceRow } from "../types/balance.types";
 
 export interface BalanceData {
   rows: BalanceRow[];
