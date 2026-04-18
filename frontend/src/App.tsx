@@ -67,6 +67,7 @@ import { NotFound } from "./components/NotFound";
 import { OtpVerificationPage } from "./components/OtpVerificationPage";
 import DSFConfigInterface from "./components/DSFConfigInterface";
 import { notesService } from "./services/notes.service";
+import { dsfService } from "./services/dsf.service";
 import type { ExtractionResult } from "./components/DSF/uploadSteps";
 import {
   Note1,
@@ -558,6 +559,9 @@ function AppRoutes() {
   return (
     <>
       <Routes>
+        {/* Root redirect to default language and login */}
+        <Route index element={<Navigate to="/fr/web/user/login" replace />} />
+
         {/* Language-aware routes wrapper */}
         <Route path="/:lang/*" element={<LanguageLayout />}>
           {/* Public routes with language prefix */}
@@ -1147,10 +1151,24 @@ function AppRoutes() {
                           data: note.data,
                         })) as ExtractionResult[];
                       }
+
                       return null;
                     } catch (err) {
                       console.error("Error checking existing DSF:", err);
                       return null;
+                    }
+                  }}
+                  onNormalGeneration={async () => {
+                    if (!selectedFolder?.id) return;
+                    try {
+                      await dsfService.generateDSF(selectedFolder.id);
+                      // Refresh the page or trigger a re-check
+                      window.location.reload();
+                    } catch (error) {
+                      console.error("Error generating DSF:", error);
+                      alert(
+                        "Erreur lors de la génération de la DSF. Veuillez vérifier que la balance N est disponible.",
+                      );
                     }
                   }}
                 />
@@ -1199,7 +1217,9 @@ function AppRoutes() {
         onClose={completeOnboarding}
         onComplete={completeOnboarding}
       />
-      {location.pathname.includes("/rapport/") && <ReportNavigation />}
+      {location.pathname.includes("/rapport/") && (
+        <ReportNavigation key={location.pathname} />
+      )}
     </>
   );
 }

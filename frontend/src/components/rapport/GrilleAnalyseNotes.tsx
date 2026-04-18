@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText, Check, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -25,6 +26,9 @@ interface HeaderData {
 // --- Composant Principal ---
 const GrilleAnalyseNotes: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [dsfId, setDsfId] = useState<string | null>(null);
@@ -818,3 +822,6 @@ const GrilleAnalyseNotes: React.FC = () => {
 };
 
 export default GrilleAnalyseNotes;
+
+
+

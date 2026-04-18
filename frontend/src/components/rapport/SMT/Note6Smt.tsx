@@ -398,3 +398,5 @@ const Note6Smt: React.FC = () => {
 };
 
 export default Note6Smt;
+
+

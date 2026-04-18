@@ -8,11 +8,6 @@ export const ReportNavigation: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Extract the base path (everything before /rapport/)
-  const basePath = location.pathname.includes("/rapport/")
-    ? location.pathname.split("/rapport/")[0]
-    : "";
-
   // Find current report by checking if the URL contains any report route
   const currentReport = ALL_REPORTS.find((report) => {
     const routePath = report.route.replace("rapport/", "");
@@ -36,8 +31,14 @@ export const ReportNavigation: React.FC = () => {
     // We need to extract userId from the current URL
     const userIdMatch = location.pathname.match(/\/reports\/([^/]+)\//);
     const userId = userIdMatch ? userIdMatch[1] : "current";
-    const newPath = `/reports/${userId}/reports/${reportRoute}`;
-    navigate(`${newPath}${location.search}`);
+    const newPath = `/fr/web/user/reports/${userId}/reports/${reportRoute}`;
+
+    // Preserve folderId from current search params
+    const searchParams = new URLSearchParams(location.search);
+    const folderId = searchParams.get("folderId");
+    const newSearch = folderId ? `?folderId=${folderId}` : "";
+
+    navigate(`${newPath}${newSearch}`);
   };
 
   return (
@@ -69,11 +70,8 @@ export const ReportNavigation: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => {
-              // Extract userId and go to reports page
-              const userIdMatch =
-                location.pathname.match(/\/reports\/([^/]+)\//);
-              const userId = userIdMatch ? userIdMatch[1] : "current";
-              navigate(`/reports/${userId}/reports`);
+              // Go back to exercises page
+              navigate("/exercises");
             }}
             className="border-gray-300 hover:bg-gray-50"
             title="Retour à l'index"

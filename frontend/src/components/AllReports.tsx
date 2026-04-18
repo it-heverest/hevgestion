@@ -32,6 +32,7 @@ type MainStep =
   | "upload" // Upload DSF file
   | "processing" // Extraction in progress
   | "success" // Brief success screen
+  | "balance-view" // View balance data with pagination
   | "reports" // Display extracted reports
   | "error";
 

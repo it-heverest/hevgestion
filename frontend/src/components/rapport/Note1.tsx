@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -31,9 +32,12 @@ interface HeaderData {
 }
 
 const Note1: React.FC = () => {
-  // Get folderId from AppContext instead of URL params
+  const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder, selectedClient } = useApp();
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -457,7 +461,7 @@ const Note1: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 1 - Dettes Garanties
           </h1>
@@ -599,29 +603,29 @@ const Note1: React.FC = () => {
         {/* Tableau Principal */}
         <table className="w-full border-collapse border border-gray-400 text-[11px]">
           <thead>
-            <tr className="bg-gray-300">
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[35%]">
-                LIBELLES
+            <tr>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-[35%] text-black">
+                DÉSIGNATION
               </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[5%]">
-                Note
+              <th rowSpan={2} className="border border-gray-400 p-1 w-[5%] text-black">
+                NOTE
               </th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-[15%]">
-                Montant brut
+              <th rowSpan={2} className="border border-gray-400 p-1 w-[15%] text-black">
+                MONTANT BRUT
               </th>
-              <th colSpan={3} className="border border-gray-400 p-1">
-                SURETES REELLES
+              <th colSpan={3} className="border border-gray-400 p-1 text-black">
+                GARANTIES ET SÛRETÉS
               </th>
             </tr>
-            <tr className="bg-gray-300">
-              <th className="border border-gray-400 p-1 w-[15%]">
+            <tr>
+              <th className="border border-gray-400 p-1 w-[15%] text-black">
                 Hypothèques
               </th>
-              <th className="border border-gray-400 p-1 w-[15%]">
-                Nantissements
+              <th className="border border-gray-400 p-1 w-[15%] text-black">
+                Nantissements et gages
               </th>
-              <th className="border border-gray-400 p-1 w-[15%]">
-                Gages/autres
+              <th className="border border-gray-400 p-1 w-[15%] text-black">
+                Autres sûretés
               </th>
             </tr>
           </thead>
@@ -675,18 +679,18 @@ const Note1: React.FC = () => {
         {/* Engagements */}
         <table className="w-full border-collapse border border-gray-400 text-[11px] mt-0 border-t-0">
           <thead>
-            <tr className="bg-gray-300">
+            <tr>
               <th
-                colSpan={4}
-                className="border border-gray-400 p-2 text-center w-[70%]"
+                rowSpan={2}
+                className="border border-gray-400 p-2 text-center w-[50%] text-black"
               >
-                ENGAGEMENTS FINANCIERS
+                ENGAGEMENTS
               </th>
-              <th className="border border-gray-400 p-2 text-center w-[15%]">
-                Engagements donnés
+              <th className="border border-gray-400 p-2 text-center w-[15%] text-black">
+                DONNÉS
               </th>
-              <th className="border border-gray-400 p-2 text-center w-[15%]">
-                Engagements reçus
+              <th className="border border-gray-400 p-2 text-center w-[15%] text-black">
+                REÇUS
               </th>
             </tr>
           </thead>
@@ -770,3 +774,4 @@ const Note1: React.FC = () => {
 };
 
 export default Note1;
+

@@ -14,6 +14,22 @@ import {
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
+import { lireFichierExcel, extraireDonneesGeneriques } from "../services/excel/excelExtractor";
+import {
+  CONFIG_NOTE1,
+  CONFIG_NOTE2,
+  CONFIG_NOTE3A,
+  CONFIG_NOTE3B,
+  CONFIG_NOTE3C,
+  CONFIG_NOTE3D,
+  CONFIG_NOTE3E,
+  CONFIG_NOTE3F,
+  CONFIG_NOTE4,
+  CONFIG_NOTE5,
+  CONFIG_NOTE6,
+  CONFIG_NOTE7,
+  CONFIG_NOTE8,
+} from "../services/excel/noteConfigs";
 
 export function DSFImporter() {
   const { folderId } = useParams<{ folderId: string }>();
@@ -26,6 +42,58 @@ export function DSFImporter() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const extractDataFromFile = async (file: File) => {
+    try {
+      const workbook = await lireFichierExcel(file);
+      const sheetNames = workbook.SheetNames;
+
+      const extractionResults = [];
+
+      const configMap: { [key: string]: any } = {
+        "NOTE 1": CONFIG_NOTE1,
+        "NOTE 2": CONFIG_NOTE2,
+        "NOTE 3A": CONFIG_NOTE3A,
+        "NOTE 3B": CONFIG_NOTE3B,
+        "NOTE 3C": CONFIG_NOTE3C,
+        "NOTE 3D": CONFIG_NOTE3D,
+        "NOTE 3E": CONFIG_NOTE3E,
+        "NOTE 3F": CONFIG_NOTE3F,
+        "NOTE 4": CONFIG_NOTE4,
+        "NOTE 5": CONFIG_NOTE5,
+        "NOTE 6": CONFIG_NOTE6,
+        "NOTE 7": CONFIG_NOTE7,
+        "NOTE 8": CONFIG_NOTE8,
+      };
+
+      for (const sheetName of sheetNames) {
+        const config = configMap[sheetName];
+        if (config) {
+          try {
+            const data = extraireDonneesGeneriques(workbook, config, sheetName);
+            extractionResults.push({
+              noteName: sheetName,
+              success: true,
+              data: data,
+            });
+          } catch (error) {
+            extractionResults.push({
+              noteName: sheetName,
+              success: false,
+              error: `Erreur d'extraction: ${error}`,
+            });
+          }
+        }
+      }
+
+      return {
+        sheetNames,
+        results: extractionResults,
+      };
+    } catch (error) {
+      throw new Error(`Erreur lors de l'extraction: ${error}`);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -53,7 +121,7 @@ export function DSFImporter() {
   };
 
   const handleUpload = async () => {
-    if (!file || !folderId) return;
+    if (!file || !folderId || !selectedFolder?.clientId) return;
 
     setUploading(true);
     setProgress(0);
@@ -61,11 +129,20 @@ export function DSFImporter() {
     setWarning(null);
 
     try {
+      setProgress(10);
+
+      // Extract data from the Excel file
+      const extractedData = await extractDataFromFile(file);
+
+      setProgress(50);
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folderId", folderId);
+      formData.append("clientId", selectedFolder.clientId);
+      formData.append("extractedData", JSON.stringify(extractedData));
 
-      setProgress(25);
+      setProgress(75);
 
       const response = await clientService.importDSF(formData);
 

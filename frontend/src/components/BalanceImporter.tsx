@@ -32,7 +32,7 @@ import {
   Play,
   Filter,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Search,
   Eye,
   MoreHorizontal,
@@ -43,6 +43,13 @@ import {
   FileText,
   X,
   Save,
+  Edit3,
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronUp,
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
@@ -123,8 +130,8 @@ const validateBalanceFile = (preview: {
   if (preview.headers.length < 8) {
     errors.push(
       `Nombre de colonnes insuffisant: ${preview.headers.length} colonnes détectées (8 minimum attendues)`,
-    );
-  }
+  );
+}
 
   if (preview.rows.length > 0) {
     preview.rows.forEach((row, idx) => {
@@ -170,6 +177,7 @@ export function BalanceImporter() {
 
   const [balances, setBalances] = useState<BalanceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importBalanceType, setImportBalanceType] = useState<
     "current" | "previous"
@@ -197,9 +205,9 @@ export function BalanceImporter() {
     try {
       const response =
         await clientService.getBalancesByFolder(effectiveFolderId);
-      
+
       let balancesList = response?.balances || response?.data?.balances || [];
-      
+
       // Handle case where originalData is a JSON string
       balancesList = balancesList.map((b: any) => {
         let originalData = b.originalData;
@@ -213,26 +221,63 @@ export function BalanceImporter() {
         }
         return { ...b, originalData };
       });
-      
-      
-      setBalances(balancesList);
 
-      if (balancesList.length > 0) {
-        const currentId = selectedBalance?.id;
-        const currentExists = balancesList.some(
-          (b: BalanceData) => b.id === currentId,
-        );
-        if (!selectedBalance || !currentExists) {
-          setSelectedBalance(balancesList[0]);
-        }
-      } else {
-        setSelectedBalance(null);
-      }
-    } catch (err: any) {
-      console.error("Error loading balances:", err);
-      setBalances([]);
+
+      setBalances(balancesList);
+    } catch (error) {
+      console.error("Error loading balances:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshCurrentBalance = async () => {
+    if (!selectedBalance || !effectiveFolderId) return;
+
+    setIsRefreshing(true);
+    try {
+      // Recharger toutes les balances pour s'assurer d'avoir les données à jour
+      const response = await clientService.getBalancesByFolder(effectiveFolderId);
+      let balancesList = response?.balances || response?.data?.balances || [];
+
+      // Parser les données comme dans loadBalances
+      balancesList = balancesList.map((b: any) => {
+        let originalData = b.originalData;
+        if (typeof originalData === 'string') {
+          try {
+            originalData = JSON.parse(originalData);
+          } catch (e) {
+            console.error('Failed to parse originalData:', e);
+            originalData = null;
+          }
+        }
+        return { ...b, originalData };
+      });
+
+      // Mettre à jour la liste des balances
+      setBalances(balancesList);
+
+      // Mettre à jour la balance sélectionnée avec les nouvelles données
+      const updatedBalance = balancesList.find(b => b.id === selectedBalance.id);
+      if (updatedBalance) {
+        setSelectedBalance(updatedBalance);
+      }
+
+      // Recharger aussi la balance précédente si elle existe
+      if (previousYearBalance) {
+        const updatedPrevious = balancesList.find(b => b.id === previousYearBalance.id);
+        if (updatedPrevious) {
+          setPreviousYearBalance(updatedPrevious);
+        }
+      }
+
+      console.log("Balance refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing balance:", error);
+      // En cas d'erreur, on recharge complètement
+      await loadBalances();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -377,6 +422,8 @@ export function BalanceImporter() {
                   balance={selectedBalance}
                   previousYearBalance={previousYearBalance}
                   onDelete={() => handleBalanceDeleted(selectedBalance.id)}
+                  onRefresh={refreshCurrentBalance}
+                  isRefreshing={isRefreshing}
                   onReimport={() => {
                     handleBalanceDeleted(selectedBalance.id);
                     openImportDialog(
@@ -618,16 +665,89 @@ function BalanceListItem({
   );
 }
 
+// Editable Cell Component for Inline Editing
+function EditableCell({
+  accountNumber,
+  value,
+  isEditing,
+  field,
+  onCellEdit,
+  onStartEdit,
+  className = "",
+}: {
+  accountNumber: string;
+  value: number;
+  isEditing: boolean;
+  field: keyof Pick<BalanceRow, 'openingDebit' | 'openingCredit' | 'movementDebit' | 'movementCredit'>;
+  onCellEdit: (accountNumber: string, field: string, value: number) => void;
+  onStartEdit: () => void;
+  className?: string;
+}) {
+  const [inputValue, setInputValue] = useState(value.toString());
+
+  useEffect(() => {
+    setInputValue(value.toString());
+  }, [value]);
+
+  if (isEditing) {
+    return (
+      <TableCell className={`relative ${className}`}>
+        <Input
+          type="number"
+          value={inputValue}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            setInputValue(newValue);
+            onCellEdit(accountNumber, field, parseFloat(newValue) || 0);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              // Ctrl+Enter to apply all cached changes for this account
+              const target = e.target as HTMLInputElement;
+              target.blur(); // Trigger blur to save
+            }
+          }}
+          className="w-full h-8 text-right font-mono border-blue-300 focus:border-blue-500 focus:ring-blue-200"
+          autoFocus
+          step="0.01"
+          min="0"
+          placeholder="0"
+          title="Ctrl+Enter pour appliquer"
+        />
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell
+      className={`font-mono cursor-pointer hover:bg-blue-50 transition-colors ${className}`}
+      onClick={onStartEdit}
+    >
+      {value > 0 ? (
+        <span className="font-medium text-gray-900">
+          {value.toLocaleString()}
+        </span>
+      ) : (
+        <span className="text-gray-400">-</span>
+      )}
+    </TableCell>
+  );
+}
+
 function BalanceDetailView({
   balance,
   previousYearBalance,
   onDelete,
   onReimport,
+  onRefresh,
+  isRefreshing = false,
 }: {
   balance: BalanceData;
   previousYearBalance?: BalanceData;
   onDelete: () => void;
   onReimport: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<keyof BalanceRow>("accountNumber");
@@ -639,6 +759,7 @@ function BalanceDetailView({
   const [openingMismatches, setOpeningMismatches] = useState<
     { account: string; name: string; n1Closing: number; nOpening: number }[]
   >([]);
+  const [expandedRoots, setExpandedRoots] = useState<Set<string>>(new Set());
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<{
     openingDebit: number;
@@ -653,6 +774,22 @@ function BalanceDetailView({
   }>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Cache for temporary edits (not yet applied to modifiedRows)
+  const [editCache, setEditCache] = useState<{
+    [accountNumber: string]: {
+      openingDebit?: number;
+      openingCredit?: number;
+      movementDebit?: number;
+      movementCredit?: number;
+    };
+  }>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   const getBalanceRows = (balance: BalanceData): BalanceRow[] => {
     if (!balance.originalData) return [];
@@ -970,33 +1107,49 @@ function BalanceDetailView({
 
   const handleStartEdit = (row: BalanceRow) => {
     const modified = modifiedRows[row.accountNumber];
+    const cached = editCache[row.accountNumber];
     setEditingAccount(row.accountNumber);
-    const openingDebit = modified?.openingDebit ?? row.openingDebit ?? 0;
-    const openingCredit = modified?.openingCredit ?? row.openingCredit ?? 0;
-    const movementDebit = modified?.movementDebit ?? row.movementDebit ?? 0;
-    const movementCredit = modified?.movementCredit ?? row.movementCredit ?? 0;
-    const closingDebit =
-      openingDebit + movementDebit - openingCredit - movementCredit;
-    const closingCredit =
-      openingCredit + movementCredit - openingDebit - movementDebit;
+
+    // Initialize editedValues from cache, then modified, then original
+    const openingDebit = cached?.openingDebit ?? modified?.openingDebit ?? row.openingDebit ?? 0;
+    const openingCredit = cached?.openingCredit ?? modified?.openingCredit ?? row.openingCredit ?? 0;
+    const movementDebit = cached?.movementDebit ?? modified?.movementDebit ?? row.movementDebit ?? 0;
+    const movementCredit = cached?.movementCredit ?? modified?.movementCredit ?? row.movementCredit ?? 0;
+
+    // Calculate closing balances based on opening + movement
+    const netOpening = openingDebit - openingCredit;
+    const netMovement = movementDebit - movementCredit;
+    const netClosing = netOpening + netMovement;
+
+    const closingDebit = netClosing > 0 ? netClosing : 0;
+    const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
     setEditedValues({
       openingDebit,
       openingCredit,
       movementDebit,
       movementCredit,
-      closingDebit: closingDebit > 0 ? closingDebit : 0,
-      closingCredit: closingCredit > 0 ? closingCredit : 0,
+      closingDebit,
+      closingCredit,
     });
   };
 
   const handleSaveEdit = () => {
-    if (!editingAccount || !editedValues) return;
+    if (!editingAccount) return;
 
-    const openingDebit = editedValues.openingDebit;
-    const openingCredit = editedValues.openingCredit;
-    const movementDebit = editedValues.movementDebit;
-    const movementCredit = editedValues.movementCredit;
+    const cachedEdits = editCache[editingAccount];
+    if (!cachedEdits) return;
 
+    // Get current values (from cache or existing modified data)
+    const currentRow = modifiedRows[editingAccount] ||
+      balanceRows.find((r) => r.accountNumber === editingAccount);
+    if (!currentRow) return;
+
+    const openingDebit = cachedEdits.openingDebit ?? currentRow.openingDebit ?? 0;
+    const openingCredit = cachedEdits.openingCredit ?? currentRow.openingCredit ?? 0;
+    const movementDebit = cachedEdits.movementDebit ?? currentRow.movementDebit ?? 0;
+    const movementCredit = cachedEdits.movementCredit ?? currentRow.movementCredit ?? 0;
+
+    // Calculate closing balances
     const netOpening = openingDebit - openingCredit;
     const netMovement = movementDebit - movementCredit;
     const netClosing = netOpening + netMovement;
@@ -1004,16 +1157,13 @@ function BalanceDetailView({
     const closingDebit = netClosing > 0 ? netClosing : 0;
     const closingCredit = netClosing < 0 ? Math.abs(netClosing) : 0;
 
+    // Move from cache to modifiedRows (staging area)
     setModifiedRows((prev) => ({
       ...prev,
       [editingAccount]: {
-        ...(prev[editingAccount] ||
-          balanceRows.find((r) => r.accountNumber === editingAccount) ||
-          {}),
+        ...currentRow,
         accountNumber: editingAccount,
-        accountName:
-          balanceRows.find((r) => r.accountNumber === editingAccount)
-            ?.accountName || "",
+        accountName: currentRow.accountName || "",
         openingDebit,
         openingCredit,
         movementDebit,
@@ -1022,9 +1172,16 @@ function BalanceDetailView({
         closingCredit,
       },
     }));
+
+    // Clear from cache
+    setEditCache((prev) => {
+      const newCache = { ...prev };
+      delete newCache[editingAccount];
+      return newCache;
+    });
+
     setHasUnsavedChanges(true);
     setEditingAccount(null);
-    setEditedValues(null);
   };
 
   const handleApplySuggestedFix = (accountNumber: string) => {
@@ -1067,10 +1224,20 @@ function BalanceDetailView({
     setIsSaving(true);
     try {
       const rowsToSave = Object.values(modifiedRows);
+      console.log("Sending rows to update:", rowsToSave.length, rowsToSave);
       await clientService.updateBalanceRows(balance.id, rowsToSave);
+
+      // Rafraîchir les données depuis le backend
+      if (onRefresh) {
+        await onRefresh();
+      }
+
       setModifiedRows({});
+      setEditCache({});
       setHasUnsavedChanges(false);
-      alert("Modifications enregistrées avec succès!");
+
+      // Message de succès sans alert bloquant
+      console.log(`${rowsToSave.length} modification(s) sauvegardée(s) en base avec succès!`);
     } catch (err: any) {
       console.error("Error saving:", err);
       alert(err.message || "Erreur lors de l'enregistrement");
@@ -1081,7 +1248,64 @@ function BalanceDetailView({
 
   const handleCancelChanges = () => {
     setModifiedRows({});
+    setEditCache({});
     setHasUnsavedChanges(false);
+  };
+
+  // Handle cell edits (cached, not immediately saved)
+  const handleCellEdit = (accountNumber: string, field: string, value: number) => {
+    setEditCache(prev => ({
+      ...prev,
+      [accountNumber]: {
+        ...prev[accountNumber],
+        [field]: value,
+      },
+    }));
+  };
+
+  // Bulk edit functions
+  const handleBulkEdit = (field: string, value: number) => {
+    const newModifiedRows = { ...modifiedRows };
+    selectedRows.forEach(accountNumber => {
+      const originalRow = balanceRows.find(r => r.accountNumber === accountNumber);
+      if (originalRow) {
+        newModifiedRows[accountNumber] = {
+          ...originalRow,
+          ...newModifiedRows[accountNumber],
+          [field]: value,
+        };
+      }
+    });
+    setModifiedRows(newModifiedRows);
+    setHasUnsavedChanges(true);
+    setSelectedRows(new Set());
+    setBulkEditMode(false);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedRows.size === 0) return;
+    const confirmDelete = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer ${selectedRows.size} compte(s) sélectionné(s) ? Cette action ne peut pas être annulée.`
+    );
+    if (!confirmDelete) return;
+
+    const newModifiedRows = { ...modifiedRows };
+    selectedRows.forEach(accountNumber => {
+      // Mark for deletion by setting all values to 0
+      newModifiedRows[accountNumber] = {
+        ...balanceRows.find(r => r.accountNumber === accountNumber)!,
+        openingDebit: 0,
+        openingCredit: 0,
+        movementDebit: 0,
+        movementCredit: 0,
+        closingDebit: 0,
+        closingCredit: 0,
+      };
+    });
+    setModifiedRows(newModifiedRows);
+    setHasUnsavedChanges(true);
+    setSelectedRows(new Set());
+    setBulkEditMode(false);
   };
 
   const hasModificationInRow = (accountNumber: string): boolean => {
@@ -1097,29 +1321,25 @@ function BalanceDetailView({
     );
   };
 
-  const filteredData = balanceRows
+  // Prepare filtered and sorted data
+  const processedData = balanceRows
     .map((row) => {
       const hasModification = !!modifiedRows[row.accountNumber];
-      const openingDebit = hasModification
-        ? (modifiedRows[row.accountNumber].openingDebit ??
-          row.openingDebit ??
-          0)
-        : (row.openingDebit ?? 0);
-      const openingCredit = hasModification
-        ? (modifiedRows[row.accountNumber].openingCredit ??
-          row.openingCredit ??
-          0)
-        : (row.openingCredit ?? 0);
-      const movementDebit = hasModification
-        ? (modifiedRows[row.accountNumber].movementDebit ??
-          row.movementDebit ??
-          0)
-        : (row.movementDebit ?? 0);
-      const movementCredit = hasModification
-        ? (modifiedRows[row.accountNumber].movementCredit ??
-          row.movementCredit ??
-          0)
-        : (row.movementCredit ?? 0);
+      const cachedEdits = editCache[row.accountNumber];
+
+      // Get values from cache, then modifiedRows, then original
+      const openingDebit = cachedEdits?.openingDebit ??
+        (hasModification ? (modifiedRows[row.accountNumber].openingDebit ?? row.openingDebit ?? 0) : (row.openingDebit ?? 0));
+
+      const openingCredit = cachedEdits?.openingCredit ??
+        (hasModification ? (modifiedRows[row.accountNumber].openingCredit ?? row.openingCredit ?? 0) : (row.openingCredit ?? 0));
+
+      const movementDebit = cachedEdits?.movementDebit ??
+        (hasModification ? (modifiedRows[row.accountNumber].movementDebit ?? row.movementDebit ?? 0) : (row.movementDebit ?? 0));
+
+      const movementCredit = cachedEdits?.movementCredit ??
+        (hasModification ? (modifiedRows[row.accountNumber].movementCredit ?? row.movementCredit ?? 0) : (row.movementCredit ?? 0));
+
       // Use closing balances as imported from Excel, don't recalculate
       const closingDebit = hasModification
         ? (modifiedRows[row.accountNumber].closingDebit ??
@@ -1133,14 +1353,16 @@ function BalanceDetailView({
         : (row.closingCredit ?? 0);
 
       return {
-        accountNumber: row.accountNumber,
-        accountName: row.accountName,
+        ...row,
         openingDebit,
         openingCredit,
         movementDebit,
         movementCredit,
         closingDebit,
         closingCredit,
+        hasModification,
+        hasCachedChanges: !!cachedEdits,
+        hasIssue: accountsWithIssues.has(row.accountNumber),
       };
     })
     .filter((row) => {
@@ -1163,6 +1385,12 @@ function BalanceDetailView({
         ? ((aVal as number) || 0) - ((bVal as number) || 0)
         : ((bVal as number) || 0) - ((aVal as number) || 0);
     });
+
+  // Pagination
+  const totalItems = processedData.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedData = processedData.slice(startIndex, startIndex + pageSize);
 
   const accountClasses = Array.from(
     new Set(
@@ -1282,6 +1510,50 @@ function BalanceDetailView({
           )}
           Ventiler
         </Button>
+        {/* Show refresh status */}
+        {isRefreshing && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+            <span className="text-sm text-blue-700">
+              Actualisation des données...
+            </span>
+          </div>
+        )}
+
+        {/* Show cache status */}
+        {Object.keys(editCache).length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <span className="text-sm text-yellow-700">
+              💾 {Object.keys(editCache).length} modification(s) en cache
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Apply all cached changes to staging area
+                const newModifiedRows = { ...modifiedRows };
+                Object.entries(editCache).forEach(([accountNumber, cachedEdits]) => {
+                  const originalRow = balanceRows.find(r => r.accountNumber === accountNumber);
+                  if (originalRow) {
+                    newModifiedRows[accountNumber] = {
+                      ...originalRow,
+                      ...cachedEdits,
+                      accountNumber,
+                      accountName: originalRow.accountName || "",
+                    };
+                  }
+                });
+                setModifiedRows(newModifiedRows);
+                setEditCache({});
+                setHasUnsavedChanges(true);
+              }}
+              className="text-yellow-700 border-yellow-300 hover:bg-yellow-50"
+            >
+              Appliquer tout
+            </Button>
+          </div>
+        )}
+
         {hasUnsavedChanges && (
           <>
             <Button
@@ -1291,20 +1563,20 @@ function BalanceDetailView({
               className="text-orange-700 border-orange-300 hover:bg-orange-50"
             >
               <X className="h-4 w-4 mr-1" />
-              Annuler
+              Annuler tout
             </Button>
             <Button
               size="sm"
               onClick={handleSaveToBackend}
-              disabled={isSaving}
-              className="bg-green-600 hover:bg-green-700"
+              disabled={isSaving || Object.keys(modifiedRows).length === 0}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
             >
               {isSaving ? (
                 <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-1" />
               )}
-              Sauvegarder ({Object.keys(modifiedRows).length})
+              Sauvegarder en base ({Object.keys(modifiedRows).length})
             </Button>
           </>
         )}
@@ -1356,292 +1628,463 @@ function BalanceDetailView({
       </Card>
 
       {/* Table */}
-      <Card className="flex-1 overflow-hidden">
-        <div className="overflow-auto h-full">
+      <Card className="flex-1 overflow-hidden flex flex-col">
+        {/* Table Header with Pagination Info */}
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">
+              {totalItems} comptes • Page {currentPage} sur {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Afficher:</label>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(2);
+                }}
+                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bulk Actions */}
+          <div className="flex items-center gap-2">
+            {bulkEditMode && selectedRows.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Supprimer
+                </Button>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Débit ouverture:</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    className="w-20 h-8"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const value = parseFloat((e.target as HTMLInputElement).value) || 0;
+                        handleBulkEdit('openingDebit', value);
+                      }
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Crédit ouverture:</span>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    className="w-20 h-8"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const value = parseFloat((e.target as HTMLInputElement).value) || 0;
+                        handleBulkEdit('openingCredit', value);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setBulkEditMode(!bulkEditMode);
+                setSelectedRows(new Set());
+              }}
+              className={bulkEditMode ? "bg-blue-50 border-blue-300" : ""}
+            >
+              {bulkEditMode ? "Annuler sélection" : "Édition multiple"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Table Content */}
+        <div className={`flex-1 overflow-auto transition-opacity duration-200 ${isRefreshing ? 'opacity-75 pointer-events-none' : ''}`}>
           <Table>
-            <TableHeader className="sticky top-0 bg-gray-100">
-              <TableRow>
+            <TableHeader className="bg-white border-b-2 border-gray-200">
+              <TableRow className="hover:bg-gray-50">
+                {bulkEditMode && (
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedRows(new Set(paginatedData.map(row => row.accountNumber)));
+                        } else {
+                          setSelectedRows(new Set());
+                        }
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                  </TableHead>
+                )}
                 <TableHead
-                  className="cursor-pointer"
+                  className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort("accountNumber")}
                 >
-                  <div className="flex items-center">
-                    N° Compte <SortIcon field="accountNumber" />
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-gray-500" />
+                    N° Compte
+                    <SortIcon field="accountNumber" />
                   </div>
                 </TableHead>
                 <TableHead
-                  className="cursor-pointer"
+                  className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors min-w-[200px]"
                   onClick={() => handleSort("accountName")}
                 >
-                  <div className="flex items-center">
-                    Libellé <SortIcon field="accountName" />
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-500" />
+                    Libellé du compte
+                    <SortIcon field="accountName" />
                   </div>
                 </TableHead>
                 <TableHead
-                  className="text-right cursor-pointer"
+                  className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort("openingDebit")}
                 >
-                  <div className="flex items-center justify-end">
-                    Déb. Ouv. <SortIcon field="openingDebit" />
+                  <div className="flex items-center justify-end gap-1">
+                    Débit Ouverture
+                    <SortIcon field="openingDebit" />
                   </div>
                 </TableHead>
                 <TableHead
-                  className="text-right cursor-pointer"
+                  className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort("openingCredit")}
                 >
-                  <div className="flex items-center justify-end">
-                    Créd. Ouv. <SortIcon field="openingCredit" />
+                  <div className="flex items-center justify-end gap-1">
+                    Crédit Ouverture
+                    <SortIcon field="openingCredit" />
                   </div>
                 </TableHead>
                 <TableHead
-                  className="text-right cursor-pointer"
+                  className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort("movementDebit")}
                 >
-                  <div className="flex items-center justify-end">
-                    Déb. Mvt <SortIcon field="movementDebit" />
+                  <div className="flex items-center justify-end gap-1">
+                    Débit Mouvements
+                    <SortIcon field="movementDebit" />
                   </div>
                 </TableHead>
                 <TableHead
-                  className="text-right cursor-pointer"
+                  className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort("movementCredit")}
                 >
-                  <div className="flex items-center justify-end">
-                    Créd. Mvt <SortIcon field="movementCredit" />
+                  <div className="flex items-center justify-end gap-1">
+                    Crédit Mouvements
+                    <SortIcon field="movementCredit" />
                   </div>
                 </TableHead>
-                <TableHead className="text-right">
-                  <div className="flex items-center justify-end text-gray-400">
-                    Déb. Clôt
+                <TableHead className="font-semibold text-gray-900 text-right">
+                  <div className="flex items-center justify-end gap-1 text-gray-500">
+                    Débit Clôture
                   </div>
                 </TableHead>
-                <TableHead className="text-right">
-                  <div className="flex items-center justify-end text-gray-400">
-                    Créd. Clôt
+                <TableHead className="font-semibold text-gray-900 text-right">
+                  <div className="flex items-center justify-end gap-1 text-gray-500">
+                    Crédit Clôture
                   </div>
                 </TableHead>
-                {(previousYearBalance && (
-                  <TableHead className="text-center text-xs">Action</TableHead>
-                )) || (
-                  <TableHead className="text-center text-xs">Action</TableHead>
-                )}
+                <TableHead className="font-semibold text-gray-900 text-center w-24">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.slice(0, 100).map((row, idx) => {
-                const hasIssue = accountsWithIssues.has(row.accountNumber);
+              {paginatedData.map((row, idx) => {
                 const isEditing = editingAccount === row.accountNumber;
+                const isSelected = selectedRows.has(row.accountNumber);
 
                 return (
                   <TableRow
-                    key={idx}
-                    className={hasIssue ? "bg-red-50 hover:bg-red-100" : ""}
+                    key={row.accountNumber || idx}
+                    className={`
+                      hover:bg-gray-50 transition-colors
+                      ${row.hasIssue ? "bg-red-50 hover:bg-red-100" : ""}
+                      ${row.hasModification ? "bg-blue-50 hover:bg-blue-100" : ""}
+                      ${row.hasCachedChanges ? "bg-yellow-50 hover:bg-yellow-100" : ""}
+                      ${isSelected ? "bg-blue-100 hover:bg-blue-150" : ""}
+                    `}
                   >
-                    <TableCell
-                      className={`font-mono text-sm ${hasIssue ? "font-bold text-red-700" : ""}`}
-                    >
-                      {row.accountNumber?.replace(/[^0-9]/g, "") || row.accountNumber}
-                      {hasIssue && (
-                        <span
-                          className="ml-2 text-xs text-red-600"
-                          title="Incohérence avec N-1"
-                        >
-                          ⚠️
+                    {bulkEditMode && (
+                      <TableCell className="w-12">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedRows);
+                            if (e.target.checked) {
+                              newSelected.add(row.accountNumber);
+                            } else {
+                              newSelected.delete(row.accountNumber);
+                            }
+                            setSelectedRows(newSelected);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                      </TableCell>
+                    )}
+
+                    {/* Account Number */}
+                    <TableCell className="font-mono font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className={row.hasIssue ? "text-red-700 font-bold" : "text-gray-900"}>
+                          {row.accountNumber?.replace(/[^0-9]/g, "") || row.accountNumber}
                         </span>
-                      )}
+                        {row.hasIssue && (
+                          <span
+                            className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full"
+                            title="Incohérence avec l'exercice N-1"
+                          >
+                            ⚠️
+                          </span>
+                        )}
+                        {row.hasCachedChanges && (
+                          <span
+                            className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full"
+                            title="Modifications en cache (cliquez sur Appliquer)"
+                          >
+                            💾
+                          </span>
+                        )}
+                        {row.hasModification && (
+                          <span
+                            className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full"
+                            title="Modifications prêtes à sauvegarder"
+                          >
+                            ✏️
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-sm">{row.accountName}</TableCell>
-                    <TableCell
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing &&
-                      editedValues &&
-                      editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.openingDebit || 0}
-                          onChange={(e) =>
-                            setEditedValues({
-                              ...editedValues!,
-                              openingDebit: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-24 h-6 text-right"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (row.openingDebit || 0) > 0 ? (
-                        (row.openingDebit || 0).toLocaleString()
+
+                    {/* Account Name */}
+                    <TableCell className="max-w-0">
+                      <div className="truncate font-medium text-gray-900" title={row.accountName}>
+                        {row.accountName}
+                      </div>
+                    </TableCell>
+
+                    {/* Opening Debit */}
+                    <EditableCell
+                      accountNumber={row.accountNumber}
+                      value={row.openingDebit}
+                      isEditing={isEditing && editingAccount === row.accountNumber}
+                      field="openingDebit"
+                      onCellEdit={handleCellEdit}
+                      onStartEdit={() => handleStartEdit(row)}
+                      className="text-right"
+                    />
+
+                    {/* Opening Credit */}
+                    <EditableCell
+                      accountNumber={row.accountNumber}
+                      value={row.openingCredit}
+                      isEditing={isEditing && editingAccount === row.accountNumber}
+                      field="openingCredit"
+                      onCellEdit={handleCellEdit}
+                      onStartEdit={() => handleStartEdit(row)}
+                      className="text-right"
+                    />
+
+                    {/* Movement Debit */}
+                    <EditableCell
+                      accountNumber={row.accountNumber}
+                      value={row.movementDebit}
+                      isEditing={isEditing && editingAccount === row.accountNumber}
+                      field="movementDebit"
+                      onCellEdit={handleCellEdit}
+                      onStartEdit={() => handleStartEdit(row)}
+                      className="text-right"
+                    />
+
+                    {/* Movement Credit */}
+                    <EditableCell
+                      accountNumber={row.accountNumber}
+                      value={row.movementCredit}
+                      isEditing={isEditing && editingAccount === row.accountNumber}
+                      field="movementCredit"
+                      onCellEdit={handleCellEdit}
+                      onStartEdit={() => handleStartEdit(row)}
+                      className="text-right"
+                    />
+
+                    {/* Closing Debit */}
+                    <TableCell className="text-right font-mono text-gray-600">
+                      {(row.closingDebit || 0) > 0 ? (
+                        <span className="font-medium">
+                          {(row.closingDebit || 0).toLocaleString()}
+                        </span>
                       ) : (
-                        "-"
+                        <span className="text-gray-400">-</span>
                       )}
                     </TableCell>
-                    <TableCell
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing &&
-                      editedValues &&
-                      editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.openingCredit || 0}
-                          onChange={(e) =>
-                            setEditedValues({
-                              ...editedValues!,
-                              openingCredit: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-24 h-6 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (row.openingCredit || 0) > 0 ? (
-                        (row.openingCredit || 0).toLocaleString()
+
+                    {/* Closing Credit */}
+                    <TableCell className="text-right font-mono text-gray-600">
+                      {(row.closingCredit || 0) > 0 ? (
+                        <span className="font-medium">
+                          {(row.closingCredit || 0).toLocaleString()}
+                        </span>
                       ) : (
-                        "-"
+                        <span className="text-gray-400">-</span>
                       )}
                     </TableCell>
-                    <TableCell
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing &&
-                      editedValues &&
-                      editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.movementDebit || 0}
-                          onChange={(e) =>
-                            setEditedValues({
-                              ...editedValues!,
-                              movementDebit: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-24 h-6 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (row.movementDebit || 0) > 0 ? (
-                        (row.movementDebit || 0).toLocaleString()
-                      ) : (
-                        "-"
-                      )}
+
+                    {/* Actions */}
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleSaveEdit}
+                              className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="Sauvegarder"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                // Clear cache for this account when canceling
+                                setEditCache(prev => {
+                                  const newCache = { ...prev };
+                                  delete newCache[editingAccount!];
+                                  return newCache;
+                                });
+                                setEditingAccount(null);
+                                setEditedValues(null);
+                              }}
+                              className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                              title="Annuler (efface les modifications en cache)"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleStartEdit(row)}
+                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Modifier"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {row.hasIssue && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleApplySuggestedFix(row.accountNumber)}
+                            className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            title="Appliquer la correction suggérée"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell
-                      className="text-right font-mono text-sm cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleStartEdit(row)}
-                    >
-                      {isEditing &&
-                      editedValues &&
-                      editingAccount === row.accountNumber ? (
-                        <Input
-                          type="number"
-                          value={editedValues?.movementCredit || 0}
-                          onChange={(e) =>
-                            setEditedValues({
-                              ...editedValues!,
-                              movementCredit: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-24 h-6 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (row.movementCredit || 0) > 0 ? (
-                        (row.movementCredit || 0).toLocaleString()
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-gray-500">
-                      {(row.closingDebit || 0) > 0
-                        ? (row.closingDebit || 0).toLocaleString()
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-gray-500">
-                      {(row.closingCredit || 0) > 0
-                        ? (row.closingCredit || 0).toLocaleString()
-                        : "-"}
-                    </TableCell>
-                    {isEditing &&
-                    editingAccount === row.accountNumber &&
-                    editedValues ? (
-                      <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          className="text-xs h-6 bg-green-600 hover:bg-green-700"
-                          onClick={handleSaveEdit}
-                        >
-                          Appliquer
-                        </Button>
-                      </TableCell>
-                    ) : previousYearBalance && hasIssue ? (
-                      <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs h-6"
-                          onClick={() =>
-                            handleApplySuggestedFix(row.accountNumber)
-                          }
-                          title="Appliquer la valeur suggérée depuis N-1"
-                        >
-                          Corriger
-                        </Button>
-                      </TableCell>
-                    ) : hasModificationInRow(row.accountNumber) ? (
-                      <TableCell className="text-center">
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-yellow-50 text-yellow-700"
-                        >
-                          Modifié
-                        </Badge>
-                      </TableCell>
-                    ) : null}
                   </TableRow>
                 );
               })}
             </TableBody>
-            <TableRow className="bg-gray-100 font-bold">
-              <TableCell colSpan={2}>TOTAL</TableCell>
-              <TableCell className="text-right">
-                {totals.openingDebit.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right">
-                {totals.openingCredit.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right">
-                {totals.movementDebit.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right">
-                {totals.movementCredit.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right">
-                {totals.closingDebit.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right">
-                {totals.closingCredit.toLocaleString()}
-              </TableCell>
-              {previousYearBalance && <TableCell></TableCell>}
-            </TableRow>
           </Table>
+
+          {paginatedData.length === 0 && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg font-medium">Aucun compte trouvé</p>
+                <p className="text-gray-400 text-sm">Vérifiez vos filtres de recherche</p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Pagination Footer */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+
+              <span className="text-sm text-gray-600 mx-2">
+                Page {currentPage} sur {totalPages}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              {startIndex + 1}-{Math.min(startIndex + pageSize, totalItems)} sur {totalItems} comptes
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Opening Mismatch Dialog - Custom Overlay */}
       {showOpeningMismatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-[85vw] max-h-[90vh] overflow-hidden flex flex-col mx-auto" style={{ width: '85vw' }}>
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b bg-red-50">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
+            <div className="flex items-center justify-between p-4 border-b bg-gray-50 min-h-[60px]">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-gray-500 flex-shrink-0" />
                 <div>
-                  <h2 className="text-base font-bold">
-                    Incohérence des soldes d'ouverture
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Incohérences soldes d'ouverture
                   </h2>
-                  <p className="text-sm text-gray-600 mt-0.5">
-                    Les soldes d'ouverture de la balance N ne correspondent pas
-                    aux soldes de clôture de la balance N-1.
+                  <p className="text-sm text-gray-600">
+                    Clôture N-1 → Ouverture N • {openingMismatches.length} racine(s)
                   </p>
                 </div>
               </div>
@@ -1649,125 +2092,269 @@ function BalanceDetailView({
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowOpeningMismatch(false)}
-                className="h-6 w-6"
+                className="h-6 w-6 flex-shrink-0"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-auto p-4 space-y-4">
-              {openingMismatches.map((mismatch: any, idx) => (
-                <div
-                  key={idx}
-                  className="border-2 border-red-200 rounded-lg overflow-hidden"
-                >
-                  {/* Root summary */}
-                  <div className="bg-red-50 p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold bg-red-600 bold px-2 py-0.5 rounded">
-                        {mismatch.root}
-                      </span>
-                      <div className="text-sm">
-                        <span className="text-gray-600">Clôture N-1: </span>
-                        <span className="font-mono font-semibold">
-                          {mismatch.n1ClosingNet.toLocaleString()}
-                        </span>
-                        <span className="text-gray-400 mx-1">→</span>
-                        <span className="text-gray-600">Ouverture N: </span>
-                        <span className="font-mono font-semibold">
-                          {mismatch.nOpeningNet.toLocaleString()}
-                        </span>
+            <div className="flex-1 overflow-auto p-2 space-y-1">
+              {openingMismatches.map((mismatch: any, idx) => {
+                const isExpanded = expandedRoots.has(mismatch.root);
+                const hasSubAccounts = mismatch.accounts && mismatch.accounts.length > 0;
+
+                return (
+                  <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Root header - clickable */}
+                    <div
+                      className="p-2 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200"
+                      onClick={() => {
+                        const newExpanded = new Set(expandedRoots);
+                        if (isExpanded) {
+                          newExpanded.delete(mismatch.root);
+                        } else {
+                          newExpanded.add(mismatch.root);
+                        }
+                        setExpandedRoots(newExpanded);
+                      }}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {hasSubAccounts && (
+                            <div className="flex-shrink-0">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-500" />
+                              )}
+                            </div>
+                          )}
+                          <span className="font-mono font-bold text-sm text-gray-900 px-2 py-1 bg-white rounded border flex-shrink-0">
+                            {mismatch.root}
+                          </span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="text-xs text-gray-600 whitespace-nowrap">
+                              {mismatch.accounts.length} comptes
+                            </span>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-gray-600 whitespace-nowrap">Écart:</span>
+                            <span className={`font-semibold text-xs ${mismatch.difference > 0 ? "text-green-600" : "text-red-600"}`}>
+                              {mismatch.difference > 0 ? "+" : ""}{mismatch.difference.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Auto-correct button */}
+                        <div className="flex-shrink-0 ml-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Auto-correct entire root
+                              const correctedRows = mismatch.accounts.map((acc: any) => ({
+                                accountNumber: acc.account,
+                                openingDebit: acc.closingN1 > 0 ? acc.closingN1 : 0,
+                                openingCredit: acc.closingN1 < 0 ? Math.abs(acc.closingN1) : 0,
+                                movementDebit: 0,
+                                movementCredit: 0,
+                              }));
+
+                              setModifiedRows(prev => ({
+                                ...prev,
+                                ...Object.fromEntries(
+                                  correctedRows.map((row: any) => [row.accountNumber, {
+                                    ...balanceRows.find(r => r.accountNumber === row.accountNumber),
+                                    ...row,
+                                  }])
+                                )
+                              }));
+
+                              setHasUnsavedChanges(true);
+                              alert(`Correction automatique appliquée à toute la racine ${mismatch.root}`);
+                            }}
+                            className="text-green-600 border-green-300 hover:bg-green-50 h-7 text-xs"
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Corriger
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs text-gray-500">Écart</span>
-                      <p
-                        className={`text-sm font-mono font-bold ${mismatch.difference > 0 ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {mismatch.difference > 0 ? "+" : ""}
-                        {mismatch.difference.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Individual accounts */}
-                  {mismatch.accounts && mismatch.accounts.length > 0 && (
-                    <div className="p-3 bg-white">
-                      <Table>
-                        <TableHeader className="bg-gray-100">
-                          <TableRow>
-                            <TableHead className="text-sm font-semibold">
-                              N° Compte
-                            </TableHead>
-                            <TableHead className="text-sm font-semibold">
-                              Libellé
-                            </TableHead>
-                            <TableHead className="text-right text-sm font-semibold">
-                              Clôture N-1
-                            </TableHead>
-                            <TableHead className="text-right text-sm font-semibold">
-                              Ouverture N
-                            </TableHead>
-                            <TableHead className="text-right text-sm font-semibold">
-                              Écart
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {mismatch.accounts.map((acc: any, accIdx: number) => (
-                            <TableRow
-                              key={accIdx}
-                              className={
-                                accIdx % 2 === 0 ? "bg-gray-50" : "bg-white"
-                              }
-                            >
-                              <TableCell className="font-mono text-sm font-semibold">
-                                {acc.account}
-                              </TableCell>
-                              <TableCell className="text-sm">
-                                {acc.name}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-sm">
-                                {acc.closingN1.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-sm">
-                                {acc.openingN.toLocaleString()}
-                              </TableCell>
-                              <TableCell
-                                className={`text-right font-mono text-sm font-bold ${Math.abs(acc.openingN - acc.closingN1) > 0.01 ? (acc.openingN - acc.closingN1 > 0 ? "text-green-600" : "text-red-600") : ""}`}
-                              >
-                                {acc.openingN - acc.closingN1 > 0 ? "+" : ""}
-                                {(
-                                  acc.openingN - acc.closingN1
-                                ).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    {/* Collapsible sub-accounts */}
+                    {isExpanded && hasSubAccounts && (
+                      <div className="border-t border-gray-100 bg-white">
+                        <div className="p-2">
+                          {/* Compact table */}
+                          <div className="border border-gray-200 rounded overflow-hidden">
+                            {/* Table header */}
+                            <div className="grid grid-cols-6 gap-2 p-2 bg-gray-100 text-xs font-semibold text-gray-700 border-b border-gray-200">
+                              <div className="col-span-1">N° Compte</div>
+                              <div className="col-span-2">Libellé</div>
+                              <div className="col-span-1 text-right">Clôture N-1</div>
+                              <div className="col-span-1 text-right">Ouverture N</div>
+                              <div className="col-span-1 text-center">Action</div>
+                            </div>
+
+                            {/* Table rows */}
+                            <div className="divide-y divide-gray-100">
+                              {mismatch.accounts.map((acc: any, accIdx: number) => {
+                                const difference = acc.openingN - acc.closingN1;
+                                const hasIssue = Math.abs(difference) > 0.01;
+
+                                return (
+                                  <div
+                                    key={accIdx}
+                                    className={`grid grid-cols-6 gap-2 p-2 text-xs hover:bg-gray-50 ${
+                                      hasIssue ? "bg-red-50" : ""
+                                    }`}
+                                  >
+                                    <div className="col-span-1">
+                                      <span className="font-mono font-medium text-gray-900">
+                                        {acc.account}
+                                      </span>
+                                    </div>
+
+                                    <div className="col-span-2">
+                                      <span className="text-gray-700 truncate">
+                                        {acc.name || "Sans libellé"}
+                                      </span>
+                                    </div>
+
+                                    <div className="col-span-1 text-right">
+                                      <span className="font-mono text-gray-600">
+                                        {acc.closingN1.toLocaleString()}
+                                      </span>
+                                    </div>
+
+                                    <div className="col-span-1 text-right">
+                                      <span className="font-mono text-gray-600">
+                                        {acc.openingN.toLocaleString()}
+                                      </span>
+                                    </div>
+
+                                    <div className="col-span-1 flex justify-center items-center gap-1">
+                                      {hasIssue && (
+                                        <>
+                                          <span className={`font-mono text-xs ${
+                                            difference > 0 ? "text-green-600" : "text-red-600"
+                                          }`}>
+                                            {difference > 0 ? "+" : ""}
+                                            {difference.toLocaleString()}
+                                          </span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              // Auto-correct this specific account
+                                              const correctedRow = {
+                                                accountNumber: acc.account,
+                                                openingDebit: acc.closingN1 > 0 ? acc.closingN1 : 0,
+                                                openingCredit: acc.closingN1 < 0 ? Math.abs(acc.closingN1) : 0,
+                                                movementDebit: 0,
+                                                movementCredit: 0,
+                                              };
+
+                                              setModifiedRows(prev => ({
+                                                ...prev,
+                                                [acc.account]: {
+                                                  ...balanceRows.find(r => r.accountNumber === acc.account),
+                                                  ...correctedRow,
+                                                }
+                                              }));
+
+                                              setHasUnsavedChanges(true);
+                                              alert(`Correction appliquée au compte ${acc.account}`);
+                                            }}
+                                            className="text-blue-600 hover:text-blue-700 h-6 w-6 p-0"
+                                          >
+                                            <RefreshCw className="h-3 w-3" />
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t flex justify-end gap-2">
-              {openingMismatches.length > 5 && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 mr-auto">
-                  <p className="text-sm text-orange-800 font-semibold">
-                    ⚠️ {openingMismatches.length} racines présentent des
-                    incohérences
-                  </p>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                onClick={() => setShowOpeningMismatch(false)}
-              >
-                Fermer
-              </Button>
+            <div className="p-2 border-t bg-gray-50 flex items-center justify-between">
+              <div className="text-xs text-gray-600">
+                <span className="font-semibold text-gray-900">{openingMismatches.length}</span> racine(s) •
+                <span className="font-semibold text-gray-900 ml-1">
+                  {openingMismatches.reduce((sum, m) => sum + m.accounts.length, 0)}
+                </span> comptes •
+                Écart total: <span className="font-semibold text-gray-900">
+                  {openingMismatches.reduce((sum, m) => sum + Math.abs(m.difference), 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    // Auto-correct all mismatches
+                    const allCorrectedRows: any[] = [];
+                    openingMismatches.forEach(mismatch => {
+                      mismatch.accounts.forEach((acc: any) => {
+                        allCorrectedRows.push({
+                          accountNumber: acc.account,
+                          openingDebit: acc.closingN1 > 0 ? acc.closingN1 : 0,
+                          openingCredit: acc.closingN1 < 0 ? Math.abs(acc.closingN1) : 0,
+                          movementDebit: 0,
+                          movementCredit: 0,
+                        });
+                      });
+                    });
+
+                    setModifiedRows(prev => ({
+                      ...prev,
+                      ...Object.fromEntries(
+                        allCorrectedRows.map((row: any) => [row.accountNumber, {
+                          ...balanceRows.find(r => r.accountNumber === row.accountNumber),
+                          ...row,
+                        }])
+                      )
+                    }));
+
+                    setHasUnsavedChanges(true);
+                    alert(`Correction automatique appliquée à ${allCorrectedRows.length} comptes`);
+                  }}
+                  className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Tout corriger
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExpandedRoots(new Set())}
+                  className="h-7 text-xs"
+                >
+                  Réduire
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setShowOpeningMismatch(false)}
+                  className="h-7 text-xs"
+                >
+                  Fermer
+                </Button>
+              </div>
             </div>
           </div>
         </div>

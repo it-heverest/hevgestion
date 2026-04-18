@@ -495,3 +495,4 @@ const ModeBilan: React.FC = () => {
 };
 
 export default ModeBilan;
+

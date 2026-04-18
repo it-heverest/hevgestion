@@ -68,6 +68,7 @@ function setAuthCookies(
   const corsOrigin = process.env.CORS_ORIGIN;
   const opts = makeCookieOptions(isProduction, corsOrigin);
 
+  res.cookie("accessToken", accessToken, opts.access);
   res.cookie("refreshToken", refreshToken, opts.refresh);
 }
 

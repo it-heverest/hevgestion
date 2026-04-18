@@ -2208,6 +2208,23 @@ class NotesService {
     }
     return { valid: errors.length === 0, errors };
   }
+  /**
+   * Delete all notes for a folder
+   */
+  async deleteAllNotes(folderId: string): Promise<{ message: string }> {
+    const response = await fetch(`/api/notes/folder/${folderId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete notes');
+    }
+
+    return response.json();
+  }
 }
 
 export const notesService = new NotesService();

@@ -44,19 +44,50 @@ const Note5: React.FC = () => {
 
   // État pour le Tableau 1 (Actifs)
   const [assetsData, setAssetsData] = useState<RowData[]>([
-    { id: "1", label: "Créances sur cessions d'immobilisations", yearN: "", yearN1: "" },
-    { id: "2", label: "Autres créances hors activités ordinaires", yearN: "", yearN1: "" },
+    {
+      id: "1",
+      label: "Créances sur cessions d'immobilisations",
+      yearN: "",
+      yearN1: "",
+    },
+    {
+      id: "2",
+      label: "Autres créances hors activités ordinaires",
+      yearN: "",
+      yearN1: "",
+    },
     { id: "3", label: "TOTAL BRUT", yearN: "", yearN1: "", isTotal: true },
     { id: "4", label: "Dépréciation des créances HAO", yearN: "", yearN1: "" },
-    { id: "5", label: "TOTAL NET DE DEPRECIATION", yearN: "", yearN1: "", isTotal: true },
+    {
+      id: "5",
+      label: "TOTAL NET DE DEPRECIATION",
+      yearN: "",
+      yearN1: "",
+      isTotal: true,
+    },
   ]);
 
   // État pour le Tableau 2 (Dettes)
   const [liabilitiesData, setLiabilitiesData] = useState<RowData[]>([
     { id: "6", label: "Fournisseurs d'investissements", yearN: "", yearN1: "" },
-    { id: "7", label: "Fournisseurs d'investissements effets à payer", yearN: "", yearN1: "" },
-    { id: "8", label: "Versements restant à effectuer sur titres", yearN: "", yearN1: "" },
-    { id: "9", label: "Autres dettes hors activités ordinaires", yearN: "", yearN1: "" },
+    {
+      id: "7",
+      label: "Fournisseurs d'investissements effets à payer",
+      yearN: "",
+      yearN1: "",
+    },
+    {
+      id: "8",
+      label: "Versements restant à effectuer sur titres",
+      yearN: "",
+      yearN1: "",
+    },
+    {
+      id: "9",
+      label: "Autres dettes hors activités ordinaires",
+      yearN: "",
+      yearN1: "",
+    },
   ]);
 
   const folderId = selectedFolder?.id;
@@ -67,7 +98,10 @@ const Note5: React.FC = () => {
     }
   }, [folderId]);
 
-  const fromBackendRows = (backendRows: any[], defaultRows: RowData[]): RowData[] => {
+  const fromBackendRows = (
+    backendRows: any[],
+    defaultRows: RowData[],
+  ): RowData[] => {
     if (!backendRows || backendRows.length === 0) return defaultRows;
     return backendRows.map((r: any, i: number) => ({
       id: String(i + 1),
@@ -90,18 +124,18 @@ const Note5: React.FC = () => {
     if (!folderId) return;
     try {
       setIsLoading(true);
-      const noteData = await notesService.getNoteData(folderId, "5") as any;
+      const noteData = (await notesService.getNoteData(folderId, "5")) as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
         setAssetsData(
           noteData.actifCirculantHAO
             ? fromBackendRows(noteData.actifCirculantHAO, assetsData)
-            : noteData.assetsData || assetsData
+            : noteData.assetsData || assetsData,
         );
         setLiabilitiesData(
           noteData.dettesHAO
             ? fromBackendRows(noteData.dettesHAO, liabilitiesData)
-            : noteData.liabilitiesData || liabilitiesData
+            : noteData.liabilitiesData || liabilitiesData,
         );
         setComment(noteData.comment || "");
       }
@@ -122,7 +156,11 @@ const Note5: React.FC = () => {
         dettesHAO: toBackendRows(liabilitiesData),
         comment,
       };
-      const success = await notesService.saveNoteData(folderId, "5", noteData as any);
+      const success = await notesService.saveNoteData(
+        folderId,
+        "5",
+        noteData as any,
+      );
       if (success) {
         alert("Données Note 5 sauvegardées avec succès");
         setIsEditing(false);
@@ -139,11 +177,11 @@ const Note5: React.FC = () => {
     id: string,
     field: "yearN" | "yearN1",
     value: string,
-    isAssetTable: boolean
+    isAssetTable: boolean,
   ) => {
     const updateFn = isAssetTable ? setAssetsData : setLiabilitiesData;
     updateFn((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
     );
   };
 
@@ -172,7 +210,7 @@ const Note5: React.FC = () => {
   const renderEditableCell = (
     value: string,
     onChange: (val: string) => void,
-    className: string = ""
+    className: string = "",
   ) => {
     return isEditing ? (
       <input
@@ -194,7 +232,10 @@ const Note5: React.FC = () => {
   };
 
   const isHeaderIncomplete =
-    !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
+    !entete.entityName ||
+    !entete.fiscalYear ||
+    !entete.idNumber ||
+    !entete.duration;
 
   if (isLoading) {
     return (
@@ -268,8 +309,9 @@ const Note5: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
-          }`}
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${
+          isEditing ? "border-blue-500" : "border-gray-200"
+        }`}
       >
         {isEditing && (
           <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3 text-sm">
@@ -283,7 +325,8 @@ const Note5: React.FC = () => {
         {isHeaderIncomplete && (
           <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 flex justify-between items-center text-sm">
             <div className="text-orange-800">
-              <span className="font-bold">Attention :</span> Certains champs de l'en-tête sont vides.
+              <span className="font-bold">Attention :</span> Certains champs de
+              l'en-tête sont vides.
             </div>
             {!isEditing && (
               <button
@@ -306,51 +349,75 @@ const Note5: React.FC = () => {
         {/* En-tête */}
         <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4">
           <div className="flex gap-2 items-end">
-            <span className="font-bold whitespace-nowrap">Désignation entité :</span>
+            <span className="font-bold whitespace-nowrap">
+              Désignation entité :
+            </span>
             {isEditing ? (
               <input
                 value={entete.entityName}
-                onChange={(e) => setEntete({ ...entete, entityName: e.target.value })}
+                onChange={(e) =>
+                  setEntete({ ...entete, entityName: e.target.value })
+                }
                 className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.entityName || "-"}</span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {entete.entityName || "-"}
+              </span>
             )}
           </div>
           <div className="flex gap-2 items-end justify-end">
-            <span className="font-bold whitespace-nowrap">Exercice clos le 31-12-</span>
+            <span className="font-bold whitespace-nowrap">
+              Exercice clos le 31-12-
+            </span>
             {isEditing ? (
               <input
                 value={entete.fiscalYear}
-                onChange={(e) => setEntete({ ...entete, fiscalYear: e.target.value })}
+                onChange={(e) =>
+                  setEntete({ ...entete, fiscalYear: e.target.value })
+                }
                 className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">{entete.fiscalYear || "-"}</span>
+              <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">
+                {entete.fiscalYear || "-"}
+              </span>
             )}
           </div>
           <div className="flex gap-2 items-end">
-            <span className="font-bold whitespace-nowrap">Numéro d'identification :</span>
+            <span className="font-bold whitespace-nowrap">
+              Numéro d'identification :
+            </span>
             {isEditing ? (
               <input
                 value={entete.idNumber}
-                onChange={(e) => setEntete({ ...entete, idNumber: e.target.value })}
+                onChange={(e) =>
+                  setEntete({ ...entete, idNumber: e.target.value })
+                }
                 className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.idNumber || "-"}</span>
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {entete.idNumber || "-"}
+              </span>
             )}
           </div>
           <div className="flex gap-2 items-end justify-end">
-            <span className="font-bold whitespace-nowrap">Durée (en mois) :</span>
+            <span className="font-bold whitespace-nowrap">
+              Durée (en mois) :
+            </span>
             {isEditing ? (
               <input
                 value={entete.duration}
-                onChange={(e) => setEntete({ ...entete, duration: e.target.value })}
+                onChange={(e) =>
+                  setEntete({ ...entete, duration: e.target.value })
+                }
                 className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
               />
             ) : (
-              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">{entete.duration || "-"}</span>
+              <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
+                {entete.duration || "-"}
+              </span>
             )}
           </div>
         </div>
@@ -364,21 +431,38 @@ const Note5: React.FC = () => {
         <table className="w-full border-collapse border border-gray-600 text-[10px] mb-4">
           <thead>
             <tr className="bg-[#d9d9d9]">
-              <th className="border border-gray-600 p-2 text-center w-[40%]">Libellés</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N-1</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Variation en %</th>
+              <th className="border border-gray-600 p-2 text-center w-[40%]">
+                Libellés
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Année N
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Année N-1
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Variation en %
+              </th>
             </tr>
           </thead>
           <tbody>
             {assetsData.map((row) => (
-              <tr key={row.id} className={row.isTotal ? "bg-[#e6e6e6] font-bold" : "hover:bg-gray-50"}>
+              <tr
+                key={row.id}
+                className={
+                  row.isTotal ? "bg-[#e6e6e6] font-bold" : "hover:bg-gray-50"
+                }
+              >
                 <td className="border border-gray-600 p-2">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleInputChange(row.id, "yearN", val, true))}
+                  {renderEditableCell(row.yearN, (val) =>
+                    handleInputChange(row.id, "yearN", val, true),
+                  )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleInputChange(row.id, "yearN1", val, true))}
+                  {renderEditableCell(row.yearN1, (val) =>
+                    handleInputChange(row.id, "yearN1", val, true),
+                  )}
                 </td>
                 <td className="border border-gray-600 p-2 text-center bg-gray-50">
                   {calculateVariation(row.yearN, row.yearN1)}
@@ -419,10 +503,18 @@ const Note5: React.FC = () => {
         <table className="w-full border-collapse border border-gray-600 text-[10px]">
           <thead>
             <tr className="bg-[#d9d9d9]">
-              <th className="border border-gray-600 p-2 text-center w-[40%]">Libellés</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Année N-1</th>
-              <th className="border border-gray-600 p-2 text-center w-[20%]">Variation en %</th>
+              <th className="border border-gray-600 p-2 text-center w-[40%]">
+                Libellés
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Année N
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Année N-1
+              </th>
+              <th className="border border-gray-600 p-2 text-center w-[20%]">
+                Variation en %
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -430,10 +522,14 @@ const Note5: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-2">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleInputChange(row.id, "yearN", val, false))}
+                  {renderEditableCell(row.yearN, (val) =>
+                    handleInputChange(row.id, "yearN", val, false),
+                  )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleInputChange(row.id, "yearN1", val, false))}
+                  {renderEditableCell(row.yearN1, (val) =>
+                    handleInputChange(row.id, "yearN1", val, false),
+                  )}
                 </td>
                 <td className="border border-gray-600 p-2 text-center bg-gray-50">
                   {calculateVariation(row.yearN, row.yearN1)}

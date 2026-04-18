@@ -27,7 +27,7 @@ const Fiche4: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           Page 4/4 - Liste des Établissements
         </h1>
@@ -362,3 +362,4 @@ const Fiche4: React.FC = () => {
 };
 
 export default Fiche4;
+

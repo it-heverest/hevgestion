@@ -917,6 +917,8 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
 }) => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 64; // 8x8 grid
 
   // ── Preview mode: render a single report component ─────────────────────────
   if (noteName) {
@@ -973,24 +975,35 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
   };
 
   // Client-side filter applied when the user types in the search box.
-  const visibleReports = useMemo(() => {
+  const filteredReports = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return ALL_REPORTS;
     return ALL_REPORTS.filter((r) => r.name.toLowerCase().includes(q));
   }, [search]);
 
-  // Group visible reports by category, preserving insertion order.
+  // Pagination
+  const totalItems = filteredReports.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedReports = filteredReports.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  // Group paginated reports by category, preserving insertion order.
   const grouped = useMemo(
     () =>
-      visibleReports.reduce<Record<string, ReportDefinition[]>>((acc, r) => {
+      paginatedReports.reduce<Record<string, ReportDefinition[]>>((acc, r) => {
         (acc[r.category] ??= []).push(r);
         return acc;
       }, {}),
-    [visibleReports],
+    [paginatedReports],
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1010,56 +1023,67 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
       )}
 
       {Object.entries(grouped).map(([category, reports]) => (
-        <div key={category}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Filter className="h-5 w-5 mr-2 text-blue-600" />
+        <div key={category} className="mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+            <Filter className="h-4 w-4 mr-1 text-blue-600" />
             {category}
-            <span className="ml-2 text-sm font-normal text-gray-500">
+            <span className="ml-2 text-xs text-gray-500">
               ({reports.length})
             </span>
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
             {reports.map((report) => (
               <div
                 key={report.name}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col"
+                className="bg-white rounded border border-gray-200 p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col items-center text-center"
+                onClick={() => handleView(report)}
               >
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate text-sm">
-                      {report.name}
-                    </h3>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 bg-green-100 text-green-800">
-                      Disponible
-                    </span>
-                  </div>
+                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mb-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
                 </div>
-
-                <div className="mt-auto flex gap-2">
-                  <button
-                    onClick={() => handleView(report)}
-                    className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Voir
-                  </button>
-                  <button
-                    onClick={() => handleEdit(report)}
-                    className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Éditer
-                  </button>
+                <div className="text-xs font-medium text-gray-900 leading-tight mb-1">
+                  {report.name.replace('NOTE ', '')}
+                </div>
+                <div className="text-xs text-gray-500">
+                  Disponible
                 </div>
               </div>
             ))}
           </div>
         </div>
       ))}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            {startIndex + 1}-{Math.min(startIndex + itemsPerPage, totalItems)} sur {totalItems} rapports
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Précédent
+            </button>
+
+            <span className="text-sm text-gray-600 px-2">
+              Page {currentPage} sur {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

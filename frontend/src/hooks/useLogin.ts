@@ -344,13 +344,14 @@ export function useLogin() {
   // Validation des étapes
   const isStepValid = (step: number): boolean => {
     switch (step) {
-      case 1: // Personal info - names, email/phone, role (all compulsory)
+      case 1: // Personal info - names, email/phone, role, country (all compulsory)
         const hasNames = !!registerForm.firstName && registerForm.firstName.length >= 2 &&
           !!registerForm.lastName && registerForm.lastName.length >= 2;
         const hasRole = !!registerForm.role;
-        const hasContact = (registerForm.email && isValidEmail(registerForm.email)) || 
+        const hasContact = (registerForm.email && isValidEmail(registerForm.email)) ||
           (registerForm.phoneNumber && registerForm.phoneNumber.length >= 8);
-        return hasNames && hasRole && hasContact;
+        const hasCountry = !!registerForm.country && registerForm.country.length === 2;
+        return hasNames && hasRole && hasContact && hasCountry;
 
       case 2: // Number of assistants (COMPTABLE only)
         if (registerForm.role === "COMPTABLE") {

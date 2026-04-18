@@ -509,7 +509,7 @@ const Note3B: React.FC = () => {
       {/* Barre d'outils */}
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 3B - Biens Pris en Location Acquisition
           </h1>
@@ -860,3 +860,6 @@ const Note3B: React.FC = () => {
 };
 
 export default Note3B;
+
+
+

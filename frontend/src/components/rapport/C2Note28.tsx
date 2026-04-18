@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -27,12 +28,16 @@ interface HeaderData {
 // --- Composant Principal ---
 const C2Note28: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
@@ -413,7 +418,7 @@ const C2Note28: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           C2'Note 28 - Tableau Récapitulatif du Traitement Fiscal des Provisions
           : Les Dotations
@@ -623,3 +628,6 @@ const C2Note28: React.FC = () => {
 };
 
 export default C2Note28;
+
+
+

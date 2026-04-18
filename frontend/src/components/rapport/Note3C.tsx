@@ -29,7 +29,7 @@ const AmortizationReport: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState(
-    "Les amortissements sont calculés selon la méthode linéaire sur la durée d'utilisation estimée des immobilisations."
+    "Les amortissements sont calculés selon la méthode linéaire sur la durée d'utilisation estimée des immobilisations.",
   );
 
   // État de l'en-tête
@@ -47,7 +47,9 @@ const AmortizationReport: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // État des données
-  const [amortizationData, setAmortizationData] = useState<AmortizationRow[]>([]);
+  const [amortizationData, setAmortizationData] = useState<AmortizationRow[]>(
+    [],
+  );
 
   // 🔥 Load data from backend
   const loadNoteData = async () => {
@@ -76,7 +78,11 @@ const AmortizationReport: React.FC = () => {
         });
       }
 
-      const buildSection = (data: any[], prefix: string, headerLabel: string): AmortizationRow[] => {
+      const buildSection = (
+        data: any[],
+        prefix: string,
+        headerLabel: string,
+      ): AmortizationRow[] => {
         if (!data || data.length === 0) return [];
         const rows: AmortizationRow[] = [];
         if (headerLabel) {
@@ -84,7 +90,9 @@ const AmortizationReport: React.FC = () => {
             id: `${prefix}_HEADER`,
             label: headerLabel,
             isSubHeader: true,
-            openingCumulative: 0, augmentations: 0, diminutions: 0
+            openingCumulative: 0,
+            augmentations: 0,
+            diminutions: 0,
           });
         }
         data.forEach((row: any, i: number) => {
@@ -100,8 +108,16 @@ const AmortizationReport: React.FC = () => {
       };
 
       const newData = [
-        ...buildSection(noteData.immobilisationsIncorporelles, "I", "IMMOBILISATIONS INCORPORELLES"),
-        ...buildSection(noteData.immobilisationsCorporelles, "C", "IMMOBILISATIONS CORPORELLES"),
+        ...buildSection(
+          noteData.immobilisationsIncorporelles,
+          "I",
+          "IMMOBILISATIONS INCORPORELLES",
+        ),
+        ...buildSection(
+          noteData.immobilisationsCorporelles,
+          "C",
+          "IMMOBILISATIONS CORPORELLES",
+        ),
       ];
 
       setAmortizationData(newData);
@@ -130,11 +146,13 @@ const AmortizationReport: React.FC = () => {
         amortissementsCumulesOuverture: row.openingCumulative,
         augmentationsDotationsExercice: row.augmentations,
         diminutionsSorties: row.diminutions,
-        cumulAmortissementsCloture: calculateClosingCumulative(row)
+        cumulAmortissementsCloture: calculateClosingCumulative(row),
       });
 
       const extractSection = (prefix: string) =>
-        amortizationData.filter(r => r.id.startsWith(`${prefix}_`) && !r.isSubHeader);
+        amortizationData.filter(
+          (r) => r.id.startsWith(`${prefix}_`) && !r.isSubHeader,
+        );
 
       const noteData = {
         entete: headerInfo,
@@ -196,7 +214,7 @@ const AmortizationReport: React.FC = () => {
 
   const calculateSectionTotal = (
     section: AmortizationRow[],
-    field: keyof AmortizationRow
+    field: keyof AmortizationRow,
   ): number => {
     return section.reduce((acc, row) => {
       if (!row.isSubHeader) {
@@ -208,35 +226,35 @@ const AmortizationReport: React.FC = () => {
 
   // Découpage des sections
   const incorporeal = amortizationData.filter(
-    (row) => row.id.startsWith("I_") && !row.isSubHeader
+    (row) => row.id.startsWith("I_") && !row.isSubHeader,
   );
   const corporeal = amortizationData.filter(
-    (row) => row.id.startsWith("C_") && !row.isSubHeader
+    (row) => row.id.startsWith("C_") && !row.isSubHeader,
   );
 
   // Calcul des totaux
   const incorporealOpening = calculateSectionTotal(
     incorporeal,
-    "openingCumulative"
+    "openingCumulative",
   );
   const incorporealAugmentations = calculateSectionTotal(
     incorporeal,
-    "augmentations"
+    "augmentations",
   );
   const incorporealDiminutions = calculateSectionTotal(
     incorporeal,
-    "diminutions"
+    "diminutions",
   );
   const incorporealClosing =
     incorporealOpening + incorporealAugmentations - incorporealDiminutions;
 
   const corporealOpening = calculateSectionTotal(
     corporeal,
-    "openingCumulative"
+    "openingCumulative",
   );
   const corporealAugmentations = calculateSectionTotal(
     corporeal,
-    "augmentations"
+    "augmentations",
   );
   const corporealDiminutions = calculateSectionTotal(corporeal, "diminutions");
   const corporealClosing =
@@ -253,12 +271,12 @@ const AmortizationReport: React.FC = () => {
   const handleValueChange = (
     id: string,
     field: keyof AmortizationRow,
-    value: string
+    value: string,
   ) => {
     setAmortizationData((prev) =>
       prev.map((row) =>
-        row.id === id ? { ...row, [field]: Number(value) || 0 } : row
-      )
+        row.id === id ? { ...row, [field]: Number(value) || 0 } : row,
+      ),
     );
   };
 
@@ -459,8 +477,9 @@ const AmortizationReport: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
-          }`}
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${
+          isEditing ? "border-blue-500" : "border-gray-200"
+        }`}
       >
         {isEditing && (
           <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
@@ -696,9 +715,7 @@ const AmortizationReport: React.FC = () => {
 
         {/* Commentaires */}
         <div className="mt-4 border border-gray-400 p-3 bg-white">
-          <div className="font-bold text-xs underline mb-2">
-            Commentaires :
-          </div>
+          <div className="font-bold text-xs underline mb-2">Commentaires :</div>
           <div className="mt-1">
             {isEditing ? (
               <textarea

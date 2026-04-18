@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import {
   Balance,
   BalanceStatus,
+  BalanceType,
   IssueType,
   Severity,
   AssetMovementType,
@@ -89,16 +90,42 @@ export class BalanceProcessor {
       // 3. Detect account issues
       const issues = await this.detectAccountIssues(balance);
 
-      // 3b. Compare with previous year's balance (opening vs previous closing)
-      const openingIssues = await this.compareWithPrevious(balance);
-      if (openingIssues && openingIssues.length > 0) {
-        issues.push(...openingIssues);
+      // 3b. Compare with previous year's balance (opening vs previous closing) - only for current year balances
+      if (balance.type === BalanceType.CURRENT_YEAR) {
+        const openingIssues = await this.compareWithPrevious(balance);
+        if (openingIssues && openingIssues.length > 0) {
+          issues.push(...openingIssues);
+        }
+      } else if (balance.type === BalanceType.PREVIOUS_YEAR) {
+        // Clean up any opening balance issues that might exist in previous year balances
+        // (these should not be there as opening checks only apply to current year)
+        issues.forEach((issue, index) => {
+          if (issue.accountName?.includes('mismatch between N-1 closing and N opening') ||
+              issue.description?.includes('previous closing net') ||
+              issue.description?.includes('current opening net')) {
+            issues.splice(index, 1);
+          }
+        });
       }
 
       // 4. Extract fixed assets
       const fixedAssets = await this.extractFixedAssets(balance);
 
-      // 5. Update balance with results
+      // 5. Clean up existing opening issues for previous year balances
+      if (balance.type === BalanceType.PREVIOUS_YEAR) {
+        await prisma.accountIssue.deleteMany({
+          where: {
+            balanceId: balanceId,
+            OR: [
+              { accountName: { contains: 'mismatch between N-1 closing and N opening' } },
+              { description: { contains: 'previous closing net' } },
+              { description: { contains: 'current opening net' } },
+            ],
+          },
+        });
+      }
+
+      // 6. Update balance with results
       await prisma.balance.update({
         where: { id: balanceId },
         data: {
