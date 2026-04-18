@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -38,8 +39,12 @@ interface HeaderData {
 // --- Composant Principal ---
 
 const Note3A: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder, selectedClient } = useApp();
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -498,7 +503,7 @@ const Note3A: React.FC = () => {
       {/* Barre d'outils */}
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 3A - Tableau des Immobilisations
           </h1>
@@ -668,35 +673,35 @@ const Note3A: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
             <thead>
-              <tr className="bg-gray-700 text-white">
-                <th rowSpan={2} className={`border border-gray-600 p-1 ${isEditing ? 'w-[24%]' : 'w-[28%]'} font-bold`}>
+              <tr className="bg-gray-100">
+                <th rowSpan={2} className={`border border-gray-600 p-1 ${isEditing ? 'w-[24%]' : 'w-[28%]'} font-bold text-black`}>
                   RUBRIQUES
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold">
+                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold text-black">
                   MONTANT BRUT À L'OUVERTURE DE L'EXERCICE
                 </th>
-                <th colSpan={4} className="border border-gray-600 p-1 font-bold">
+                <th colSpan={4} className="border border-gray-600 p-1 font-bold text-black">
                   SITUATIONS ET MOUVEMENTS
                 </th>
-                <th colSpan={2} className="border border-gray-600 p-1 font-bold">
+                <th colSpan={2} className="border border-gray-600 p-1 font-bold text-black">
                   DIMINUTIONS
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold">
+                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold text-black">
                   MONTANT BRUT À LA CLÔTURE
                 </th>
               </tr>
-              <tr className="bg-gray-700 text-white">
-                <th className="border border-gray-600 p-1 w-[9%] font-bold">
+              <tr className="bg-gray-100">
+                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black">
                   ACQUISITIONS/APPORTS/CREATIONS
                 </th>
-                <th className="border border-gray-600 p-1 w-[7%] font-bold">
+                <th className="border border-gray-600 p-1 w-[7%] font-bold text-black">
                   VIREMENTS DE POSTE A POSTE (ENTRÉES)
                 </th>
-                <th className="border border-gray-600 p-1 w-[11%] font-bold">
+                <th className="border border-gray-600 p-1 w-[11%] font-bold text-black">
                   SUITE A UNE REEVALUATION PRATIQUEE AU COURS DE L'EXERCICE
                 </th>
-                <th className="border border-gray-600 p-1 w-[9%] font-bold font-bold">CESSIONS</th>
-                <th className="border border-gray-600 p-1 w-[7%] font-bold">
+                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black">CESSIONS</th>
+                <th className="border border-gray-600 p-1 w-[7%] font-bold text-black">
                   VIREMENTS DE POSTE A POSTE (SORTIES)
                 </th>
               </tr>
@@ -803,3 +808,5 @@ const Note3A: React.FC = () => {
 };
 
 export default Note3A;
+
+

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -25,6 +26,9 @@ const Note10: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder } = useApp();
 
   // Standardized entete state
@@ -51,7 +55,8 @@ const Note10: React.FC = () => {
   const [totalNet, setTotalNet] = useState({ yearN: "", yearN1: "", variation: "" });
   const [comment, setComment] = useState("");
 
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   useEffect(() => {
     if (folderId) {
@@ -189,7 +194,7 @@ const Note10: React.FC = () => {
       {/* Barre d'actions */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 10 - Valeurs à Encaisser
           </h1>
@@ -508,3 +513,6 @@ const Note10: React.FC = () => {
 };
 
 export default Note10;
+
+
+

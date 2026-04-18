@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -33,6 +34,9 @@ interface HeaderData {
 // --- Composant Principal ---
 const CF1: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [dsfId, setDsfId] = useState<string | null>(null);
@@ -433,7 +437,7 @@ const CF1: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           CF1 - Tableau de Passage du Résultat Comptable Avant Impôt au Résultat
           Fiscal
@@ -696,3 +700,6 @@ const CF1: React.FC = () => {
 };
 
 export default CF1;
+
+
+

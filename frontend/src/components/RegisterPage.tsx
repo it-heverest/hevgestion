@@ -190,33 +190,54 @@ export function RegisterPage({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>{t("registerAs")} *</Label>
-        <Select
-          value={registerForm.role}
-          onValueChange={(value: "ASSISTANT" | "COMPTABLE" | "ADMIN") => {
-            onRegisterChange("role", value);
-            if (value === "ASSISTANT") onRegisterChange("maxAssistants", 0);
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={t("selectRole")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="COMPTABLE">
-              <div className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                <span>Expert Comptable</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="ASSISTANT">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span>Assistant</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="country">{t("country")} *</Label>
+          <Select
+            value={registerForm.country}
+            onValueChange={(value) => onRegisterChange("country", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("selectCountry")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CM">Cameroun</SelectItem>
+              <SelectItem value="CI">Côte d'Ivoire</SelectItem>
+              <SelectItem value="SN">Sénégal</SelectItem>
+              <SelectItem value="BF">Burkina Faso</SelectItem>
+              <SelectItem value="TG">Togo</SelectItem>
+              <SelectItem value="BJ">Bénin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>{t("registerAs")} *</Label>
+          <Select
+            value={registerForm.role}
+            onValueChange={(value: "ASSISTANT" | "COMPTABLE" | "ADMIN") => {
+              onRegisterChange("role", value);
+              if (value === "ASSISTANT") onRegisterChange("maxAssistants", 0);
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("selectRole")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="COMPTABLE">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  <span>Expert Comptable</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="ASSISTANT">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span>Assistant</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </motion.div>
   );
@@ -233,16 +254,23 @@ export function RegisterPage({
       {registerForm.role === "COMPTABLE" ? (
         <div className="space-y-2">
           <Label htmlFor="maxAssistants">Number of assistants *</Label>
-          <Input
-            id="maxAssistants"
-            type="number"
-            min="0"
-            max="10"
-            value={registerForm.maxAssistants || 0}
-            onChange={(e) =>
-              onRegisterChange("maxAssistants", parseInt(e.target.value) || 0)
-            }
-          />
+          <Select
+            value={registerForm.maxAssistants?.toString() || "1"}
+            onValueChange={(value) => {
+              const numValue = value === "many" ? 50 : parseInt(value);
+              onRegisterChange("maxAssistants", numValue);
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select number of assistants" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 assistant</SelectItem>
+              <SelectItem value="3">3 assistants</SelectItem>
+              <SelectItem value="5">5 assistants</SelectItem>
+              <SelectItem value="many">Many (unlimited)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       ) : (
         <div className="p-4 bg-slate-50 rounded">

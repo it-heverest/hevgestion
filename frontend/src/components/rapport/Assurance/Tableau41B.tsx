@@ -27,7 +27,7 @@ const Tableau41B: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           Tableau 41B - Effectifs, Masse Salariale (Autres Pays CEMAC)
         </h1>
@@ -336,3 +336,4 @@ const Tableau41B: React.FC = () => {
 };
 
 export default Tableau41B;
+

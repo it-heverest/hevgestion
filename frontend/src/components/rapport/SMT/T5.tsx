@@ -487,7 +487,7 @@ const T5: React.FC = () => {
 
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           Note 15 - Synthèse des Impôts et Taxes Versés
         </h1>
@@ -698,3 +698,4 @@ const T5: React.FC = () => {
 };
 
 export default T5;
+

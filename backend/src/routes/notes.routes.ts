@@ -37,4 +37,9 @@ router.delete("/:noteNumber", authenticate, (req, res) =>
   notesController.deleteNote(req, res),
 );
 
+// DELETE /api/notes/folder/:folderId — delete all notes for a folder
+router.delete("/folder/:folderId", authenticate, (req, res) =>
+  notesController.deleteAllNotes(req, res),
+);
+
 export default router;

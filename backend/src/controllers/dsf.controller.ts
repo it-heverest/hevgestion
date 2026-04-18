@@ -398,7 +398,65 @@ class DSFController {
         folder as unknown as FolderWithFullRelations,
       );
 
-      // 5. Database Atomic Operation (Transaction is safer here)
+      // 5. Sanitize data for database storage
+      const sanitizeForDB = (data: any) => {
+        if (data === null || data === undefined) return null;
+        if (typeof data === "object" && !Array.isArray(data)) {
+          const sanitized: any = {};
+          for (const [key, value] of Object.entries(data)) {
+            if (value !== null && value !== undefined) {
+              sanitized[key] = sanitizeForDB(value);
+            }
+          }
+          return Object.keys(sanitized).length > 0 ? sanitized : null;
+        }
+        if (Array.isArray(data)) {
+          return data.filter((item) => item !== null && item !== undefined);
+        }
+        return data;
+      };
+
+      // Convert reports array to proper database structure
+      const dsfData: any = {};
+      if (Array.isArray(reports)) {
+        reports.forEach((report: any) => {
+          if (report.type && report.data) {
+            // Map report types to database fields
+            switch (report.type) {
+              case "BALANCE_SHEET":
+                dsfData.bilan_paysage = sanitizeForDB(report.data);
+                break;
+              case "INCOME_STATEMENT":
+                dsfData.compte_de_resultat = sanitizeForDB(report.data);
+                break;
+              case "TAX_TABLES":
+                dsfData.statistiques_et_syntheses = sanitizeForDB(report.data);
+                break;
+              case "SIGNALETICS":
+                dsfData.informations_generales = sanitizeForDB(report.data);
+                break;
+              case "NOTES":
+                // Handle notes - this might contain multiple note types
+                if (report.data && typeof report.data === "object") {
+                  Object.entries(report.data).forEach(([noteKey, noteData]) => {
+                    if (noteData) {
+                      dsfData[noteKey] = sanitizeForDB(noteData);
+                    }
+                  });
+                }
+                break;
+              default:
+                // For other report types, store in the reports field
+                break;
+            }
+          }
+        });
+      }
+
+      // Also store the full reports array for backward compatibility
+      dsfData.reports = sanitizeForDB(reports);
+
+      // 6. Database Atomic Operation (Transaction is safer here)
       const result = await prisma.$transaction(async (tx) => {
         // Check if DSF already exists
         let dsf = await tx.dSF.findUnique({
@@ -411,7 +469,7 @@ class DSFController {
             where: { id: dsf.id },
             data: {
               status: DSFStatus.GENERATED,
-              reports: reports as any,
+              ...dsfData,
               lastGeneratedAt: new Date(),
             },
           });
@@ -421,7 +479,7 @@ class DSFController {
             data: {
               folderId,
               status: DSFStatus.GENERATED,
-              reports: reports as any,
+              ...dsfData,
               lastGeneratedAt: new Date(),
             },
           });
@@ -764,16 +822,47 @@ class DSFController {
 
       // Extract data using validation service
       const extractedData = this.dsfValidationService.extractDSFData(workbook);
-      const { taxTables, notes, signaletics } = extractedData;
+      const { balanceSheet, incomeStatement, taxTables, notes: rawNotes, signaletics } = extractedData;
 
-      // Validate extracted data structure
-      if (!notes && !signaletics) {
+      console.log("DSF Import - Extracted data:", {
+        hasBalanceSheet: !!balanceSheet,
+        hasIncomeStatement: !!incomeStatement,
+        hasTaxTables: !!taxTables,
+        hasNotes: !!rawNotes,
+        hasSignaletics: !!signaletics,
+        notesKeys: rawNotes ? Object.keys(rawNotes) : [],
+        signaleticsKeys: signaletics ? Object.keys(signaletics) : [],
+      });
+
+      // If we have balance data, generate processed DSF data
+      let processedData: any = {};
+      if (balanceSheet || incomeStatement) {
+        console.log("DSF Import - Generating processed data from extracted balance");
+        // Create mock folder with extracted data
+        const mockFolder = {
+          id: folderId,
+          client: folder.client,
+          balances: [{
+            type: BalanceType.CURRENT_YEAR,
+            equilibrium: balanceSheet ? { data: balanceSheet } : null,
+            fixedAssets: null,
+            status: BalanceStatus.PROCESSED,
+          }],
+        } as unknown as FolderWithFullRelations;
+
+        const reports = await this.dsfGenerator.generate(mockFolder);
+        processedData = this.convertReportsToDSFData(reports);
+      } else if (rawNotes || signaletics) {
+        // Fallback to raw data if no balance
+        console.log("DSF Import - Using raw extracted data");
+        processedData = this.convertRawDataToDSFData(rawNotes, signaletics);
+      } else {
         throw new BadRequestError(
-          "DSF file must contain at least notes or signaletics data",
+          "DSF file must contain balance data or notes/signaletics data",
         );
       }
 
-      // Sanitize data for database storage
+      // Sanitize processedData for database storage
       const sanitizeForDB = (data: any) => {
         if (data === null || data === undefined) return null;
         if (typeof data === "object" && !Array.isArray(data)) {
@@ -791,79 +880,10 @@ class DSFController {
         return data;
       };
 
-      // Valid DSF field names
-      const validFields = [
-        "note1",
-        "note2",
-        "note3a",
-        "note3b",
-        "note4",
-        "note5",
-        "note6",
-        "note7",
-        "note8",
-        "note9",
-        "note10",
-        "note11",
-        "note12",
-        "note13",
-        "note14",
-        "note15",
-        "note16",
-        "note17",
-        "note18",
-        "note19",
-        "note20",
-        "note21",
-        "note22",
-        "note23",
-        "note24",
-        "note25",
-        "note26",
-        "note27",
-        "note28",
-        "note29",
-        "note30",
-        "note31",
-        "note32",
-        "note33",
-        "fiche1",
-        "fiche2",
-        "fiche3",
-        "cter",
-        "cf1",
-      ];
+      const sanitizedData = sanitizeForDB(processedData);
 
-      // Map notes data to individual DSF fields
-      const mappedData: any = {};
-
-      if (notes) {
-        // notes is an object with keys like 'note1', 'note2', 'fiche1', etc.
-        Object.entries(notes).forEach(([key, value]) => {
-          if (
-            validFields.includes(key) &&
-            value !== null &&
-            value !== undefined
-          ) {
-            mappedData[key] = sanitizeForDB(value);
-          }
-        });
-      }
-
-      if (signaletics) {
-        // signaletics contains fiche data
-        Object.entries(signaletics).forEach(([key, value]) => {
-          if (
-            validFields.includes(key) &&
-            value !== null &&
-            value !== undefined
-          ) {
-            mappedData[key] = sanitizeForDB(value);
-          }
-        });
-      }
-
-      const sanitizedData = mappedData;
+      console.log("DSF Import - Processed data keys:", Object.keys(processedData));
+      console.log("DSF Import - Sanitized data keys:", Object.keys(sanitizedData || {}));
 
       // Check if DSF already exists
       let dsf = await prisma.dSF.findUnique({
@@ -876,7 +896,8 @@ class DSFController {
           where: { id: dsf.id },
           data: {
             status: DSFStatus.GENERATED,
-            ...sanitizedData,
+            isImported: true,
+            ...(sanitizedData || {}),
             lastGeneratedAt: new Date(),
           },
         });
@@ -885,8 +906,9 @@ class DSFController {
         dsf = await prisma.dSF.create({
           data: {
             folderId,
+            isImported: true,
             status: DSFStatus.GENERATED,
-            ...sanitizedData,
+            ...(sanitizedData || {}),
             lastGeneratedAt: new Date(),
           },
         });
@@ -912,6 +934,109 @@ class DSFController {
       next(error);
     }
   };
+
+  private convertReportsToDSFData(reports: any[]): any {
+    const dsfData: any = {};
+    if (Array.isArray(reports)) {
+      reports.forEach((report: any) => {
+        if (report.type && report.data) {
+          switch (report.type) {
+            case "BALANCE_SHEET":
+              dsfData.bilan_paysage = report.data;
+              break;
+            case "INCOME_STATEMENT":
+              dsfData.compte_de_resultat = report.data;
+              break;
+            case "TAX_TABLES":
+              dsfData.statistiques_et_syntheses = report.data;
+              break;
+            case "SIGNALETICS":
+              dsfData.informations_generales = report.data;
+              break;
+            case "NOTES":
+              if (report.data && typeof report.data === "object") {
+                Object.entries(report.data).forEach(([noteKey, noteData]) => {
+                  if (noteData) {
+                    dsfData[noteKey] = noteData;
+                  }
+                });
+              }
+              break;
+            default:
+              break;
+          }
+        }
+      });
+    }
+    dsfData.reports = reports;
+    return dsfData;
+  }
+
+  private convertRawDataToDSFData(rawNotes: any, signaletics: any): any {
+    const sanitizeForDB = (data: any) => {
+      if (data === null || data === undefined) return null;
+      if (typeof data === "object" && !Array.isArray(data)) {
+        const sanitized: any = {};
+        for (const [key, value] of Object.entries(data)) {
+          if (value !== null && value !== undefined) {
+            sanitized[key] = sanitizeForDB(value);
+          }
+        }
+        return Object.keys(sanitized).length > 0 ? sanitized : null;
+      }
+      if (Array.isArray(data)) {
+        return data.filter((item) => item !== null && item !== undefined);
+      }
+      return data;
+    };
+
+    const validFields = [
+      "note1", "note2", "note3a", "note3b", "note3c", "note3d", "note3e", "note3f",
+      "note4", "note5", "note6", "note7", "note8", "note9", "note10", "note11",
+      "note12", "note13", "note14", "note15a", "note15b", "note16a", "note16b",
+      "note16b_bis", "note16c", "note17", "note17_c1", "note18", "note19", "note20",
+      "note21", "note22", "note23", "note24", "note25", "note25_c1", "note25_c2",
+      "note26", "note27a", "note27b", "note28", "note28_c1", "note28_c2", "note29",
+      "note30", "note31", "note32", "note33", "note34", "fiche1", "fiche2", "fiche3",
+      "cter", "cf1", "cf1_bis", "cf1_ter", "cf1_quater", "cf2", "cf2_bis", "cf2_ter",
+      "impot21", "impot22", "bilan_actif", "bilan_passif", "charges", "produits",
+      "compte_general_pertes_profits", "etat_c4", "etat_c11", "etat_c11_vie",
+      "annexe6", "ass1", "ass2", "ass3", "ass4", "ass5", "ass6", "ass7", "ass8",
+      "ass9", "ass10", "ass11", "declaration_annuel", "sommes_verse", "tva",
+      "versements", "tableau30", "tableau31", "tableau32", "tableau33", "tableau34",
+      "tableau35a", "tableau35b", "tableau36", "tableau37", "tableau38", "tableau39",
+      "tableau40", "tableau41a", "tableau41b", "tableau42", "tableau43a", "tableau43b",
+      "tableau44a", "grille_analyse_notes_smt", "mod_bilan", "note1_smt", "note2_smt",
+      "note3_smt", "note4_smt", "note5_smt", "note6_smt", "t1", "t1_bis", "t1_ter",
+      "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"
+    ];
+
+    const mappedData: any = {};
+
+    if (rawNotes) {
+      Object.entries(rawNotes).forEach(([key, value]) => {
+        if (validFields.includes(key) && value !== null && value !== undefined) {
+          const sanitized = sanitizeForDB(value);
+          if (sanitized !== null) {
+            mappedData[key] = sanitized;
+          }
+        }
+      });
+    }
+
+    if (signaletics) {
+      Object.entries(signaletics).forEach(([key, value]) => {
+        if (validFields.includes(key) && value !== null && value !== undefined) {
+          const sanitized = sanitizeForDB(value);
+          if (sanitized !== null) {
+            mappedData[key] = sanitized;
+          }
+        }
+      });
+    }
+
+    return mappedData;
+  }
 }
 
 export const dsfController = new DSFController();

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -30,8 +31,12 @@ interface Note2Data {
 // --- Composant Principal ---
 
 const Note2: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder, selectedClient } = useApp();
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -257,7 +262,7 @@ const Note2: React.FC = () => {
       {/* Barre d'outils */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 2 - Informations Obligatoires
           </h1>
@@ -449,3 +454,5 @@ const Note2: React.FC = () => {
 };
 
 export default Note2;
+
+

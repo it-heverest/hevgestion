@@ -628,3 +628,5 @@ const Note4Smt: React.FC = () => {
 };
 
 export default Note4Smt;
+
+

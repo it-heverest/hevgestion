@@ -10,7 +10,7 @@ const NOTE_NUMBER_TO_FIELD: Record<string, string> = {
   "3A": "note3a",
   "3B": "note3b",
   "3C": "note3c",
-  "3C_C01": "note3c_c01",
+  "3C_C01": "note3c_co1",
   "3D": "note3d",
   "3E": "note3e",
   "3F": "note3f",
@@ -212,8 +212,15 @@ export class NotesService {
     for (const [noteNumber, fieldName] of Object.entries(
       NOTE_NUMBER_TO_FIELD,
     )) {
-      const data = (dsf as any)[fieldName];
+      let data = (dsf as any)[fieldName];
       if (data) {
+        // If data is an array (from raw import), try to convert to object
+        if (Array.isArray(data) && data.length > 0) {
+          const converted = this.convertArrayToObject(data);
+          if (converted) {
+            data = converted;
+          }
+        }
         notes.push({
           noteNumber,
           noteType: `NOTE${noteNumber}`,
@@ -227,14 +234,39 @@ export class NotesService {
     return notes;
   }
 
-  /**
-   * Check if note exists
-   */
-  async noteExists(folderId: string, noteNumber: string): Promise<boolean> {
-    if (!VALID_NOTE_NUMBERS.includes(noteNumber)) {
-      return false;
+  private convertArrayToObject(arrayData: any[]): any {
+    if (!Array.isArray(arrayData) || arrayData.length === 0) return null;
+
+    // Try different conversion strategies
+    const firstRow = arrayData[0];
+    if (Array.isArray(firstRow) && firstRow.length >= 2) {
+      // Assume first row has headers, second has values
+      if (arrayData.length >= 2) {
+        const headers = firstRow.map(h => String(h || '').trim());
+        const values = arrayData[1];
+        const obj: any = {};
+        headers.forEach((header, index) => {
+          if (header && values[index] !== undefined) {
+            obj[header] = values[index];
+          }
+        });
+        return Object.keys(obj).length > 0 ? obj : null;
+      }
+      // If only one row, assume it's key-value pairs
+      const obj: any = {};
+      firstRow.forEach((item, index) => {
+        if (item !== null && item !== undefined) {
+          obj[`col${index}`] = item;
+        }
+      });
+      return Object.keys(obj).length > 0 ? obj : null;
     }
 
+    // If not array of arrays, return as is or try to flatten
+    return arrayData;
+  }
+
+  async isNoteFilled(folderId: string, noteNumber: string): Promise<boolean> {
     const fieldName = this.getFieldName(noteNumber);
     if (!fieldName) {
       return false;
@@ -252,6 +284,26 @@ export class NotesService {
     }
 
     return !!(dsf as any)[fieldName];
+  }
+
+  /**
+   * Delete DSF data for a folder
+   */
+  async deleteDSFForFolder(folderId: string): Promise<boolean> {
+    const dsf = await prisma.dSF.findUnique({
+      where: { folderId },
+    });
+
+    if (!dsf) {
+      return false;
+    }
+
+    // Delete the DSF record entirely
+    await prisma.dSF.delete({
+      where: { id: dsf.id },
+    });
+
+    return true;
   }
 
   /**

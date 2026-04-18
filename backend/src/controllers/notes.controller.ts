@@ -284,6 +284,36 @@ export class NotesController {
       return ResponseBuilder.error(res, "Failed to validate note data");
     }
   }
+
+  /**
+   * Delete all notes for a folder
+   * DELETE /api/notes/folder/:folderId
+   */
+  async deleteAllNotes(req: AuthRequest, res: Response) {
+    try {
+      const { folderId } = req.params;
+
+      if (!folderId) {
+        return ResponseBuilder.error(res, "folderId is required", 400);
+      }
+
+      const success = await notesService.deleteDSFForFolder(folderId);
+
+      if (!success) {
+        return ResponseBuilder.error(res, "No DSF data found for this folder", 404);
+      }
+
+      return ResponseBuilder.success(
+        res,
+        { folderId },
+        "All notes deleted successfully"
+      );
+    } catch (error) {
+      console.error("Error deleting all notes:", error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return ResponseBuilder.error(res, `Failed to delete notes: ${message}`);
+    }
+  }
 }
 
 export const notesController = new NotesController();

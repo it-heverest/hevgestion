@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -28,12 +29,16 @@ interface HeaderData {
 // --- Composant Principal ---
 const Note27A: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder, selectedClient } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   // Load DSF data
   useEffect(() => {
@@ -244,7 +249,7 @@ const Note27A: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           Note 27A - Charges de Personnel
         </h1>
@@ -447,3 +452,6 @@ const Note27A: React.FC = () => {
 };
 
 export default Note27A;
+
+
+

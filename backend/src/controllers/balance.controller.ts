@@ -669,11 +669,35 @@ class BalanceController {
       }
 
       // Get current original data
-      const currentData = balance.originalData as any;
+      console.log("Raw originalData type:", typeof balance.originalData);
+      console.log("Raw originalData:", balance.originalData);
+
+      let currentData: any = {};
+      try {
+        currentData = typeof balance.originalData === 'string'
+          ? JSON.parse(balance.originalData)
+          : balance.originalData || {};
+      } catch (parseError) {
+        console.error("Error parsing originalData:", parseError);
+        console.error("Raw originalData that failed to parse:", balance.originalData);
+        currentData = {};
+      }
+
+      console.log("Parsed currentData:", currentData);
+
       let currentRows = currentData?.rows || [];
 
       if (!Array.isArray(currentRows)) {
+        console.warn("currentRows is not an array:", currentRows);
         currentRows = [];
+      }
+
+      console.log("Current rows count:", currentRows.length);
+      console.log("Rows to update count:", rows.length);
+
+      if (currentRows.length === 0) {
+        console.error("No existing rows found! This will cause data loss.");
+        throw new BadRequestError("Aucune donnée existante trouvée pour cette balance. Impossible de mettre à jour.");
       }
 
       // Create a map of existing rows for quick lookup
@@ -684,12 +708,14 @@ class BalanceController {
       // Update with new values
       rows.forEach((updatedRow: any) => {
         if (updatedRow.accountNumber) {
+          console.log("Updating row:", updatedRow.accountNumber);
           rowsMap.set(updatedRow.accountNumber, updatedRow);
         }
       });
 
       // Convert map back to array
       const updatedRows = Array.from(rowsMap.values());
+      console.log("Final rows count:", updatedRows.length);
 
       // Update the balance
       await prisma.balance.update({

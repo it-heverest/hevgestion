@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -24,11 +25,15 @@ interface HeaderData {
 
 const Note34: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+    const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get('folderId');
+
   const { selectedFolder } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const folderId = selectedFolder?.id;
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const [headerInfo, setHeaderInfo] = useState<HeaderData>({
     entityName: "",
@@ -189,7 +194,7 @@ const Note34: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
-        <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+        <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-blue-600" />
           Note 34 - Indicateurs Financiers
         </h1>
@@ -393,3 +398,7 @@ const Note34: React.FC = () => {
 };
 
 export default Note34;
+
+
+
+

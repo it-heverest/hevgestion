@@ -438,7 +438,7 @@ const Note3D: React.FC = () => {
       {/* Barre d'actions */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
-          <h1 className="text-xl font-bold text-gray-700 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
             Note 3D - Cessions d'Immobilisations
           </h1>
@@ -762,3 +762,6 @@ const Note3D: React.FC = () => {
 };
 
 export default Note3D;
+
+
+

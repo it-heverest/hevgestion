@@ -32,6 +32,7 @@ type MainStep =
   | "upload" // Upload DSF file
   | "processing" // Extraction in progress
   | "success" // Brief success screen
+  | "balance-view" // View balance data with pagination
   | "reports" // Display extracted reports
   | "error";
 
@@ -427,15 +428,12 @@ export const AllReports: React.FC<AllReportsProps> = ({
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
-  const canGenerate =
-    !!balanceStatus?.hasCurrentYear && !!balanceStatus?.hasPreviousYear;
+  const canGenerate = !!balanceStatus?.hasCurrentYear;
 
   const generateDisabledReason = balanceStatus
-    ? !balanceStatus.hasCurrentYear && !balanceStatus.hasPreviousYear
-      ? "Balances N et N-1 manquantes."
-      : !balanceStatus.hasCurrentYear
-        ? "Balance N (exercice en cours) manquante."
-        : "Balance N-1 (exercice précédent) manquante."
+    ? !balanceStatus.hasCurrentYear
+      ? "Balance N (exercice en cours) manquante."
+      : undefined
     : "Impossible de vérifier les balances.";
 
   const progressSteps: { key: MainStep; label: string }[] = [
@@ -633,7 +631,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
               <OptionCard
                 icon={<Wand2 className="w-5 h-5" />}
                 title="Générer la DSF automatiquement"
-                description="Génération automatique à partir des balances comptables N et N-1 déjà importées dans le système."
+                description="Génération automatique à partir de la balance comptable N importée. La balance N-1 sera créée automatiquement si nécessaire."
                 badge={canGenerate ? "Disponible" : "Indisponible"}
                 badgeColor={
                   canGenerate
