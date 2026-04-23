@@ -1,5 +1,1130 @@
 import { ConfigurationMapping } from "./excelExtractor";
 
+// ==================== GRILLE D'ANALYSE DES NOTES ====================
+export const CONFIG_GRILLE_ANALYSE_NOTES: ConfigurationMapping = {
+  entete: {
+    entityName: "A2", // Désignation entité
+    fiscalYear: "D2", // Exercice clos le 31-12-
+    idNumber: "A3", // Numéro d'identification
+    duration: "D3", // Durée (en mois)
+  },
+  sections: {
+    grilleAnalyse: {
+      libelles: [
+        "DETTES GARANTIES PAR DES SURETES REELLES",
+        "INFORMATIONS OBLIGATOIRES",
+        "IMMOBILISATIONS BRUTES",
+        "BIENS PRIS EN LOCATION ACQUISITION",
+        "IMMOBILISATIONS : AMORTISSEMENTS",
+        "TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN PERIODE DEFICITAIRE",
+        "IMMOBILISATIONS : PLUS ET MOINS VALUE DE CESSION",
+        "INFORMATIONS SUR LES REEVALUATIONS EFFECTUEES PAR L'ENTITE",
+        "TABLEAU D'ETALEMENT DES CHARGES IMMOBILISEES",
+        "IMMOBILISATIONS FINANCIERES",
+        "ACTIF CIRCULANT HAO",
+        "STOCKS ET ENCOURS",
+        "CLIENTS",
+        "AUTRES CREANCES",
+        "TITRES DE PLACEMENT",
+        "VALEURS A ENCAISSER",
+        "DISPONIBILITES",
+        "ECARTS DE CONVERSION",
+        "VALEUR NOMINALE DES ACTIONS OU PARTS",
+        "PRIMES ET RESERVES",
+        "SUBVENTIONS ET PROVISIONS REGLEMENTEES",
+        "AUTRES FONDS PROPRES",
+        "DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
+        "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES : (METHODE ACTUARIELLE)",
+        "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES",
+        "ACTIFS ET PASSIFS EVENTUELS",
+        "FOURNISSEURS D'EXPLOITATION",
+        "EXTRAIT DE LA BALANCE GENERALE FOURNISSEURS",
+        "DETTES FISCALES ET SOCIALES",
+        "AUTRES DETTES ET PROVISIONS POUR RISQUES A COURT TERME",
+        "BANQUES, CREDIT D'ESCOMPTE ET DE TRESORERIE",
+        "CHIFFRE D'AFFAIRES ET AUTRES PRODUITS",
+        "ACHATS",
+        "TRANSPORTS",
+        "SERVICES EXTERIEURS",
+        "IMPOTS ET TAXES",
+        "SYNTHESE DES IMPOTS ET TAXES VERSES",
+        "TABLEAU DE LA REGULARISATION ANNUELLE DES DROITS D'ACCISES",
+        "AUTRES CHARGES",
+        "CHARGES DE PERSONNEL",
+        "TABLEAU DE REGULARISATION ANNUELLE DES IMPOTS ET TAXES SUR SALAIRES",
+        "EFFECTIFS, MASSE SALARIALE ET PERSONNEL EXTERIEUR",
+        "PROVISIONS ET DEPRECIATIONS INSCRITES AU BILAN",
+        "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE : LES REPRISES",
+        "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE : LES DOTATIONS",
+        "CHARGES ET REVENUS FINANCIERS",
+        "AUTRES CHARGES ET PRODUITS HAO",
+        "REPARTITION DU RESULTAT ET AUTRES ELEMENTS CARACTERISTIQUES DES CINQ DERNIERS EXERCICES",
+        "PRODUCTION DE L'EXERCICE",
+        "ACHATS DESTINES A LA PRODUCTION",
+        "FICHE DE SYNTHESE DES PRINCIPAUX INDICATEURS FINANCIERS",
+        "LISTE DES INFORMATIONS SOCIALES, ENVIRONNEMENTALES ET SOCIETALES A FOURNIR",
+        "TABLEAU DE PASSAGE DU RESULTAT COMPTABLE AVANT IMPOT AU RESULTAT FISCAL",
+        "TABLEAU DE DETERMINATION DE L'IMPOT SUR LE RESULTAT : IMPOT SUR LE BENEFICE FISCAL",
+        "TABLEAU DE DETERMINATION DE L'IMPOT SUR LE RESULTAT : MINIMUM DE PERCEPTION",
+        "TABLEAU DE DETERMINATION DE L'IMPOT SUR LE RESULTAT : RECAPITULATIF DES VERSEMENTS D'ACOMPTES",
+        "TABLEAU DE CALCUL DE REGULARISATION ANNUELLE DE LA TVA",
+        "TABLEAU DE REGULATION ANNUELLE DE LA TVA : RECAPITULATIF DES VERSEMENTS",
+        "SITUATION NETTE DE TVA",
+      ],
+      lignes: [
+        {
+          noteRef: "A8",
+          intitule: "B8",
+          eco: "C8",
+          soc: "D8",
+          fisc: "E8",
+          cial: "F8",
+        },
+        {
+          noteRef: "A9",
+          intitule: "B9",
+          eco: "C9",
+          soc: "D9",
+          fisc: "E9",
+          cial: "F9",
+        },
+        {
+          noteRef: "A10",
+          intitule: "B10",
+          eco: "C10",
+          soc: "D10",
+          fisc: "E10",
+          cial: "F10",
+        },
+        {
+          noteRef: "A11",
+          intitule: "B11",
+          eco: "C11",
+          soc: "D11",
+          fisc: "E11",
+          cial: "F11",
+        },
+        {
+          noteRef: "A12",
+          intitule: "B12",
+          eco: "C12",
+          soc: "D12",
+          fisc: "E12",
+          cial: "F12",
+        },
+        {
+          noteRef: "A13",
+          intitule: "B13",
+          eco: "C13",
+          soc: "D13",
+          fisc: "E13",
+          cial: "F13",
+        },
+        {
+          noteRef: "A14",
+          intitule: "B14",
+          eco: "C14",
+          soc: "D14",
+          fisc: "E14",
+          cial: "F14",
+        },
+        {
+          noteRef: "A15",
+          intitule: "B15",
+          eco: "C15",
+          soc: "D15",
+          fisc: "E15",
+          cial: "F15",
+        },
+        {
+          noteRef: "A16",
+          intitule: "B16",
+          eco: "C16",
+          soc: "D16",
+          fisc: "E16",
+          cial: "F16",
+        },
+        {
+          noteRef: "A17",
+          intitule: "B17",
+          eco: "C17",
+          soc: "D17",
+          fisc: "E17",
+          cial: "F17",
+        },
+        {
+          noteRef: "A18",
+          intitule: "B18",
+          eco: "C18",
+          soc: "D18",
+          fisc: "E18",
+          cial: "F18",
+        },
+        {
+          noteRef: "A19",
+          intitule: "B19",
+          eco: "C19",
+          soc: "D19",
+          fisc: "E19",
+          cial: "F19",
+        },
+        {
+          noteRef: "A20",
+          intitule: "B20",
+          eco: "C20",
+          soc: "D20",
+          fisc: "E20",
+          cial: "F20",
+        },
+        {
+          noteRef: "A21",
+          intitule: "B21",
+          eco: "C21",
+          soc: "D21",
+          fisc: "E21",
+          cial: "F21",
+        },
+        {
+          noteRef: "A22",
+          intitule: "B22",
+          eco: "C22",
+          soc: "D22",
+          fisc: "E22",
+          cial: "F22",
+        },
+        {
+          noteRef: "A23",
+          intitule: "B23",
+          eco: "C23",
+          soc: "D23",
+          fisc: "E23",
+          cial: "F23",
+        },
+        {
+          noteRef: "A24",
+          intitule: "B24",
+          eco: "C24",
+          soc: "D24",
+          fisc: "E24",
+          cial: "F24",
+        },
+        {
+          noteRef: "A25",
+          intitule: "B25",
+          eco: "C25",
+          soc: "D25",
+          fisc: "E25",
+          cial: "F25",
+        },
+        {
+          noteRef: "A26",
+          intitule: "B26",
+          eco: "C26",
+          soc: "D26",
+          fisc: "E26",
+          cial: "F26",
+        },
+        {
+          noteRef: "A27",
+          intitule: "B27",
+          eco: "C27",
+          soc: "D27",
+          fisc: "E27",
+          cial: "F27",
+        },
+        {
+          noteRef: "A28",
+          intitule: "B28",
+          eco: "C28",
+          soc: "D28",
+          fisc: "E28",
+          cial: "F28",
+        },
+        {
+          noteRef: "A29",
+          intitule: "B29",
+          eco: "C29",
+          soc: "D29",
+          fisc: "E29",
+          cial: "F29",
+        },
+        {
+          noteRef: "A30",
+          intitule: "B30",
+          eco: "C30",
+          soc: "D30",
+          fisc: "E30",
+          cial: "F30",
+        },
+        {
+          noteRef: "A31",
+          intitule: "B31",
+          eco: "C31",
+          soc: "D31",
+          fisc: "E31",
+          cial: "F31",
+        },
+        {
+          noteRef: "A32",
+          intitule: "B32",
+          eco: "C32",
+          soc: "D32",
+          fisc: "E32",
+          cial: "F32",
+        },
+        {
+          noteRef: "A33",
+          intitule: "B33",
+          eco: "C33",
+          soc: "D33",
+          fisc: "E33",
+          cial: "F33",
+        },
+        {
+          noteRef: "A34",
+          intitule: "B34",
+          eco: "C34",
+          soc: "D34",
+          fisc: "E34",
+          cial: "F34",
+        },
+        {
+          noteRef: "A35",
+          intitule: "B35",
+          eco: "C35",
+          soc: "D35",
+          fisc: "E35",
+          cial: "F35",
+        },
+        {
+          noteRef: "A36",
+          intitule: "B36",
+          eco: "C36",
+          soc: "D36",
+          fisc: "E36",
+          cial: "F36",
+        },
+        {
+          noteRef: "A37",
+          intitule: "B37",
+          eco: "C37",
+          soc: "D37",
+          fisc: "E37",
+          cial: "F37",
+        },
+        {
+          noteRef: "A38",
+          intitule: "B38",
+          eco: "C38",
+          soc: "D38",
+          fisc: "E38",
+          cial: "F38",
+        },
+        {
+          noteRef: "A39",
+          intitule: "B39",
+          eco: "C39",
+          soc: "D39",
+          fisc: "E39",
+          cial: "F39",
+        },
+        {
+          noteRef: "A40",
+          intitule: "B40",
+          eco: "C40",
+          soc: "D40",
+          fisc: "E40",
+          cial: "F40",
+        },
+        {
+          noteRef: "A41",
+          intitule: "B41",
+          eco: "C41",
+          soc: "D41",
+          fisc: "E41",
+          cial: "F41",
+        },
+        {
+          noteRef: "A42",
+          intitule: "B42",
+          eco: "C42",
+          soc: "D42",
+          fisc: "E42",
+          cial: "F42",
+        },
+        {
+          noteRef: "A43",
+          intitule: "B43",
+          eco: "C43",
+          soc: "D43",
+          fisc: "E43",
+          cial: "F43",
+        },
+        {
+          noteRef: "A44",
+          intitule: "B44",
+          eco: "C44",
+          soc: "D44",
+          fisc: "E44",
+          cial: "F44",
+        },
+        {
+          noteRef: "A45",
+          intitule: "B45",
+          eco: "C45",
+          soc: "D45",
+          fisc: "E45",
+          cial: "F45",
+        },
+        {
+          noteRef: "A46",
+          intitule: "B46",
+          eco: "C46",
+          soc: "D46",
+          fisc: "E46",
+          cial: "F46",
+        },
+        {
+          noteRef: "A47",
+          intitule: "B47",
+          eco: "C47",
+          soc: "D47",
+          fisc: "E47",
+          cial: "F47",
+        },
+        {
+          noteRef: "A48",
+          intitule: "B48",
+          eco: "C48",
+          soc: "D48",
+          fisc: "E48",
+          cial: "F48",
+        },
+        {
+          noteRef: "A49",
+          intitule: "B49",
+          eco: "C49",
+          soc: "D49",
+          fisc: "E49",
+          cial: "F49",
+        },
+        {
+          noteRef: "A50",
+          intitule: "B50",
+          eco: "C50",
+          soc: "D50",
+          fisc: "E50",
+          cial: "F50",
+        },
+        {
+          noteRef: "A51",
+          intitule: "B51",
+          eco: "C51",
+          soc: "D51",
+          fisc: "E51",
+          cial: "F51",
+        },
+        {
+          noteRef: "A52",
+          intitule: "B52",
+          eco: "C52",
+          soc: "D52",
+          fisc: "E52",
+          cial: "F52",
+        },
+        {
+          noteRef: "A53",
+          intitule: "B53",
+          eco: "C53",
+          soc: "D53",
+          fisc: "E53",
+          cial: "F53",
+        },
+        {
+          noteRef: "A54",
+          intitule: "B54",
+          eco: "C54",
+          soc: "D54",
+          fisc: "E54",
+          cial: "F54",
+        },
+        {
+          noteRef: "A55",
+          intitule: "B55",
+          eco: "C55",
+          soc: "D55",
+          fisc: "E55",
+          cial: "F55",
+        },
+        {
+          noteRef: "A56",
+          intitule: "B56",
+          eco: "C56",
+          soc: "D56",
+          fisc: "E56",
+          cial: "F56",
+        },
+        {
+          noteRef: "A57",
+          intitule: "B57",
+          eco: "C57",
+          soc: "D57",
+          fisc: "E57",
+          cial: "F57",
+        },
+        {
+          noteRef: "A58",
+          intitule: "B58",
+          eco: "C58",
+          soc: "D58",
+          fisc: "E58",
+          cial: "F58",
+        },
+        {
+          noteRef: "A59",
+          intitule: "B59",
+          eco: "C59",
+          soc: "D59",
+          fisc: "E59",
+          cial: "F59",
+        },
+        {
+          noteRef: "A60",
+          intitule: "B60",
+          eco: "C60",
+          soc: "D60",
+          fisc: "E60",
+          cial: "F60",
+        },
+        {
+          noteRef: "A61",
+          intitule: "B61",
+          eco: "C61",
+          soc: "D61",
+          fisc: "E61",
+          cial: "F61",
+        },
+        {
+          noteRef: "A62",
+          intitule: "B62",
+          eco: "C62",
+          soc: "D62",
+          fisc: "E62",
+          cial: "F62",
+        },
+        {
+          noteRef: "A63",
+          intitule: "B63",
+          eco: "C63",
+          soc: "D63",
+          fisc: "E63",
+          cial: "F63",
+        },
+        {
+          noteRef: "A64",
+          intitule: "B64",
+          eco: "C64",
+          soc: "D64",
+          fisc: "E64",
+          cial: "F64",
+        },
+        {
+          noteRef: "A65",
+          intitule: "B65",
+          eco: "C65",
+          soc: "D65",
+          fisc: "E65",
+          cial: "F65",
+        },
+        {
+          noteRef: "A66",
+          intitule: "B66",
+          eco: "C66",
+          soc: "D66",
+          fisc: "E66",
+          cial: "F66",
+        },
+      ],
+    },
+  },
+};
+
+// ==================== BILAN PAYSAGE ====================
+export const CONFIG_BILAN_PAYSAGE: ConfigurationMapping = {
+  entete: {
+    entityName: "B4", // Désignation entité
+    fiscalYear: "I4", // Exercice clos le 31-12-...
+    idNumber: "B5", // Numéro d'identification
+    duration: "I5", // Durée (en mois)
+  },
+  sections: {
+    actif: {
+      libelles: [
+        "IMMOBILISATIONS INCORPORELLES",
+        "Frais de développement et de prospection",
+        "Brevet, licences, logiciels et droits similaires",
+        "Fond commercial et droit au bail",
+        "Autres immobilisations incorporelles",
+        "IMMOBILISATIONS CORPORELLES",
+        "Terrains",
+        "Bâtiments",
+        "Aménagements, agencements et installations",
+        "Matériel, mobilier et actifs biologiques",
+        "Matériel de transport",
+        "AVANCES ET ACOMPTES VERSES SUR IMMOBILISATION",
+        "IMMOBILISATION FINANCIERES",
+        "Titres de participation",
+        "Autres immobilisations financières",
+        "TOTAL ACTIF IMMOBILISE",
+        "Actif circulant HAO",
+        "Stocks et encours",
+        "Créances et emplois assimilés",
+        "Fournisseurs avances versées",
+        "Clients",
+        "Autres créances",
+        "TOTAL ACTIF CIRCULANT",
+        "Titres de placement",
+        "Valeurs à encaisser",
+        "Banques, chèques postaux, caisse et assimilés",
+        "TOTAL TRESORERIE - ACTIF",
+        "Ecart de conversion - Actif",
+        "TOTAL GENERAL",
+      ],
+      lignes: [
+        {
+          ref: "AD",
+          note: "C12",
+          brutN: "D12",
+          amortN: "E12",
+          netN: "F12",
+          netN1: "G12",
+        },
+        {
+          ref: "AE",
+          note: "C13",
+          brutN: "D13",
+          amortN: "E13",
+          netN: "F13",
+          netN1: "G13",
+        },
+        {
+          ref: "AF",
+          note: "C14",
+          brutN: "D14",
+          amortN: "E14",
+          netN: "F14",
+          netN1: "G14",
+        },
+        {
+          ref: "AG",
+          note: "C15",
+          brutN: "D15",
+          amortN: "E15",
+          netN: "F15",
+          netN1: "G15",
+        },
+        {
+          ref: "AH",
+          note: "C16",
+          brutN: "D16",
+          amortN: "E16",
+          netN: "F16",
+          netN1: "G16",
+        },
+        {
+          ref: "AI",
+          note: "C17",
+          brutN: "D17",
+          amortN: "E17",
+          netN: "F17",
+          netN1: "G17",
+        },
+        {
+          ref: "AJ",
+          note: "C18",
+          brutN: "D18",
+          amortN: "E18",
+          netN: "F18",
+          netN1: "G18",
+        },
+        {
+          ref: "AK",
+          note: "C19",
+          brutN: "D19",
+          amortN: "E19",
+          netN: "F19",
+          netN1: "G19",
+        },
+        {
+          ref: "AL",
+          note: "C20",
+          brutN: "D20",
+          amortN: "E20",
+          netN: "F20",
+          netN1: "G20",
+        },
+        {
+          ref: "AM",
+          note: "C21",
+          brutN: "D21",
+          amortN: "E21",
+          netN: "F21",
+          netN1: "G21",
+        },
+        {
+          ref: "AN",
+          note: "C22",
+          brutN: "D22",
+          amortN: "E22",
+          netN: "F22",
+          netN1: "G22",
+        },
+        {
+          ref: "AP",
+          note: "C23",
+          brutN: "D23",
+          amortN: "E23",
+          netN: "F23",
+          netN1: "G23",
+        },
+        {
+          ref: "AQ",
+          note: "C24",
+          brutN: "D24",
+          amortN: "E24",
+          netN: "F24",
+          netN1: "G24",
+        },
+        {
+          ref: "AR",
+          note: "C25",
+          brutN: "D25",
+          amortN: "E25",
+          netN: "F25",
+          netN1: "G25",
+        },
+        {
+          ref: "AS",
+          note: "C26",
+          brutN: "D26",
+          amortN: "E26",
+          netN: "F26",
+          netN1: "G26",
+        },
+        {
+          ref: "AZ",
+          note: "C27",
+          brutN: "D27",
+          amortN: "E27",
+          netN: "F27",
+          netN1: "G27",
+        },
+        {
+          ref: "BA",
+          note: "C28",
+          brutN: "D28",
+          amortN: "E28",
+          netN: "F28",
+          netN1: "G28",
+        },
+        {
+          ref: "BB",
+          note: "C29",
+          brutN: "D29",
+          amortN: "E29",
+          netN: "F29",
+          netN1: "G29",
+        },
+        {
+          ref: "BC",
+          note: "C30",
+          brutN: "D30",
+          amortN: "E30",
+          netN: "F30",
+          netN1: "G30",
+        },
+        {
+          ref: "BH",
+          note: "C31",
+          brutN: "D31",
+          amortN: "E31",
+          netN: "F31",
+          netN1: "G31",
+        },
+        {
+          ref: "BI",
+          note: "C32",
+          brutN: "D32",
+          amortN: "E32",
+          netN: "F32",
+          netN1: "G32",
+        },
+        {
+          ref: "BJ",
+          note: "C33",
+          brutN: "D33",
+          amortN: "E33",
+          netN: "F33",
+          netN1: "G33",
+        },
+        {
+          ref: "BK",
+          note: "C34",
+          brutN: "D34",
+          amortN: "E34",
+          netN: "F34",
+          netN1: "G34",
+        },
+        {
+          ref: "BQ",
+          note: "C35",
+          brutN: "D35",
+          amortN: "E35",
+          netN: "F35",
+          netN1: "G35",
+        },
+        {
+          ref: "BR",
+          note: "C36",
+          brutN: "D36",
+          amortN: "E36",
+          netN: "F36",
+          netN1: "G36",
+        },
+        {
+          ref: "BS",
+          note: "C37",
+          brutN: "D37",
+          amortN: "E37",
+          netN: "F37",
+          netN1: "G37",
+        },
+        {
+          ref: "BT",
+          note: "C38",
+          brutN: "D38",
+          amortN: "E38",
+          netN: "F38",
+          netN1: "G38",
+        },
+        {
+          ref: "BU",
+          note: "C39",
+          brutN: "D39",
+          amortN: "E39",
+          netN: "F39",
+          netN1: "G39",
+        },
+        {
+          ref: "BZ",
+          note: "C40",
+          brutN: "D40",
+          amortN: "E40",
+          netN: "F40",
+          netN1: "G40",
+        },
+      ],
+    },
+    passif: {
+      libelles: [
+        "Capital",
+        "Apporteurs capital non appelé",
+        "Primes liées au capital social",
+        "Ecarts de réévaluations",
+        "Réserves indisponibles",
+        "Réserves libres",
+        "Report à nouveau",
+        "Résultat net de l'exercice",
+        "Subventions d'investissement",
+        "Provisions réglementées",
+        "TOTAL CAPITAUX PROPRES ET RESSOURCES ASSIMILEES",
+        "Emprunts et dettes financières diverses",
+        "Dettes de location acquisition",
+        "Provisions pour risques et charges",
+        "TOTAL DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
+        "TOTAL RESSOURCES STABLES",
+        "Dettes circulantes HAO",
+        "Clients, avances reçues",
+        "Fournisseurs d'exploitation",
+        "Dettes fiscales et sociales",
+        "Autres dettes",
+        "Provisions pour risques à court terme",
+        "TOTAL PASSIF CIRCULANT",
+        "Banques, crédits d'escompte",
+        "Banques, établissements financiers et crédits de trésorerie",
+        "TOTAL TRESORERIE - PASSIF",
+        "Ecart de conversion - Passif",
+        "TOTAL GENERAL PASSIF",
+      ],
+      lignes: [
+        {
+          ref: "CA",
+          note: "J12",
+          netN: "K12",
+          netN1: "L12",
+        },
+        {
+          ref: "CB",
+          note: "K13",
+          netN: "L13",
+          netN1: "M13",
+        },
+        { ref: "CD", note: "J14", netN: "K14", netN1: "L14" },
+        { ref: "CE", note: "J15", netN: "K15", netN1: "L15" },
+        { ref: "CF", note: "J16", netN: "K16", netN1: "L16" },
+        { ref: "CG", note: "J17", netN: "K17", netN1: "L17" },
+        { ref: "CH", note: "J18", netN: "K18", netN1: "L18" },
+        { ref: "CJ", note: "J19", netN: "K19", netN1: "L19" },
+        { ref: "CL", note: "J20", netN: "K20", netN1: "L20" },
+        { ref: "CM", note: "J21", netN: "K21", netN1: "L21" },
+        { ref: "CP", note: "J22", netN: "K22", netN1: "L22" },
+        { ref: "DA", note: "J23", netN: "K23", netN1: "L23" },
+        { ref: "DB", note: "J24", netN: "K24", netN1: "L24" },
+        { ref: "DC", note: "J25", netN: "K25", netN1: "L25" },
+        { ref: "DD", note: "J26", netN: "K26", netN1: "L26" },
+        { ref: "DF", note: "J27", netN: "K27", netN1: "L27" },
+        { ref: "DH", note: "J28", netN: "K28", netN1: "L28" },
+        { ref: "DI", note: "J29", netN: "K29", netN1: "L29" },
+        { ref: "DJ", note: "J30", netN: "K30", netN1: "L30" },
+        { ref: "DK", note: "J31", netN: "K31", netN1: "L31" },
+        { ref: "DM", note: "J32", netN: "K32", netN1: "L32" },
+        { ref: "DN", note: "J33", netN: "K33", netN1: "L33" },
+        { ref: "DP", note: "J34", netN: "K34", netN1: "L34" },
+        { ref: "DQ", note: "J36", netN: "K36", netN1: "L36" },
+        { ref: "DR", note: "J37", netN: "K37", netN1: "L37" },
+        { ref: "DT", note: "J38", netN: "K38", netN1: "L38" },
+        { ref: "DY", note: "J39", netN: "K39", netN1: "L39" },
+        { ref: "DZ", note: "J40", netN: "K40", netN1: "L40" },
+      ],
+    },
+  },
+};
+
+// ==================== COMPTE DE RESULTAT ====================
+export const CONFIG_COMPTE_RESULTAT: ConfigurationMapping = {
+  entete: {
+    entityName: "B4", // Désignation entité
+    fiscalYear: "G6", // Au 31 Décembre ____
+    idNumber: "B5", // Numéro d'identification
+    duration: "I5", // Durée (en mois)
+  },
+  sections: {
+    exploitation: {
+      libelles: [
+        "Vente de marchandises",
+        "Achat de marchandises",
+        "Variation de stock de marchandises",
+        "MARGE COMMERCIALE (Somme TA à RB)",
+        "Vente de produits fabriqués",
+        "Travaux, services vendus",
+        "Produits accessoires",
+        "CHIFFRE D'AFFAIRES (A+B+C+D)",
+        "Produits stockés (ou destockage)",
+        "Production immobilisée",
+        "Subventions d'exploitation",
+        "Autres produits",
+        "Transfert de charges d'exploitation",
+        "Achats de matières premières et fournitures liées",
+        "Variation de stocks de matières premières et fournitures liées",
+        "Autres achats",
+        "Variation de stock d'autres approvisionnement",
+        "Transports",
+        "Services extérieurs",
+        "Impôts et taxes",
+        "Autres charges",
+        "VALEUR AJOUTEE (XR + RA + RB) + (somme TE à RJ)",
+        "Charges de personnel",
+        "EXEDENT BRUT D'EXPLOITATION (XC+RK)",
+        "Reprises d'amortissements, provisions et dépréciations",
+        "Dotations aux amortissements, aux provisions et dépréciations",
+        "RESULTAT D'EXPLOITATION (XD + TJ + RL)",
+      ],
+      lignes: [
+        { ref: "TA", note: "D11", netN: "E11", netN1: "F11" }, // Vente de marchandises
+        { ref: "RA", note: "D12", netN: "E12", netN1: "F12" }, // Achat de marchandises
+        { ref: "RB", note: "D13", netN: "E13", netN1: "F13" }, // Variation stock march.
+        { ref: "XA", note: "", netN: "E14", netN1: "F14" }, // MARGE COMMERCIALE
+        { ref: "TB", note: "D15", netN: "E15", netN1: "F15" }, // Vente produits fab.
+        { ref: "TC", note: "D16", netN: "E16", netN1: "F16" }, // Travaux/Services
+        { ref: "TD", note: "D17", netN: "E17", netN1: "F17" }, // Produits accessoires
+        { ref: "XB", note: "", netN: "E18", netN1: "F18" }, // CHIFFRE D'AFFAIRES
+        { ref: "TE", note: "D19", netN: "E19", netN1: "F19" }, // Produits stockés
+        { ref: "TF", note: "D20", netN: "E20", netN1: "F20" }, // Production immo
+        { ref: "TG", note: "D21", netN: "E21", netN1: "F21" }, // Subventions
+        { ref: "TH", note: "D22", netN: "E22", netN1: "F22" }, // Autres produits
+        { ref: "TI", note: "D23", netN: "E23", netN1: "F23" }, // Transfert charges
+        { ref: "RC", note: "D24", netN: "E24", netN1: "F24" }, // Achats MP
+        { ref: "RD", note: "D25", netN: "E25", netN1: "F25" }, // Var stock MP
+        { ref: "RE", note: "D26", netN: "E26", netN1: "F26" }, // Autres achats
+        { ref: "RF", note: "D27", netN: "E27", netN1: "F27" }, // Var stock autres
+        { ref: "RG", note: "D28", netN: "E28", netN1: "F28" }, // Transports
+        { ref: "RH", note: "D29", netN: "E29", netN1: "F29" }, // Services ext.
+        { ref: "RI", note: "D30", netN: "E30", netN1: "F30" }, // Impôts et taxes
+        { ref: "RJ", note: "D31", netN: "E31", netN1: "F31" }, // Autres charges
+        { ref: "XC", note: "", netN: "E32", netN1: "F32" }, // VALEUR AJOUTEE
+        { ref: "RK", note: "D33", netN: "E33", netN1: "F33" }, // Charges personnel
+        { ref: "XD", note: "", netN: "E34", netN1: "F34" }, // EBE
+        { ref: "TJ", note: "D35", netN: "E35", netN1: "F35" }, // Reprises
+        { ref: "RL", note: "D36", netN: "E36", netN1: "F36" }, // Dotations
+        { ref: "XE", note: "D37", netN: "E37", netN1: "F37" }, // RESULTAT EXPLOIT.
+      ],
+    },
+    financier: {
+      libelles: [
+        "Revenus financiers et assimilés",
+        "Reprises de provisions et dépréciations financières",
+        "Transfert de charges financières",
+        "Frais financiers et charges assimilées",
+        "Dotations aux provisions et aux dépréciations financières",
+        "RESULTATS FINANCIERS (somme TK à RN)",
+        "RESULTAT DES ACTIVITES ORDINAIRES",
+      ],
+      lignes: [
+        { ref: "TK", note: "D38", netN: "E38", netN1: "F38" },
+        { ref: "TL", note: "D39", netN: "E39", netN1: "F39" },
+        { ref: "TM", note: "D40", netN: "E40", netN1: "F40" },
+        { ref: "RM", note: "D41", netN: "E41", netN1: "F41" },
+        { ref: "RN", note: "D42", netN: "E42", netN1: "F42" },
+        { ref: "XF", note: "D43", netN: "E43", netN1: "F43" },
+        { ref: "XG", note: "D44", netN: "E44", netN1: "F44" },
+      ],
+    },
+    horsActiviteOrdinaire: {
+      libelles: [
+        "Produits et cessions d'immobilisations",
+        "Autres Produits HAO",
+        "Valeurs comptables de cessions d'immobilisations",
+        "Autres charges HAO",
+        "RESULTATS ACTIVITES ORDINAIRES (somme TN à RP)",
+        "Participation des travailleurs",
+        "Impôt sur le résultat",
+        "RESULTAT NET (XG+XH+RQ+RS)",
+      ],
+      lignes: [
+        { ref: "TN", note: "D45", netN: "E45", netN1: "F45" },
+        { ref: "TO", note: "D46", netN: "E46", netN1: "F46" },
+        { ref: "RO", note: "D47", netN: "E47", netN1: "F47" },
+        { ref: "RP", note: "D48", netN: "E48", netN1: "F48" },
+        { ref: "XH", note: "D49", netN: "E49", netN1: "F49" },
+        { ref: "RQ", note: "D50", netN: "E50", netN1: "F50" },
+        { ref: "RS", note: "D51", netN: "E51", netN1: "F51" },
+        { ref: "XI", note: "D52", netN: "E52", netN1: "F52" },
+      ],
+    },
+  },
+};
+
+// ==================== TABLEAU DES FLUX DE TRESORERIE ====================
+export const CONFIG_TABLEAU_FLUX_TRESORERIE: ConfigurationMapping = {
+  entete: {
+    entityName: "B3", // Désignation entité
+    fiscalYear: "C3", // Exercice clos le 31-12-....
+    idNumber: "B4", // Numéro d'identification
+    duration: "C4", // Durée (en mois)
+  },
+  sections: {
+    tresorerieInitiale: {
+      libelles: [
+        "Trésorerie nette au 1er janvier (Trésorerie actif N-1 - Trésorerie passif N-1)",
+      ],
+      lignes: [
+        {
+          ref: "ZA",
+          note: "D10",
+          exerciceN: "E10",
+          exerciceN1: "F10",
+        },
+      ],
+    },
+    activitesOperationnelles: {
+      libelles: [
+        "Flux de trésorerie provenant des activités opéraionnelles",
+        "Capacité d'Autofinancement Globale (C+A-F=G)",
+        "-Actif circulant HAO",
+        "-Variation des stocks",
+        "-Variation des créances",
+        "Variation du passif circulant",
+        "Variation du BF lié au activités opérationnelles (FB+FC+FD+FE)",
+        "Flux de trésorerie provenant des activités opérationnelles (somme FA à FE)",
+      ],
+      lignes: [
+        { ref: "", note: "D11", exerciceN: "E11", exerciceN1: "F11" },
+        { ref: "FA", note: "D12", exerciceN: "E12", exerciceN1: "F12" },
+        { ref: "FB", note: "D13", exerciceN: "E13", exerciceN1: "F13" },
+        { ref: "FC", note: "D14", exerciceN: "E14", exerciceN1: "F14" },
+        { ref: "FD", note: "D15", exerciceN: "E15", exerciceN1: "F15" },
+        { ref: "FE", note: "D16", exerciceN: "E16", exerciceN1: "F16" },
+        { ref: "", note: "D17", exerciceN: "E17", exerciceN1: "F17" }, // Variation du BFR
+        { ref: "ZB", note: "D18", exerciceN: "E18", exerciceN1: "F18" }, // Flux Total (B)
+      ],
+    },
+    activitesInvestissement: {
+      libelles: [
+        "Flux de trésorerie provenant des activités d'investissements",
+        "-Décaissements liés aux acquisitions d'immobilisation incorporelles",
+        "-Décaissements liés aux acquisitions d'immobilisation corporelles",
+        "-Décaissements liés aux acquisitions d'immobilisation financières",
+        "+ Encaissement liés aux cessions d'immobilisations incorporelles et corporelles",
+        "+ Encaissement liés aux cessions d'immobilisations financières",
+        "Flux de trésorerie provenant des activités d'investissements (somme FF à FJ)",
+      ],
+      lignes: [
+        { ref: "", note: "D19", exerciceN: "E20", exerciceN1: "F20" },
+        { ref: "FF", note: "D20", exerciceN: "E20", exerciceN1: "F20" },
+        { ref: "FG", note: "D21", exerciceN: "E21", exerciceN1: "F21" },
+        { ref: "FH", note: "D22", exerciceN: "E22", exerciceN1: "F22" },
+        { ref: "FI", note: "D23", exerciceN: "E23", exerciceN1: "F23" },
+        { ref: "FJ", note: "D24", exerciceN: "E24", exerciceN1: "F24" },
+        { ref: "ZC", note: "D25", exerciceN: "E25", exerciceN1: "F25" }, // Flux Total (C)
+      ],
+    },
+    financementCapitauxPropres: {
+      libelles: [
+        "Flux de trésorerie provenant du financement par les capitaux propres",
+        "+Augmentation de capital par rapport au nouveau",
+        "+Subventions d'investissement reçues",
+        "-Prélèvement sur le capital",
+        "-Dividendes versés",
+        "Flux de trésorerie provenant des capitaux propres (somme FK à FN)",
+      ],
+      lignes: [
+        { ref: "", note: "D26", exerciceN: "E27", exerciceN1: "F27" },
+        { ref: "FK", note: "D27", exerciceN: "E27", exerciceN1: "F27" },
+        { ref: "FL", note: "D28", exerciceN: "E28", exerciceN1: "F28" },
+        { ref: "FM", note: "D29", exerciceN: "E29", exerciceN1: "F29" },
+        { ref: "FN", note: "D30", exerciceN: "E30", exerciceN1: "F30" },
+        { ref: "ZD", note: "D31", exerciceN: "E31", exerciceN1: "F31" }, // Flux Total (D)
+      ],
+    },
+    financementCapitauxEtrangers: {
+      libelles: [
+        "Trésorerie provenant du financement par les capitaux étrangers",
+        "Emprunts",
+        "Autres dettes financières",
+        "Remboursement des emprunts et aux dettes financières",
+        "Flux de trésorerie provenant des capitaux étrangers (somme FO à FQ)",
+        "Flux de trésorerie provenant des activités de financement (D+F)",
+        "VARIATION DE LA TRESORERIE NETTE DE LA PERIODE (B+C+F)",
+      ],
+      lignes: [
+        { ref: "", note: "D32", exerciceN: "E32", exerciceN1: "F32" },
+        { ref: "FO", note: "D33", exerciceN: "E33", exerciceN1: "F33" },
+        { ref: "FP", note: "D34", exerciceN: "E34", exerciceN1: "F34" },
+        { ref: "FQ", note: "D35", exerciceN: "E35", exerciceN1: "F35" },
+        { ref: "ZE", note: "D36", exerciceN: "E36", exerciceN1: "F36" }, // Flux Total (E)
+        { ref: "ZF", note: "D37", exerciceN: "E37", exerciceN1: "F37" }, // Total Financement (F)
+        { ref: "ZG", note: "D38", exerciceN: "E38", exerciceN1: "F38" }, // Variation Totale (G)
+      ],
+    },
+    cloture: {
+      libelles: [
+        "Trésorerie nette au 31 décembre (C+A) Contrôle trésorerie actif N+ Trésorerie passif N=",
+      ],
+      lignes: [{ ref: "ZH", note: "D39", exerciceN: "E39", exerciceN1: "F39" }],
+    },
+  },
+};
+
 // ==================== NOTE 1 ====================
 export const CONFIG_NOTE1: ConfigurationMapping = {
   entete: {
@@ -803,7 +1928,6 @@ export const CONFIG_NOTE3C: ConfigurationMapping = {
     },
   },
 };
-
 
 export const CONFIG_C01_NOTE3C: ConfigurationMapping = {
   entete: {
@@ -7320,3 +8444,1689 @@ export const CONFIG_NOTE18: ConfigurationMapping = {
     },
   },
 };
+
+export const CONFIG_NOTE27A: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "B2", // Exercice clos le
+    duration: "B3", // Durée (en mois)
+  },
+  sections: {
+    chargesPersonnel: {
+      libelles: [
+        "Rémunérations directes versées au personnel",
+        "Indemnités forfaitaire versés au personnel",
+        "Charges sociales",
+        "Rémunérations et charges sociales de l’exploitant individuel",
+        "Rémunération transférée de personnel extérieur",
+        "Autres charges sociales",
+        "TOTAL",
+      ],
+      lignes: [
+        {
+          anneeN: "B10",
+          anneeN1: "C10",
+          variationPourcentage: "D10",
+        },
+        {
+          anneeN: "B11",
+          anneeN1: "C11",
+          variationPourcentage: "D11",
+        },
+        {
+          anneeN: "B12",
+          anneeN1: "C12",
+          variationPourcentage: "D12",
+        },
+        {
+          anneeN: "B13",
+          anneeN1: "C13",
+          variationPourcentage: "D13",
+        },
+        {
+          anneeN: "B14",
+          anneeN1: "C14",
+          variationPourcentage: "D14",
+        },
+        {
+          anneeN: "B15",
+          anneeN1: "C15",
+          variationPourcentage: "D15",
+        },
+        {
+          anneeN: "B17", // Total line
+          anneeN1: "C17",
+          variationPourcentage: "D17",
+        },
+      ],
+    },
+  },
+};
+
+export const CONFIG_C1_NOTE27A: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "F2", // Exercice clos le
+    duration: "F3", // Durée (en mois)
+  },
+  sections: {
+    retenuesMensuelles: {
+      libelles: [
+        "Janvier",
+        "Février",
+        "Mars",
+        "Avril",
+        "Mai",
+        "Juin",
+        "Juillet",
+        "Août",
+        "Septembre",
+        "Octobre",
+        "Novembre",
+        "Décembre",
+      ],
+      // Columns 2 to 7 (C to H) and the Total in J
+      lignes: [
+        {
+          ligne: "1",
+          IRPP: "D12",
+          CFC_S: "D12",
+          CFC_P: "E12",
+          FNE: "F12",
+          TC: "G12",
+          RAV: "H12",
+          TOTAL: "J12",
+        },
+        {
+          ligne: "2",
+          IRPP: "D13",
+          CFC_S: "D13",
+          CFC_P: "E13",
+          FNE: "F13",
+          TC: "G13",
+          RAV: "H13",
+          TOTAL: "J13",
+        },
+        {
+          ligne: "3",
+          IRPP: "C14",
+          CFC_S: "D14",
+          CFC_P: "E14",
+          FNE: "F14",
+          TC: "G14",
+          RAV: "H14",
+          TOTAL: "J14",
+        },
+        {
+          ligne: "4",
+          IRPP: "C15",
+          CFC_S: "D15",
+          CFC_P: "E15",
+          FNE: "F15",
+          TC: "G15",
+          RAV: "H15",
+          TOTAL: "J15",
+        },
+        {
+          ligne: "5",
+          IRPP: "C16",
+          CFC_S: "D16",
+          CFC_P: "E16",
+          FNE: "F16",
+          TC: "G16",
+          RAV: "H16",
+          TOTAL: "J16",
+        },
+        {
+          ligne: "6",
+          IRPP: "C17",
+          CFC_S: "D17",
+          CFC_P: "E17",
+          FNE: "F17",
+          TC: "G17",
+          RAV: "H17",
+          TOTAL: "J17",
+        },
+        {
+          ligne: "7",
+          IRPP: "C18",
+          CFC_S: "D18",
+          CFC_P: "E18",
+          FNE: "F18",
+          TC: "G18",
+          RAV: "H18",
+          TOTAL: "J18",
+        },
+        {
+          ligne: "8",
+          IRPP: "C19",
+          CFC_S: "D19",
+          CFC_P: "E19",
+          FNE: "F19",
+          TC: "G19",
+          RAV: "H19",
+          TOTAL: "J19",
+        },
+        {
+          ligne: "9",
+          IRPP: "C20",
+          CFC_S: "D20",
+          CFC_P: "E20",
+          FNE: "F20",
+          TC: "G20",
+          RAV: "H20",
+          TOTAL: "J20",
+        },
+        {
+          ligne: "10",
+          IRPP: "C21",
+          CFC_S: "D21",
+          CFC_P: "E21",
+          FNE: "F21",
+          TC: "G21",
+          RAV: "H21",
+          TOTAL: "J21",
+        },
+        {
+          ligne: "11",
+          IRPP: "C22",
+          CFC_S: "D22",
+          CFC_P: "E22",
+          FNE: "F22",
+          TC: "G22",
+          RAV: "H22",
+          TOTAL: "J22",
+        },
+        {
+          ligne: "12",
+          IRPP: "C23",
+          CFC_S: "D23",
+          CFC_P: "E23",
+          FNE: "F23",
+          TC: "G23",
+          RAV: "H23",
+          TOTAL: "J23",
+        },
+        {
+          ligne: "13",
+          IRPP: "C24",
+          CFC_S: "D24",
+          CFC_P: "E24",
+          FNE: "F24",
+          TC: "G24",
+          RAV: "H24",
+          TOTAL: "J24",
+        },
+      ],
+    },
+    regulationAnnuelle: {
+      libelles: [
+        "Régulation IRPP",
+        "Régulation CFC/S",
+        "Régulation CFC/P",
+        "Régulation FNE",
+        "Régulation TC",
+        "Régulation RAV",
+      ],
+
+      lignes: [
+        { label: "Régulation IRPP", ligne: "E28", valeur: "F28" },
+        { label: "Régulation CFC/S", ligne: "E29", valeur: "F29" },
+        { label: "Régulation CFC/P", ligne: "E30", valeur: "F30" },
+        { label: "Régulation FNE", ligne: "E31", valeur: "F31" },
+        { label: "Régulation TC", ligne: "E32", valeur: "F32" },
+        { label: "Régulation RAV", ligne: "E33", valeur: "F33" },
+      ],
+    },
+  },
+};
+
+// export const CONFIG_NOTE27B: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     fiscalYear: "M2", // Exercice clos le
+//     duration: "M3", // Durée (en mois)
+//   },
+//   sections: {
+//     effectifsEtMasseSalariale: {
+//       libelles: [
+//         "1. Cadres supérieurs",
+//         "2. Techniciens supérieurs et cadres moyens",
+//         "3. Techniciens, agents de maîtrise et ouvriers qualifiés",
+//         "4. Employés, manœuvre, ouvriers et apprentis",
+//         "TOTAL (1)",
+//         "Permanents",
+//         "Saisonniers",
+//       ],
+//       // Mapping for the main personnel table (Rows 11 to 18)
+//       lignes: [
+
+//         {
+//           code: "YA",
+//           effectifs: {
+//             nationaux: { m: "C11", f: "D11" },
+//             ohada: { m: "F11", f: "G11" },
+//             horsOhada: { m: "H11", f: "I11" },
+//             total: "J11",
+//           },
+//           masseSalariale: {
+//             nationaux: { m: "K11", f: "L11" },
+//             ohada: { m: "M11", f: "N11" },
+//             horsOhada: { m: "O11", f: "P11" },
+//             total: "Q11", // Assuming column Q exists for Total
+//           },
+//         },
+//         // ... Repeat pattern for YB (Row 12), YC (Row 13), YD (Row 14)
+//         {
+//           code: "YE", // TOTAL (1)
+//           effectifs: {
+//             nationaux: { m: "D15", f: "E15" },
+//             ohada: { m: "F15", f: "G15" },
+//             horsOhada: { m: "H15", f: "I15" },
+//             total: "J15",
+//           },
+//           masseSalariale: {
+//             nationaux: { m: "K15", f: "L15" },
+//             ohada: { m: "M15", f: "N15" },
+//             horsOhada: { m: "O15", f: "P15" },
+//             total: "Q15",
+//           },
+//         },
+//         { code: "YF", effectifs: { total: "J17" } }, // Permanents
+//         { code: "YG", effectifs: { total: "J18" } }, // Saisonniers
+//       ],
+//     },
+//     personnelExterieur: {
+//       libelles: [
+//         "1. Cadres supérieurs",
+//         "2. Techniciens supérieurs",
+//         "3. Agents de maîtrise",
+//         "4. Employés/Ouvriers",
+//         "TOTAL (2)",
+//         "Permanents",
+//         "Saisonniers",
+//         "TOTAL (1+2)",
+//       ],
+//       // Mapping for the second table (Rows 23 to 32)
+//       lignes: [
+//         {
+//           code: "YH",
+//           label: "1. Cadres supérieurs",
+//           effectifs: "D23:I23",
+//           facturation: "J23",
+//         },
+//         {
+//           code: "YI",
+//           label: "2. Techniciens supérieurs",
+//           effectifs: "D24:I24",
+//           facturation: "J24",
+//         },
+//         {
+//           code: "YJ",
+//           label: "3. Agents de maîtrise",
+//           effectifs: "D25:I25",
+//           facturation: "J25",
+//         },
+//         {
+//           code: "YK",
+//           label: "4. Employés/Ouvriers",
+//           effectifs: "D26:I26",
+//           facturation: "J26",
+//         },
+//         {
+//           code: "YL",
+//           label: "TOTAL (2)",
+//           effectifs: "D27:I27",
+//           facturation: "J27",
+//         },
+//         {
+//           code: "YM",
+//           label: "Permanents",
+//           effectifs: "D29:I29",
+//           facturation: "J29",
+//         },
+//         {
+//           code: "YN",
+//           label: "Saisonniers",
+//           effectifs: "D30:I30",
+//           facturation: "J30",
+//         },
+//         {
+//           code: "YO",
+//           label: "TOTAL (1+2)",
+//           effectifs: "D32:I32",
+//           facturation: "J32",
+//         },
+//       ],
+//     },
+
+//   },
+// };
+
+export const CONFIG_NOTE21: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "F2", // Exercice clos le
+    duration: "F3", // Durée (en mois)
+  },
+  sections: {
+    chiffreAffaires: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES MARCHANDISES",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E9",
+          anneeN1: "F9",
+          variation: "G9",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E10",
+          anneeN1: "F10",
+          variation: "G10",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E11",
+          anneeN1: "F11",
+          variation: "G11",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E12",
+          anneeN1: "F12",
+          variation: "G12",
+        },
+        {
+          label: "TOTAL : VENTES MARCHANDISES",
+          anneeN: "E13",
+          anneeN1: "F13",
+          variation: "G13",
+        },
+      ],
+    },
+    ventesProduitsFabriques: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES DE PRODUITS FABRIQUES",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E15",
+          anneeN1: "F15",
+          variation: "G15",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E16",
+          anneeN1: "F16",
+          variation: "G16",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E17",
+          anneeN1: "F17",
+          variation: "G17",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E18",
+          anneeN1: "F18",
+          variation: "G18",
+        },
+        {
+          label: "TOTAL : VENTES DE PRODUITS FABRIQUES",
+          anneeN: "E19",
+          anneeN1: "F19",
+          variation: "G19",
+        },
+      ],
+    },
+    ventesTravauxServices: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES DE TRAVAUX ET SERVICES VENDUS",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E21",
+          anneeN1: "F21",
+          variation: "G21",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E22",
+          anneeN1: "F22",
+          variation: "G22",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E23",
+          anneeN1: "F23",
+          variation: "G23",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E24",
+          anneeN1: "F24",
+          variation: "G24",
+        },
+        {
+          label: "TOTAL : VENTES DE TRAVAUX ET SERVICES VENDUS",
+          anneeN: "E25",
+          anneeN1: "F25",
+          variation: "G25",
+        },
+      ],
+    },
+    produitsAccessoires: {
+      libelles: ["Produits accessoires", "TOTAL CHIFFRES D'AFFAIRES"],
+      lignes: [
+        {
+          anneeN: "E27",
+          anneeN1: "F27",
+          variation: "G27",
+        },
+        { anneeN: "E30", anneeN1: "F30", variation: "G30" },
+      ],
+    },
+    autresProduits: {
+      libelles: [
+        "Production immobilisée",
+        "Subventions d'exploitation",
+        "Autres produits",
+        "TOTAL : AUTRES PRODUITS",
+        "TOTAL",
+      ],
+      lignes: [
+        {
+          label: "Production immobilisée",
+          anneeN: "E32",
+          anneeN1: "F32",
+          variation: "G32",
+        },
+        {
+          label: "Subventions d'exploitation",
+          anneeN: "E33",
+          anneeN1: "F33",
+          variation: "G33",
+        },
+        {
+          label: "Autres produits",
+          anneeN: "E34",
+          anneeN1: "F34",
+          variation: "G34",
+        },
+        {
+          label: "TOTAL : AUTRES PRODUITS",
+          anneeN: "E35",
+          anneeN1: "F35",
+          variation: "G35",
+        },
+        {
+          label: "TOTAL",
+          anneeN: "E35",
+          anneeN1: "F35",
+          variation: "G35",
+        },
+      ],
+    },
+  },
+};
+
+// export const CONFIG_NOTE22: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     fiscalYear: "F2", // Exercice clos le
+//     duration: "F3", // Durée (en mois)
+//   },
+//   sections: {
+//     achats: {
+//       achatsMarchandises: {
+//         lignes: [
+//           {
+//             label: "Achats dans la régions",
+//             anneeN: "E9",
+//             anneeN1: "F9",
+//             variation: "G9",
+//           },
+//           {
+//             label: "Achats hors régions",
+//             anneeN: "E10",
+//             anneeN1: "F10",
+//             variation: "G10",
+//           },
+//           {
+//             label: "Achats groupe",
+//             anneeN: "E11",
+//             anneeN1: "F11",
+//             variation: "G11",
+//           },
+//           {
+//             label: "TOTAL : ACHATS DE MARCHANDISES",
+//             anneeN: "E12",
+//             anneeN1: "F12",
+//             variation: "G12",
+//           },
+//         ],
+//       },
+//       achatsMatieresPremieres: {
+//         lignes: [
+//           {
+//             label: "Achat dans la région",
+//             anneeN: "E14",
+//             anneeN1: "F14",
+//             variation: "G14",
+//           },
+//           {
+//             label: "Achat hors région",
+//             anneeN: "E15",
+//             anneeN1: "F15",
+//             variation: "G15",
+//           },
+//           {
+//             label: "Achat groupe",
+//             anneeN: "E16",
+//             anneeN1: "F16",
+//             variation: "G16",
+//           },
+//           {
+//             label: "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
+//             anneeN: "E17",
+//             anneeN1: "F17",
+//             variation: "G17",
+//           },
+//         ],
+//       },
+//       autresAchats: {
+//         lignes: [
+//           {
+//             label: "Matières consommables",
+//             anneeN: "E19",
+//             anneeN1: "F19",
+//             variation: "G19",
+//           },
+//           {
+//             label: "Matières combustibles",
+//             anneeN: "E20",
+//             anneeN1: "F20",
+//             variation: "G20",
+//           },
+//           {
+//             label: "Produits d'entretien",
+//             anneeN: "E21",
+//             anneeN1: "F21",
+//             variation: "G21",
+//           },
+//           {
+//             label: "Fournitures d'atelier, d'usine et de magasin",
+//             anneeN: "E22",
+//             anneeN1: "F22",
+//             variation: "G22",
+//           },
+//           { label: "Eau", anneeN: "E23", anneeN1: "F23", variation: "G23" },
+//           {
+//             label: "Electricité",
+//             anneeN: "E24",
+//             anneeN1: "F24",
+//             variation: "G24",
+//           },
+//           {
+//             label: "Autres énergies",
+//             anneeN: "E25",
+//             anneeN1: "F25",
+//             variation: "G25",
+//           },
+//           {
+//             label: "Fourniture d'entretien",
+//             anneeN: "E26",
+//             anneeN1: "F26",
+//             variation: "G26",
+//           },
+//           {
+//             label: "Fournitures de bureau",
+//             anneeN: "E27",
+//             anneeN1: "F27",
+//             variation: "G27",
+//           },
+//           {
+//             label: "Petit matériel et outillages",
+//             anneeN: "E28",
+//             anneeN1: "F28",
+//             variation: "G28",
+//           },
+//           {
+//             label:
+//               "Achats études, prestations de services, de travaux matériels et équipements",
+//             anneeN: "E29",
+//             anneeN1: "F29",
+//             variation: "G29",
+//           },
+//           {
+//             label: "Achats d'emballages",
+//             anneeN: "E30",
+//             anneeN1: "F30",
+//             variation: "G30",
+//           },
+//           {
+//             label: "Frais sur achats",
+//             anneeN: "E31",
+//             anneeN1: "F31",
+//             variation: "G31",
+//           },
+//           {
+//             label: "Remises rabais, remises et ristournes",
+//             anneeN: "E32",
+//             anneeN1: "F32",
+//             variation: "G32",
+//           },
+//           {
+//             label: "TOTAL : AUTRES ACHATS",
+//             anneeN: "E33",
+//             anneeN1: "F33",
+//             variation: "G33",
+//           },
+//         ],
+//       },
+//     },
+//   },
+//   commentaire: "A35",
+// };
+
+// export const CONFIG_CF1: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     // Note: This specific sheet lacks the date/duration fields in the header compared to previous ones
+//   },
+//   sections: {
+//     resultatComptable: {
+//       lignes: [
+//         {
+//           label: "BENEFICE NET COMPTABLE AVANT IMPOT",
+//           ligne: 1,
+//           montant: "L10",
+//         },
+//         {
+//           label: "PERTE NETTE COMPTABLE AVANT IMPOT",
+//           ligne: 2,
+//           montant: "L11",
+//         },
+//       ],
+//     },
+//     reintegrations: {
+//       lignes: [
+//         { label: "Amortissement non déductible", ligne: 3, montant: "L13" },
+//         {
+//           label: "Amortissement comptabilisés mais réputés différés...",
+//           ligne: 4,
+//           montant: "L14",
+//         },
+//         { label: "Provisions non déductibles", ligne: 5, montant: "L15" },
+//         {
+//           label: "Intérêt excédentaire des comptes courants d'associés",
+//           ligne: 6,
+//           montant: "L16",
+//         },
+//         {
+//           label: "Frais de siège et d'assistance technique",
+//           ligne: 7,
+//           montant: "L17",
+//         },
+//         {
+//           label: "Impôt non déductibles autres qu'impôt sur le résultat",
+//           ligne: 8,
+//           montant: "L18",
+//         },
+//         {
+//           label: "Amendes et pénalités non déductibles",
+//           ligne: 9,
+//           montant: "L19",
+//         },
+//         {
+//           label: "Pourboires et dons non déductible",
+//           ligne: 10,
+//           montant: "L20",
+//         },
+//         {
+//           label:
+//             "Retenue à la source (IRMC) sur revenus des capitaux mobiliers",
+//           ligne: 11,
+//           montant: "L21",
+//         },
+//         { label: "Divers 1", ligne: 12, montant: "L22" },
+//         { label: "Divers 2", ligne: 13, montant: "L23" },
+//         { label: "Divers 3", ligne: 14, montant: "L24" },
+//         {
+//           label: "REINTEGRATIONS : totaux lignes 3 à 14",
+//           ligne: 15,
+//           montant: "L25",
+//         },
+//       ],
+//     },
+//     intermediaires: {
+//       totalPositif: { ligne: 16, montant: "L27" },
+//       totalNegatif: { ligne: 17, montant: "L28" },
+//     },
+//     deductions: {
+//       lignes: [
+//         {
+//           label: "Amortissement antérieur différés et imputés",
+//           ligne: 18,
+//           montant: "L30",
+//         },
+//         {
+//           label: "Provisions antérieurement taxées...",
+//           ligne: 19,
+//           montant: "L31",
+//         },
+//         {
+//           label: "Fraction non imposable des plus-values...",
+//           ligne: 20,
+//           montant: "L32",
+//         },
+//         { label: "Produit nets des filiales", ligne: 21, montant: "L33" },
+//         {
+//           label: "Autres revenus mobiliers déductibles",
+//           ligne: 22,
+//           montant: "L34",
+//         },
+//         {
+//           label: "Frais de siège et d'assistance technique déductibles",
+//           ligne: 23,
+//           montant: "L35",
+//         },
+//         { label: "Divers 1", ligne: 24, montant: "L36" },
+//         { label: "Divers 2", ligne: 25, montant: "L37" },
+//         { label: "Divers 3", ligne: 26, montant: "L38" },
+//         {
+//           label: "DEDUCTIONS : totaux lignes 18 à 26",
+//           ligne: 27,
+//           montant: "L39",
+//         },
+//       ],
+//     },
+//     resultatFiscal: {
+//       beneficeFiscal: { ligne: 28, montant: "L41" },
+//       perteFiscale: { ligne: 29, montant: "L42" },
+//     },
+//     minimumPerception: {
+//       lignes: [
+//         {
+//           label: "Minimum de perception",
+//           ligne: 30,
+//           base: "G45",
+//           taux: "K45",
+//           principal: "L45",
+//         },
+//         {
+//           label: "Impôt sur les sociétés",
+//           ligne: 31,
+//           base: "G46",
+//           taux: "K46",
+//           principal: "L46",
+//         },
+//         {
+//           label: "BIC et BNC",
+//           ligne: 32,
+//           base: "G47",
+//           taux: "K47",
+//           principal: "L47",
+//         },
+//         // Lignes 33-36 follow the same pattern for agricultural/artisanal
+//         {
+//           label: "Bénéfice artisanaux",
+//           ligne: 34,
+//           base: "G49",
+//           taux: "K49",
+//           principal: "L49",
+//         },
+//         {
+//           label: "Bénéficiaires agricoles",
+//           ligne: 37,
+//           base: "G52",
+//           taux: "K52",
+//           principal: "L52",
+//         },
+//         { label: "IR", ligne: 38, base: "G53", taux: "K53", principal: "L53" },
+//         {
+//           label: "TOTAL lignes 32 à 38",
+//           ligne: 39,
+//           base: "G54",
+//           taux: "K54",
+//           principal: "L54",
+//         },
+//       ],
+//     },
+//   },
+// };
+
+// export const CONFIG_CF1_BIS: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     fiscalYear: "I2", // Exercice clos le
+//     duration: "I3", // Durée (en mois)
+//   },
+//   sections: {
+//     determinationBeneficeDefinitif: {
+//       reportBeneficeFiscal: { ligne: 1, montant: "M9" },
+
+//       reinvestissementsAnterieurs: {
+//         tableau: {
+//           annees: ["E11", "F11", "G11"], // N-3, N-2, N-1
+//           reinvestissementsAdmis: { ligne: 2, valeurs: ["E12", "F12", "G12"] },
+//           reinvestissementsDeductibles: {
+//             ligne: 3,
+//             valeurs: ["E13", "F13", "G13"],
+//           },
+//           reinvestissementsEduits: {
+//             ligne: 4,
+//             valeurs: ["E14", "F14", "G14"],
+//             total: "M14",
+//           },
+//           reinvestissementsReportables: {
+//             ligne: 5,
+//             valeurs: ["E15", "F15", "G15"],
+//           },
+//         },
+//       },
+
+//       reinvestissementsExercice: {
+//         lignes: [
+//           { label: "Reinvestissements admis", ligne: 6, valeur: "G17" },
+//           { label: "Reinvestissements déductibles", ligne: 7, valeur: "G18" },
+//           {
+//             label: "Réinvestissements déduits",
+//             ligne: 8,
+//             valeur: "G19",
+//             total: "M19",
+//           },
+//           { label: "Réinvestissements reportables", ligne: 9, valeur: "G20" },
+//         ],
+//       },
+
+//       reportsDeficitaires: {
+//         tableau: {
+//           annees: ["D22", "E22", "F22", "G22"], // N-4 to N-1
+//           deficits: { ligne: 10, valeurs: ["D23", "E23", "F23", "G23"] },
+//           deficitsImputes: {
+//             ligne: 11,
+//             valeurs: ["D24", "E24", "F24", "G24"],
+//             total: "M24",
+//           },
+//           deficitsRestants: {
+//             ligne: 12,
+//             valeurs: ["D25", "E25", "F25", "G25"],
+//           },
+//         },
+//       },
+
+//       beneficeFiscalDefinitif: { ligne: 13, montant: "M26" },
+//     },
+
+//     calculImpot: {
+//       lignes: [
+//         {
+//           label: "Impôts sur les sociétés",
+//           base: "G29",
+//           taux: "I29",
+//           ligne: 14,
+//           montant: "M29",
+//         },
+//         {
+//           label: "IRCM non retenus à la source",
+//           base: "G30",
+//           taux: "I30",
+//           ligne: 15,
+//           montant: "M30",
+//         },
+//         {
+//           label: "Déduction de l'IRCM retenue",
+//           base: "G31",
+//           taux: "I31",
+//           ligne: 16,
+//           montant: "M31",
+//         },
+//         {
+//           label: "Autres déductions",
+//           base: "G32",
+//           taux: "I32",
+//           ligne: 17,
+//           montant: "M32",
+//         },
+//         { label: "Impôts nets dus", ligne: 18, montant: "M33" },
+//         {
+//           label: "Centimes additionnels commerciaux",
+//           ligne: 19,
+//           montant: "M34",
+//         },
+//         { label: "TOTAL DE L'IMPOT", ligne: 20, montant: "M35" },
+//         { label: "Acomptes versés", ligne: 21, montant: "M36" },
+//         { label: "Net à payer", ligne: 22, montant: "M37" },
+//         { label: "Crédit d'impôt", ligne: 23, montant: "M38" },
+//       ],
+//     },
+
+//     compte89: {
+//       lignes: [
+//         {
+//           code: "891",
+//           label: "Impôts sur les bénéfices",
+//           ligne: 24,
+//           montant: "M42",
+//         },
+//         { code: "892", label: "Rappel d'impôts", ligne: 25, montant: "M43" },
+//         {
+//           code: "895",
+//           label: "Minimum de perception",
+//           ligne: 26,
+//           montant: "M44",
+//         },
+//         {
+//           code: "899",
+//           label: "Dégrèvement et annulations",
+//           ligne: 27,
+//           montant: "M45",
+//         },
+//         { label: "TOTAL", ligne: 28, montant: "M46" },
+//       ],
+//     },
+//   },
+// };
+
+// export const CONFIG_CF1_TER: ConfigurationMapping = {
+//   entete: {
+//     entityName: "C2",
+//     idNumber: "C3",
+//     fiscalYear: "N2", // Exercice
+//     duration: "N3", // Durée
+//   },
+//   sections: {
+//     reductionImpotReinvestissement: {
+//       anterieur: {
+//         tableau: {
+//           periodes: ["Année N-3 et Antérieures", "Année N-2", "Année N-1"],
+//           lignes: [
+//             {
+//               ligne: 2,
+//               reinvestissements: "D12",
+//               base50: "F12",
+//               baseEffective: "H12",
+//               reportables: "K12",
+//             },
+//             {
+//               ligne: 3,
+//               reinvestissements: "D13",
+//               base50: "F13",
+//               baseEffective: "H13",
+//               reportables: "K13",
+//             },
+//             {
+//               ligne: 4,
+//               reinvestissements: "D14",
+//               base50: "F14",
+//               baseEffective: "H14",
+//               reportables: "K14",
+//             },
+//             {
+//               label: "TOTAUX",
+//               ligne: 5,
+//               reinvestissements: "D15",
+//               base50: "F15",
+//               baseEffective: "H15",
+//               reportables: "K15",
+//             },
+//           ],
+//           tauxImpot: "K16", // Ligne 6
+//         },
+//       },
+//       exercice: {
+//         lignes: [
+//           { label: "Réinvestissement admis", ligne: 7, valeur: "H18" },
+//           { label: "Base de la réduction", ligne: 8, valeur: "H19" },
+//           {
+//             label: "Base effective",
+//             ligne: 9,
+//             valeur: "H20",
+//             montantFinal: "M20",
+//           },
+//           { label: "Réinvestissements Reportables", ligne: 10, valeur: "H21" },
+//         ],
+//       },
+//     },
+//     rubriquesAdditionnelles: {
+//       lignes: [
+//         {
+//           label: "Impôt sur les revenus des capitaux mobiliers",
+//           ligne: 11,
+//           taux: "K24",
+//           montant: "M24",
+//         },
+//         {
+//           label: "Surtaxe Progressive",
+//           ligne: 12,
+//           taux: "K25",
+//           montant: "M25",
+//         },
+//         {
+//           label: "Capitaux non imposés à la source",
+//           ligne: 13,
+//           taux: "K26",
+//           montant: "M26",
+//         },
+//       ],
+//       deductions: [
+//         { label: "IRCM", ligne: 14, montant: "M28" },
+//         {
+//           label: "Plus value sur cession immeubles",
+//           ligne: 15,
+//           montant: "M29",
+//         },
+//         { label: "Autres", ligne: 16, montant: "M30" },
+//       ],
+//     },
+//     calculMinimumPerception: {
+//       lignes: [
+//         {
+//           label: "Minimum de perception",
+//           base: "G34",
+//           taux: "K34",
+//           ligne: 17,
+//           montant: "M34",
+//         },
+//         {
+//           label: "Minimum de perception secteur administré",
+//           base: "G35",
+//           taux: "K35",
+//           ligne: 18,
+//           montant: "M35",
+//         },
+//         {
+//           label: "IRCM non retenu à la source",
+//           base: "G36",
+//           taux: "K36",
+//           ligne: 19,
+//           montant: "M36",
+//         },
+//         { label: "Déduction de l'IRCM", ligne: 20, montant: "M37" },
+//         { label: "Autres déductions", ligne: 21, montant: "M38" },
+//         { label: "Impôts Nets Dus", ligne: 22, montant: "M39" },
+//         { label: "Centimes Additionnels Communaux", ligne: 23, montant: "M40" },
+//         { label: "TOTAL DE L'IMPOT", ligne: 24, montant: "M41" },
+//         { label: "Acomptes versés", ligne: 25, montant: "M42" },
+//         { label: "Net à Payer", ligne: 26, montant: "M43" },
+//         { label: "Crédit d'Impôt", ligne: 27, montant: "M44" },
+//       ],
+//     },
+//     reportsDeficitaires: {
+//       entete: {
+//         beneficeFiscal: { ligne: 28, valeur: "M47" },
+//         perteFiscale: { ligne: 29, valeur: "M48" },
+//       },
+//       tableau: {
+//         annees: ["D50", "F50", "H50", "K50"], // N-4 to N-1
+//         deficitsReportes: { ligne: 28, valeurs: ["D51", "F51", "H51", "K51"] },
+//         deficitsImputes: {
+//           ligne: 29,
+//           valeurs: ["D52", "F52", "H52", "K52"],
+//           total: "M52",
+//         },
+//         deficitsReportables: {
+//           ligne: 30,
+//           valeurs: ["D53", "F53", "H53", "K53"],
+//         },
+//       },
+//       resultatDefinitif: {
+//         benefice: { ligne: 31, montant: "M54" },
+//         perte: { ligne: 32, montant: "M55" },
+//       },
+//     },
+//     compte89: {
+//       lignes: [
+//         { label: "Impôts sur les bénéfices", ligne: 33, montant: "M59" },
+//         { label: "Rappel d'Impôts", ligne: 34, montant: "M60" },
+//         { label: "Minimum de Perception", ligne: 35, montant: "M61" },
+//         { label: "Dégrèvements et Annulations", ligne: 36, montant: "M62" },
+//         { label: "TOTAL", ligne: 37, montant: "M63" },
+//       ],
+//     },
+//   },
+// };
+
+// export const CONFIG_CF1_QUATER: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     fiscalYear: "G2", // Exercice clos le
+//     duration: "G3", // Durée (en mois)
+//   },
+//   sections: {
+//     recapitulatifVersements: {
+//       mois: [
+//         "Janvier",
+//         "Février",
+//         "Mars",
+//         "Avril",
+//         "Mai",
+//         "Juin",
+//         "Juillet",
+//         "Août",
+//         "Septembre",
+//         "Octobre",
+//         "Novembre",
+//         "Décembre",
+//       ],
+//       lignes: [
+//         {
+//           ligne: "1",
+//           precomptes: "C11",
+//           principal: "D11",
+//           ccx: "E11",
+//           retenuesCA: "F11",
+//           autres: "G11",
+//           total: "H11",
+//         },
+//         {
+//           ligne: "2",
+//           precomptes: "C12",
+//           principal: "D12",
+//           ccx: "E12",
+//           retenuesCA: "F12",
+//           autres: "G12",
+//           total: "H12",
+//         },
+//         {
+//           ligne: "3",
+//           precomptes: "C13",
+//           principal: "D13",
+//           ccx: "E13",
+//           retenuesCA: "F13",
+//           autres: "G13",
+//           total: "H13",
+//         },
+//         {
+//           ligne: "4",
+//           precomptes: "C14",
+//           principal: "D14",
+//           ccx: "E14",
+//           retenuesCA: "F14",
+//           autres: "G14",
+//           total: "H14",
+//         },
+//         {
+//           ligne: "5",
+//           precomptes: "C15",
+//           principal: "D15",
+//           ccx: "E15",
+//           retenuesCA: "F15",
+//           autres: "G15",
+//           total: "H15",
+//         },
+//         {
+//           ligne: "6",
+//           precomptes: "C16",
+//           principal: "D16",
+//           ccx: "E16",
+//           retenuesCA: "F16",
+//           autres: "G16",
+//           total: "H16",
+//         },
+//         {
+//           ligne: "7",
+//           precomptes: "C17",
+//           principal: "D17",
+//           ccx: "E17",
+//           retenuesCA: "F17",
+//           autres: "G17",
+//           total: "H17",
+//         },
+//         {
+//           ligne: "8",
+//           precomptes: "C18",
+//           principal: "D18",
+//           ccx: "E18",
+//           retenuesCA: "F18",
+//           autres: "G18",
+//           total: "H18",
+//         },
+//         {
+//           ligne: "9",
+//           precomptes: "C19",
+//           principal: "D19",
+//           ccx: "E19",
+//           retenuesCA: "F19",
+//           autres: "G19",
+//           total: "H19",
+//         },
+//         {
+//           ligne: "10",
+//           precomptes: "C20",
+//           principal: "D20",
+//           ccx: "E20",
+//           retenuesCA: "F20",
+//           autres: "G20",
+//           total: "H20",
+//         },
+//         {
+//           ligne: "11",
+//           precomptes: "C21",
+//           principal: "D21",
+//           ccx: "E21",
+//           retenuesCA: "F21",
+//           autres: "G21",
+//           total: "H21",
+//         },
+//         {
+//           ligne: "12",
+//           precomptes: "C22",
+//           principal: "D22",
+//           ccx: "E22",
+//           retenuesCA: "F22",
+//           autres: "G22",
+//           total: "H22",
+//         },
+//       ],
+//       totaux: {
+//         ligne: "13",
+//         precomptes: "C23",
+//         principal: "D23",
+//         ccx: "E23",
+//         retenuesCA: "F23",
+//         autres: "G23",
+//         totalGeneral: "H23",
+//       },
+//     },
+//   },
+// };
+
+// export const CONFIG_CF2: ConfigurationMapping = {
+//   entete: {
+//     entityName: "C2",
+//     idNumber: "C3",
+//     fiscalYear: "L2", // Exercice clos le
+//     duration: "L3", // Durée (en mois)
+//   },
+//   sections: {
+//     baseTaxation: {
+//       lignes: [
+//         {
+//           label: "Livraison des biens",
+//           ligne: 1,
+//           tauxGeneral: "J12",
+//           tauxZero: "L12",
+//           nonTaxable: "N12",
+//           cumul: "P12",
+//         },
+//         {
+//           label: "Livraison à soi-même",
+//           ligne: 2,
+//           tauxGeneral: "J13",
+//           tauxZero: "L13",
+//           nonTaxable: "N13",
+//           cumul: "P13",
+//         },
+//         {
+//           label: "Prestations de services",
+//           ligne: 3,
+//           tauxGeneral: "J14",
+//           tauxZero: "L14",
+//           nonTaxable: "N14",
+//           cumul: "P14",
+//         },
+//         {
+//           label: "Prestations à soi-même",
+//           ligne: 4,
+//           tauxGeneral: "J15",
+//           tauxZero: "L15",
+//           nonTaxable: "N15",
+//           cumul: "P15",
+//         },
+//         {
+//           label: "Travaux immobiliers",
+//           ligne: 5,
+//           tauxGeneral: "J16",
+//           tauxZero: "L16",
+//           nonTaxable: "N16",
+//           cumul: "P16",
+//         },
+//         {
+//           label: "Cession d'éléments d'actifs non exonérés",
+//           ligne: 6,
+//           tauxGeneral: "J17",
+//           tauxZero: "L17",
+//           nonTaxable: "N17",
+//           cumul: "P17",
+//         },
+//         {
+//           label: "Locations terrains non aménagés",
+//           ligne: 7,
+//           tauxGeneral: "J18",
+//           tauxZero: "L18",
+//           nonTaxable: "N18",
+//           cumul: "P18",
+//         },
+//         {
+//           label: "Locations locaux nus",
+//           ligne: 8,
+//           tauxGeneral: "J19",
+//           tauxZero: "L19",
+//           nonTaxable: "N19",
+//           cumul: "P19",
+//         },
+//         {
+//           label: "Exportations des produits taxables",
+//           ligne: 9,
+//           tauxGeneral: "J20",
+//           tauxZero: "L20",
+//           nonTaxable: "N20",
+//           cumul: "P20",
+//         },
+//         {
+//           label: "Autres opérations taxables",
+//           ligne: 10,
+//           tauxGeneral: "J21",
+//           tauxZero: "L21",
+//           nonTaxable: "N21",
+//           cumul: "P21",
+//         },
+//         {
+//           label: "Opérations exonérées",
+//           ligne: 11,
+//           nonTaxable: "N22",
+//           cumul: "P22",
+//         },
+//         { label: "Total des opérations", ligne: 12, cumul: "P23" },
+//         { label: "Droits d'accises", ligne: 13, cumul: "P24" },
+//         {
+//           label: "TOTAL DE LA BASE TAXABLE",
+//           ligne: 14,
+//           tauxGeneral: "J25",
+//           tauxZero: "L25",
+//           nonTaxable: "N25",
+//           cumul: "P25",
+//         },
+//       ],
+//     },
+//     calculTvaBrute: {
+//       lignes: [
+//         {
+//           label: "Montant de la taxe",
+//           ligne: 15,
+//           tauxGeneral: "J26",
+//           tauxZero: "L26",
+//           cumul: "P26",
+//         },
+//         {
+//           label: "Centimes additionnels",
+//           ligne: 16,
+//           tauxGeneral: "J27",
+//           cumul: "P27",
+//         },
+//         {
+//           label: "TOTAL TVA BRUTE",
+//           ligne: 17,
+//           tauxGeneral: "J28",
+//           tauxZero: "L28",
+//           cumul: "P28",
+//         },
+//       ],
+//     },
+//     prorataFinExercice: {
+//       caOuvrantDroit: { ligne: 18, valeur: "J29" },
+//       caTotal: { ligne: 19, valeur: "J30" },
+//       prorataRégularisation: { ligne: 20, valeur: "J31" },
+//     },
+//     deductions: {
+//       headers: { tvaSurFacture: "J32", tvaDeductible: "N32" },
+//       soumisesProrata: [
+//         {
+//           label: "Sur biens et services (non immo)",
+//           ligne: 21,
+//           tvaSurFacture: "J34",
+//           tvaDeductible: "N34",
+//         },
+//         {
+//           label: "Sur biens et services (immo)",
+//           ligne: 22,
+//           tvaSurFacture: "J35",
+//           tvaDeductible: "N35",
+//         },
+//       ],
+//       horsProrata: [
+//         {
+//           label: "Sur biens et services (non immo)",
+//           ligne: 23,
+//           tvaSurFacture: "J37",
+//           tvaDeductible: "N37",
+//         },
+//         {
+//           label: "Sur biens et services (immo)",
+//           ligne: 24,
+//           tvaSurFacture: "J38",
+//           tvaDeductible: "N38",
+//         },
+//       ],
+//       autres: [
+//         {
+//           label: "Complément de TVA à déduire",
+//           ligne: 25,
+//           tvaDeductible: "N39",
+//         },
+//         { label: "Report de crédit TVA", ligne: 26, tvaDeductible: "N40" },
+//         {
+//           label: "TOTAL DES DEDUCTIONS",
+//           ligne: 27,
+//           tvaSurFacture: "J41",
+//           tvaDeductible: "N41",
+//         },
+//       ],
+//     },
+//   },
+// };
+
+// export const CONFIG_CF2_BIS: ConfigurationMapping = {
+//   entete: {
+//     entityName: "B2",
+//     idNumber: "B3",
+//     fiscalYear: "H2", // Exercice clos le
+//     duration: "H3", // Durée (en mois)
+//   },
+//   sections: {
+//     versementsEtRetenues: {
+//       mois: [
+//         "Janvier",
+//         "Février",
+//         "Mars",
+//         "Avril",
+//         "Mai",
+//         "Juin",
+//         "Juillet",
+//         "Août",
+//         "Septembre",
+//         "Octobre",
+//         "Novembre",
+//         "Décembre",
+//       ],
+//       lignes: [
+//         {
+//           ligne: 1,
+//           montantVersement: "D11",
+//           noQuittance: "E11",
+//           tvaRetenueSource: "F11",
+//           total: "G11",
+//           retenueFournisseur: "H11",
+//           refQuittanceFourn: "I11",
+//         },
+//         {
+//           ligne: 2,
+//           montantVersement: "D12",
+//           noQuittance: "E12",
+//           tvaRetenueSource: "F12",
+//           total: "G12",
+//           retenueFournisseur: "H12",
+//           refQuittanceFourn: "I12",
+//         },
+//         {
+//           ligne: 3,
+//           montantVersement: "D13",
+//           noQuittance: "E13",
+//           tvaRetenueSource: "F13",
+//           total: "G13",
+//           retenueFournisseur: "H13",
+//           refQuittanceFourn: "I13",
+//         },
+//         {
+//           ligne: 4,
+//           montantVersement: "D14",
+//           noQuittance: "E14",
+//           tvaRetenueSource: "F14",
+//           total: "G14",
+//           retenueFournisseur: "H14",
+//           refQuittanceFourn: "I14",
+//         },
+//         {
+//           ligne: 5,
+//           montantVersement: "D15",
+//           noQuittance: "E15",
+//           tvaRetenueSource: "F15",
+//           total: "G15",
+//           retenueFournisseur: "H15",
+//           refQuittanceFourn: "I15",
+//         },
+//         {
+//           ligne: 6,
+//           montantVersement: "D16",
+//           noQuittance: "E16",
+//           tvaRetenueSource: "F16",
+//           total: "G16",
+//           retenueFournisseur: "H16",
+//           refQuittanceFourn: "I16",
+//         },
+//         {
+//           ligne: 7,
+//           montantVersement: "D17",
+//           noQuittance: "E17",
+//           tvaRetenueSource: "F17",
+//           total: "G17",
+//           retenueFournisseur: "H17",
+//           refQuittanceFourn: "I17",
+//         },
+//         {
+//           ligne: 8,
+//           montantVersement: "D18",
+//           noQuittance: "E18",
+//           tvaRetenueSource: "F18",
+//           total: "G18",
+//           retenueFournisseur: "H18",
+//           refQuittanceFourn: "I18",
+//         },
+//         {
+//           ligne: 9,
+//           montantVersement: "D19",
+//           noQuittance: "E19",
+//           tvaRetenueSource: "F19",
+//           total: "G19",
+//           retenueFournisseur: "H19",
+//           refQuittanceFourn: "I19",
+//         },
+//         {
+//           ligne: 10,
+//           montantVersement: "D21",
+//           noQuittance: "E21",
+//           tvaRetenueSource: "F21",
+//           total: "G21",
+//           retenueFournisseur: "H21",
+//           refQuittanceFourn: "I21",
+//         },
+//         {
+//           ligne: 11,
+//           montantVersement: "D22",
+//           noQuittance: "E22",
+//           tvaRetenueSource: "F22",
+//           total: "G22",
+//           retenueFournisseur: "H22",
+//           refQuittanceFourn: "I22",
+//         },
+//         {
+//           ligne: 12,
+//           montantVersement: "D23",
+//           noQuittance: "E23",
+//           tvaRetenueSource: "F23",
+//           total: "G23",
+//           retenueFournisseur: "H23",
+//           refQuittanceFourn: "I23",
+//         },
+//       ],
+//       totaux: {
+//         ligne: 13,
+//         montantVersement: "D24",
+//         noQuittance: "E24",
+//         tvaRetenueSource: "F24",
+//         totalGeneral: "G24",
+//         retenueFournisseur: "H24",
+//         refQuittanceFourn: "I24",
+//       },
+//     },
+//   },
+// };
+
+// export const CONFIG_CF2_TER: ConfigurationMapping = {
+//   entete: {
+//     entityName: "A2",
+//     idNumber: "A3",
+//     fiscalYear: "D2", // Exercice clos le 31-12-
+//     duration: "D3", // Durée (en mois)
+//   },
+//   sections: {
+//     situationNetteTva: {
+//       lignes: [
+//         {
+//           label: "Crédit de TVA à l'ouverture de l'exercice",
+//           ligne: 1,
+//           montant: "D10",
+//         },
+//         { label: "Reversement TVA à effectuer", ligne: 2, montant: "D11" },
+//         { label: "TVA brute", ligne: 3, montant: "D12" },
+//         { label: "TVA déductible", ligne: 4, montant: "D13" },
+//         { label: "TVA nette", ligne: 5, montant: "D14" },
+//         { label: "TVA versé au cours de l'exercice", ligne: 6, montant: "D15" },
+//         {
+//           label: "Remboursement demandés sur les crédits de TVA validés",
+//           ligne: 7,
+//           montant: "D16",
+//         },
+//         {
+//           label: "TVA nette à payer (ligne 5 – ligne 6 – ligne 7 >0)",
+//           ligne: 8,
+//           montant: "D17",
+//         },
+//         {
+//           label:
+//             "Crédit de TVA net à reporter (ligne 6 + ligne 7 – ligne 5 > 0)",
+//           ligne: 9,
+//           montant: "D18",
+//         },
+//       ],
+//     },
+//   },
+// };

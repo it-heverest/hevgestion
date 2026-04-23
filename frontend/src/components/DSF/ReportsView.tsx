@@ -18,7 +18,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { dsfTemplateService } from "../../services/dsf-template.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { notesService } from "../../services/notes.service";
-import { REPORT_CATEGORIES, getNoteRoute } from "./ReportRenderer";
+import { REPORT_CATEGORIES, getNoteRoute, ALL_REPORTS } from "./ReportRenderer";
 import { ReportNavigation } from "./ReportNavigation";
 
 interface ReportsViewProps {
@@ -90,10 +90,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     checkForExistingDSF();
   }, [folderId, checkExistingDSF, initialResults]);
 
-  const successCount = extractionResults.filter((r) => r.success).length;
-  const totalPages = Math.ceil(extractionResults.length / itemsPerPage);
+  // Define additional reports to include in the display
+  const additionalReports = useMemo(() => {
+    const docsSpeciaux = REPORT_CATEGORIES["Documents Spéciaux"] || [];
+    const assuranceBase = REPORT_CATEGORIES["Assurance - Base"] || [];
+    const toInclude = [...docsSpeciaux, ...assuranceBase].filter(name =>
+      ["FICHE R3", "BILAN PAYSAGE", "BILAN ACTIF", "BILAN PASSIF", "COMPTE RESULTAT", "TABLEAU FLUX TRESORERIE"].includes(name.toUpperCase())
+    );
+
+    return toInclude.map(name => ({
+      noteName: name,
+      success: true,
+      data: null,
+      isAdditional: true,
+    }));
+  }, []);
+
+  // Combine extracted results with additional reports
+  const allReports = useMemo(() => [
+    ...extractionResults,
+    ...additionalReports
+  ], [extractionResults, additionalReports]);
+
+  const successCount = allReports.filter((r) => r.success).length;
+  const totalPages = Math.ceil(allReports.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedReports = extractionResults.slice(
+  const paginatedReports = allReports.slice(
     startIndex,
     startIndex + itemsPerPage,
   );
@@ -414,7 +436,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     Notes DSF
                   </h1>
                   <p className="text-sm text-gray-600">
-                    {successCount} sur {extractionResults.length} extraites
+                    {successCount} sur {allReports.length} rapports disponibles
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -562,11 +584,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
 // ==================== REPORT CARD ====================
 interface ReportCardProps {
-  report: ExtractionResult;
+  report: ExtractionResult & { isAdditional?: boolean };
   onView: () => void;
 }
 
 const ReportCard: React.FC<ReportCardProps> = ({ report, onView }) => {
+  const isAdditional = report.isAdditional;
+  const displayName = isAdditional
+    ? report.noteName
+    : report.noteName.replace("NOTE ", "").replace("NOTE", "");
+
   return (
     <div
       className={`bg-gray-100 border border-gray-300 rounded-lg p-3 cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all duration-200 ${
@@ -578,23 +605,27 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onView }) => {
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
             report.success
-              ? "bg-green-200 text-green-700"
+              ? isAdditional
+                ? "bg-blue-200 text-blue-700"
+                : "bg-green-200 text-green-700"
               : "bg-red-200 text-red-700"
           }`}
         >
           <FileText className="h-4 w-4" />
         </div>
         <div className="text-xs font-medium text-gray-800 leading-tight">
-          {report.noteName.replace("NOTE ", "").replace("NOTE", "")}
+          {displayName}
         </div>
         <div
           className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
             report.success
-              ? "bg-green-100 text-green-700"
+              ? isAdditional
+                ? "bg-blue-100 text-blue-700"
+                : "bg-green-100 text-green-700"
               : "bg-red-100 text-red-700"
           }`}
         >
-          {report.success ? "✓" : "✗"}
+          {report.success ? (isAdditional ? "●" : "✓") : "✗"}
         </div>
       </div>
     </div>
