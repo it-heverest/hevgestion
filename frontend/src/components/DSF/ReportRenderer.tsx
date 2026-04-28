@@ -42,7 +42,69 @@ interface AllReportsGridProps {
 // ----------------------------------------------------------------------------
 
 export const ALL_REPORTS: ReportDefinition[] = [
-  // ── Notes Standard ────────────────────────────────────────────────────────
+  // ── Structure Documentaire Principale ──────────────────────────────────────
+  {
+    name: "SOMMAIRE",
+    route: "rapport/sommaire",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/Sommaire")),
+  },
+  {
+    name: "PAGE DE GARDE",
+    route: "rapport/pagedegarde",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/PageDeGarde")),
+  },
+  {
+    name: "FICHE R3",
+    route: "rapport/ficher3",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/FicheR3")),
+  },
+  {
+    name: "FICHE 1",
+    route: "rapport/fiche1",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/Assurance/Fiche1")),
+  },
+  {
+    name: "FICHE 2",
+    route: "rapport/fiche2",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/Assurance/Fiche2")),
+  },
+  {
+    name: "FICHE 3",
+    route: "rapport/fiche3",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/Assurance/Fiche3")),
+  },
+  {
+    name: "GRILLE ANALYSE NOTES",
+    route: "rapport/grilleanalysenotes",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/GrilleAnalyseNotes")),
+  },
+  {
+    name: "BILAN PAYSAGE",
+    route: "rapport/bilanpaysage",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/BilanPaysage")),
+  },
+  {
+    name: "COMPTE RESULTAT",
+    route: "rapport/compteresultat",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/CompteResultat")),
+  },
+  {
+    name: "TABLEAU FLUX TRESORERIE",
+    route: "rapport/tableaufluxtresorerie",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/TableauFluxTresorerie")),
+  },
+
+  // ── Notes Standard 1-8 ────────────────────────────────────────────────────
   {
     name: "NOTE 1",
     route: "rapport/note1",
@@ -72,6 +134,12 @@ export const ALL_REPORTS: ReportDefinition[] = [
     route: "rapport/note3c",
     category: "Notes Standard",
     component: React.lazy(() => import("../rapport/Note3C")),
+  },
+  {
+    name: "C01 NOTE 3C",
+    route: "rapport/c01note3c",
+    category: "Notes Standard",
+    component: React.lazy(() => import("../rapport/C01Note3C")),
   },
   {
     name: "NOTE 3D",
@@ -115,279 +183,235 @@ export const ALL_REPORTS: ReportDefinition[] = [
     category: "Notes Standard",
     component: React.lazy(() => import("../rapport/Note8")),
   },
+
+  // ── Notes Additionnelles 9-35 ─────────────────────────────────────────────
   {
     name: "NOTE 9",
     route: "rapport/note9",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note9")),
   },
   {
     name: "NOTE 10",
     route: "rapport/note10",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note10")),
   },
   {
     name: "NOTE 11",
     route: "rapport/note11",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note11")),
   },
   {
     name: "NOTE 12",
     route: "rapport/note12",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note12")),
   },
   {
     name: "NOTE 13",
     route: "rapport/note13",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note13")),
   },
   {
     name: "NOTE 14",
     route: "rapport/note14",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note14")),
   },
   {
     name: "NOTE 15A",
     route: "rapport/note15a",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note15A")),
   },
   {
     name: "NOTE 15B",
     route: "rapport/note15b",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note15B")),
   },
   {
     name: "NOTE 16A",
     route: "rapport/note16a",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note16A")),
   },
   {
     name: "NOTE 16B",
     route: "rapport/note16b",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note16B")),
   },
   {
     name: "NOTE 16B BIS",
     route: "rapport/note16bbis",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note16Bbis")),
   },
   {
     name: "NOTE 16C",
     route: "rapport/note16c",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note16C")),
   },
   {
     name: "NOTE 17",
     route: "rapport/note17",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note17")),
+  },
+  {
+    name: "C1 NOTE 17",
+    route: "rapport/c1note17",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C1Note17")),
   },
   {
     name: "NOTE 18",
     route: "rapport/note18",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note18")),
   },
   {
     name: "NOTE 19",
     route: "rapport/note19",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note19")),
   },
   {
     name: "NOTE 20",
     route: "rapport/note20",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note20")),
   },
   {
     name: "NOTE 21",
     route: "rapport/note21",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note21")),
-  },
-  {
-    name: "NOTE 22",
-    route: "rapport/note22",
-    category: "Notes Standard",
-    component: React.lazy(() => import("../rapport/Note22")),
   },
   {
     name: "NOTE 23",
     route: "rapport/note23",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note23")),
+  },
+  {
+    name: "NOTE 22",
+    route: "rapport/note22",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note22")),
   },
   {
     name: "NOTE 24",
     route: "rapport/note24",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note24")),
   },
   {
     name: "NOTE 25",
     route: "rapport/note25",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note25")),
+  },
+  {
+    name: "C1 NOTE 25",
+    route: "rapport/c1note25",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C1Note25")),
+  },
+  {
+    name: "C2 NOTE 25",
+    route: "rapport/c2note25",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C2Note25")),
   },
   {
     name: "NOTE 26",
     route: "rapport/note26",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note26")),
   },
   {
     name: "NOTE 27A",
     route: "rapport/note27a",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note27A")),
+  },
+  {
+    name: "C1 NOTE 27A",
+    route: "rapport/c1note27a",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C1Note27A")),
   },
   {
     name: "NOTE 27B",
     route: "rapport/note27b",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note27B")),
   },
   {
     name: "NOTE 28",
     route: "rapport/note28",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note28")),
+  },
+  {
+    name: "C1 NOTE 28",
+    route: "rapport/c1note28",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C1Note28")),
+  },
+  {
+    name: "C2 NOTE 28",
+    route: "rapport/c2note28",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C2Note28")),
   },
   {
     name: "NOTE 29",
     route: "rapport/note29",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note29")),
   },
   {
     name: "NOTE 30",
     route: "rapport/note30",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note30")),
   },
   {
     name: "NOTE 31",
     route: "rapport/note31",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note31")),
   },
   {
     name: "NOTE 32",
     route: "rapport/note32",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note32")),
   },
   {
     name: "NOTE 33",
     route: "rapport/note33",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note33")),
   },
   {
     name: "NOTE 34",
     route: "rapport/note34",
-    category: "Notes Standard",
+    category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note34")),
   },
-
-  // ── Documents Spéciaux ────────────────────────────────────────────────────
   {
-    name: "FICHE R3",
-    route: "rapport/ficher3",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/FicheR3")),
-  },
-  {
-    name: "PAGE DE GARDE",
-    route: "rapport/pagedegarde",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/PageDeGarde")),
-  },
-  {
-    name: "SOMMAIRE",
-    route: "rapport/sommaire",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/Sommaire")),
-  },
-  {
-    name: "BILAN PAYSAGE",
-    route: "rapport/bilanpaysage",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/BilanPaysage")),
-  },
-  {
-    name: "COMPTE RESULTAT",
-    route: "rapport/compteresultat",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/CompteResultat")),
-  },
-  {
-    name: "TABLEAU FLUX TRESORERIE",
-    route: "rapport/tableaufluxtresorerie",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/TableauFluxTresorerie")),
-  },
-  {
-    name: "GRILLE ANALYSE NOTES",
-    route: "rapport/grilleanalysenotes",
-    category: "Documents Spéciaux",
-    component: React.lazy(() => import("../rapport/GrilleAnalyseNotes")),
-  },
-
-  // ── Série C ───────────────────────────────────────────────────────────────
-  {
-    name: "C01 NOTE 3C",
-    route: "rapport/c01note3c",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C01Note3C")),
-  },
-  {
-    name: "C1 NOTE 17",
-    route: "rapport/c1note17",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C1Note17")),
-  },
-  {
-    name: "C1 NOTE 25",
-    route: "rapport/c1note25",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C1Note25")),
-  },
-  {
-    name: "C1 NOTE 27A",
-    route: "rapport/c1note27a",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C1Note27A")),
-  },
-  {
-    name: "C1 NOTE 28",
-    route: "rapport/c1note28",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C1Note28")),
-  },
-  {
-    name: "C2 NOTE 25",
-    route: "rapport/c2note25",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C2Note25")),
-  },
-  {
-    name: "C2 NOTE 28",
-    route: "rapport/c2note28",
-    category: "Série C",
-    component: React.lazy(() => import("../rapport/C2Note28")),
+    name: "NOTE 35",
+    route: "rapport/note35",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note35")),
   },
 
   // ── Série CF ──────────────────────────────────────────────────────────────
@@ -446,24 +470,6 @@ export const ALL_REPORTS: ReportDefinition[] = [
     route: "rapport/impot22",
     category: "Assurance - Base",
     component: React.lazy(() => import("../rapport/Assurance/Impot22")),
-  },
-  {
-    name: "FICHE 1",
-    route: "rapport/fiche1",
-    category: "Assurance - Base",
-    component: React.lazy(() => import("../rapport/Assurance/Fiche1")),
-  },
-  {
-    name: "FICHE 2",
-    route: "rapport/fiche2",
-    category: "Assurance - Base",
-    component: React.lazy(() => import("../rapport/Assurance/Fiche2")),
-  },
-  {
-    name: "FICHE 3",
-    route: "rapport/fiche3",
-    category: "Assurance - Base",
-    component: React.lazy(() => import("../rapport/Assurance/Fiche3")),
   },
   {
     name: "FICHE 4",
@@ -855,6 +861,320 @@ export const ALL_REPORTS: ReportDefinition[] = [
     category: "SMT",
     component: React.lazy(() => import("../rapport/SMT/T9")),
   },
+  {
+    name: "ASS 2",
+    route: "rapport/ass2",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass2")),
+  },
+  {
+    name: "ASS 3",
+    route: "rapport/ass3",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass3")),
+  },
+  {
+    name: "ASS 4",
+    route: "rapport/ass4",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass4")),
+  },
+  {
+    name: "ASS 5",
+    route: "rapport/ass5",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass5")),
+  },
+  {
+    name: "ASS 6",
+    route: "rapport/ass6",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass6")),
+  },
+  {
+    name: "ASS 7",
+    route: "rapport/ass7",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass7")),
+  },
+  {
+    name: "ASS 8",
+    route: "rapport/ass8",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass8")),
+  },
+  {
+    name: "ASS 9",
+    route: "rapport/ass9",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass9")),
+  },
+  {
+    name: "ASS 10",
+    route: "rapport/ass10",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass10")),
+  },
+  {
+    name: "ASS 11",
+    route: "rapport/ass11",
+    category: "Assurance - Série Ass",
+    component: React.lazy(() => import("../rapport/Assurance/Ass11")),
+  },
+
+  // ── Assurance - Compléments ───────────────────────────────────────────────
+  {
+    name: "DECLARATION ANNUEL",
+    route: "rapport/declarationannuel",
+    category: "Assurance - Compléments",
+    component: React.lazy(
+      () => import("../rapport/Assurance/DeclarationAnnuel"),
+    ),
+  },
+  {
+    name: "SOMMES VERSE",
+    route: "rapport/sommesverse",
+    category: "Assurance - Compléments",
+    component: React.lazy(() => import("../rapport/Assurance/SommesVerse")),
+  },
+  {
+    name: "TVA",
+    route: "rapport/tva",
+    category: "Assurance - Compléments",
+    component: React.lazy(() => import("../rapport/Assurance/TVA")),
+  },
+  {
+    name: "VERSEMENTS",
+    route: "rapport/versements",
+    category: "Assurance - Compléments",
+    component: React.lazy(() => import("../rapport/Assurance/Versements")),
+  },
+
+  // ── Assurance - Tableaux ──────────────────────────────────────────────────
+  {
+    name: "TABLEAU 30",
+    route: "rapport/tableau30",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau30")),
+  },
+  {
+    name: "TABLEAU 31",
+    route: "rapport/tableau31",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau31")),
+  },
+  {
+    name: "TABLEAU 32",
+    route: "rapport/tableau32",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau32")),
+  },
+  {
+    name: "TABLEAU 33",
+    route: "rapport/tableau33",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau33")),
+  },
+  {
+    name: "TABLEAU 34",
+    route: "rapport/tableau34",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau34")),
+  },
+  {
+    name: "TABLEAU 35A",
+    route: "rapport/tableau35a",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau35A")),
+  },
+  {
+    name: "TABLEAU 35B",
+    route: "rapport/tableau35b",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau35B")),
+  },
+  {
+    name: "TABLEAU 36",
+    route: "rapport/tableau36",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau36")),
+  },
+  {
+    name: "TABLEAU 37",
+    route: "rapport/tableau37",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau37")),
+  },
+  {
+    name: "TABLEAU 38",
+    route: "rapport/tableau38",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau38")),
+  },
+  {
+    name: "TABLEAU 39",
+    route: "rapport/tableau39",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau39")),
+  },
+  {
+    name: "TABLEAU 40",
+    route: "rapport/tableau40",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau40")),
+  },
+  {
+    name: "TABLEAU 41A",
+    route: "rapport/tableau41a",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau41A")),
+  },
+  {
+    name: "TABLEAU 41B",
+    route: "rapport/tableau41b",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau41B")),
+  },
+  {
+    name: "TABLEAU 42",
+    route: "rapport/tableau42",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau42")),
+  },
+  {
+    name: "TABLEAU 43A",
+    route: "rapport/tableau43a",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau43A")),
+  },
+  {
+    name: "TABLEAU 43B",
+    route: "rapport/tableau43b",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau43B")),
+  },
+  {
+    name: "TABLEAU 44A",
+    route: "rapport/tableau44a",
+    category: "Assurance - Tableaux",
+    component: React.lazy(() => import("../rapport/Assurance/Tableau44A")),
+  },
+
+  // ── SMT ───────────────────────────────────────────────────────────────────
+  {
+    name: "GRILLE ANALYSE NOTES SMT",
+    route: "rapport/smt/grilleanalysenotes",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/GrilleAnalyseNotes")),
+  },
+  {
+    name: "MOD BILAN",
+    route: "rapport/smt/modbilan",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/ModBilan")),
+  },
+  {
+    name: "NOTE 1 SMT",
+    route: "rapport/smt/note1smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note1Smt")),
+  },
+  {
+    name: "NOTE 2 SMT",
+    route: "rapport/smt/note2smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note2Smt")),
+  },
+  {
+    name: "NOTE 3 SMT",
+    route: "rapport/smt/note3smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note3Smt")),
+  },
+  {
+    name: "NOTE 4 SMT",
+    route: "rapport/smt/note4smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note4Smt")),
+  },
+  {
+    name: "NOTE 5 SMT",
+    route: "rapport/smt/note5smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note5Smt")),
+  },
+  {
+    name: "NOTE 6 SMT",
+    route: "rapport/smt/note6smt",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/Note6Smt")),
+  },
+  {
+    name: "T1",
+    route: "rapport/smt/t1",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T1")),
+  },
+  {
+    name: "T1 BIS",
+    route: "rapport/smt/t1bis",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T1Bis")),
+  },
+  {
+    name: "T1 TER",
+    route: "rapport/smt/t1ter",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T1Ter")),
+  },
+  {
+    name: "T2",
+    route: "rapport/smt/t2",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T2")),
+  },
+  {
+    name: "T3",
+    route: "rapport/smt/t3",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T3")),
+  },
+  {
+    name: "T4",
+    route: "rapport/smt/t4",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T4")),
+  },
+  {
+    name: "T5",
+    route: "rapport/smt/t5",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T5")),
+  },
+  {
+    name: "T6",
+    route: "rapport/smt/t6",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T6")),
+  },
+  {
+    name: "T7",
+    route: "rapport/smt/t7",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T7")),
+  },
+  {
+    name: "T8",
+    route: "rapport/smt/t8",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T8")),
+  },
+  {
+    name: "T9",
+    route: "rapport/smt/t9",
+    category: "SMT",
+    component: React.lazy(() => import("../rapport/SMT/T9")),
+  },
 ];
 
 // Build a lookup map for O(1) access by note name.
@@ -863,22 +1183,193 @@ const REPORT_BY_NAME = new Map(
 );
 
 // Build category map for quick lookup
-export const REPORT_CATEGORIES = Object.fromEntries(
-  ALL_REPORTS.reduce<[string, string[]][]>((acc, r) => {
-    const existing = acc.find(([cat]) => cat === r.category);
-    if (existing) {
-      existing[1].push(r.name);
-    } else {
-      acc.push([r.category, [r.name]]);
-    }
-    return acc;
-  }, []).map(([cat, names]) => [cat, names.sort()]),
-);
+export const REPORT_CATEGORIES = {
+  "Structure Documentaire": [
+    "SOMMAIRE",
+    "PAGE DE GARDE",
+    "FICHE R3",
+    "FICHE 1",
+    "FICHE 2",
+    "FICHE 3",
+    "GRILLE ANALYSE NOTES",
+    "BILAN PAYSAGE",
+    "COMPTE RESULTAT",
+    "TABLEAU FLUX TRESORERIE",
+  ],
+  "Notes Standard": [
+    "NOTE 1",
+    "NOTE 2",
+    "NOTE 3A",
+    "NOTE 3B",
+    "NOTE 3C",
+    "C01 NOTE 3C",
+    "NOTE 3D",
+    "NOTE 3F",
+    "NOTE 4",
+    "NOTE 5",
+    "NOTE 6",
+    "NOTE 7",
+    "NOTE 8",
+  ],
+  "Notes Additionnelles": [
+    "NOTE 9",
+    "NOTE 10",
+    "NOTE 11",
+    "NOTE 12",
+    "NOTE 13",
+    "NOTE 14",
+    "NOTE 15A",
+    "NOTE 15B",
+    "NOTE 16A",
+    "NOTE 16B",
+    "NOTE 16B BIS",
+    "NOTE 16C",
+    "NOTE 17",
+    "C1 NOTE 17",
+    "NOTE 18",
+    "NOTE 19",
+    "NOTE 20",
+    "NOTE 21",
+    "NOTE 23",
+    "NOTE 22",
+    "NOTE 24",
+    "NOTE 25",
+    "C1 NOTE 25",
+    "C2 NOTE 25",
+    "NOTE 26",
+    "NOTE 27A",
+    "C1 NOTE 27A",
+    "NOTE 27B",
+    "NOTE 28",
+    "C1 NOTE 28",
+    "C2 NOTE 28",
+    "NOTE 29",
+    "NOTE 30",
+    "NOTE 31",
+    "NOTE 32",
+    "NOTE 33",
+    "NOTE 34",
+    "NOTE 35",
+  ],
+  "Série CF": [
+    "CF1",
+    "CF1 BIS",
+    "CF1 TER",
+    "CF1 QUATER",
+    "CF2",
+    "CF2 BIS",
+    "CF2 TER",
+  ],
+  "Assurance - Base": [
+    "IMPOT 21",
+    "IMPOT 22",
+    "FICHE 4",
+    "FICHE 5",
+    "BILAN ACTIF",
+    "BILAN PASSIF",
+    "CHARGES",
+    "PRODUITS",
+    "COMPTE GENERAL PERTES PROFITS",
+    "ETAT C4",
+    "ETAT C11",
+    "ETAT C11 VIE",
+    "ANNEXE 6",
+  ],
+  "Assurance - Série Ass": [
+    "ASS 1",
+    "ASS 2",
+    "ASS 3",
+    "ASS 4",
+    "ASS 5",
+    "ASS 6",
+    "ASS 7",
+    "ASS 8",
+    "ASS 9",
+    "ASS 10",
+    "ASS 11",
+  ],
+  "Assurance - Compléments": [
+    "DECLARATION ANNUEL",
+    "SOMMES VERSE",
+    "TVA",
+    "VERSEMENTS",
+  ],
+  "Assurance - Tableaux": [
+    "TABLEAU 30",
+    "TABLEAU 31",
+    "TABLEAU 32",
+    "TABLEAU 33",
+    "TABLEAU 34",
+    "TABLEAU 35A",
+    "TABLEAU 35B",
+    "TABLEAU 36",
+    "TABLEAU 37",
+    "TABLEAU 38",
+    "TABLEAU 39",
+    "TABLEAU 40",
+    "TABLEAU 41A",
+    "TABLEAU 41B",
+    "TABLEAU 42",
+    "TABLEAU 43A",
+    "TABLEAU 43B",
+    "TABLEAU 44A",
+  ],
+  "SMT": [
+    "GRILLE ANALYSE NOTES SMT",
+    "MOD BILAN",
+    "NOTE 1 SMT",
+    "NOTE 2 SMT",
+    "NOTE 3 SMT",
+    "NOTE 4 SMT",
+    "NOTE 5 SMT",
+    "NOTE 6 SMT",
+    "T1",
+    "T1 BIS",
+    "T1 TER",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "T8",
+    "T9",
+  ],
+};
 
 // Build route map for quick lookup
-export const NOTE_ROUTE_MAP = Object.fromEntries(
-  ALL_REPORTS.map((r) => [r.name, r.route]),
-);
+const routeMap = new Map<string, string>();
+
+ALL_REPORTS.forEach((r) => {
+  // Primary name
+  routeMap.set(r.name.toUpperCase(), r.route);
+
+  // Alternative formats
+  if (r.name.includes(" NOTE ")) {
+    // For "C1 NOTE 25", also add "NOTE C1/25"
+    const parts = r.name.split(" NOTE ");
+    if (parts.length === 2) {
+      routeMap.set(`NOTE ${parts[0]}/${parts[1]}`.toUpperCase(), r.route);
+      routeMap.set(`NOTE ${parts[0]}${parts[1]}`.toUpperCase(), r.route);
+      routeMap.set(`${parts[0]}/${parts[1]}`.toUpperCase(), r.route);
+      routeMap.set(`${parts[0]}${parts[1]}`.toUpperCase(), r.route);
+    }
+  }
+
+  // Handle "NOTE X" -> "NOTEX"
+  if (r.name.startsWith("NOTE ")) {
+    const noteNum = r.name.substring(5).trim();
+    routeMap.set(`NOTE${noteNum}`.toUpperCase(), r.route);
+  }
+
+  // Handle "C1 NOTE X" -> "C1NOTEX"
+  if (r.name.includes(" NOTE ")) {
+    const withoutSpaces = r.name.replace(/\s+/g, "");
+    routeMap.set(withoutSpaces.toUpperCase(), r.route);
+  }
+});
+
+export const NOTE_ROUTE_MAP = Object.fromEntries(routeMap);
 
 // Get report by name (case-insensitive)
 export const getReportByName = (name: string): ReportDefinition | undefined => {
@@ -887,7 +1378,41 @@ export const getReportByName = (name: string): ReportDefinition | undefined => {
 
 // Get route for a note
 export const getNoteRoute = (name: string): string | undefined => {
-  return NOTE_ROUTE_MAP[name.toUpperCase()];
+  const normalizedName = name.toUpperCase().trim();
+
+  // First try exact match
+  let route = NOTE_ROUTE_MAP[normalizedName];
+  if (route) return route;
+
+  // Handle different naming formats
+  // Convert "NOTE C1/25" to "C1 NOTE 25"
+  if (normalizedName.startsWith("NOTE ")) {
+    const notePart = normalizedName.substring(5).trim(); // Remove "NOTE "
+    if (notePart.includes("/")) {
+      // Handle "C1/25" -> "C1 NOTE 25"
+      const [prefix, number] = notePart.split("/");
+      route = NOTE_ROUTE_MAP[`${prefix} NOTE ${number}`];
+      if (route) return route;
+    }
+  }
+
+  // Handle "C1 NOTE 25" format
+  if (normalizedName.includes(" NOTE ")) {
+    route = NOTE_ROUTE_MAP[normalizedName];
+    if (route) return route;
+  }
+
+  // Try removing "NOTE" prefix
+  if (normalizedName.startsWith("NOTE ")) {
+    route = NOTE_ROUTE_MAP[normalizedName.substring(5).trim()];
+    if (route) return route;
+  }
+
+  // Try adding "NOTE" prefix
+  route = NOTE_ROUTE_MAP[`NOTE ${normalizedName}`];
+  if (route) return route;
+
+  return undefined;
 };
 
 // Get all categories

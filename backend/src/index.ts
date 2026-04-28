@@ -26,6 +26,8 @@ import dsfTemplateRoutes from "./routes/dsf-template.routes";
 import dgiRoutes from "./declaration/routes/declaration.routes";
 import notificationRoutes from "./routes/notification.routes";
 import redisRoutes from "./routes/redis.routes";
+import revueFiscalRoutes from "./routes/revue-fiscal.routes";
+import { SchedulerService } from "./services/scheduler.service";
 // import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
@@ -167,6 +169,7 @@ app.use("/api/dsf-template", dsfTemplateRoutes);
 app.use("/api/dgi", dgiRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/debug/redis", redisRoutes);
+app.use("/api/revue-fiscal", revueFiscalRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling
@@ -184,6 +187,9 @@ console.log(
   `🔄 Refresh Secret loaded: ${config.jwt.refreshSecret ? "YES" : "NO"}`,
 );
 console.log(`🗄️ Database URL: ${config.database.url ? "SET" : "NOT SET"}`);
+
+// Initialize scheduler
+SchedulerService.initialize();
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

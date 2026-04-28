@@ -8683,128 +8683,259 @@ export const CONFIG_C1_NOTE27A: ConfigurationMapping = {
   },
 };
 
-// export const CONFIG_NOTE27B: ConfigurationMapping = {
-//   entete: {
-//     entityName: "A2",
-//     idNumber: "A3",
-//     fiscalYear: "M2", // Exercice clos le
-//     duration: "M3", // Durée (en mois)
-//   },
-//   sections: {
-//     effectifsEtMasseSalariale: {
-//       libelles: [
-//         "1. Cadres supérieurs",
-//         "2. Techniciens supérieurs et cadres moyens",
-//         "3. Techniciens, agents de maîtrise et ouvriers qualifiés",
-//         "4. Employés, manœuvre, ouvriers et apprentis",
-//         "TOTAL (1)",
-//         "Permanents",
-//         "Saisonniers",
-//       ],
-//       // Mapping for the main personnel table (Rows 11 to 18)
-//       lignes: [
-
-//         {
-//           code: "YA",
-//           effectifs: {
-//             nationaux: { m: "C11", f: "D11" },
-//             ohada: { m: "F11", f: "G11" },
-//             horsOhada: { m: "H11", f: "I11" },
-//             total: "J11",
-//           },
-//           masseSalariale: {
-//             nationaux: { m: "K11", f: "L11" },
-//             ohada: { m: "M11", f: "N11" },
-//             horsOhada: { m: "O11", f: "P11" },
-//             total: "Q11", // Assuming column Q exists for Total
-//           },
-//         },
-//         // ... Repeat pattern for YB (Row 12), YC (Row 13), YD (Row 14)
-//         {
-//           code: "YE", // TOTAL (1)
-//           effectifs: {
-//             nationaux: { m: "D15", f: "E15" },
-//             ohada: { m: "F15", f: "G15" },
-//             horsOhada: { m: "H15", f: "I15" },
-//             total: "J15",
-//           },
-//           masseSalariale: {
-//             nationaux: { m: "K15", f: "L15" },
-//             ohada: { m: "M15", f: "N15" },
-//             horsOhada: { m: "O15", f: "P15" },
-//             total: "Q15",
-//           },
-//         },
-//         { code: "YF", effectifs: { total: "J17" } }, // Permanents
-//         { code: "YG", effectifs: { total: "J18" } }, // Saisonniers
-//       ],
-//     },
-//     personnelExterieur: {
-//       libelles: [
-//         "1. Cadres supérieurs",
-//         "2. Techniciens supérieurs",
-//         "3. Agents de maîtrise",
-//         "4. Employés/Ouvriers",
-//         "TOTAL (2)",
-//         "Permanents",
-//         "Saisonniers",
-//         "TOTAL (1+2)",
-//       ],
-//       // Mapping for the second table (Rows 23 to 32)
-//       lignes: [
-//         {
-//           code: "YH",
-//           label: "1. Cadres supérieurs",
-//           effectifs: "D23:I23",
-//           facturation: "J23",
-//         },
-//         {
-//           code: "YI",
-//           label: "2. Techniciens supérieurs",
-//           effectifs: "D24:I24",
-//           facturation: "J24",
-//         },
-//         {
-//           code: "YJ",
-//           label: "3. Agents de maîtrise",
-//           effectifs: "D25:I25",
-//           facturation: "J25",
-//         },
-//         {
-//           code: "YK",
-//           label: "4. Employés/Ouvriers",
-//           effectifs: "D26:I26",
-//           facturation: "J26",
-//         },
-//         {
-//           code: "YL",
-//           label: "TOTAL (2)",
-//           effectifs: "D27:I27",
-//           facturation: "J27",
-//         },
-//         {
-//           code: "YM",
-//           label: "Permanents",
-//           effectifs: "D29:I29",
-//           facturation: "J29",
-//         },
-//         {
-//           code: "YN",
-//           label: "Saisonniers",
-//           effectifs: "D30:I30",
-//           facturation: "J30",
-//         },
-//         {
-//           code: "YO",
-//           label: "TOTAL (1+2)",
-//           effectifs: "D32:I32",
-//           facturation: "J32",
-//         },
-//       ],
-//     },
-
-//   },
-// };
+export const CONFIG_NOTE27B: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "M2", // Exercice clos le
+    duration: "M3", // Durée (en mois)
+  },
+  sections: {
+    effectifsEtMasseSalariale: {
+      libelles: [
+        "1. Cadres supérieurs",
+        "2. Techniciens supérieurs et cadres moyens",
+        "3. Techniciens, agents de maîtrise et ouvriers qualifiés",
+        "4. Employés, manœuvre, ouvriers et apprentis",
+        "TOTAL (1)",
+        "Permanents",
+        "Saisonniers",
+      ],
+      lignes: [
+        {
+          code: "YA",
+          effectifsnationauxm: "C11",
+          effectifsnationauxf: "D11",
+          effectifsohadaM: "E11",
+          effectifsohadaF: "F11",
+          effectifshorsOhadaM: "G11",
+          effectifshorsOhadaF: "H11",
+          effectifstotal: "I11",
+          masseSalarialenationauxm: "J11",
+          masseSalarialenationauxf: "K11",
+          masseSalarialeohadaM: "L11",
+          masseSalarialeohadaF: "M11",
+          masseSalarialehorsOhadaM: "N11",
+          masseSalarialehorsOhadaF: "O11",
+          masseSalarialetotal: "P11",
+        },
+        {
+          code: "YB",
+          effectifsnationauxm: "C12",
+          effectifsnationauxf: "D12",
+          effectifsohadaM: "E12",
+          effectifsohadaF: "F12",
+          effectifshorsOhadaM: "G12",
+          effectifshorsOhadaF: "H12",
+          effectifstotal: "I12",
+          masseSalarialenationauxm: "J12",
+          masseSalarialenationauxf: "K12",
+          masseSalarialeohadaM: "L12",
+          masseSalarialeohadaF: "M12",
+          masseSalarialehorsOhadaM: "N12",
+          masseSalarialehorsOhadaF: "O12",
+          masseSalarialetotal: "P12",
+        },
+        {
+          code: "YC",
+          effectifsnationauxm: "C13",
+          effectifsnationauxf: "D13",
+          effectifsohadaM: "E13",
+          effectifsohadaF: "F13",
+          effectifshorsOhadaM: "G13",
+          effectifshorsOhadaF: "H13",
+          effectifstotal: "I13",
+          masseSalarialenationauxm: "J13",
+          masseSalarialenationauxf: "K13",
+          masseSalarialeohadaM: "L13",
+          masseSalarialeohadaF: "M13",
+          masseSalarialehorsOhadaM: "N13",
+          masseSalarialehorsOhadaF: "O13",
+          masseSalarialetotal: "P13",
+        },
+        {
+          code: "YD",
+          effectifsnationauxm: "C14",
+          effectifsnationauxf: "D14",
+          effectifsohadaM: "E14",
+          effectifsohadaF: "F14",
+          effectifshorsOhadaM: "G14",
+          effectifshorsOhadaF: "H14",
+          effectifstotal: "I14",
+          masseSalarialenationauxm: "J14",
+          masseSalarialenationauxf: "K14",
+          masseSalarialeohadaM: "L14",
+          masseSalarialeohadaF: "M14",
+          masseSalarialehorsOhadaM: "N14",
+          masseSalarialehorsOhadaF: "O14",
+          masseSalarialetotal: "P14",
+        },
+        {
+          code: "YE", // TOTAL (1)
+          effectifsnationauxm: "C15",
+          effectifsnationauxf: "D15",
+          effectifsohadaM: "E15",
+          effectifsohadaF: "F15",
+          effectifshorsOhadaM: "G15",
+          effectifshorsOhadaF: "H15",
+          effectifstotal: "I15",
+          masseSalarialenationauxm: "J15",
+          masseSalarialenationauxf: "K15",
+          masseSalarialeohadaM: "L15",
+          masseSalarialeohadaF: "M15",
+          masseSalarialehorsOhadaM: "N15",
+          masseSalarialehorsOhadaF: "O15",
+          masseSalarialetotal: "P15",
+        },
+        {
+          code: "YF",
+          effectifsnationauxm: "C17",
+          effectifsnationauxf: "D17",
+          effectifsohadaM: "E17",
+          effectifsohadaF: "F17",
+          effectifshorsOhadaM: "G17",
+          effectifshorsOhadaF: "H17",
+          effectifstotal: "I17",
+          masseSalarialenationauxm: "J17",
+          masseSalarialenationauxf: "K17",
+          masseSalarialeohadaM: "L17",
+          masseSalarialeohadaF: "M17",
+          masseSalarialehorsOhadaM: "N17",
+          masseSalarialehorsOhadaF: "O17",
+          masseSalarialetotal: "P17",
+        },
+        {
+          code: "YG",
+          effectifsnationauxm: "C18",
+          effectifsnationauxf: "D18",
+          effectifsohadaM: "E18",
+          effectifsohadaF: "F18",
+          effectifshorsOhadaM: "G18",
+          effectifshorsOhadaF: "H18",
+          effectifstotal: "I18",
+          masseSalarialenationauxm: "J18",
+          masseSalarialenationauxf: "K18",
+          masseSalarialeohadaM: "L18",
+          masseSalarialeohadaF: "M18",
+          masseSalarialehorsOhadaM: "N18",
+          masseSalarialehorsOhadaF: "O18",
+          masseSalarialetotal: "P18",
+        },
+      ],
+    },
+    personnelExterieur: {
+      libelles: [
+        "1. Cadres supérieurs",
+        "2. Techniciens supérieurs",
+        "3. Agents de maîtrise",
+        "4. Employés/Ouvriers",
+        "TOTAL (2)",
+        "Permanents",
+        "Saisonniers",
+        "TOTAL (1+2)",
+      ],
+      // Mapping for the second table (Rows 23 to 32)
+      lignes: [
+        {
+          code: "YH",
+          label: "1. Cadres supérieurs",
+          effectifsnationauxm: "C23",
+          effectifsnationauxf: "D23",
+          effectifsohadaM: "F23",
+          effectifsohadaF: "G23",
+          effectifshorsOhadaM: "H23",
+          effectifshorsOhadaF: "I23",
+          effectifstotal: "J23",
+          facturation: "K23",
+        },
+        {
+          code: "YI",
+          label: "2. Techniciens supérieurs",
+          effectifsnationauxm: "C24",
+          effectifsnationauxf: "D24",
+          effectifsohadaM: "F24",
+          effectifsohadaF: "G24",
+          effectifshorsOhadaM: "H24",
+          effectifshorsOhadaF: "I24",
+          effectifstotal: "J24",
+          facturation: "K24",
+        },
+        {
+          code: "YJ",
+          label: "3. Agents de maîtrise",
+          effectifsnationauxm: "C25",
+          effectifsnationauxf: "D25",
+          effectifsohadaM: "F25",
+          effectifsohadaF: "G25",
+          effectifshorsOhadaM: "H25",
+          effectifshorsOhadaF: "I25",
+          effectifstotal: "J25",
+          facturation: "K25",
+        },
+        {
+          code: "YK",
+          label: "4. Employés/Ouvriers",
+          effectifsnationauxm: "C26",
+          effectifsnationauxf: "D26",
+          effectifsohadaM: "F26",
+          effectifsohadaF: "G26",
+          effectifshorsOhadaM: "H26",
+          effectifshorsOhadaF: "I26",
+          effectifstotal: "J26",
+          facturation: "K26",
+        },
+        {
+          code: "YL",
+          label: "TOTAL (2)",
+          effectifsnationauxm: "C27",
+          effectifsnationauxf: "D27",
+          effectifsohadaM: "F27",
+          effectifsohadaF: "G27",
+          effectifshorsOhadaM: "H27",
+          effectifshorsOhadaF: "I27",
+          effectifstotal: "J27",
+          facturation: "K27",
+        },
+        {
+          code: "YM",
+          label: "Permanents",
+          effectifsnationauxm: "C29",
+          effectifsnationauxf: "D29",
+          effectifsohadaM: "F29",
+          effectifsohadaF: "G29",
+          effectifshorsOhadaM: "H29",
+          effectifshorsOhadaF: "I29",
+          effectifstotal: "J29",
+          facturation: "J29",
+        },
+        {
+          code: "YN",
+          label: "Saisonniers",
+          effectifsnationauxm: "C30",
+          effectifsnationauxf: "D30",
+          effectifsohadaM: "F30",
+          effectifsohadaF: "G30",
+          effectifshorsOhadaM: "H30",
+          effectifshorsOhadaF: "I30",
+          effectifstotal: "J30",
+          facturation: "J30",
+        },
+        {
+          code: "YO",
+          label: "TOTAL (1+2)",
+          effectifsnationauxm: "C32",
+          effectifsnationauxf: "D32",
+          effectifsohadaM: "F32",
+          effectifsohadaF: "G32",
+          effectifshorsOhadaM: "H32",
+          effectifshorsOhadaF: "I32",
+          effectifstotal: "J32",
+          facturation: "J32",
+        },
+      ],
+    },
+  },
+};
 
 export const CONFIG_NOTE21: ConfigurationMapping = {
   entete: {
@@ -8992,333 +9123,417 @@ export const CONFIG_NOTE21: ConfigurationMapping = {
   },
 };
 
-// export const CONFIG_NOTE22: ConfigurationMapping = {
-//   entete: {
-//     entityName: "A2",
-//     idNumber: "A3",
-//     fiscalYear: "F2", // Exercice clos le
-//     duration: "F3", // Durée (en mois)
-//   },
-//   sections: {
-//     achats: {
-//       achatsMarchandises: {
-//         lignes: [
-//           {
-//             label: "Achats dans la régions",
-//             anneeN: "E9",
-//             anneeN1: "F9",
-//             variation: "G9",
-//           },
-//           {
-//             label: "Achats hors régions",
-//             anneeN: "E10",
-//             anneeN1: "F10",
-//             variation: "G10",
-//           },
-//           {
-//             label: "Achats groupe",
-//             anneeN: "E11",
-//             anneeN1: "F11",
-//             variation: "G11",
-//           },
-//           {
-//             label: "TOTAL : ACHATS DE MARCHANDISES",
-//             anneeN: "E12",
-//             anneeN1: "F12",
-//             variation: "G12",
-//           },
-//         ],
-//       },
-//       achatsMatieresPremieres: {
-//         lignes: [
-//           {
-//             label: "Achat dans la région",
-//             anneeN: "E14",
-//             anneeN1: "F14",
-//             variation: "G14",
-//           },
-//           {
-//             label: "Achat hors région",
-//             anneeN: "E15",
-//             anneeN1: "F15",
-//             variation: "G15",
-//           },
-//           {
-//             label: "Achat groupe",
-//             anneeN: "E16",
-//             anneeN1: "F16",
-//             variation: "G16",
-//           },
-//           {
-//             label: "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
-//             anneeN: "E17",
-//             anneeN1: "F17",
-//             variation: "G17",
-//           },
-//         ],
-//       },
-//       autresAchats: {
-//         lignes: [
-//           {
-//             label: "Matières consommables",
-//             anneeN: "E19",
-//             anneeN1: "F19",
-//             variation: "G19",
-//           },
-//           {
-//             label: "Matières combustibles",
-//             anneeN: "E20",
-//             anneeN1: "F20",
-//             variation: "G20",
-//           },
-//           {
-//             label: "Produits d'entretien",
-//             anneeN: "E21",
-//             anneeN1: "F21",
-//             variation: "G21",
-//           },
-//           {
-//             label: "Fournitures d'atelier, d'usine et de magasin",
-//             anneeN: "E22",
-//             anneeN1: "F22",
-//             variation: "G22",
-//           },
-//           { label: "Eau", anneeN: "E23", anneeN1: "F23", variation: "G23" },
-//           {
-//             label: "Electricité",
-//             anneeN: "E24",
-//             anneeN1: "F24",
-//             variation: "G24",
-//           },
-//           {
-//             label: "Autres énergies",
-//             anneeN: "E25",
-//             anneeN1: "F25",
-//             variation: "G25",
-//           },
-//           {
-//             label: "Fourniture d'entretien",
-//             anneeN: "E26",
-//             anneeN1: "F26",
-//             variation: "G26",
-//           },
-//           {
-//             label: "Fournitures de bureau",
-//             anneeN: "E27",
-//             anneeN1: "F27",
-//             variation: "G27",
-//           },
-//           {
-//             label: "Petit matériel et outillages",
-//             anneeN: "E28",
-//             anneeN1: "F28",
-//             variation: "G28",
-//           },
-//           {
-//             label:
-//               "Achats études, prestations de services, de travaux matériels et équipements",
-//             anneeN: "E29",
-//             anneeN1: "F29",
-//             variation: "G29",
-//           },
-//           {
-//             label: "Achats d'emballages",
-//             anneeN: "E30",
-//             anneeN1: "F30",
-//             variation: "G30",
-//           },
-//           {
-//             label: "Frais sur achats",
-//             anneeN: "E31",
-//             anneeN1: "F31",
-//             variation: "G31",
-//           },
-//           {
-//             label: "Remises rabais, remises et ristournes",
-//             anneeN: "E32",
-//             anneeN1: "F32",
-//             variation: "G32",
-//           },
-//           {
-//             label: "TOTAL : AUTRES ACHATS",
-//             anneeN: "E33",
-//             anneeN1: "F33",
-//             variation: "G33",
-//           },
-//         ],
-//       },
-//     },
-//   },
-//   commentaire: "A35",
-// };
+export const CONFIG_NOTE22: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "F2", // Exercice clos le
+    duration: "F3", // Durée (en mois)
+  },
+  sections: {
+    achats: {
+      libelles: [
+        "Achats dans la régions",
+        "Achats hors régions",
+        "Achats groupe",
+        "TOTAL : ACHATS DE MARCHANDISES",
+      ],
+      lignes: [
+        {
+          label: "Achats dans la régions",
+          anneeN: "E9",
+          anneeN1: "F9",
+          variation: "G9",
+        },
+        {
+          label: "Achats hors régions",
+          anneeN: "E10",
+          anneeN1: "F10",
+          variation: "G10",
+        },
+        {
+          label: "Achats groupe",
+          anneeN: "E11",
+          anneeN1: "F11",
+          variation: "G11",
+        },
+        {
+          label: "TOTAL : ACHATS DE MARCHANDISES",
+          anneeN: "E12",
+          anneeN1: "F12",
+          variation: "G12",
+        },
+      ],
+    },
+    achatsMatieresPremieres: {
+      libelles: [
+        "Achat dans la région",
+        "Achat hors région",
+        "Achat groupe",
+        "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
+      ],
+      lignes: [
+        {
+          label: "Achat dans la région",
+          anneeN: "E14",
+          anneeN1: "F14",
+          variation: "G14",
+        },
+        {
+          label: "Achat hors région",
+          anneeN: "E15",
+          anneeN1: "F15",
+          variation: "G15",
+        },
+        {
+          label: "Achat groupe",
+          anneeN: "E16",
+          anneeN1: "F16",
+          variation: "G16",
+        },
+        {
+          label: "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
+          anneeN: "E17",
+          anneeN1: "F17",
+          variation: "G17",
+        },
+      ],
+    },
+    autresAchats: {
+      libelles: [
+        "Matières consommables",
+        "Matières combustibles",
+        "Produits d'entretien",
+        "Fournitures d'atelier, d'usine et de magasin",
+        "Eau",
+        "Electricité",
+        "Autres énergies",
+        "Fourniture d'entretien",
+        "Fournitures de bureau",
+        "Petit matériel et outillages",
+        "Achats études, prestations de services, de travaux matériels et équipements",
+        "Achats d'emballages",
+        "Frais sur achats",
+        "Remises rabais, remises et ristournes",
+        "TOTAL : AUTRES ACHATS",
+      ],
+      lignes: [
+        {
+          label: "Matières consommables",
+          anneeN: "E19",
+          anneeN1: "F19",
+          variation: "G19",
+        },
+        {
+          label: "Matières combustibles",
+          anneeN: "E20",
+          anneeN1: "F20",
+          variation: "G20",
+        },
+        {
+          label: "Produits d'entretien",
+          anneeN: "E21",
+          anneeN1: "F21",
+          variation: "G21",
+        },
+        {
+          label: "Fournitures d'atelier, d'usine et de magasin",
+          anneeN: "E22",
+          anneeN1: "F22",
+          variation: "G22",
+        },
+        { label: "Eau", anneeN: "E23", anneeN1: "F23", variation: "G23" },
+        {
+          label: "Electricité",
+          anneeN: "E24",
+          anneeN1: "F24",
+          variation: "G24",
+        },
+        {
+          label: "Autres énergies",
+          anneeN: "E25",
+          anneeN1: "F25",
+          variation: "G25",
+        },
+        {
+          label: "Fourniture d'entretien",
+          anneeN: "E26",
+          anneeN1: "F26",
+          variation: "G26",
+        },
+        {
+          label: "Fournitures de bureau",
+          anneeN: "E27",
+          anneeN1: "F27",
+          variation: "G27",
+        },
+        {
+          label: "Petit matériel et outillages",
+          anneeN: "E28",
+          anneeN1: "F28",
+          variation: "G28",
+        },
+        {
+          label:
+            "Achats études, prestations de services, de travaux matériels et équipements",
+          anneeN: "E29",
+          anneeN1: "F29",
+          variation: "G29",
+        },
+        {
+          label: "Achats d'emballages",
+          anneeN: "E30",
+          anneeN1: "F30",
+          variation: "G30",
+        },
+        {
+          label: "Frais sur achats",
+          anneeN: "E31",
+          anneeN1: "F31",
+          variation: "G31",
+        },
+        {
+          label: "Remises rabais, remises et ristournes",
+          anneeN: "E32",
+          anneeN1: "F32",
+          variation: "G32",
+        },
+        {
+          label: "TOTAL : AUTRES ACHATS",
+          anneeN: "E33",
+          anneeN1: "F33",
+          variation: "G33",
+        },
+      ],
+    },
+  },
+};
 
-// export const CONFIG_CF1: ConfigurationMapping = {
-//   entete: {
-//     entityName: "A2",
-//     idNumber: "A3",
-//     // Note: This specific sheet lacks the date/duration fields in the header compared to previous ones
-//   },
-//   sections: {
-//     resultatComptable: {
-//       lignes: [
-//         {
-//           label: "BENEFICE NET COMPTABLE AVANT IMPOT",
-//           ligne: 1,
-//           montant: "L10",
-//         },
-//         {
-//           label: "PERTE NETTE COMPTABLE AVANT IMPOT",
-//           ligne: 2,
-//           montant: "L11",
-//         },
-//       ],
-//     },
-//     reintegrations: {
-//       lignes: [
-//         { label: "Amortissement non déductible", ligne: 3, montant: "L13" },
-//         {
-//           label: "Amortissement comptabilisés mais réputés différés...",
-//           ligne: 4,
-//           montant: "L14",
-//         },
-//         { label: "Provisions non déductibles", ligne: 5, montant: "L15" },
-//         {
-//           label: "Intérêt excédentaire des comptes courants d'associés",
-//           ligne: 6,
-//           montant: "L16",
-//         },
-//         {
-//           label: "Frais de siège et d'assistance technique",
-//           ligne: 7,
-//           montant: "L17",
-//         },
-//         {
-//           label: "Impôt non déductibles autres qu'impôt sur le résultat",
-//           ligne: 8,
-//           montant: "L18",
-//         },
-//         {
-//           label: "Amendes et pénalités non déductibles",
-//           ligne: 9,
-//           montant: "L19",
-//         },
-//         {
-//           label: "Pourboires et dons non déductible",
-//           ligne: 10,
-//           montant: "L20",
-//         },
-//         {
-//           label:
-//             "Retenue à la source (IRMC) sur revenus des capitaux mobiliers",
-//           ligne: 11,
-//           montant: "L21",
-//         },
-//         { label: "Divers 1", ligne: 12, montant: "L22" },
-//         { label: "Divers 2", ligne: 13, montant: "L23" },
-//         { label: "Divers 3", ligne: 14, montant: "L24" },
-//         {
-//           label: "REINTEGRATIONS : totaux lignes 3 à 14",
-//           ligne: 15,
-//           montant: "L25",
-//         },
-//       ],
-//     },
-//     intermediaires: {
-//       totalPositif: { ligne: 16, montant: "L27" },
-//       totalNegatif: { ligne: 17, montant: "L28" },
-//     },
-//     deductions: {
-//       lignes: [
-//         {
-//           label: "Amortissement antérieur différés et imputés",
-//           ligne: 18,
-//           montant: "L30",
-//         },
-//         {
-//           label: "Provisions antérieurement taxées...",
-//           ligne: 19,
-//           montant: "L31",
-//         },
-//         {
-//           label: "Fraction non imposable des plus-values...",
-//           ligne: 20,
-//           montant: "L32",
-//         },
-//         { label: "Produit nets des filiales", ligne: 21, montant: "L33" },
-//         {
-//           label: "Autres revenus mobiliers déductibles",
-//           ligne: 22,
-//           montant: "L34",
-//         },
-//         {
-//           label: "Frais de siège et d'assistance technique déductibles",
-//           ligne: 23,
-//           montant: "L35",
-//         },
-//         { label: "Divers 1", ligne: 24, montant: "L36" },
-//         { label: "Divers 2", ligne: 25, montant: "L37" },
-//         { label: "Divers 3", ligne: 26, montant: "L38" },
-//         {
-//           label: "DEDUCTIONS : totaux lignes 18 à 26",
-//           ligne: 27,
-//           montant: "L39",
-//         },
-//       ],
-//     },
-//     resultatFiscal: {
-//       beneficeFiscal: { ligne: 28, montant: "L41" },
-//       perteFiscale: { ligne: 29, montant: "L42" },
-//     },
-//     minimumPerception: {
-//       lignes: [
-//         {
-//           label: "Minimum de perception",
-//           ligne: 30,
-//           base: "G45",
-//           taux: "K45",
-//           principal: "L45",
-//         },
-//         {
-//           label: "Impôt sur les sociétés",
-//           ligne: 31,
-//           base: "G46",
-//           taux: "K46",
-//           principal: "L46",
-//         },
-//         {
-//           label: "BIC et BNC",
-//           ligne: 32,
-//           base: "G47",
-//           taux: "K47",
-//           principal: "L47",
-//         },
-//         // Lignes 33-36 follow the same pattern for agricultural/artisanal
-//         {
-//           label: "Bénéfice artisanaux",
-//           ligne: 34,
-//           base: "G49",
-//           taux: "K49",
-//           principal: "L49",
-//         },
-//         {
-//           label: "Bénéficiaires agricoles",
-//           ligne: 37,
-//           base: "G52",
-//           taux: "K52",
-//           principal: "L52",
-//         },
-//         { label: "IR", ligne: 38, base: "G53", taux: "K53", principal: "L53" },
-//         {
-//           label: "TOTAL lignes 32 à 38",
-//           ligne: 39,
-//           base: "G54",
-//           taux: "K54",
-//           principal: "L54",
-//         },
-//       ],
-//     },
-//   },
-// };
+export const CONFIG_CF1: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    // Note: This specific sheet lacks the date/duration fields in the header compared to previous ones
+  },
+  sections: {
+    resultatComptable: {
+      libelles: [
+        "Bénéfice net comptable avant impôt",
+        "Perte nette comptable avant impôt",
+      ],
+      lignes: [
+        {
+          label: "BENEFICE NET COMPTABLE AVANT IMPOT",
+          ligne: "1",
+          montant: "L10",
+        },
+        {
+          label: "PERTE NETTE COMPTABLE AVANT IMPOT",
+          ligne: "2",
+          montant: "L11",
+        },
+      ],
+    },
+    reintegrations: {
+      libelles: [
+        "Amortissement non déductible",
+        "Amortissement comptabilisés mais réputés différés...",
+        "Provisions non déductibles",
+        "Intérêt excédentaire des comptes courants d'associés",
+        "Frais de siège et d'assistance technique",
+        "Impôt non déductibles autres qu'impôt sur le résultat",
+        "Amendes et pénalités non déductibles",
+        "Pourboires et dons non déductible",
+        "Retenue à la source (IRMC) sur revenus des capitaux mobiliers",
+        "Divers 1",
+        "Divers 2",
+        "Divers 3",
+        "REINTEGRATIONS : totaux lignes 3 à 14",
+      ],
+      lignes: [
+        { label: "Amortissement non déductible", ligne: "3", montant: "L13" },
+        {
+          label: "Amortissement comptabilisés mais réputés différés...",
+          ligne: "4",
+          montant: "L14",
+        },
+        { label: "Provisions non déductibles", ligne: "5", montant: "L15" },
+        {
+          label: "Intérêt excédentaire des comptes courants d'associés",
+          ligne: "6",
+          montant: "L16",
+        },
+        {
+          label: "Frais de siège et d'assistance technique",
+          ligne: "7",
+          montant: "L17",
+        },
+        {
+          label: "Impôt non déductibles autres qu'impôt sur le résultat",
+          ligne: "8",
+          montant: "L18",
+        },
+        {
+          label: "Amendes et pénalités non déductibles",
+          ligne: "9",
+          montant: "L19",
+        },
+        {
+          label: "Pourboires et dons non déductible",
+          ligne: "10",
+          montant: "L20",
+        },
+        {
+          label:
+            "Retenue à la source (IRMC) sur revenus des capitaux mobiliers",
+          ligne: "11",
+          montant: "L21",
+        },
+        { label: "Divers 1", ligne: "12", montant: "L22" },
+        { label: "Divers 2", ligne: "13", montant: "L23" },
+        { label: "Divers 3", ligne: "14", montant: "L24" },
+        {
+          label: "REINTEGRATIONS : totaux lignes 3 à 14",
+          ligne: "15",
+          montant: "L25",
+        },
+      ],
+    },
+    intermediaires: {
+      libelles: [
+        "Total intermédiaire POSITIF : ligne 15+ligne1ou ligne15+ligne2",
+        "Total intermédiaire NEGATIF : ligne2+ligne 15",
+      ],
+      lignes: [
+        { label: "TOTAL REINTEGRATIONS", ligne: "16", montant: "L27" },
+        { label: "TOTAL DEDUCTIONS", ligne: "27", montant: "L28" },
+      ],
+    },
+    deductions: {
+      libelles: [
+        "Amortissement antérieur différés et imputés",
+        "Provisions antérieurement taxées...",
+        "Fraction non imposable des plus-values...",
+        "Produit nets des filiales",
+        "Autres revenus mobiliers déductibles",
+        "Frais de siège et d'assistance technique déductibles",
+        "Divers 1",
+        "Divers 2",
+        "Divers 3",
+        "DEDUCTIONS : totaux lignes 18 à 26",
+      ],
+
+      lignes: [
+        {
+          label: "Amortissement antérieur différés et imputés",
+          ligne: "18",
+          montant: "L30",
+        },
+        {
+          label: "Provisions antérieurement taxées...",
+          ligne: "19",
+          montant: "L31",
+        },
+        {
+          label: "Fraction non imposable des plus-values...",
+          ligne: "20",
+          montant: "L32",
+        },
+        { label: "Produit nets des filiales", ligne: "21", montant: "L33" },
+        {
+          label: "Autres revenus mobiliers déductibles",
+          ligne: "22",
+          montant: "L34",
+        },
+        {
+          label: "Frais de siège et d'assistance technique déductibles",
+          ligne: "23",
+          montant: "L35",
+        },
+        { label: "Divers 1", ligne: "24", montant: "L36" },
+        { label: "Divers 2", ligne: "25", montant: "L37" },
+        { label: "Divers 3", ligne: "26", montant: "L38" },
+        {
+          label: "DEDUCTIONS : totaux lignes 18 à 26",
+          ligne: "27",
+          montant: "L39",
+        },
+      ],
+    },
+    resultatFiscal: {
+      libelles: [
+        "Bénéfice fiscal de l'exercice: ligne 16-ligne 27",
+        "Perte fiscale de l'exercice: ligne 27-ligne 16 ou ligne 17+ligne 27",
+      ],
+      lignes: [
+        { ligne: "28", montant: "L41" },
+        { ligne: "29", montant: "L42" },
+      ],
+    },
+    minimumPerception: {
+      libelles: [
+        "Minimum de perception",
+        "Impôt sur les sociétés",
+        "BIC et BNC",
+        "Bénéfice artisanaux",
+        "Bénéficiaires agricoles",
+        "IR",
+        "TOTAL lignes 32 à 38",
+      ],
+      lignes: [
+        {
+          label: "Minimum de perception",
+          ligne: "30",
+          base: "G45",
+          taux: "K45",
+          principal: "L45",
+        },
+        {
+          label: "Impôt sur les sociétés",
+          ligne: "31",
+          base: "G46",
+          taux: "K46",
+          principal: "L46",
+        },
+        {
+          label: "BIC et BNC",
+          ligne: "32",
+          base: "G47",
+          taux: "K47",
+          principal: "L47",
+        },
+        {
+          label: "Bénéfice artisanaux",
+          ligne: "34",
+          base: "G49",
+          taux: "K49",
+          principal: "L49",
+        },
+        {
+          label: "Bénéficiaires agricoles",
+          ligne: "37",
+          base: "G52",
+          taux: "K52",
+          principal: "L52",
+        },
+        {
+          label: "IR",
+          ligne: "38",
+          base: "G53",
+          taux: "K53",
+          principal: "L53",
+        },
+        {
+          label: "TOTAL lignes 32 à 38",
+          ligne: "39",
+          base: "G54",
+          taux: "K54",
+          principal: "L54",
+        },
+      ],
+    },
+  },
+};
 
 // export const CONFIG_CF1_BIS: ConfigurationMapping = {
 //   entete: {

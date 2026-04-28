@@ -13,6 +13,7 @@ export interface TranslationKeys {
   history: string;
   televersion: string;
   other: string;
+  revueFiscal: string;
 
   // Common
   loading: string;
@@ -191,6 +192,7 @@ export const translations: Record<string, TranslationKeys> = {
     history: "History",
     televersion: "File Transfer",
     other: "Other",
+    revueFiscal: "Fiscal Review",
 
     // Common
     loading: "Loading...",

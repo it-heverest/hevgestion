@@ -63,6 +63,9 @@ model User {
   // User notifications
   notifications Notification[]
 
+  // Activity tracking
+  lastActivity DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -535,6 +538,9 @@ enum NotificationType {
   DSF_GENERATED
   DEADLINE_APPROACHING
   SYSTEM
+  DAILY_GREETING
+  INACTIVITY_REMINDER
+  DSF_REMINDER
 }
 
 model AuditLog {
@@ -890,4 +896,53 @@ enum ChangeType {
   PROCESSED
   VALIDATED
   SUBMITTED
+}
+
+// ========== REVUE FISCAL MANAGEMENT ==========
+model RevueFiscalCompany {
+  id        String   @id @default(uuid())
+  name      String
+  sector    String?
+  exercice  String?
+  reviseur  String?
+  chef      String?
+  niu       String?
+
+  questionStates RevueFiscalQuestionState[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("revue_fiscal_companies")
+}
+
+model RevueFiscalQuestionState {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    RevueFiscalCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  questionId String
+  eval       RevueFiscalEval?
+  note       String?
+  renvoi     String?
+  priority   RevueFiscalPriority @default(NORMALE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, questionId])
+  @@map("revue_fiscal_question_states")
+}
+
+enum RevueFiscalEval {
+  NA
+  OK
+  ERR_MAT
+  ANOMALIE
+}
+
+enum RevueFiscalPriority {
+  HAUTE
+  NORMALE
+  BASSE
 }

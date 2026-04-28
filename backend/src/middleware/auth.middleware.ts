@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { UnauthorizedError, ForbiddenError } from "../lib/errors";
 import { verifyAccessToken } from "../utils/auth";
 import { prisma } from "../lib/prisma";
+import { NotificationService } from "../services/notification.service";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -58,6 +59,11 @@ export const authenticate = async (
       email: user.email || undefined,
       role: user.role,
     };
+
+    // Update last activity (fire and forget)
+    NotificationService.updateLastActivity(user.id).catch(error =>
+      console.error("Failed to update last activity:", error)
+    );
 
     next();
   } catch (error) {
