@@ -137,9 +137,48 @@ export class RevueFiscalController {
     try {
       const { companyId, questionId, eval: evalValue, note, renvoi, priority }: UpdateQuestionStateRequest = req.body;
 
+      console.log('Updating question state:', { companyId, questionId, eval: evalValue, note, renvoi, priority });
+
       if (!companyId || !questionId) {
         return res.status(400).json({ error: 'Company ID and Question ID are required' });
       }
+
+      // Check if company exists first
+      const companyExists = await prisma.revueFiscalCompany.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!companyExists) {
+        console.error(`Company with ID ${companyId} not found`);
+        return res.status(404).json({ error: 'Company not found' });
+      }
+
+      // Prepare update data, excluding undefined values
+      const updateData: any = {};
+      const createData: any = {
+        companyId,
+        questionId,
+      };
+
+      if (evalValue !== undefined) {
+        updateData.eval = evalValue;
+        createData.eval = evalValue;
+      }
+      if (note !== undefined) {
+        updateData.note = note;
+        createData.note = note;
+      }
+      if (renvoi !== undefined) {
+        updateData.renvoi = renvoi;
+        createData.renvoi = renvoi;
+      }
+      if (priority !== undefined) {
+        updateData.priority = priority;
+        createData.priority = priority;
+      }
+
+      console.log('Update data:', updateData);
+      console.log('Create data:', createData);
 
       const questionState = await prisma.revueFiscalQuestionState.upsert({
         where: {
@@ -148,26 +187,18 @@ export class RevueFiscalController {
             questionId,
           },
         },
-        update: {
-          eval: evalValue,
-          note,
-          renvoi,
-          priority,
-        },
-        create: {
-          companyId,
-          questionId,
-          eval: evalValue,
-          note,
-          renvoi,
-          priority,
-        },
+        update: updateData,
+        create: createData,
       });
 
       res.json(questionState);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating question state:', error);
-      res.status(500).json({ error: 'Failed to update question state' });
+      if (error.code) {
+        console.error('Prisma error code:', error.code);
+        console.error('Prisma error meta:', error.meta);
+      }
+      res.status(500).json({ error: 'Failed to update question state', details: error.message });
     }
   }
 
