@@ -15,6 +15,7 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   clients?: any[];
+  isRestrictedUser?: boolean;
 }
 
 export interface Client {

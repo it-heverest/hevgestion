@@ -137,7 +137,13 @@ export function useLogin() {
         password: "",
       }));
 
-      navigate("/fr/web/user/select-country");
+      // Check if this is a restricted user and navigate accordingly
+      const isRestrictedUser = user?.isRestrictedUser;
+      if (isRestrictedUser) {
+        navigate("/fr/web/user/revuefiscal/me/revuefiscal");
+      } else {
+        navigate("/fr/web/user/select-country");
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Échec de la connexion";

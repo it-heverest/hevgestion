@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Phone, Lock, Loader2 } from "lucide-react";
+import { Phone, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -45,6 +45,7 @@ export function LoginPage({
 }: LoginPageProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <motion.div
@@ -106,14 +107,22 @@ export function LoginPage({
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={loginForm.password}
                   onChange={(e) => onLoginChange("password", e.target.value)}
                   placeholder={t("password")}
-                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
                   autoComplete="new-password"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
             <div className="space-y-2 text-right">

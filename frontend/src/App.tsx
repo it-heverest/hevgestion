@@ -368,13 +368,21 @@ export function ProtectedLayout({
   selectedClient: any;
 }) {
   const { user } = useAuth();
+  const isRestrictedUser = user?.isRestrictedUser;
   const navigate = useNavigate();
   const location = useLocation();
   const { language } = useApp();
   const { t } = useTranslation();
 
-  // Get translated navigation items
-  const translatedNavItems = useMemo(() => getNavigationItems(t), [t]);
+  // Get translated navigation items, filtered for restricted users
+  const translatedNavItems = useMemo(() => {
+    const allItems = getNavigationItems(t);
+    if (isRestrictedUser) {
+      // Only show RevueFiscal for restricted users
+      return allItems.filter(item => item.id === 'revuefiscal');
+    }
+    return allItems;
+  }, [t, isRestrictedUser]);
 
   // Extract language prefix from URL
   const pathSegments = location.pathname.split("/").filter(Boolean);
@@ -388,8 +396,25 @@ export function ProtectedLayout({
     // Skip language prefix and "web/user" parts
     const actionId =
       parts.length >= 4 ? parts[3] || parts[2] : parts[1] || "dashboard";
+
+    // Check if restricted user is trying to access forbidden pages
+    if (isRestrictedUser && actionId !== "revuefiscal") {
+      console.log('Restricted user trying to access forbidden page, redirecting to revuefiscal');
+      // Redirect restricted users to revuefiscal
+      navigate(`/${langPrefix}/web/user/revuefiscal/me/revuefiscal`, { replace: true });
+      return;
+    }
+
     setActiveRoute(actionId);
-  }, [location.pathname, setActiveRoute]);
+  }, [location.pathname, setActiveRoute, isRestrictedUser, navigate, langPrefix]);
+
+  // Additional protection: redirect restricted users immediately on mount if they're not on revuefiscal
+  useEffect(() => {
+    if (isRestrictedUser && !location.pathname.includes('/revuefiscal')) {
+      console.log('Restricted user detected on non-revuefiscal page, redirecting');
+      navigate(`/${langPrefix}/web/user/revuefiscal/me/revuefiscal`, { replace: true });
+    }
+  }, [isRestrictedUser, location.pathname, navigate, langPrefix]);
 
   return (
     <SidebarProvider>
@@ -403,7 +428,7 @@ export function ProtectedLayout({
               <div>
                 <h1 className="font-semibold">HevGestion DSF</h1>
                 <p className="text-xs text-muted-foreground">
-                  {t("systemStatusCompliant")}
+                  {isRestrictedUser ? "Accès Restreint - Revue Fiscale" : t("systemStatusCompliant")}
                 </p>
               </div>
             </div>
@@ -533,6 +558,7 @@ export function ProtectedLayout({
 
 function AppRoutes() {
   const { isAuthenticated, user, isInitializing } = useAuth();
+  const isRestrictedUser = user?.isRestrictedUser;
   const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState<any>(null);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -591,15 +617,43 @@ function AppRoutes() {
               isInitializing ? (
                 <AuthLoader />
               ) : isAuthenticated ? (
-                <ProtectedLayout
-                  selectedCountry={selectedCountry}
-                  setSelectedCountry={setSelectedCountry}
-                  selectedCompany={selectedCompany}
-                  setSelectedCompany={setSelectedCompany}
-                  selectedExercise={selectedFolder}
-                  setActiveRoute={setActiveRoute}
-                  selectedClient={selectedClient}
-                />
+                isRestrictedUser ? (
+                  // Restricted user - only access to RevueFiscal
+                  <div className="min-h-screen bg-gray-50">
+                    <div className="max-w-7xl mx-auto px-6 py-4">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h1 className="text-lg font-semibold text-gray-900">
+                            Revue Fiscale - Accès Restreint
+                          </h1>
+                          <p className="text-sm text-gray-500">
+                            Utilisateur avec accès limité - Revue Fiscale uniquement
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            // Logout functionality
+                            window.location.href = "/fr/web/user/login";
+                          }}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                        >
+                          Déconnexion
+                        </button>
+                      </div>
+                      <RevueFiscal />
+                    </div>
+                  </div>
+                ) : (
+                  <ProtectedLayout
+                    selectedCountry={selectedCountry}
+                    setSelectedCountry={setSelectedCountry}
+                    selectedCompany={selectedCompany}
+                    setSelectedCompany={setSelectedCompany}
+                    selectedExercise={selectedFolder}
+                    setActiveRoute={setActiveRoute}
+                    selectedClient={selectedClient}
+                  />
+                )
               ) : (
                 <Navigate to="/fr/web/user/login" replace />
               )
@@ -608,10 +662,632 @@ function AppRoutes() {
             <Route
               index
               element={
-                <Navigate
-                  to={`/web/user/dashboard/${user?.id ?? "me"}`}
-                  replace
+                isRestrictedUser ? (
+                  <Navigate to="/web/user/revuefiscal/me/revuefiscal" replace />
+                ) : (
+                  <Navigate
+                    to={`/web/user/dashboard/${user?.id ?? "me"}`}
+                    replace
+                  />
+                )
+              }
+            />
+            {/* Block all other routes for restricted users */}
+            {isRestrictedUser ? (
+              <Route path="*" element={<Navigate to="/web/user/revuefiscal/me/revuefiscal" replace />} />
+            ) : (
+              <>
+                <Route
+                  path="dashboard/:userId/:actionId?"
+                  element={
+                    <DashboardGrid
+                      companyName={selectedCompany?.name || ""}
+                      currentExercise={
+                        selectedFolder?.fiscalYear || new Date().getFullYear()
+                      }
+                      onNavigate={setActiveRoute}
+                    />
+                  }
                 />
+                <Route
+                  path="exercise/:userId/:actionId?"
+                  element={<ExerciseSelector />}
+                />
+                <Route
+                  path="import/:userId/:actionId?"
+                  element={<BalanceImporter />}
+                />
+                <Route
+                  path="traitement/:userId/:actionId?"
+                  element={<StepByStepProcessor />}
+                />
+                <Route path="dsf-import/:folderId" element={<DSFImporter />} />
+                <Route
+                  path="balance-import/:folderId"
+                  element={<BalanceImporter />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note1"
+                  element={<Note1 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note2"
+                  element={<Note2 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3a"
+                  element={<Note3A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3b"
+                  element={<Note3B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3c"
+                  element={<Note3C />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3d"
+                  element={<Note3D />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3f"
+                  element={<Note3F />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note4"
+                  element={<Note4 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note5"
+                  element={<Note5 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note6"
+                  element={<Note6 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note7"
+                  element={<Note7 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note8"
+                  element={<Note8 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note9"
+                  element={<Note9 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note10"
+                  element={<Note10 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note11"
+                  element={<Note11 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note12"
+                  element={<Note12 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note13"
+                  element={<Note13 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note14"
+                  element={<Note14 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note15a"
+                  element={<Note15A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note15b"
+                  element={<Note15B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note16a"
+                  element={<Note16A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note16b"
+                  element={<Note16B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note16bbis"
+                  element={<Note16Bbis />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note16c"
+                  element={<Note16C />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note17"
+                  element={<Note17 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note18"
+                  element={<Note18 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note19"
+                  element={<Note19 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note20"
+                  element={<Note20 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note21"
+                  element={<Note21 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note22"
+                  element={<Note22 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note23"
+                  element={<Note23 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note24"
+                  element={<Note24 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note25"
+                  element={<Note25 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note26"
+                  element={<Note26 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note27a"
+                  element={<Note27A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note27b"
+                  element={<Note27B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note28"
+                  element={<Note28 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note29"
+                  element={<Note29 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note30"
+                  element={<Note30 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note31"
+                  element={<Note31 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note32"
+                  element={<Note32 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note33"
+                  element={<Note33 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note34"
+                  element={<Note34 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ficher3"
+                  element={<FicheR3 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/pagedegarde"
+                  element={<PageDeGarde />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/sommaire"
+                  element={<Sommaire />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/bilanpaysage"
+                  element={<BilanPaysage />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/compteresultat"
+                  element={<CompteResultat />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableaufluxtresorerie"
+                  element={<TableauFluxTresorerie />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/grilleanalysenotes"
+                  element={<GrilleAnalyseNotes />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c01note3c"
+                  element={<C01Note3C />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c1note17"
+                  element={<C1Note17 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c1note25"
+                  element={<C1Note25 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c1note27a"
+                  element={<C1Note27A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c1note28"
+                  element={<C1Note28 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c2note25"
+                  element={<C2Note25 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/c2note28"
+                  element={<C2Note28 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf1"
+                  element={<CF1 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf1bis"
+                  element={<CF1Bis />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf1ter"
+                  element={<CF1Ter />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf1quater"
+                  element={<CF1Quater />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf2"
+                  element={<CF2 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf2bis"
+                  element={<CF2Bis />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/cf2ter"
+                  element={<CF2Ter />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/impot21"
+                  element={<Impot21 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/impot22"
+                  element={<Impot22 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/fiche1"
+                  element={<Fiche1 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/fiche2"
+                  element={<Fiche2 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/fiche3"
+                  element={<Fiche3 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/fiche4"
+                  element={<Fiche4 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/fiche5"
+                  element={<Fiche5 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/bilanactif"
+                  element={<BilanActif />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/bilanpassif"
+                  element={<BilanPassif />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/charges"
+                  element={<Charges />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/produits"
+                  element={<Produits />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/comptegeneralpertesprofits"
+                  element={<CompteGeneralPertesProfits />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/etatc4"
+                  element={<EtatC4 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/etatc11"
+                  element={<EtatC11 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/etatc11vie"
+                  element={<EtatC11Vie />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/annexe6"
+                  element={<Annexe6 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass1"
+                  element={<Ass1 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass2"
+                  element={<Ass2 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass3"
+                  element={<Ass3 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass4"
+                  element={<Ass4 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass5"
+                  element={<Ass5 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass6"
+                  element={<Ass6 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass7"
+                  element={<Ass7 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass8"
+                  element={<Ass8 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass9"
+                  element={<Ass9 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass10"
+                  element={<Ass10 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/ass11"
+                  element={<Ass11 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/declarationannuel"
+                  element={<DeclarationAnnuel />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/sommesverse"
+                  element={<SommesVerse />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tva"
+                  element={<TVA />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/versements"
+                  element={<Versements />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau30"
+                  element={<Tableau30 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau31"
+                  element={<Tableau31 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau32"
+                  element={<Tableau32 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau33"
+                  element={<Tableau33 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau34"
+                  element={<Tableau34 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau35a"
+                  element={<Tableau35A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau35b"
+                  element={<Tableau35B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau36"
+                  element={<Tableau36 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau37"
+                  element={<Tableau37 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau38"
+                  element={<Tableau38 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau39"
+                  element={<Tableau39 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau40"
+                  element={<Tableau40 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau41a"
+                  element={<Tableau41A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau41b"
+                  element={<Tableau41B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau42"
+                  element={<Tableau42 />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau43a"
+                  element={<Tableau43A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau43b"
+                  element={<Tableau43B />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/tableau44a"
+                  element={<Tableau44A />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/grilleanalysenotessmt"
+                  element={<GrilleAnalyseNotesSMT />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/modbilan"
+                  element={<ModBilan />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note1smt"
+                  element={<Note1Smt />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note2smt"
+                  element={<Note2Smt />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note3smt"
+                  element={<Note3Smt />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note4smt"
+                  element={<Note4Smt />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note5smt"
+                  element={<Note5Smt />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/note6smt"
+                  element={<Note6Smt />}
+                />
+                <Route path="reports/:userId/reports/rapport/t1" element={<T1 />} />
+                <Route
+                  path="reports/:userId/reports/rapport/t1bis"
+                  element={<T1Bis />}
+                />
+                <Route
+                  path="reports/:userId/reports/rapport/t1ter"
+                  element={<T1Ter />}
+                />
+                <Route path="reports/:userId/reports/rapport/t2" element={<T2 />} />
+                <Route path="reports/:userId/reports/rapport/t3" element={<T3 />} />
+                <Route path="reports/:userId/reports/rapport/t4" element={<T4 />} />
+                <Route path="reports/:userId/reports/rapport/t5" element={<T5 />} />
+                <Route path="reports/:userId/reports/rapport/t6" element={<T6 />} />
+                <Route path="reports/:userId/reports/rapport/t7" element={<T7 />} />
+                <Route path="reports/:userId/reports/rapport/t8" element={<T8 />} />
+                <Route path="reports/:userId/reports/rapport/t9" element={<T9 />} />
+                <Route
+                  path="reports/:userId/:actionId?"
+                  element={
+                    <AllReports
+                      folderId={selectedFolder?.id}
+                      checkExistingDSF={async (
+                        folderId: string,
+                      ): Promise<ExtractionResult[] | null> => {
+                        try {
+                          const notes =
+                            await notesService.getNotesForFolder(folderId);
+                          if (notes?.length) {
+                            return notes.map((note: any) => ({
+                              noteName: `NOTE ${note.noteNumber}`,
+                              success: note.exists,
+                              data: note.data,
+                            })) as ExtractionResult[];
+                          }
+
+                          return null;
+                        } catch (err) {
+                          console.error("Error checking existing DSF:", err);
+                          return null;
+                        }
+                      }}
+                      onNormalGeneration={async () => {
+                        if (!selectedFolder?.id) return;
+                        try {
+                          await dsfService.generateDSF(selectedFolder.id);
+                          // Refresh the page or trigger a re-check
+                          window.location.reload();
+                        } catch (error) {
+                          console.error("Error generating DSF:", error);
+                          alert(
+                            "Erreur lors de la génération de la DSF. Veuillez vérifier que la balance N est disponible.",
+                          );
+                        }
+                      }}
+                    />
+                  }
+                />
+                <Route
+                  path="deadlines/:userId/:actionId?"
+                  element={<TaxDeadlines />}
+                />
+                <Route
+                  path="history/:userId/:actionId?"
+                  element={<AuditHistory />}
+                />
+                <Route
+                  path="settings/:userId/:actionId?"
+                  element={<SimpleSettings />}
+                />
+            <Route
+              path="revuefiscal/:userId/:actionId?"
+              element={
+                <div className="p-6">
+                  <RevueFiscal />
+                </div>
+              }
+            />
+            {/* Catch all route for restricted users - redirect to revuefiscal */}
+            {isRestrictedUser && (
+              <Route path="*" element={<Navigate to="/web/user/revuefiscal/me/revuefiscal" replace />} />
+            )}
+                <Route
+                  path="other/:userId/:actionId?"
+                  element={
+                    <div className="p-6">
+                      <DSFConfigInterface />
+                    </div>
+                  }
+                />
+              </>
+            )}
+            <Route
+              path="revuefiscal/:userId/:actionId?"
+              element={
+                <div className="p-6">
+                  <RevueFiscal />
+                </div>
               }
             />
             <Route

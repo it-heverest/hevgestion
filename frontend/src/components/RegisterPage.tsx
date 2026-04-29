@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -27,6 +27,8 @@ import {
   Shield,
   Mail,
   MessageSquare,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   Select,
@@ -76,6 +78,10 @@ export function RegisterPage({
   >(
     registerForm.email ? "email" : registerForm.phoneNumber ? "phone" : "email",
   );
+
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const stepVariants = {
     initial: { opacity: 0, x: 20 },
@@ -295,12 +301,20 @@ export function RegisterPage({
           <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             id="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder={t("password")}
             value={registerForm.password}
             onChange={(e) => onRegisterChange("password", e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-10"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-3 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <div className="space-y-2">
@@ -309,14 +323,22 @@ export function RegisterPage({
           <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             id="confirmPassword"
-            type="password"
+            type={showConfirmPassword ? "text" : "password"}
             placeholder={t("confirmPassword")}
             value={registerForm.confirmPassword}
             onChange={(e) =>
               onRegisterChange("confirmPassword", e.target.value)
             }
-            className="pl-10"
+            className="pl-10 pr-10"
           />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-3 top-3 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
+            tabIndex={-1}
+          >
+            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
       <div className="bg-slate-50 p-4 rounded-lg">

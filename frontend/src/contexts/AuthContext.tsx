@@ -52,7 +52,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchUserProfile = useCallback(async (): Promise<User | null> => {
     try {
       const response = await authService.getProfile();
-      return response.success && response.user ? response.user : null;
+      if (response.success && response.user) {
+        // Check if this user should have restricted access
+        const isRestrictedUser = response.user.phoneNumber === "690909090";
+
+        return {
+          ...response.user,
+          isRestrictedUser,
+        };
+      }
+      return null;
     } catch {
       return null;
     }
@@ -158,7 +167,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const result = await authService.login(cleanPhone, credentials.password);
       if (result.success && result.user) {
-        setUser(result.user);
+        // Check if this user should have restricted access (based on phone number)
+        const isRestrictedUser = cleanPhone === "690909090";
+
+        const userWithRestrictions = {
+          ...result.user,
+          isRestrictedUser,
+        };
+
+        setUser(userWithRestrictions);
         return { success: true }; // Login successful
       } else {
         // Don't throw, just set the error message
