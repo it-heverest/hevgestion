@@ -64,6 +64,34 @@ export interface CompanyStats {
   pct: number;
 }
 
+export interface QuestionnaireQuestion {
+  id: string;
+  text: string;
+  isNew2026?: boolean;
+  ref?: string;
+}
+
+export interface QuestionnaireSubSection {
+  id: string;
+  title: string;
+  badge?: string;
+  info?: string;
+  questions: QuestionnaireQuestion[];
+}
+
+export interface QuestionnaireSection {
+  id: string;
+  number: string;
+  title: string;
+  subsections: QuestionnaireSubSection[];
+}
+
+export interface QuestionnaireConfig {
+  id: string;
+  name: string;
+  sections: QuestionnaireSection[];
+}
+
 /**
  * RevueFiscal Service - Handles API calls for fiscal review management
  */
@@ -233,6 +261,55 @@ class RevueFiscalService {
     } catch (error) {
       console.error("Error fetching company stats:", error);
       throw new Error("Erreur lors du chargement des statistiques");
+    }
+  }
+
+  // ==================== QUESTIONNAIRE CONFIGURATION ====================
+
+  async getQuestionnaire(id: string): Promise<QuestionnaireConfig> {
+    try {
+      const response = await this.api.get(`/revue-fiscal/questionnaire/${id}`);
+      return response.data as QuestionnaireConfig;
+    } catch (error: any) {
+      console.error("Error fetching questionnaire:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.status === 404) {
+        throw new Error("Questionnaire non trouvé");
+      }
+
+      throw new Error("Erreur lors du chargement du questionnaire");
+    }
+  }
+
+  async getDefaultQuestionnaire(): Promise<QuestionnaireConfig> {
+    try {
+      const response = await this.api.get("/revue-fiscal/questionnaire");
+      return response.data as QuestionnaireConfig;
+    } catch (error: any) {
+      console.error("Error fetching default questionnaire:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+
+      throw new Error("Erreur lors du chargement du questionnaire par défaut");
+    }
+  }
+
+  async updateQuestionnaire(id: string, config: QuestionnaireConfig): Promise<void> {
+    try {
+      await this.api.put(`/revue-fiscal/questionnaire/${id}`, config);
+    } catch (error: any) {
+      console.error("Error updating questionnaire:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+
+      throw new Error("Erreur lors de la mise à jour du questionnaire");
     }
   }
 

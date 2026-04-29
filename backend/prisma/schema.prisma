@@ -934,6 +934,78 @@ model RevueFiscalQuestionState {
   @@map("revue_fiscal_question_states")
 }
 
+// Questionnaire Configuration
+model RevueFiscalQuestionnaire {
+  id        String   @id @default(uuid())
+  name      String   @default("Default Questionnaire")
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(true)
+
+  sections RevueFiscalSection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("revue_fiscal_questionnaires")
+}
+
+model RevueFiscalSection {
+  id             String   @id @default(uuid())
+  questionnaireId String
+  questionnaire   RevueFiscalQuestionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+
+  sectionId      String
+  number         String
+  title          String
+
+  subsections RevueFiscalSubSection[]
+
+  order         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([questionnaireId, sectionId])
+  @@map("revue_fiscal_sections")
+}
+
+model RevueFiscalSubSection {
+  id         String   @id @default(uuid())
+  sectionId  String
+  section    RevueFiscalSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  subSectionId String
+  title       String
+  badge       String?
+  info        String?
+
+  questions RevueFiscalQuestion[]
+
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([sectionId, subSectionId])
+  @@map("revue_fiscal_subsections")
+}
+
+model RevueFiscalQuestion {
+  id            String   @id @default(uuid())
+  subSectionId  String
+  subSection    RevueFiscalSubSection @relation(fields: [subSectionId], references: [id], onDelete: Cascade)
+
+  questionId    String
+  text          String
+  isNew2026     Boolean  @default(false)
+  ref           String?
+
+  order        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([subSectionId, questionId])
+  @@map("revue_fiscal_questions")
+}
+
 enum RevueFiscalEval {
   NA
   OK

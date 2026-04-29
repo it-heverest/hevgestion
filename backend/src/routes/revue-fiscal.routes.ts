@@ -32,4 +32,13 @@ router.post('/question-states/bulk', controller.bulkUpdateQuestionStates.bind(co
 // Get company statistics
 router.get('/stats', controller.getCompanyStats.bind(controller));
 
+// Get default questionnaire configuration
+router.get('/questionnaire', controller.getDefaultQuestionnaire.bind(controller));
+
+// Get specific questionnaire configuration
+router.get('/questionnaire/:id', controller.getQuestionnaire.bind(controller));
+
+// Update questionnaire configuration
+router.put('/questionnaire/:id', controller.updateQuestionnaire.bind(controller));
+
 export default router;
