@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, SetStateAction, useEffect } from "react";
+import { ChevronRight, ChevronDown, FileText, Plus } from "lucide-react";
 import { revueFiscalService, RevueFiscalCompanyWithStates, RevueFiscalEval, RevueFiscalPriority, QuestionnaireConfig } from "../services/revue-fiscal.service";
 
 type RiskLevel = "FAIBLE" | "MODERE" | "ELEVE";
@@ -3398,6 +3399,16 @@ function CompanyCard({
 }
 
 // ─────────────────────────────────────────────
+/**
+ * QuestionnaireEditView - Interface d'édition du questionnaire avec sections repliables
+ *
+ * Fonctionnalités :
+ * - Sections repliables/dépliables (par défaut fermées)
+ * - Sous-sections repliables/dépliables (par défaut fermées)
+ * - Icônes Lucide React pour meilleure UX
+ * - Ajout dynamique de sous-sections et questions
+ * - Édition en ligne des titres et contenus
+ */
 function QuestionnaireEditView({
   questionnaireSections,
   setQuestionnaireSections,
@@ -3411,6 +3422,35 @@ function QuestionnaireEditView({
   onCancel: () => void;
   saving: boolean;
 }) {
+  // State for managing expanded/collapsed sections and subsections
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(new Set());
+
+  // Toggle section expansion
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
+      } else {
+        newSet.add(sectionId);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle subsection expansion
+  const toggleSubsection = (subsectionId: string) => {
+    setExpandedSubsections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(subsectionId)) {
+        newSet.delete(subsectionId);
+      } else {
+        newSet.add(subsectionId);
+      }
+      return newSet;
+    });
+  };
   return (
     <div
       style={{
@@ -3533,107 +3573,157 @@ function QuestionnaireEditView({
           </p>
         </div>
 
-        {questionnaireSections.map((section, sectionIndex) => (
-          <div key={section.id} style={{ marginBottom: 48 }}>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                <span
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 900,
-                    color: "#E85D04",
-                    fontFamily: "'DM Mono',monospace",
-                    minWidth: 32,
-                  }}
-                >
-                  {section.number}
-                </span>
-                <input
-                  type="text"
-                  value={section.title}
-                  onChange={(e) => {
-                    const newTitle = e.target.value;
-                    setQuestionnaireSections(
-                      questionnaireSections.map((sec, idx) =>
-                        idx === sectionIndex ? { ...sec, title: newTitle } : sec
-                      )
-                    );
-                  }}
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 800,
-                    color: "#111",
-                    border: "2px solid transparent",
-                    background: "transparent",
-                    outline: "none",
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    flex: 1,
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "2px solid #E85D04";
-                    e.target.style.background = "#f5f5f5";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = "2px solid transparent";
-                    e.target.style.background = "transparent";
-                  }}
-                />
-              </div>
-            </div>
-
-            {section.subsections.map((subsection, subIndex) => (
+        {questionnaireSections.map((section, sectionIndex) => {
+          const isExpanded = expandedSections.has(section.id);
+          return (
+            <div key={section.id} style={{ marginBottom: 24, border: "1px solid #e0e0e0", borderRadius: 8, overflow: "hidden" }}>
+              {/* Section Header - Clickable */}
               <div
-                key={subsection.id}
+                onClick={() => toggleSection(section.id)}
                 style={{
-                  marginLeft: 44,
-                  marginBottom: 24,
-                  padding: 20,
-                  background: "#fff",
-                  borderRadius: 8,
-                  border: "1px solid #e0e0e0",
+                  background: "#f8f9fa",
+                  padding: "16px 20px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  borderBottom: isExpanded ? "1px solid #e0e0e0" : "none",
+                  userSelect: "none",
                 }}
               >
-                <div style={{ marginBottom: 16 }}>
+                {/* Expand/Collapse Icon */}
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-gray-600" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                )}
+
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
                   <input
                     type="text"
-                    value={subsection.title}
+                    value={section.title}
                     onChange={(e) => {
                       const newTitle = e.target.value;
                       setQuestionnaireSections(
-                        questionnaireSections.map((sec, secIdx) =>
-                          secIdx === sectionIndex
-                            ? {
-                                ...sec,
-                                subsections: sec.subsections.map((sub, subIdx) =>
-                                  subIdx === subIndex ? { ...sub, title: newTitle } : sub
-                                ),
-                              }
-                            : sec
+                        questionnaireSections.map((sec, idx) =>
+                          idx === sectionIndex ? { ...sec, title: newTitle } : sec
                         )
                       );
                     }}
+                    onClick={(e) => e.stopPropagation()}
                     style={{
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: 700,
                       color: "#111",
-                      border: "2px solid transparent",
+                      border: "1px solid transparent",
                       background: "transparent",
                       outline: "none",
                       padding: "4px 8px",
                       borderRadius: 4,
-                      width: "100%",
+                      flex: 1,
                     }}
                     onFocus={(e) => {
-                      e.target.style.border = "2px solid #E85D04";
-                      e.target.style.background = "#f5f5f5";
+                      e.target.style.border = "1px solid #E85D04";
+                      e.target.style.background = "#fff";
                     }}
                     onBlur={(e) => {
-                      e.target.style.border = "2px solid transparent";
+                      e.target.style.border = "1px solid transparent";
                       e.target.style.background = "transparent";
                     }}
                   />
+                  <span style={{ fontSize: 14, color: "#666" }}>
+                    {section.subsections.length} sous-section{section.subsections.length > 1 ? 's' : ''}
+                  </span>
                 </div>
+              </div>
+
+              {/* Section Content - Collapsible */}
+              {isExpanded && (
+                <div style={{ padding: "20px" }}>
+
+            {section.subsections.map((subsection, subIndex) => {
+              const isSubsectionExpanded = expandedSubsections.has(subsection.id);
+              return (
+                <div
+                  key={subsection.id}
+                  style={{
+                    marginBottom: 16,
+                    background: "#fff",
+                    borderRadius: 8,
+                    border: "1px solid #e0e0e0",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Subsection Header - Clickable */}
+                  <div
+                    onClick={() => toggleSubsection(subsection.id)}
+                    style={{
+                      padding: "16px 20px",
+                      background: "#f8f9fa",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      borderBottom: isSubsectionExpanded ? "1px solid #e0e0e0" : "none",
+                      userSelect: "none",
+                    }}
+                  >
+                    {/* Expand/Collapse Icon */}
+                    {isSubsectionExpanded ? (
+                      <ChevronDown className="h-3 w-3 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3 text-gray-500" />
+                    )}
+
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
+                      <input
+                        type="text"
+                        value={subsection.title}
+                        onChange={(e) => {
+                          const newTitle = e.target.value;
+                          setQuestionnaireSections(
+                            questionnaireSections.map((sec, secIdx) =>
+                              secIdx === sectionIndex
+                                ? {
+                                    ...sec,
+                                    subsections: sec.subsections.map((sub, subIdx) =>
+                                      subIdx === subIndex ? { ...sub, title: newTitle } : sub
+                                    ),
+                                  }
+                                : sec
+                            )
+                          );
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 600,
+                          color: "#111",
+                          border: "1px solid transparent",
+                          background: "transparent",
+                          outline: "none",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          flex: 1,
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.border = "1px solid #E85D04";
+                          e.target.style.background = "#fff";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.border = "1px solid transparent";
+                          e.target.style.background = "transparent";
+                        }}
+                      />
+                      <span style={{ fontSize: 12, color: "#666" }}>
+                        {subsection.questions.length} question{subsection.questions.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Subsection Content - Collapsible */}
+                  {isSubsectionExpanded && (
+                    <div style={{ padding: "16px 20px" }}>
 
                 {subsection.questions.map((question, qIndex) => (
                   <div
@@ -3754,10 +3844,14 @@ function QuestionnaireEditView({
                     justifyContent: "center",
                   }}
                 >
-                  ➕ Ajouter une question
+                  <Plus className="h-3 w-3" />
+                  Ajouter une question
                 </button>
-              </div>
-            ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Add Subsection Button */}
             <div style={{ marginLeft: 44, marginBottom: 24 }}>
@@ -3795,11 +3889,15 @@ function QuestionnaireEditView({
                   justifyContent: "center",
                 }}
               >
-                ➕ Ajouter une sous-section
+                <Plus className="h-4 w-4" />
+                Ajouter une sous-section
               </button>
             </div>
-          </div>
-        ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -4030,17 +4128,20 @@ function ReviewView({
                   transition: "background 0.1s",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 9,
-                    fontWeight: 900,
-                    color: isActive ? "#E85D04" : "#3a3a3a",
-                    minWidth: 22,
-                    fontFamily: "'DM Mono',monospace",
-                  }}
-                >
-                  {s.number}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <FileText className="h-5 w-5 text-orange-600" />
+                  <span
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 900,
+                      color: "#E85D04",
+                      fontFamily: "'DM Mono',monospace",
+                      minWidth: 32,
+                    }}
+                  >
+                    {section.number}
+                  </span>
+                </div>
                 {isEditingQuestionnaire ? (
                   <input
                     type="text"
