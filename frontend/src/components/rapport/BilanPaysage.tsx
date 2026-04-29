@@ -31,24 +31,68 @@ interface HeaderData {
 // --- Composant Principal ---
 const BilanPaysage: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
-    const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
+
   const [isEditing, setIsEditing] = useState(false);
   const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load DSF data (simplified)
+  // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
-      // loadDSFData();
+    if (folderId) {
+      loadDSFData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
+
+  const loadDSFData = async () => {
+    if (!folderId) return;
+
+    try {
+      setLoading(true);
+      const response = await dsfService.getDSF(folderId);
+      const dsf = response.dsf;
+      setDsfId(dsf.id);
+
+      if (dsf.bilan && dsf.bilan.rows) {
+        setRows(dsf.bilan.rows);
+      }
+
+      if (dsf.bilan && dsf.bilan.headerInfo) {
+        setHeaderInfo(dsf.bilan.headerInfo);
+      }
+    } catch (error) {
+      console.error("Error loading DSF data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const saveToBackend = async () => {
-    // Implementation similar to previous
+    if (!dsfId) return;
+
+    try {
+      setSaving(true);
+
+      const bilanData = {
+        headerInfo,
+        rows,
+      };
+
+      await dsfService.updateDSF(dsfId, { bilan: bilanData });
+      alert("Données Bilan sauvegardées avec succès");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error saving to backend:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Header

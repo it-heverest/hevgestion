@@ -19,6 +19,7 @@ import { useApp } from "../contexts/AppContext";
 import axios from "axios";
 import { API_CONFIG } from "../config/api";
 import { folderService } from "../services/folder.service";
+import { dsfConfigService } from "../services/dsf-config.service";
 
 const SOURCES = ["OC", "OD", "MC", "MD", "SD", "SC", "MCD", "SCD"];
 const REPORT_TYPES = [
@@ -822,7 +823,6 @@ const DSF_TEMPLATE = [
     scope: "EXERCISE",
   },
 
-
   // ===== CF REPORTS =====
   // CF1 - Tax Table 1
   {
@@ -1001,10 +1001,10 @@ export default function DSFConfigInterface() {
 
   const currentUser = user
     ? {
-      id: user.id,
-      name: `${user.firstName} ${user.lastName}`,
-      type: user.role,
-    }
+        id: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        type: user.role,
+      }
     : null;
 
   // Filter mappings based on selected report type
@@ -1031,7 +1031,7 @@ export default function DSFConfigInterface() {
           if (selectedFolder?.id) {
             params.exerciseId = selectedFolder.id;
           }
-          return await dsfConfigApiService.getConfigs(params);
+          return await dsfConfigService.getConfigs(params);
         }),
       );
 
@@ -1129,7 +1129,7 @@ export default function DSFConfigInterface() {
         accountMappings: configMappings,
       };
 
-      await dsfConfigApiService.updateConfig(mapping.configId, updateData);
+        await dsfConfigService.updateConfig(mapping.configId, updateData);
       await loadMappings();
       stopEditing();
     } catch (err: any) {
@@ -1159,7 +1159,7 @@ export default function DSFConfigInterface() {
             })),
         };
 
-        await dsfConfigApiService.updateConfig(mapping.configId, updateData);
+      await dsfConfigService.updateConfig(mapping.configId, updateData);
         await loadMappings();
       } catch (err: any) {
         console.error("Error deleting mapping:", err);
@@ -1284,7 +1284,7 @@ export default function DSFConfigInterface() {
         for (const [reportType, mappings] of Object.entries(mappingsByReport)) {
           try {
             // Find existing config or create new one
-            const existingConfigs = await dsfConfigApiService.getConfigs({
+            const existingConfigs = await dsfConfigService.getConfigs({
               category: reportType,
               clientId: selectedFolder?.clientId,
               exerciseId: selectedFolder?.id,
@@ -1292,12 +1292,12 @@ export default function DSFConfigInterface() {
 
             if (existingConfigs.length > 0) {
               // Update existing config
-              await dsfConfigApiService.updateConfig(existingConfigs[0].id, {
+              await dsfConfigService.updateConfig(existingConfigs[0].id, {
                 accountMappings: mappings,
               });
             } else {
               // Create new config
-              await dsfConfigApiService.createConfig({
+              await dsfConfigService.createConfig({
                 category: reportType,
                 codeDsf: `${reportType}_001`,
                 libelle: `Configuration ${reportType}`,
@@ -1352,7 +1352,7 @@ export default function DSFConfigInterface() {
         async ([reportType, mappings]) => {
           try {
             // Check if config already exists
-            const existingConfigs = await dsfConfigApiService.getConfigs({
+            const existingConfigs = await dsfConfigService.getConfigs({
               category: reportType,
               clientId: selectedFolder?.clientId,
               exerciseId: selectedFolder?.id,
@@ -1360,12 +1360,12 @@ export default function DSFConfigInterface() {
 
             if (existingConfigs.length > 0) {
               // Update existing config
-              await dsfConfigApiService.updateConfig(existingConfigs[0].id, {
+              await dsfConfigService.updateConfig(existingConfigs[0].id, {
                 accountMappings: mappings,
               });
             } else {
               // Create new config
-              await dsfConfigApiService.createConfig({
+              await dsfConfigService.createConfig({
                 category: reportType,
                 codeDsf: `${reportType}_template`,
                 libelle: `Configuration ${reportType} - Modèle`,
@@ -1384,7 +1384,8 @@ export default function DSFConfigInterface() {
       await loadMappings();
 
       alert(
-        `Modèle DSF chargé avec succès!\n\n${DSF_TEMPLATE.length
+        `Modèle DSF chargé avec succès!\n\n${
+          DSF_TEMPLATE.length
         } mappings créés pour ${Object.keys(templateByReport).length} rapports.`,
       );
     } catch (err: any) {
@@ -1445,17 +1446,19 @@ export default function DSFConfigInterface() {
 
       // Show test results
       const message = `
-Test de Configuration ${selectedReportType === "all" ? "Tous les rapports" : selectedReportType
-        }:
+Test de Configuration ${
+        selectedReportType === "all" ? "Tous les rapports" : selectedReportType
+      }:
 
 ✅ Mappings valides: ${testResults.validMappings}
 ❌ Mappings invalides: ${testResults.invalidMappings}
 📊 Total: ${testResults.totalMappings}
 
-${testResults.issues.length > 0
-          ? `Problèmes détectés:\n${testResults.issues.join("\n")}`
-          : "Aucun problème détecté!"
-        }
+${
+  testResults.issues.length > 0
+    ? `Problèmes détectés:\n${testResults.issues.join("\n")}`
+    : "Aucun problème détecté!"
+}
       `;
 
       alert(message);
@@ -1728,7 +1731,7 @@ ${testResults.issues.length > 0
                     <tr key={mapping.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-mono text-gray-900">
                         {editingCell?.rowIndex === index &&
-                          editingCell?.field === "accountNumber" ? (
+                        editingCell?.field === "accountNumber" ? (
                           <input
                             type="text"
                             value={mapping.accountNumber}
@@ -1782,7 +1785,7 @@ ${testResults.issues.length > 0
 
                       <td className="px-4 py-3 text-sm font-mono text-blue-600">
                         {editingCell?.rowIndex === index &&
-                          editingCell?.field === "source" ? (
+                        editingCell?.field === "source" ? (
                           <select
                             value={mapping.source}
                             onChange={(e) =>
@@ -1813,7 +1816,7 @@ ${testResults.issues.length > 0
 
                       <td className="px-4 py-3 text-sm font-mono text-green-600">
                         {editingCell?.rowIndex === index &&
-                          editingCell?.field === "destination" ? (
+                        editingCell?.field === "destination" ? (
                           <input
                             type="text"
                             value={mapping.destination}

@@ -63,6 +63,9 @@ model User {
   // User notifications
   notifications Notification[]
 
+  // Activity tracking
+  lastActivity DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -535,6 +538,9 @@ enum NotificationType {
   DSF_GENERATED
   DEADLINE_APPROACHING
   SYSTEM
+  DAILY_GREETING
+  INACTIVITY_REMINDER
+  DSF_REMINDER
 }
 
 model AuditLog {
@@ -890,4 +896,125 @@ enum ChangeType {
   PROCESSED
   VALIDATED
   SUBMITTED
+}
+
+// ========== REVUE FISCAL MANAGEMENT ==========
+model RevueFiscalCompany {
+  id        String   @id @default(uuid())
+  name      String
+  sector    String?
+  exercice  String?
+  reviseur  String?
+  chef      String?
+  niu       String?
+
+  questionStates RevueFiscalQuestionState[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("revue_fiscal_companies")
+}
+
+model RevueFiscalQuestionState {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    RevueFiscalCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  questionId String
+  eval       RevueFiscalEval?
+  note       String?
+  renvoi     String?
+  priority   RevueFiscalPriority @default(NORMALE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, questionId])
+  @@map("revue_fiscal_question_states")
+}
+
+// Questionnaire Configuration
+model RevueFiscalQuestionnaire {
+  id        String   @id @default(uuid())
+  name      String   @default("Default Questionnaire")
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(true)
+
+  sections RevueFiscalSection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("revue_fiscal_questionnaires")
+}
+
+model RevueFiscalSection {
+  id             String   @id @default(uuid())
+  questionnaireId String
+  questionnaire   RevueFiscalQuestionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+
+  sectionId      String
+  number         String
+  title          String
+
+  subsections RevueFiscalSubSection[]
+
+  order         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([questionnaireId, sectionId])
+  @@map("revue_fiscal_sections")
+}
+
+model RevueFiscalSubSection {
+  id         String   @id @default(uuid())
+  sectionId  String
+  section    RevueFiscalSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  subSectionId String
+  title       String
+  badge       String?
+  info        String?
+
+  questions RevueFiscalQuestion[]
+
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([sectionId, subSectionId])
+  @@map("revue_fiscal_subsections")
+}
+
+model RevueFiscalQuestion {
+  id            String   @id @default(uuid())
+  subSectionId  String
+  subSection    RevueFiscalSubSection @relation(fields: [subSectionId], references: [id], onDelete: Cascade)
+
+  questionId    String
+  text          String
+  isNew2026     Boolean  @default(false)
+  ref           String?
+
+  order        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([subSectionId, questionId])
+  @@map("revue_fiscal_questions")
+}
+
+enum RevueFiscalEval {
+  NA
+  OK
+  ERR_MAT
+  ANOMALIE
+}
+
+enum RevueFiscalPriority {
+  HAUTE
+  NORMALE
+  BASSE
 }

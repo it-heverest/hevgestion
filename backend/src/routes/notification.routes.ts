@@ -12,10 +12,12 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200); // Max 200 notifications
+
     const notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: limit,
     });
 
     res.json({ notifications });

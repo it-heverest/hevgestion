@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           # On envoie le dossier dist et le package.json pour le npm install sur le serveur
-          source: "backend/dist/*,backend/package.json"
+          source: "backend/dist/*,backend/package.json,backend/prisma"
           target: "/home/it/backend_utils"
           strip_components: 1 # Enlève 'backend/' mais garde 'dist/'
 

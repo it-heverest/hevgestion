@@ -1,42 +1,56 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { ScrollArea } from "./ui/scroll-area";
+import { Separator } from "./ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './ui/popover';
-import { 
-  Bell, 
-  CheckCircle2, 
-  AlertCircle, 
+  Bell,
+  CheckCircle2,
+  AlertCircle,
   Info,
   Clock,
   X,
   Check,
   FileText,
-  RefreshCw
-} from 'lucide-react';
-import { notificationService, Notification } from '../services/notification.service';
+  RefreshCw,
+} from "lucide-react";
+import {
+  notificationService,
+  AppNotification,
+} from "../services/notification.service";
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    loadNotifications();
+    loadUnreadCount();
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(() => {
+      checkForNewNotifications();
+      loadUnreadCount();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (open) {
       loadNotifications();
     }
-  }, [open]);
+  }, [open, showAll]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (limit = showAll ? 100 : 50) => {
     setLoading(true);
     try {
-      const data = await notificationService.getNotifications();
+      const data = await notificationService.getNotifications(limit);
       setNotifications(data);
     } catch (error) {
       console.error("Error loading notifications:", error);
@@ -45,14 +59,75 @@ export function NotificationCenter() {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const loadUnreadCount = async () => {
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error("Error loading unread count:", error);
+    }
+  };
+
+  const checkForNewNotifications = async () => {
+    try {
+      const data = await notificationService.getNotifications();
+      const newNotifications = data.filter(
+        (n) => !notifications.some((existing) => existing.id === n.id),
+      );
+
+      if (newNotifications.length > 0) {
+        setNotifications(data);
+        // Update unread count
+        loadUnreadCount();
+        // Show browser notifications for new ones
+        newNotifications.forEach((notification) => {
+          showBrowserNotification(notification);
+        });
+      }
+    } catch (error) {
+      console.error("Error checking for new notifications:", error);
+    }
+  };
+
+  const showBrowserNotification = (notification: AppNotification) => {
+    if (!("Notification" in window)) {
+      console.log("This browser does not support desktop notification");
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      const browserNotification = new Notification(notification.title, {
+        body: notification.message,
+        icon: "/favicon.ico", // You can customize this
+        tag: notification.id, // Prevents duplicate notifications
+      });
+
+      browserNotification.onclick = () => {
+        window.focus();
+        setOpen(true);
+        browserNotification.close();
+      };
+
+      // Auto-close after 5 seconds
+      setTimeout(() => {
+        browserNotification.close();
+      }, 5000);
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          showBrowserNotification(notification);
+        }
+      });
+    }
+  };
 
   const markAsRead = async (id: string) => {
     try {
       await notificationService.markAsRead(id);
-      setNotifications(notifications.map(n => 
-        n.id === id ? { ...n, isRead: true } : n
-      ));
+      setNotifications(
+        notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      );
+      loadUnreadCount(); // Update unread count
     } catch (error) {
       console.error("Error marking as read:", error);
     }
@@ -61,46 +136,57 @@ export function NotificationCenter() {
   const markAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0); // All marked as read
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
   };
 
   const removeNotification = (id: string) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+    setNotifications(notifications.filter((n) => n.id !== id));
   };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'WELCOME':
+      case "WELCOME":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'GUIDE':
+      case "GUIDE":
         return <FileText className="h-4 w-4 text-blue-500" />;
-      case 'BALANCE_IMPORTED':
+      case "BALANCE_IMPORTED":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'DSF_GENERATED':
+      case "DSF_GENERATED":
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'DEADLINE_APPROACHING':
+      case "DEADLINE_APPROACHING":
         return <AlertCircle className="h-4 w-4 text-orange-500" />;
+      case "DAILY_GREETING":
+        return <CheckCircle2 className="h-4 w-4 text-blue-500" />;
+      case "INACTIVITY_REMINDER":
+        return <Clock className="h-4 w-4 text-orange-500" />;
+      case "DSF_REMINDER":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
         return <Info className="h-4 w-4 text-blue-500" />;
     }
   };
 
   const getBackgroundColor = (type: string, read: boolean) => {
-    if (read) return 'bg-gray-50';
+    if (read) return "bg-gray-50";
     switch (type) {
-      case 'WELCOME':
-      case 'BALANCE_IMPORTED':
-      case 'DSF_GENERATED':
-        return 'bg-green-50';
-      case 'GUIDE':
-        return 'bg-blue-50';
-      case 'DEADLINE_APPROACHING':
-        return 'bg-orange-50';
+      case "WELCOME":
+      case "BALANCE_IMPORTED":
+      case "DSF_GENERATED":
+      case "DAILY_GREETING":
+        return "bg-green-50";
+      case "GUIDE":
+        return "bg-blue-50";
+      case "DEADLINE_APPROACHING":
+      case "INACTIVITY_REMINDER":
+        return "bg-orange-50";
+      case "DSF_REMINDER":
+        return "bg-red-50";
       default:
-        return 'bg-gray-50';
+        return "bg-gray-50";
     }
   };
 
@@ -112,22 +198,25 @@ export function NotificationCenter() {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 1) return "À l'instant";
     if (diffMins < 60) return `Il y a ${diffMins} min`;
     if (diffHours < 24) return `Il y a ${diffHours}h`;
     if (diffDays < 7) return `Il y a ${diffDays}j`;
-    return date.toLocaleDateString('fr');
+    return date.toLocaleDateString("fr");
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-5 w-5" />
+          <Bell className="h-5 w-5 text-gray-600" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
+            <Badge
+              variant="destructive"
+              className="absolute -top-3 left-1/2 transform -translate-x-1/2 h-5 min-w-[20px] p-0 flex items-center justify-center text-[10px] font-bold rounded-full border-2 border-background"
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </Badge>
           )}
         </Button>
       </PopoverTrigger>
@@ -141,7 +230,7 @@ export function NotificationCenter() {
             </Button>
           )}
         </div>
-        
+
         <ScrollArea className="h-72">
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -158,7 +247,7 @@ export function NotificationCenter() {
                 <div
                   key={notification.id}
                   className={`p-3 transition-all ${getBackgroundColor(notification.type, notification.isRead)} ${
-                    !notification.isRead ? 'border-l-4 border-blue-600' : ''
+                    !notification.isRead ? "border-l-4 border-blue-600" : ""
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -205,12 +294,28 @@ export function NotificationCenter() {
             </div>
           )}
         </ScrollArea>
-        
+
         <Separator className="mt-auto" />
-        <div className="p-2">
-          <Button variant="ghost" className="w-full text-sm" onClick={() => setOpen(false)}>
-            Voir toutes les notifications
+        <div className="p-2 space-y-1">
+          <Button
+            variant="ghost"
+            className="w-full text-sm justify-start"
+            onClick={() => {
+              setShowAll(!showAll);
+              loadNotifications(showAll ? 50 : 100);
+            }}
+          >
+            {showAll ? "Voir moins" : "Voir toutes les notifications"}
           </Button>
+          {notifications.length >= (showAll ? 100 : 50) && (
+            <Button
+              variant="ghost"
+              className="w-full text-sm justify-start"
+              onClick={() => setOpen(false)}
+            >
+              Fermer
+            </Button>
+          )}
         </div>
       </PopoverContent>
     </Popover>

@@ -13,6 +13,10 @@ export {
 
 // ==================== EXPORTS DES CONFIGURATIONS ====================
 export {
+  CONFIG_GRILLE_ANALYSE_NOTES,
+  CONFIG_BILAN_PAYSAGE,
+  CONFIG_COMPTE_RESULTAT,
+  CONFIG_TABLEAU_FLUX_TRESORERIE,
   CONFIG_NOTE1,
   CONFIG_NOTE2,
   CONFIG_NOTE3A,
@@ -44,12 +48,16 @@ export {
   CONFIG_NOTE18,
   CONFIG_NOTE19,
   CONFIG_NOTE20,
+  CONFIG_NOTE21,
   CONFIG_NOTE23,
   CONFIG_NOTE24,
   CONFIG_NOTE25,
   CONFIG_NOTE25_C1,
   CONFIG_NOTE25_C2,
   CONFIG_NOTE26,
+  CONFIG_NOTE27A,
+  CONFIG_C1_NOTE27A,
+  CONFIG_NOTE27B,
   CONFIG_NOTE28,
   CONFIG_NOTE28_C1,
   CONFIG_NOTE28_C2,
@@ -66,6 +74,10 @@ export {
 // ==================== IMPORTS POUR FONCTIONS HELPER ====================
 import { extraireDepuisFichier } from "./excelExtractor";
 import {
+  CONFIG_GRILLE_ANALYSE_NOTES,
+  CONFIG_BILAN_PAYSAGE,
+  CONFIG_COMPTE_RESULTAT,
+  CONFIG_TABLEAU_FLUX_TRESORERIE,
   CONFIG_NOTE1,
   CONFIG_NOTE2,
   CONFIG_NOTE3A,
@@ -96,12 +108,16 @@ import {
   CONFIG_NOTE18,
   CONFIG_NOTE19,
   CONFIG_NOTE20,
+  CONFIG_NOTE21,
   CONFIG_NOTE23,
   CONFIG_NOTE24,
   CONFIG_NOTE25,
   CONFIG_NOTE25_C1,
   CONFIG_NOTE25_C2,
   CONFIG_NOTE26,
+  CONFIG_NOTE27A,
+  CONFIG_C1_NOTE27A,
+  CONFIG_NOTE27B,
   CONFIG_NOTE28,
   CONFIG_NOTE28_C1,
   CONFIG_NOTE28_C2,
@@ -466,6 +482,66 @@ export const extraireNote34 = async (file: File, nomFeuille?: string) => {
   return extraireDepuisFichier(file, CONFIG_NOTE34, nomFeuille || "NOTE 34");
 };
 
+/**
+ * Extraire NOTE 21 - Production vendue de biens et services
+ */
+export const extraireNote21 = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_NOTE21, nomFeuille || "NOTE 21");
+};
+
+/**
+ * Extraire NOTE 27A - Charges de personnel
+ */
+export const extraireNote27A = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_NOTE27A, nomFeuille || "NOTE 27A");
+};
+
+/**
+ * Extraire C1/NOTE 27A - Tableau de régularisation annuelle des impôts et taxes sur salaires
+ */
+export const extraireNote27AC1 = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(
+    file,
+    CONFIG_C1_NOTE27A,
+    nomFeuille || "C1/NOTE 27A",
+  );
+};
+
+/**
+ * Extraire NOTE 27B - Effectifs, masse salariale et personnel extérieur
+ */
+export const extraireNote27B = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_NOTE27B, nomFeuille || "NOTE 27B");
+};
+
+/**
+ * Extraire Grille d'analyse des notes
+ */
+export const extraireGrilleAnalyseNotes = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_GRILLE_ANALYSE_NOTES, nomFeuille || "GRILLE ANALYSE NOTES");
+};
+
+/**
+ * Extraire Bilan paysage
+ */
+export const extraireBilanPaysage = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_BILAN_PAYSAGE, nomFeuille || "BILAN PAYSAGE");
+};
+
+/**
+ * Extraire Compte de résultat
+ */
+export const extraireCompteResultat = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_COMPTE_RESULTAT, nomFeuille || "COMPTE RESULTAT");
+};
+
+/**
+ * Extraire Tableau des flux de trésorerie
+ */
+export const extraireTableauFluxTresorerie = async (file: File, nomFeuille?: string) => {
+  return extraireDepuisFichier(file, CONFIG_TABLEAU_FLUX_TRESORERIE, nomFeuille || "TABLEAU FLUX TRESORERIE");
+};
+
 // ==================== FONCTION D'EXTRACTION MULTIPLE ====================
 
 /**
@@ -477,6 +553,10 @@ export const extraireNote34 = async (file: File, nomFeuille?: string) => {
 export const extraireToutesLesNotes = async (
   file: File,
   noteNames: string[] = [
+    "GRILLE ANALYSE NOTES",
+    "BILAN PAYSAGE",
+    "COMPTE RESULTAT",
+    "TABLEAU FLUX TRESORERIE",
     "NOTE 1",
     "NOTE 2",
     "NOTE 3A",
@@ -507,12 +587,16 @@ export const extraireToutesLesNotes = async (
     "NOTE 18",
     "NOTE 19",
     "NOTE 20",
+    "NOTE 21",
     "NOTE 23",
     "NOTE 24",
     "NOTE 25",
     "C1/NOTE 25",
     "C2/NOTE 25",
     "NOTE 26",
+    "NOTE 27A",
+    "C1/NOTE 27A",
+    "NOTE 27B",
     "NOTE 28",
     "C1/NOTE 28",
     "C2/NOTE 28",
@@ -527,6 +611,10 @@ export const extraireToutesLesNotes = async (
   const extracteurs: {
     [key: string]: (file: File, sheet?: string) => Promise<any>;
   } = {
+    "GRILLE ANALYSE NOTES": extraireGrilleAnalyseNotes,
+    "BILAN PAYSAGE": extraireBilanPaysage,
+    "COMPTE RESULTAT": extraireCompteResultat,
+    "TABLEAU FLUX TRESORERIE": extraireTableauFluxTresorerie,
     "NOTE 1": extraireNote1,
     "NOTE 2": extraireNote2,
     "NOTE 3A": extraireNote3A,
@@ -557,12 +645,16 @@ export const extraireToutesLesNotes = async (
     "NOTE 18": extraireNote18,
     "NOTE 19": extraireNote19,
     "NOTE 20": extraireNote20,
+    "NOTE 21": extraireNote21,
     "NOTE 23": extraireNote23,
     "NOTE 24": extraireNote24,
     "NOTE 25": extraireNote25,
     "C1/NOTE 25": extraireNote25C1,
     "C2/NOTE 25": extraireNote25C2,
     "NOTE 26": extraireNote26,
+    "NOTE 27A": extraireNote27A,
+    "C1/NOTE 27A": extraireNote27AC1,
+    "NOTE 27B": extraireNote27B,
     "NOTE 28": extraireNote28,
     "C1/NOTE 28": extraireNote28C1,
     "C2/NOTE 28": extraireNote28C2,
@@ -611,6 +703,10 @@ export type {
  * Liste de toutes les notes disponibles
  */
 export const NOTES_DISPONIBLES = [
+  "GRILLE ANALYSE NOTES",
+  "BILAN PAYSAGE",
+  "COMPTE RESULTAT",
+  "TABLEAU FLUX TRESORERIE",
   "NOTE 1",
   "NOTE 2",
   "NOTE 3A",
@@ -641,12 +737,16 @@ export const NOTES_DISPONIBLES = [
   "NOTE 18",
   "NOTE 19",
   "NOTE 20",
+  "NOTE 21",
   "NOTE 23",
   "NOTE 24",
   "NOTE 25",
   "C1/NOTE 25",
   "C2/NOTE 25",
   "NOTE 26",
+  "NOTE 27A",
+  "C1/NOTE 27A",
+  "NOTE 27B",
   "NOTE 28",
   "C1/NOTE 28",
   "C2/NOTE 28",
@@ -662,6 +762,10 @@ export const NOTES_DISPONIBLES = [
  * Descriptions des notes
  */
 export const DESCRIPTIONS_NOTES: { [key: string]: string } = {
+  "GRILLE ANALYSE NOTES": "Grille d'analyse des notes du DSF",
+  "BILAN PAYSAGE": "Bilan en format paysage",
+  "COMPTE RESULTAT": "Compte de résultat",
+  "TABLEAU FLUX TRESORERIE": "Tableau des flux de trésorerie",
   "NOTE 1": "Dettes financières et ressources assimilées",
   "NOTE 2": "Déclaration de conformité au SYSCOHADA",
   "NOTE 3A": "Tableau de variation des immobilisations",
@@ -693,12 +797,16 @@ export const DESCRIPTIONS_NOTES: { [key: string]: string } = {
   "NOTE 18": "Dettes fiscales et sociales",
   "NOTE 19": "Autres dettes et provisions pour risques à court terme",
   "NOTE 20": "Banques, crédit d'escompte et de trésorerie",
+  "NOTE 21": "Production vendue de biens et services",
   "NOTE 23": "Transports",
   "NOTE 24": "Services extérieurs",
   "NOTE 25": "Impôts et taxes",
   "C1/NOTE 25": "Synthèse des impôts et taxes versés",
   "C2/NOTE 25": "Tableau de régularisation annuelle des droits d'accises",
   "NOTE 26": "Autres charges",
+  "NOTE 27A": "Charges de personnel",
+  "C1/NOTE 27A": "Tableau de régularisation annuelle des impôts et taxes sur salaires",
+  "NOTE 27B": "Effectifs, masse salariale et personnel extérieur",
   "NOTE 28": "Provisions et dépréciations inscrites au bilan",
   "C1/NOTE 28":
     "Tableau récapitulatif du traitement fiscal des provisions : les reprises",
@@ -717,6 +825,12 @@ export const DESCRIPTIONS_NOTES: { [key: string]: string } = {
  * Catégories de notes pour une meilleure organisation
  */
 export const CATEGORIES_NOTES = {
+  RAPPORTS_GENERAUX: [
+    "GRILLE ANALYSE NOTES",
+    "BILAN PAYSAGE",
+    "COMPTE RESULTAT",
+    "TABLEAU FLUX TRESORERIE",
+  ],
   ACTIF_IMMOBILISE: [
     "NOTE 3A",
     "NOTE 3B",
@@ -749,6 +863,7 @@ export const CATEGORIES_NOTES = {
     "NOTE 20",
   ],
   CHARGES: [
+    "NOTE 21",
     "NOTE 23",
     "NOTE 24",
     "NOTE 25",
@@ -756,6 +871,7 @@ export const CATEGORIES_NOTES = {
     "C2/NOTE 25",
     "NOTE 26",
   ],
+  PERSONNEL: ["NOTE 27A", "C1/NOTE 27A", "NOTE 27B"],
   PROVISIONS: ["NOTE 28", "C1/NOTE 28", "C2/NOTE 28"],
   RESULTATS: ["NOTE 29", "NOTE 30", "NOTE 31"],
   PRODUCTION: ["NOTE 32", "NOTE 33"],

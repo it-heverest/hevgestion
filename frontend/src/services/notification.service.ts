@@ -3,7 +3,7 @@ import axios from "axios";
 import { API_CONFIG } from "../config/api";
 import { authService } from "./auth.service";
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   type: string;
   title: string;
@@ -38,9 +38,9 @@ class NotificationService {
     });
   }
 
-  async getNotifications(): Promise<Notification[]> {
+  async getNotifications(limit = 50): Promise<AppNotification[]> {
     try {
-      const response = await this.api.get("/notifications");
+      const response = await this.api.get(`/notifications?limit=${limit}`);
       return response.data.notifications || [];
     } catch (error) {
       console.error("Error fetching notifications:", error);

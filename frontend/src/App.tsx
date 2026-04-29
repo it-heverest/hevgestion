@@ -203,6 +203,7 @@ import {
   T8,
   T9,
 } from "./components/Notes";
+import RevueFiscal from "./components/RevueFiscal";
 
 /**
  * Get navigation items with translated labels
@@ -263,65 +264,71 @@ function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
       icon: MoreHorizontal,
       path: "/web/user/other",
     },
+    {
+      id: "revuefiscal",
+      label: t("revueFiscal"),
+      icon: MoreHorizontal,
+      path: "/web/user/revuefiscal",
+    },
   ];
 }
 
-const navigationItems = [
-  {
-    id: "dashboard",
-    label: "Tableau de Bord",
-    icon: LayoutDashboard,
-    path: "/web/user/dashboard",
-  },
-  {
-    id: "exercise",
-    label: "Exercice",
-    icon: Calendar,
-    path: "/web/user/exercise",
-  },
-  {
-    id: "import",
-    label: "Import Balance",
-    icon: Upload,
-    path: "/web/user/import",
-  },
-  {
-    id: "traitement",
-    label: "Traitement",
-    icon: Edit3,
-    path: "/web/user/traitement",
-  },
-  {
-    id: "reports",
-    label: "DSF Notes",
-    icon: FileText,
-    path: "/web/user/reports",
-  },
-  {
-    id: "history",
-    label: "Historique",
-    icon: History,
-    path: "/web/user/history",
-  },
-  {
-    id: "settings",
-    label: "Paramètres",
-    icon: Settings,
-    path: "/web/user/settings",
-  },
-  {
-    id: "televersion",
-    label: "Téléversion",
-    icon: Cloud,
-    path: "/web/user/televersion",
-  },
-  {
-    id: "other",
-    label: "Autres",
-    icon: MoreHorizontal,
-    path: "/web/user/other",
-  },
-];
+// const navigationItems = [
+//   {
+//     id: "dashboard",
+//     label: "Tableau de Bord",
+//     icon: LayoutDashboard,
+//     path: "/web/user/dashboard",
+//   },
+//   {
+//     id: "exercise",
+//     label: "Exercice",
+//     icon: Calendar,
+//     path: "/web/user/exercise",
+//   },
+//   {
+//     id: "import",
+//     label: "Import Balance",
+//     icon: Upload,
+//     path: "/web/user/import",
+//   },
+//   {
+//     id: "traitement",
+//     label: "Traitement",
+//     icon: Edit3,
+//     path: "/web/user/traitement",
+//   },
+//   {
+//     id: "reports",
+//     label: "DSF Notes",
+//     icon: FileText,
+//     path: "/web/user/reports",
+//   },
+//   {
+//     id: "history",
+//     label: "Historique",
+//     icon: History,
+//     path: "/web/user/history",
+//   },
+//   {
+//     id: "settings",
+//     label: "Paramètres",
+//     icon: Settings,
+//     path: "/web/user/settings",
+//   },
+//   {
+//     id: "televersion",
+//     label: "Téléversion",
+//     icon: Cloud,
+//     path: "/web/user/televersion",
+//   },
+//   {
+//     id: "other",
+//     label: "Autres",
+//     icon: MoreHorizontal,
+//     path: "/web/user/other",
+//   },
+// ];
 
 /**
  * LanguageLayout: Wrapper component that ensures language routing works correctly
@@ -350,6 +357,7 @@ export function ProtectedLayout({
   setSelectedCompany,
   selectedExercise,
   setActiveRoute,
+  selectedClient,
 }: {
   selectedCountry: any;
   setSelectedCountry: (c: any) => void;
@@ -357,6 +365,7 @@ export function ProtectedLayout({
   setSelectedCompany: (c: any) => void;
   selectedExercise: any;
   setActiveRoute: (route: string) => void;
+  selectedClient: any;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -437,9 +446,9 @@ export function ProtectedLayout({
                 <div className="flex items-center gap-4">
                   <SidebarTrigger />
                   <div className="flex items-center gap-3">
-                    <div className="bg-blue-600 p-2 rounded-lg">
+                    {/* <div className="bg-blue-600 p-2 rounded-lg">
                       <BarChart3 className="h-5 w-5 text-white" />
-                    </div>
+                    </div> */}
                     <div>
                       <h1 className="text-lg font-semibold text-gray-900">
                         HevGestion DSF
@@ -452,10 +461,10 @@ export function ProtectedLayout({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                  {/* <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
                     <Wifi className="h-3 w-3" />
                     {t("connected")}
-                  </div>
+                  </div> */}
 
                   <Button
                     variant="outline"
@@ -471,7 +480,6 @@ export function ProtectedLayout({
                     companyName={selectedCompany?.name}
                     currentExercise={selectedExercise?.fiscalYear}
                   />
-                  <NotificationCenter />
 
                   <div
                     className="flex items-center justify-center px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
@@ -483,11 +491,13 @@ export function ProtectedLayout({
                   >
                     <span className="text-sm font-medium truncate">
                       {" "}
-                      {selectedCompany?.name || t("selectCompany")}
+                      {selectedClient?.name || t("selectCompany")}
                     </span>
                   </div>
 
-                  {selectedExercise && (
+                  <NotificationCenter />
+
+                  {/* {selectedExercise && (
                     <div
                       className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                       onClick={() =>
@@ -499,7 +509,7 @@ export function ProtectedLayout({
                         {selectedExercise.fiscalYear}
                       </span>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -588,6 +598,7 @@ function AppRoutes() {
                   setSelectedCompany={setSelectedCompany}
                   selectedExercise={selectedFolder}
                   setActiveRoute={setActiveRoute}
+                  selectedClient={selectedClient}
                 />
               ) : (
                 <Navigate to="/fr/web/user/login" replace />
@@ -1199,6 +1210,14 @@ function AppRoutes() {
               element={
                 <div className="p-6">
                   <DSFConfigInterface />
+                </div>
+              }
+            />
+            <Route
+              path="revuefiscal/:userId/:actionId?"
+              element={
+                <div className="p-6">
+                  <RevueFiscal />
                 </div>
               }
             />

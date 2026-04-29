@@ -270,8 +270,13 @@ export const AllReports: React.FC<AllReportsProps> = ({
               b.period === "previous",
           );
         } else if (balancesResponse && typeof balancesResponse === "object") {
-          hasCurrentYear = !!balancesResponse.current;
-          hasPreviousYear = !!balancesResponse.previous;
+          if (balancesResponse.balances) {
+            hasCurrentYear = balancesResponse.balances.some((b: any) => b.type === "CURRENT_YEAR");
+            hasPreviousYear = balancesResponse.balances.some((b: any) => b.type === "PREVIOUS_YEAR");
+          } else {
+            hasCurrentYear = !!balancesResponse.current;
+            hasPreviousYear = !!balancesResponse.previous;
+          }
         }
 
         // Authoritative fallback: use AppContext's pre-computed folders
@@ -682,15 +687,15 @@ export const AllReports: React.FC<AllReportsProps> = ({
                       <span
                         className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${ok ? "bg-emerald-400" : "bg-red-400"}`}
                       />
-                      <div>
-                        <span className="text-gray-600">{label} </span>
-                        <span
-                          className={`font-medium ${ok ? "text-emerald-600" : "text-red-500"}`}
-                        >
-                          {ok ? "Présente" : "Manquante"}
-                        </span>
-                        {sub && <p className="text-gray-400 mt-0.5">{sub}</p>}
-                      </div>
+                       <div>
+                         <span className="text-gray-600">{label} </span>
+                         <span
+                           className={`font-medium ${ok ? "text-emerald-600" : "text-red-500"}`}
+                         >
+                           {ok ? "Présente" : "Manquante"}
+                         </span>
+                         {sub && <span className="text-gray-400 ml-1">{sub}</span>}
+                       </div>
                     </div>
                   ))}
                 </div>

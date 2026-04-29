@@ -34,10 +34,13 @@ interface HeaderData {
 // --- Composant Principal ---
 const CF1: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
-    const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  // Use folderId from URL params, fallback to selectedFolder
+  const folderId = folderIdFromUrl || selectedFolder?.id;
+
   const [isEditing, setIsEditing] = useState(false);
   const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,17 +48,17 @@ const CF1: React.FC = () => {
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
+    if (folderId) {
       loadDSFData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
   const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+    if (!folderId) return;
 
     try {
       setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
+      const response = await dsfService.getDSF(folderId);
       const dsf = response.dsf;
       setDsfId(dsf.id);
 
