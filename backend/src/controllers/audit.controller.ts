@@ -48,8 +48,8 @@ export class AuditController {
         if (endDate) where.createdAt.lte = new Date(endDate as string);
       }
 
-      const skip = (Number(page) - 1) * Number(limit);
-      const take = Number(limit);
+      const take = Math.min(Number(limit), 500);
+      const skip = (Number(page) - 1) * take;
 
       const [logs, total] = await Promise.all([
         prisma.auditLog.findMany({

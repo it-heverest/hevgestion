@@ -19,11 +19,6 @@ export const authenticate = async (
   next: NextFunction
 ) => {
   try {
-    // Debug: Log cookies and headers
-    console.log("🔍 Auth middleware - Cookies:", Object.keys(req.cookies || {}));
-    console.log("🔍 Auth middleware - Cookie accessToken:", req.cookies?.accessToken ? "PRESENT" : "NOT PRESENT");
-    console.log("🔍 Auth middleware - Authorization header:", req.headers.authorization ? "PRESENT" : "NOT PRESENT");
-
     // First try to get token from HttpOnly cookies (secure approach)
     let token = req.cookies?.accessToken;
 
@@ -36,11 +31,8 @@ export const authenticate = async (
     }
 
     if (!token) {
-      console.log("❌ Auth middleware - No token found in cookies or headers");
       throw new UnauthorizedError("No token provided");
     }
-
-    console.log("✅ Auth middleware - Token found, proceeding with verification");
 
     const payload = verifyAccessToken(token);
 

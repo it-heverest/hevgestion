@@ -29,11 +29,7 @@ export class AssistantController {
       }
 
       const assistants = await prisma.user.findMany({
-        where: {
-          role: "ASSISTANT",
-          // TODO: Add relation to link assistants to their accountant
-          // For now, we'll need to add a field to track the creator
-        },
+        where: { role: "ASSISTANT", createdById: userId },
         select: {
           id: true,
           firstName: true,
@@ -104,11 +100,11 @@ export class AssistantController {
         return ResponseBuilder.error(res, "Comptable non trouvé", 404);
       }
 
-      // Count current assistants for this accountant
+      // Count only this comptable's assistants
       const currentAssistantCount = await prisma.user.count({
         where: {
           role: "ASSISTANT",
-          // TODO: Add proper relation to filter by creator
+          createdById: userId,
         },
       });
 
@@ -144,6 +140,7 @@ export class AssistantController {
           role: "ASSISTANT",
           isActive: true,
           maxAssistants: 0,
+          createdById: userId,
         },
         select: {
           id: true,

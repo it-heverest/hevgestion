@@ -26,10 +26,15 @@ const upload = multer({
     fileSize: config.upload.maxSize,
   },
   fileFilter: (req, file, cb) => {
-    if (config.upload.allowedTypes.includes(file.mimetype)) {
+    const allowedExtensions = [".xlsx", ".xls"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (
+      config.upload.allowedTypes.includes(file.mimetype) &&
+      allowedExtensions.includes(ext)
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Only Excel files are allowed."));
+      cb(new Error("Invalid file type. Only Excel files (.xlsx, .xls) are allowed."));
     }
   },
 });
@@ -44,7 +49,6 @@ router.post(
   dsfController.importDSF
 );
 router.get("/check-status", authenticate, dsfController.checkDSFStatus);
-router.post("/generate", authenticate, dsfController.generateDSF);
 router.get("/:folderId", authenticate, dsfController.getDSF);
 router.put("/:id", authenticate, dsfController.updateDSF);
 router.post("/:id/validate", authenticate, dsfController.validateDSF);

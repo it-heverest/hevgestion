@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { RevueFiscalController } from '../controllers/revue-fiscal.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, authorize } from '../middleware/auth.middleware';
 
 const router = Router();
 const controller = new RevueFiscalController();
 
-// All routes require authentication
+// All routes require authentication + COMPTABLE or ADMIN role
 router.use(authenticate);
+router.use(authorize("COMPTABLE", "ADMIN"));
 
 // Get all companies with stats
 router.get('/companies', controller.getCompanies.bind(controller));

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { dsfConfigController } from "../controllers/dsf-config.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { authenticate, authorize } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -44,15 +44,17 @@ router.post(
 
 // Routes administratives (ADMIN seulement)
 
-// POST /api/dsf-configs/create-defaults - Créer des configurations par défaut
+// POST /api/dsf-configs/create-defaults - Créer des configurations par défaut (ADMIN only)
 router.post(
   "/create-defaults",
+  authorize("ADMIN"),
   dsfConfigController.createDefaultConfigs.bind(dsfConfigController)
 );
 
-// POST /api/dsf-configs/reset-all - Réinitialiser toutes les configurations
+// POST /api/dsf-configs/reset-all - Réinitialiser toutes les configurations (ADMIN only)
 router.post(
   "/reset-all",
+  authorize("ADMIN"),
   dsfConfigController.resetAllConfigs.bind(dsfConfigController)
 );
 

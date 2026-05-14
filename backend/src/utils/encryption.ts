@@ -4,7 +4,23 @@ import { config } from '../config';
 
 export class EncryptionUtil {
   private algorithm = config.encryption.algorithm;
-  private key = Buffer.from(config.encryption.key);
+  private key: Buffer;
+
+  constructor() {
+    const raw = config.encryption.key;
+    // Support hex-encoded keys (64 chars) or raw 32-byte ASCII keys
+    const buf = raw.length === 64 && /^[0-9a-fA-F]+$/.test(raw)
+      ? Buffer.from(raw, 'hex')
+      : Buffer.from(raw, 'utf8');
+
+    if (buf.length !== 32) {
+      throw new Error(
+        `ENCRYPTION_KEY must be exactly 32 bytes for AES-256-GCM. ` +
+        `Got ${buf.length} bytes. Use a 32-char ASCII string or a 64-char hex string.`
+      );
+    }
+    this.key = buf;
+  }
 
   encrypt(text: string): string {
     const iv = crypto.randomBytes(16);

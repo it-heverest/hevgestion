@@ -36,6 +36,8 @@ export const NOTE_EXPORT_MAP: Record<
     "18": { config: noteConfigs.CONFIG_NOTE18, sheetName: "NOTE 18" },
     "19": { config: noteConfigs.CONFIG_NOTE19, sheetName: "NOTE 19" },
     "20": { config: noteConfigs.CONFIG_NOTE20, sheetName: "NOTE 20" },
+    "21": { config: noteConfigs.CONFIG_NOTE21, sheetName: "NOTE 21" },
+    "22": { config: noteConfigs.CONFIG_NOTE22, sheetName: "NOTE 22" },
     "23": { config: noteConfigs.CONFIG_NOTE23, sheetName: "NOTE 23" },
     "24": { config: noteConfigs.CONFIG_NOTE24, sheetName: "NOTE 24" },
     "25": { config: noteConfigs.CONFIG_NOTE25, sheetName: "NOTE 25" },

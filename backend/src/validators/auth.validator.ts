@@ -45,3 +45,41 @@ export const loginSchema = z.object({
     path: ["email"],
   }),
 });
+
+export const verifyOtpSchema = z.object({
+  body: z.object({
+    userId: z.string().uuid("Invalid user ID"),
+    otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d{6}$/, "OTP must be numeric"),
+  }),
+});
+
+export const resendOtpSchema = z.object({
+  body: z.object({
+    userId: z.string().uuid("Invalid user ID"),
+  }),
+});
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email format"),
+  }),
+});
+
+export const verifyPasswordResetOtpSchema = z.object({
+  body: z.object({
+    email: z.string().email("Invalid email format"),
+    otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d{6}$/, "OTP must be numeric"),
+  }),
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    userId: z.string().uuid("Invalid user ID"),
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number"),
+  }),
+});

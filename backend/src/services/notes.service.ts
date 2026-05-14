@@ -71,11 +71,26 @@ export interface NoteData {
 }
 
 export class NotesService {
-  /**
-   * Get DSF field name from note number
-   */
   private getFieldName(noteNumber: string): string | null {
     return NOTE_NUMBER_TO_FIELD[noteNumber] || null;
+  }
+
+  /**
+   * Strip OHADA form template placeholder strings from entete fields.
+   * Values like "Numéro d'identification : ………………" are static UI labels
+   * that got stored as data — they add noise and payload without value.
+   */
+  private cleanEntete(data: any): any {
+    if (!data?.entete) return data;
+    const clean = { ...data, entete: { ...data.entete } };
+    const PLACEHOLDER = /[…\.]{4,}/;
+    for (const key of ["idNumber", "entityName", "duration", "fiscalYear"] as const) {
+      const v = clean.entete[key];
+      if (typeof v === "string" && PLACEHOLDER.test(v)) {
+        clean.entete[key] = null;
+      }
+    }
+    return clean;
   }
 
   /**
@@ -154,11 +169,10 @@ export class NotesService {
       },
     });
 
-    if (!dsf) {
-      return null;
-    }
+    if (!dsf) return null;
 
-    return (dsf as any)[fieldName] || null;
+    const raw = (dsf as any)[fieldName];
+    return raw ? this.cleanEntete(raw) : null;
   }
 
   /**
@@ -223,10 +237,8 @@ export class NotesService {
         }
         notes.push({
           noteNumber,
-          noteType: `NOTE${noteNumber}`,
-          fieldName,
-          data,
           exists: true,
+          data: this.cleanEntete(data),
         });
       }
     }

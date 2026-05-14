@@ -29,10 +29,15 @@ const upload = multer({
     fileSize: config.upload.maxSize,
   },
   fileFilter: (req, file, cb) => {
-    if (config.upload.allowedTypes.includes(file.mimetype)) {
+    const allowedExtensions = [".xlsx", ".xls"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (
+      config.upload.allowedTypes.includes(file.mimetype) &&
+      allowedExtensions.includes(ext)
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Only Excel files are allowed."));
+      cb(new Error("Invalid file type. Only Excel files (.xlsx, .xls) are allowed."));
     }
   },
 });

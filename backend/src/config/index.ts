@@ -31,8 +31,7 @@ const getCorsOrigin = (): string[] => {
   if (isProduction) {
     const origin = process.env.CORS_ORIGIN;
     if (!origin) {
-      console.warn("⚠️ CORS_ORIGIN not set for production!");
-      return ["*"];
+      throw new Error("CORS_ORIGIN environment variable is required in production");
     }
     return origin.split(",").map((o) => o.trim());
   }
@@ -91,7 +90,13 @@ export const config = {
 
   encryption: {
     algorithm: "aes-256-gcm",
-    key: process.env.ENCRYPTION_KEY || "your-32-character-encryption-key!",
+    key: (() => {
+      const key = process.env.ENCRYPTION_KEY;
+      if (!key) {
+        throw new Error("ENCRYPTION_KEY environment variable is required");
+      }
+      return key;
+    })(),
   },
 
   redis: {

@@ -8,6 +8,9 @@ import { Response } from "express";
 import { prisma } from "../../lib/prisma";
 import { AuthRequest } from "../types/declaration.types";
 import { declarationService } from "../services/declaration.service";
+import { EncryptionUtil } from "../../utils/encryption";
+
+const encryption = new EncryptionUtil();
 import {
   DGIAuthRequest,
   DGIDeclarationType,
@@ -134,7 +137,7 @@ export class DeclarationController {
       // Authenticate with DGI
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       // Create declaration
@@ -193,7 +196,7 @@ export class DeclarationController {
       // Authenticate and get declarations
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.getAllDeclarations();
@@ -244,7 +247,7 @@ export class DeclarationController {
       // Authenticate and get declarations
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const targetYear = (year as string) || yearParam;
@@ -295,7 +298,7 @@ export class DeclarationController {
       // Authenticate
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       // Delete declaration
@@ -351,7 +354,7 @@ export class DeclarationController {
       // Authenticate
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       // Submit page
@@ -406,7 +409,7 @@ export class DeclarationController {
       // Authenticate
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       // Update page
@@ -461,7 +464,7 @@ export class DeclarationController {
       // Authenticate
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       // Delete page
@@ -517,7 +520,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitPageDeGarde(
@@ -569,7 +572,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitFicheR1(
@@ -620,7 +623,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitFicheR2(
@@ -679,7 +682,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitGrilleAnalyse(
@@ -735,7 +738,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.updateGrilleAnalyse(
@@ -787,7 +790,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -848,7 +851,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitSection2Model1BilanPaysage(
@@ -907,7 +910,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.updateSection2Model1BilanPaysage(
@@ -962,7 +965,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -1022,7 +1025,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.submitSection2ModelCompteResultat(
@@ -1076,7 +1079,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result = await declarationService.updateSection2ModelCompteResultat(
@@ -1126,7 +1129,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -1184,7 +1187,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -1238,7 +1241,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -1288,7 +1291,7 @@ export class DeclarationController {
 
       await declarationService.authenticate({
         username: dgiConfig.username,
-        password: dgiConfig.password,
+        password: encryption.decrypt(dgiConfig.password),
       });
 
       const result =
@@ -1345,12 +1348,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote1(
         declarationId,
@@ -1401,12 +1402,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote1(
         declarationId,
@@ -1456,12 +1455,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote1(declarationId);
 
@@ -1513,12 +1510,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote2(
         declarationId,
@@ -1569,12 +1564,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote2(
         declarationId,
@@ -1624,12 +1617,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote2(declarationId);
 
@@ -1681,12 +1672,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3A(
         declarationId,
@@ -1737,12 +1726,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3A(
         declarationId,
@@ -1792,12 +1779,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3A(declarationId);
 
@@ -1849,12 +1834,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3B(
         declarationId,
@@ -1905,12 +1888,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3B(
         declarationId,
@@ -1960,12 +1941,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3B(declarationId);
 
@@ -2017,12 +1996,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3C(
         declarationId,
@@ -2073,12 +2050,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3C(
         declarationId,
@@ -2128,12 +2103,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3C(declarationId);
 
@@ -2186,12 +2159,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitCol1Note3C2(
         declarationId,
@@ -2244,12 +2215,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateCol1Note3C2(
         declarationId,
@@ -2300,12 +2269,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteCol1Note3C2(declarationId);
 
@@ -2361,12 +2328,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3D2(
         declarationId,
@@ -2418,12 +2383,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3D2(
         declarationId,
@@ -2473,12 +2436,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3D2(declarationId);
 
@@ -2531,12 +2492,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3E2(
         declarationId,
@@ -2588,12 +2547,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3E2(
         declarationId,
@@ -2643,12 +2600,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3E2(declarationId);
 
@@ -2703,12 +2658,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote3F(
         year,
@@ -2761,12 +2714,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote3F(
         year,
@@ -2818,12 +2769,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote3F(year, type);
 
@@ -2878,12 +2827,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote4(
         declarationId,
@@ -2934,12 +2881,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote4(
         declarationId,
@@ -2989,12 +2934,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote4(declarationId);
 
@@ -3049,12 +2992,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote5(
         declarationId,
@@ -3105,12 +3046,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote5(
         declarationId,
@@ -3160,12 +3099,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote5(declarationId);
 
@@ -3220,12 +3157,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote6(
         declarationId,
@@ -3276,12 +3211,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote6(
         declarationId,
@@ -3331,12 +3264,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote6(declarationId);
 
@@ -3385,12 +3316,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote7(
         declarationId,
@@ -3441,12 +3370,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote7(
         declarationId,
@@ -3496,12 +3423,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote7(declarationId);
 
@@ -3550,12 +3475,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote8(
         declarationId,
@@ -3606,12 +3529,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote8(
         declarationId,
@@ -3661,12 +3582,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote8(declarationId);
 
@@ -3715,12 +3634,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote9(
         declarationId,
@@ -3771,12 +3688,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote9(
         declarationId,
@@ -3826,12 +3741,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote9(declarationId);
 
@@ -3880,12 +3793,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote10(
         declarationId,
@@ -3936,12 +3847,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote10(
         declarationId,
@@ -3991,12 +3900,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote10(declarationId);
 
@@ -4045,12 +3952,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote11(
         declarationId,
@@ -4101,12 +4006,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote11(
         declarationId,
@@ -4156,12 +4059,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote11(declarationId);
 
@@ -4210,12 +4111,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote12(
         declarationId,
@@ -4266,12 +4165,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote12(
         declarationId,
@@ -4321,12 +4218,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote12(declarationId);
 
@@ -4375,12 +4270,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.submitNote13(
         declarationId,
@@ -4431,12 +4324,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.updateNote13(
         declarationId,
@@ -4486,12 +4377,10 @@ export class DeclarationController {
       }
 
       // Authenticate if not already
-      if (!declarationService.isAuthenticated()) {
-        await declarationService.authenticate({
-          username: dgiConfig.niu,
-          password: dgiConfig.password,
-        });
-      }
+      await declarationService.authenticate({
+        username: dgiConfig.username,
+        password: encryption.decrypt(dgiConfig.password),
+      });
 
       const result = await declarationService.deleteNote13(declarationId);
 

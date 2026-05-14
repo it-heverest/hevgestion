@@ -54,15 +54,18 @@ router.put("/:id/read", authenticate, async (req: AuthRequest, res: Response, ne
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const notification = await prisma.notification.update({
-      where: { id },
+    const result = await prisma.notification.updateMany({
+      where: { id, userId },
       data: { isRead: true, readAt: new Date() },
     });
 
-    res.json({ notification });
+    if (result.count === 0) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    res.json({ message: "Notification marked as read" });
   } catch (error) {
-    console.error("Error marking notification as read:", error);
-    res.status(500).json({ error: "Error marking notification as read" });
+    next(error);
   }
 });
 

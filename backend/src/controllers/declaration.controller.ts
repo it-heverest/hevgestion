@@ -4,7 +4,10 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError } from "../lib/errors";
 import { DGIService } from "../services/dgi.service";
+import { EncryptionUtil } from "../utils/encryption";
 import { TaxType, DeclarationStatus } from "@prisma/client";
+
+const encryption = new EncryptionUtil();
 
 class DeclarationController {
   private dgiService = new DGIService();
@@ -187,7 +190,7 @@ class DeclarationController {
 
       // Decrypt password
       const apiPassword = await this.dgiService.decryptPassword(
-        dgiConfig.password
+        encryption.decrypt(dgiConfig.password)
       );
 
       // Authenticate with DGI
@@ -227,7 +230,7 @@ class DeclarationController {
 
       // Decrypt password
       const apiPassword = await this.dgiService.decryptPassword(
-        dgiConfig.password
+        encryption.decrypt(dgiConfig.password)
       );
 
       // Authenticate with DGI
@@ -294,7 +297,7 @@ class DeclarationController {
 
       // Decrypt password
       const apiPassword = await this.dgiService.decryptPassword(
-        dgiConfig.password
+        encryption.decrypt(dgiConfig.password)
       );
 
       // Authenticate with DGI
@@ -383,7 +386,7 @@ class DeclarationController {
 
       // Decrypt password
       const apiPassword = await this.dgiService.decryptPassword(
-        dgiConfig.password
+        encryption.decrypt(dgiConfig.password)
       );
 
       // Authenticate with DGI

@@ -1,13 +1,25 @@
 // src/lib/errors.ts
 export class AppError extends Error {
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+
   constructor(
-    public statusCode: number,
-    public message: string,
-    public isOperational = true
+    statusCode: number,
+    message: string,
+    isOperational = true
   ) {
     super(message);
+    this.statusCode = statusCode;
+    this.isOperational = isOperational;
+
+    // Set prototype for instanceof checks
     Object.setPrototypeOf(this, AppError.prototype);
-    Error.captureStackTrace(this, this.constructor);
+
+    // Only capture stack trace in development for debugging
+    // Never expose stack traces in production responses
+    if (process.env.NODE_ENV === 'development') {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 

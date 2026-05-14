@@ -23,6 +23,11 @@ model User {
   // Assistant management for COMPTABLE users
   maxAssistants Int @default(0)
 
+  // Self-referential: COMPTABLE who created this ASSISTANT
+  createdById String?
+  createdBy   User?   @relation("AssistantCreator", fields: [createdById], references: [id])
+  createdAssistants User[] @relation("AssistantCreator")
+
   // OTP verification fields
   otpCode      String?
   otpExpiry    DateTime?
@@ -493,12 +498,10 @@ model DSFConfigImport {
 
 // ========== DGI DECLARATION MANAGEMENT ==========
 model DGIConfig {
-  id          String @id @default(uuid())
-  companyName String
-  niu         String
-  username    String
-  password    String
-  userId      String @unique
+  id       String @id @default(uuid())
+  username String
+  password String
+  userId   String @unique
 
   user User @relation(fields: [userId], references: [id])
 

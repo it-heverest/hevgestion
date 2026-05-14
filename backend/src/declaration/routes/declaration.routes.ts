@@ -6,6 +6,7 @@
 
 import { Router } from "express";
 import { declarationController } from "../controllers/declaration.controller";
+import { dgiConfigController } from "../controllers/dgi-config.controller";
 import { authenticate } from "../../middleware/auth.middleware";
 
 const router = Router();
@@ -22,6 +23,25 @@ router.post(
 
 // All other routes require authentication
 router.use(authenticate);
+
+// ============================================
+// DGI Config (credentials storage)
+// ============================================
+
+// GET /api/dgi/config/:userId
+router.get("/config/:userId", (req, res, next) =>
+  dgiConfigController.getConfig(req as any, res).catch(next),
+);
+
+// POST /api/dgi/config  (upsert — creates or replaces)
+router.post("/config", (req, res, next) =>
+  dgiConfigController.saveConfig(req as any, res).catch(next),
+);
+
+// PUT /api/dgi/config/:id  (partial update)
+router.put("/config/:id", (req, res, next) =>
+  dgiConfigController.updateConfig(req as any, res).catch(next),
+);
 
 // ============================================
 // Process Operations (alias for declarations)

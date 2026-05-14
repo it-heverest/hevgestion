@@ -10,7 +10,6 @@ import * as fs from "fs";
 import { config } from "./config";
 import { errorHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/auth.routes";
-// import countryRoutes from "./routes/country.routes";
 import clientRoutes from "./routes/client.routes";
 import folderRoutes from "./routes/folder.routes";
 import balanceRoutes from "./routes/balance.routes";
@@ -19,7 +18,6 @@ import dsfImportRoutes from "./routes/dsf-import.routes";
 import declarationRoutes from "./routes/declaration.routes";
 import dsfConfigRoutes from "./routes/dsf-config.routes";
 import assistantRoutes from "./routes/assistant.routes";
-// import reportRoutes from "./routes/report.routes";
 import auditRoutes from "./routes/audit.routes";
 import notesRoutes from "./routes/notes.routes";
 import dsfTemplateRoutes from "./routes/dsf-template.routes";
@@ -28,7 +26,6 @@ import notificationRoutes from "./routes/notification.routes";
 import redisRoutes from "./routes/redis.routes";
 import revueFiscalRoutes from "./routes/revue-fiscal.routes";
 import { SchedulerService } from "./services/scheduler.service";
-// import dsfMappingRoutes from "./routes/dsf-mapping.routes";
 
 const app: Express = express();
 
@@ -65,34 +62,43 @@ app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Debug endpoint - shows upload directory config
-app.get("/api/debug/config", (req: Request, res: Response) => {
-  res.json({
-    uploadDir: config.upload.directory,
-    subDirectories: config.upload.subDirectories,
-    isProduction: config.isProduction,
+if (!config.isProduction) {
+  // Debug endpoint - shows upload directory config
+  app.get("/api/debug/config", (req: Request, res: Response) => {
+    res.json({
+      uploadDir: config.upload.directory,
+      subDirectories: config.upload.subDirectories,
+      isProduction: config.isProduction,
+    });
   });
-});
 
-// Debug endpoint - list files in upload directory
-app.get("/api/debug/files", (req: Request, res: Response) => {
-  const uploadDir = config.upload.directory;
-  const subDir = (req.query.subdir as string) || "";
-  const targetDir = subDir ? path.join(uploadDir, subDir) : uploadDir;
+  // Debug endpoint - list files in upload directory
+  app.get("/api/debug/files", (req: Request, res: Response) => {
+    const uploadDir = config.upload.directory;
+    const subDir = (req.query.subdir as string) || "";
+    // Prevent path traversal: resolve the target and ensure it stays inside uploadDir
+    const targetDir = subDir
+      ? path.resolve(uploadDir, subDir)
+      : uploadDir;
 
-  try {
-    if (!fs.existsSync(targetDir)) {
-      return res.json({
-        files: [],
-        message: `Directory does not exist: ${targetDir}`,
-      });
+    if (!targetDir.startsWith(path.resolve(uploadDir))) {
+      return res.status(400).json({ error: "Invalid subdirectory" });
     }
-    const files = fs.readdirSync(targetDir);
-    res.json({ directory: targetDir, files: files.slice(0, 20) });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+
+    try {
+      if (!fs.existsSync(targetDir)) {
+        return res.json({
+          files: [],
+          message: `Directory does not exist: ${targetDir}`,
+        });
+      }
+      const files = fs.readdirSync(targetDir);
+      res.json({ directory: targetDir, files: files.slice(0, 20) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+}
 
 // Serve uploaded files - main uploads directory
 console.log(`📁 Serving files from: ${config.upload.directory}`);
@@ -168,7 +174,9 @@ app.use("/api/notes", notesRoutes);
 app.use("/api/dsf-template", dsfTemplateRoutes);
 app.use("/api/dgi", dgiRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/debug/redis", redisRoutes);
+if (!config.isProduction) {
+  app.use("/api/debug/redis", redisRoutes);
+}
 app.use("/api/revue-fiscal", revueFiscalRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 

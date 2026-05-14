@@ -13,8 +13,8 @@ class ClientController {
       const userRole = req.user!.role;
       const { country, page = "1", limit = "50" } = req.query;
 
-      const skip = (Number(page) - 1) * Number(limit);
-      const take = Number(limit);
+      const take = Math.min(Number(limit), 500);
+      const skip = (Number(page) - 1) * take;
 
       // Validate country if provided
       if (
@@ -131,6 +131,12 @@ class ClientController {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
 
+      // Access check first — throws 404 if not found, 403 if no access.
+      // Doing this before the detailed fetch prevents existence leakage:
+      // an unauthorized user always gets 403, never a 404 that hints the
+      // record exists.
+      await this.checkClientAccess(id, userId, userRole);
+
       const client = await prisma.client.findUnique({
         where: { id },
         include: {
@@ -159,9 +165,6 @@ class ClientController {
       if (!client) {
         throw new NotFoundError("Client not found");
       }
-
-      // Check access based on role
-      await this.checkClientAccess(id, userId, userRole);
 
       res.json({ client });
     } catch (error) {
@@ -214,41 +217,6 @@ class ClientController {
       // Set currency based on country
       const currency = country === "CM" ? "XAF" : "XOF";
 
-      // Create client and auto-create a folder for the creator
-      // const [client] = await prisma.$transaction([
-      //   prisma.client.create({
-      //     data: {
-      //       name,
-      //       legalForm,
-      //       taxNumber,
-      //       address,
-      //       city,
-      //       phone,
-      //       country: country as CountrySelection,
-      //       currency,
-      //       createdBy: userId,
-      //     },
-      //   }),
-      //   // Auto-create main folder for the creator
-      //   prisma.folder.create({
-      //     data: {
-      //       name: `${name} - Principal`,
-      //       client: {
-      //         connect: {
-      //           // We'll get the client ID from the transaction
-      //           name: name, // This needs to be adjusted - better to create client first then folder
-      //         },
-      //       },
-      //       ownerId: userId,
-      //       fiscalYear: new Date().getFullYear(),
-      //       startDate: new Date(new Date().getFullYear(), 0, 1), // Jan 1
-      //       endDate: new Date(new Date().getFullYear(), 11, 31), // Dec 31
-      //       status: FolderStatus.DRAFT,
-      //     },
-      //   }),
-      // ]);
-
-      // Alternative approach without transaction for simplicity:
       const client = await prisma.client.create({
         data: {
           name,

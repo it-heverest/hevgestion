@@ -3,6 +3,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { ResponseBuilder } from "../utils/response-builder";
 import { notesService } from "../services/notes.service";
+import { prisma } from "../lib/prisma";
 
 const VALID_NOTE_NUMBERS = [
   "1", "2", "3A", "3B", "3C", "3D", "3E", "3F",
@@ -110,11 +111,117 @@ export class NotesController {
 
       console.log(`📥 Loading NOTE ${noteNumber} for folder ${folderId}`);
 
-      const noteData = await notesService.getNoteData(folderId, noteNumber);
+      let noteData = await notesService.getNoteData(folderId, noteNumber);
 
       if (!noteData) {
-        console.log(`ℹ️ NOTE ${noteNumber} not found`);
-        return ResponseBuilder.success(res, null, "Note not found");
+        console.log(`ℹ️ NOTE ${noteNumber} not found, generating from DSF data`);
+
+        // Generate the note data from DSF if it doesn't exist
+        try {
+          const { DSFGenerator } = await import("../services/dsf-generator.service");
+
+          // Get folder with relations
+          const folder = await prisma.folder.findUnique({
+            where: { id: folderId },
+            include: {
+              client: true,
+              balances: {
+                include: {
+                  fixedAssets: true,
+                  equilibrium: true,
+                },
+                orderBy: { type: "desc" },
+              },
+            },
+          });
+
+          if (!folder) {
+            console.log(`❌ Folder ${folderId} not found`);
+            return ResponseBuilder.success(res, null, "Note not found");
+          }
+
+          console.log(`📊 Found folder ${folderId} with ${folder.balances?.length || 0} balance(s)`);
+
+          // Check if folder has balance data
+          if (!folder.balances || folder.balances.length === 0) {
+            console.log(`⚠️ Folder ${folderId} has no balance data, cannot generate DSF`);
+            return ResponseBuilder.success(res, null, "No balance data available for generation");
+          }
+
+          // Generate DSF data
+          const generator = new DSFGenerator();
+          const reports = await generator.generate(folder as any);
+
+          // Find the NOTES report
+          const notesReport = reports.find((report: any) => report.type === "NOTES");
+          if (!notesReport || !notesReport.data) {
+            console.log(`ℹ️ NOTES report not found in generated DSF data`);
+            return ResponseBuilder.success(res, null, "Note not found");
+          }
+
+          // Extract the specific note data
+          const noteFieldMap: Record<string, string> = {
+            "1": "note1",
+            "2": "note2",
+            "3A": "note3a",
+            "3B": "note3b",
+            "3C": "note3c",
+            "3D": "note3d",
+            "3E": "note3e",
+            "3F": "note3f",
+            "4": "note4",
+            "5": "note5",
+            "6": "note6",
+            "7": "note7",
+            "8": "note8",
+            "9": "note9",
+            "10": "note10",
+            "11": "note11",
+            "12": "note12",
+            "13": "note13",
+            "14": "note14",
+            "15A": "note15a",
+            "15B": "note15b",
+            "16A": "note16a",
+            "16B": "note16b",
+            "16B bis": "note16b_bis",
+            "16C": "note16c",
+            "17": "note17",
+            "C1/17": "note17_c1",
+            "18": "note18",
+            "19": "note19",
+            "20": "note20",
+            "21": "note21",
+            "22": "note22",
+            "23": "note23",
+            "24": "note24",
+            "25": "note25",
+            "C1/25": "note25_c1",
+            "C2/25": "note25_c2",
+            "26": "note26",
+            "28": "note28",
+            "C1/28": "note28_c1",
+            "C2/28": "note28_c2",
+            "29": "note29",
+            "30": "note30",
+            "31": "note31",
+            "32": "note32",
+            "33": "note33",
+            "34": "note34",
+          };
+
+          const noteField = noteFieldMap[noteNumber];
+          if (noteField && notesReport.data[noteField]) {
+            noteData = notesReport.data[noteField];
+            console.log(`✅ NOTE ${noteNumber} generated from DSF data`);
+          } else {
+            console.log(`ℹ️ NOTE ${noteNumber} (${noteField}) not found in generated DSF data`);
+            return ResponseBuilder.success(res, null, "Note not found");
+          }
+        } catch (error) {
+          console.error(`❌ Error generating note ${noteNumber}:`, error);
+          return ResponseBuilder.success(res, null, "Note not found");
+        }
       }
 
       const sizeInMB = JSON.stringify(noteData).length / (1024 * 1024);
@@ -180,30 +287,23 @@ export class NotesController {
   async getNotesForFolder(req: AuthRequest, res: Response) {
     try {
       const { folderId } = req.params;
+      const light = req.query.light === "true";
 
       if (!folderId) {
         return ResponseBuilder.error(res, "folderId is required", 400);
       }
 
-      console.log(`📋 Loading all notes for folder ${folderId}`);
+      // Single DB query — fetch DSF once, extract all note fields from it
+      const notes = await notesService.getNotesForFolder(folderId);
 
-      const notes = await Promise.all(
-        VALID_NOTE_NUMBERS.map(async (noteNumber) => {
-          const data = await notesService.getNoteData(folderId, noteNumber);
-          return { noteNumber, exists: !!data, data: data || null };
-        }),
-      );
+      // ?light=true — caller only needs existence flags, skip full data payload
+      const payload = light
+        ? notes.map(({ noteNumber, exists }) => ({ noteNumber, exists }))
+        : notes;
 
-      const existingNotes = notes.filter((note) => note.exists);
-      console.log(`✅ Found ${existingNotes.length} note(s)`);
-
-      return ResponseBuilder.success(
-        res,
-        existingNotes,
-        "Notes retrieved successfully",
-      );
+      return ResponseBuilder.success(res, payload, "Notes retrieved successfully");
     } catch (error) {
-      console.error("❌ Error getting notes for folder:", error);
+      console.error("Error getting notes for folder:", error);
       return ResponseBuilder.error(res, "Failed to get notes for folder");
     }
   }

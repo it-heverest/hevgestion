@@ -7320,3 +7320,381 @@ export const CONFIG_NOTE18: ConfigurationMapping = {
     },
   },
 };
+
+// ==================== NOTE 21 ====================
+// CHIFFRE D'AFFAIRES ET AUTRES PRODUITS
+
+export const CONFIG_NOTE21: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "F2", // Exercice clos le
+    duration: "F3", // Durée (en mois)
+  },
+  sections: {
+    chiffreAffaires: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES MARCHANDISES",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E9",
+          anneeN1: "F9",
+          variation: "G9",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E10",
+          anneeN1: "F10",
+          variation: "G10",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E11",
+          anneeN1: "F11",
+          variation: "G11",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E12",
+          anneeN1: "F12",
+          variation: "G12",
+        },
+        {
+          label: "TOTAL : VENTES MARCHANDISES",
+          anneeN: "E13",
+          anneeN1: "F13",
+          variation: "G13",
+        },
+      ],
+    },
+    ventesProduitsFabriques: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES DE PRODUITS FABRIQUES",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E15",
+          anneeN1: "F15",
+          variation: "G15",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E16",
+          anneeN1: "F16",
+          variation: "G16",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E17",
+          anneeN1: "F17",
+          variation: "G17",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E18",
+          anneeN1: "F18",
+          variation: "G18",
+        },
+        {
+          label: "TOTAL : VENTES DE PRODUITS FABRIQUES",
+          anneeN: "E19",
+          anneeN1: "F19",
+          variation: "G19",
+        },
+      ],
+    },
+    ventesTravauxServices: {
+      libelles: [
+        "Ventes dans la région",
+        "Ventes hors région",
+        "Ventes groupe",
+        "Ventes sur internet",
+        "TOTAL : VENTES DE TRAVAUX ET SERVICES VENDUS",
+      ],
+      lignes: [
+        {
+          label: "Ventes dans la région",
+          anneeN: "E21",
+          anneeN1: "F21",
+          variation: "G21",
+        },
+        {
+          label: "Ventes hors région",
+          anneeN: "E22",
+          anneeN1: "F22",
+          variation: "G22",
+        },
+        {
+          label: "Ventes groupe",
+          anneeN: "E23",
+          anneeN1: "F23",
+          variation: "G23",
+        },
+        {
+          label: "Ventes sur internet",
+          anneeN: "E24",
+          anneeN1: "F24",
+          variation: "G24",
+        },
+        {
+          label: "TOTAL : VENTES DE TRAVAUX ET SERVICES VENDUS",
+          anneeN: "E25",
+          anneeN1: "F25",
+          variation: "G25",
+        },
+      ],
+    },
+    produitsAccessoires: {
+      libelles: ["Produits accessoires", "TOTAL CHIFFRES D'AFFAIRES"],
+      lignes: [
+        {
+          anneeN: "E27",
+          anneeN1: "F27",
+          variation: "G27",
+        },
+        { anneeN: "E30", anneeN1: "F30", variation: "G30" },
+      ],
+    },
+    autresProduits: {
+      libelles: [
+        "Production immobilisée",
+        "Subventions d'exploitation",
+        "Autres produits",
+        "TOTAL : AUTRES PRODUITS",
+        "TOTAL",
+      ],
+      lignes: [
+        {
+          label: "Production immobilisée",
+          anneeN: "E32",
+          anneeN1: "F32",
+          variation: "G32",
+        },
+        {
+          label: "Subventions d'exploitation",
+          anneeN: "E33",
+          anneeN1: "F33",
+          variation: "G33",
+        },
+        {
+          label: "Autres produits",
+          anneeN: "E34",
+          anneeN1: "F34",
+          variation: "G34",
+        },
+        {
+          label: "TOTAL : AUTRES PRODUITS",
+          anneeN: "E35",
+          anneeN1: "F35",
+          variation: "G35",
+        },
+        {
+          label: "TOTAL",
+          anneeN: "E35",
+          anneeN1: "F35",
+          variation: "G35",
+        },
+      ],
+    },
+  },
+};
+
+// ==================== NOTE 22 ====================
+// ACHATS
+
+export const CONFIG_NOTE22: ConfigurationMapping = {
+  entete: {
+    entityName: "A2",
+    idNumber: "A3",
+    fiscalYear: "F2", // Exercice clos le
+    duration: "F3", // Durée (en mois)
+  },
+  sections: {
+    achats: {
+      libelles: [
+        "Achats dans la régions",
+        "Achats hors régions",
+        "Achats groupe",
+        "TOTAL : ACHATS DE MARCHANDISES",
+      ],
+      lignes: [
+        {
+          label: "Achats dans la régions",
+          anneeN: "E9",
+          anneeN1: "F9",
+          variation: "G9",
+        },
+        {
+          label: "Achats hors régions",
+          anneeN: "E10",
+          anneeN1: "F10",
+          variation: "G10",
+        },
+        {
+          label: "Achats groupe",
+          anneeN: "E11",
+          anneeN1: "F11",
+          variation: "G11",
+        },
+        {
+          label: "TOTAL : ACHATS DE MARCHANDISES",
+          anneeN: "E12",
+          anneeN1: "F12",
+          variation: "G12",
+        },
+      ],
+    },
+    achatsMatieresPremieres: {
+      libelles: [
+        "Achat dans la région",
+        "Achat hors région",
+        "Achat groupe",
+        "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
+      ],
+      lignes: [
+        {
+          label: "Achat dans la région",
+          anneeN: "E14",
+          anneeN1: "F14",
+          variation: "G14",
+        },
+        {
+          label: "Achat hors région",
+          anneeN: "E15",
+          anneeN1: "F15",
+          variation: "G15",
+        },
+        {
+          label: "Achat groupe",
+          anneeN: "E16",
+          anneeN1: "F16",
+          variation: "G16",
+        },
+        {
+          label: "TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES",
+          anneeN: "E17",
+          anneeN1: "F17",
+          variation: "G17",
+        },
+      ],
+    },
+    autresAchats: {
+      libelles: [
+        "Matières consommables",
+        "Matières combustibles",
+        "Produits d'entretien",
+        "Fournitures d'atelier, d'usine et de magasin",
+        "Eau",
+        "Electricité",
+        "Autres énergies",
+        "Fourniture d'entretien",
+        "Fournitures de bureau",
+        "Petit matériel et outillages",
+        "Achats études, prestations de services, de travaux matériels et équipements",
+        "Achats d'emballages",
+        "Frais sur achats",
+        "Remises rabais, remises et ristournes",
+        "TOTAL : AUTRES ACHATS",
+      ],
+      lignes: [
+        {
+          label: "Matières consommables",
+          anneeN: "E19",
+          anneeN1: "F19",
+          variation: "G19",
+        },
+        {
+          label: "Matières combustibles",
+          anneeN: "E20",
+          anneeN1: "F20",
+          variation: "G20",
+        },
+        {
+          label: "Produits d'entretien",
+          anneeN: "E21",
+          anneeN1: "F21",
+          variation: "G21",
+        },
+        {
+          label: "Fournitures d'atelier, d'usine et de magasin",
+          anneeN: "E22",
+          anneeN1: "F22",
+          variation: "G22",
+        },
+        { label: "Eau", anneeN: "E23", anneeN1: "F23", variation: "G23" },
+        {
+          label: "Electricité",
+          anneeN: "E24",
+          anneeN1: "F24",
+          variation: "G24",
+        },
+        {
+          label: "Autres énergies",
+          anneeN: "E25",
+          anneeN1: "F25",
+          variation: "G25",
+        },
+        {
+          label: "Fourniture d'entretien",
+          anneeN: "E26",
+          anneeN1: "F26",
+          variation: "G26",
+        },
+        {
+          label: "Fournitures de bureau",
+          anneeN: "E27",
+          anneeN1: "F27",
+          variation: "G27",
+        },
+        {
+          label: "Petit matériel et outillages",
+          anneeN: "E28",
+          anneeN1: "F28",
+          variation: "G28",
+        },
+        {
+          label:
+            "Achats études, prestations de services, de travaux matériels et équipements",
+          anneeN: "E29",
+          anneeN1: "F29",
+          variation: "G29",
+        },
+        {
+          label: "Achats d'emballages",
+          anneeN: "E30",
+          anneeN1: "F30",
+          variation: "G30",
+        },
+        {
+          label: "Frais sur achats",
+          anneeN: "E31",
+          anneeN1: "F31",
+          variation: "G31",
+        },
+        {
+          label: "Remises rabais, remises et ristournes",
+          anneeN: "E32",
+          anneeN1: "F32",
+          variation: "G32",
+        },
+        {
+          label: "TOTAL : AUTRES ACHATS",
+          anneeN: "E33",
+          anneeN1: "F33",
+          variation: "G33",
+        },
+      ],
+    },
+  },
+};
