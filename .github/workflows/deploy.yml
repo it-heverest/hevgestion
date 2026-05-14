@@ -71,10 +71,14 @@ jobs:
 
             # 2. Configurer le Backend
             cd ~/backend_utils
-            # On installe les dépendances de prod si le package.json a changé
-            npm install --production
+            # Installer toutes les dépendances (y compris prisma CLI en devDep)
+            npm install
 
-            # 3. Redémarrer l'API avec PM2
+            # 3. Prisma — générer le client et appliquer les migrations
+            npx prisma generate
+            npx prisma migrate deploy
+
+            # 4. Redémarrer l'API avec PM2
             # On essaie de restart, sinon on start le fichier principal dans dist/
             pm2 restart hevgestion-api || pm2 start dist/index.js --name hevgestion-api
             pm2 save

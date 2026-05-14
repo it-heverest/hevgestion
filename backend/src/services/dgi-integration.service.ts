@@ -91,8 +91,6 @@ export class DGIService {
           userId,
           username,
           password: encryptedPassword,
-          niu: username,
-          companyName: "",
         },
       });
 

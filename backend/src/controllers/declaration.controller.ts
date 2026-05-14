@@ -195,7 +195,7 @@ class DeclarationController {
 
       // Authenticate with DGI
       const authToken = await this.dgiService.authenticateWithDGI(
-        dgiConfig.niu,
+        dgiConfig.username,
         apiPassword
       );
 
@@ -235,7 +235,7 @@ class DeclarationController {
 
       // Authenticate with DGI
       const authToken = await this.dgiService.authenticateWithDGI(
-        dgiConfig.niu,
+        dgiConfig.username,
         apiPassword
       );
 
@@ -302,7 +302,7 @@ class DeclarationController {
 
       // Authenticate with DGI
       const authToken = await this.dgiService.authenticateWithDGI(
-        dgiConfig.niu,
+        dgiConfig.username,
         apiPassword
       );
 
@@ -391,7 +391,7 @@ class DeclarationController {
 
       // Authenticate with DGI
       const authToken = await this.dgiService.authenticateWithDGI(
-        dgiConfig.niu,
+        dgiConfig.username,
         apiPassword
       );
 
