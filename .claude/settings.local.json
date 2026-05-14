@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/nash/Documents/HevGestion/HevGestion/Financial Dashboard/backend/node_modules/.prisma/client/**)",
+      "PowerShell(head)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\nash\\\\Documents\\\\HevGestion\\\\HevGestion\\\\Financial Dashboard\\\\backend\\\\prisma\\\\migrations\" | ForEach-Object { $_.Name })",
+      "Bash(npm run *)",
+      "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://tasserver.dgi.cm/api/v1/auth\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://tasserver.dgi.cm/api/v1/authentication\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://tasserver.dgi.cm/api/auth\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk -o /dev/null -w \"%{http_code}\" \"https://tasserver.dgi.cm/auth\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk \"https://tasserver.dgi.cm/api/v1/authentication\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk \"https://tasserver.dgi.cm/auth\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')",
+      "Bash(curl -sk \"https://tasserver.dgi.cm/api/auth\" -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"test\"}')"
+    ]
+  }
+}

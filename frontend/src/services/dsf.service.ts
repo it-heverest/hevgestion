@@ -1,5 +1,4 @@
-import axios from "axios";
-import { authService } from "./auth.service";
+import api from "./api";
 
 export interface DSFImportResponse {
   message: string;
@@ -34,50 +33,13 @@ export interface DSFStatusResponse {
 }
 
 class DSFService {
-  private api = axios.create({
-    baseURL: "/api",
-    timeout: 30000,
-    withCredentials: true,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  constructor() {
-    this.setupInterceptors();
-  }
-
-  private setupInterceptors(): void {
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = authService.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
-    this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          window.location.href = "/web/user/login";
-        }
-        return Promise.reject(error);
-      }
-    );
-  }
 
   async importDSF(folderId: string, file: File): Promise<DSFImportResponse> {
     const formData = new FormData();
     formData.append("folderId", folderId);
     formData.append("file", file);
 
-    const response = await this.api.post("/dsf-import/import", formData, {
+    const response = await api.post("/dsf-import/import", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -87,19 +49,19 @@ class DSFService {
   }
 
   async generateDSF(folderId: string): Promise<{ message: string; dsf: any }> {
-    const response = await this.api.post("/dsf/generate", { folderId });
+    const response = await api.post("/dsf/generate", { folderId });
     return response.data;
   }
 
   async getDSF(folderId: string): Promise<{ dsf: any }> {
-    const response = await this.api.get(`/dsf/${folderId}`);
+    const response = await api.get(`/dsf/${folderId}`);
     return response.data;
   }
 
   async validateDSF(
     dsfId: string
   ): Promise<{ message: string; isValid: boolean; issues: string[] }> {
-    const response = await this.api.post(`/dsf/${dsfId}/validate`, {});
+    const response = await api.post(`/dsf/${dsfId}/validate`, {});
     return response.data;
   }
 
@@ -107,7 +69,7 @@ class DSFService {
     dsfId: string,
     format?: string
   ): Promise<{ message: string; downloadUrl: string }> {
-    const response = await this.api.post(`/dsf/${dsfId}/export`, {
+    const response = await api.post(`/dsf/${dsfId}/export`, {
       format,
     });
     return response.data;
@@ -117,12 +79,12 @@ class DSFService {
     dsfId: string,
     data: any
   ): Promise<{ message: string; results: any }> {
-    const response = await this.api.put(`/dsf/${dsfId}`, data);
+    const response = await api.put(`/dsf/${dsfId}`, data);
     return response.data;
   }
 
   async getCoherenceReport(dsfId: string): Promise<{ coherenceControl: any }> {
-    const response = await this.api.get(`/dsf/${dsfId}/coherence-report`);
+    const response = await api.get(`/dsf/${dsfId}/coherence-report`);
     return response.data;
   }
 
@@ -130,7 +92,7 @@ class DSFService {
     clientId: string,
     folderId: string
   ): Promise<DSFStatusResponse> {
-    const response = await this.api.get("/dsf/check-status", {
+    const response = await api.get("/dsf/check-status", {
       params: { clientId, folderId },
     });
     return response.data;

@@ -23,29 +23,12 @@ import {
 
 export function NotificationCenter() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
-  useEffect(() => {
-    loadNotifications();
-    loadUnreadCount();
-
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(() => {
-      checkForNewNotifications();
-      loadUnreadCount();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      loadNotifications();
-    }
-  }, [open, showAll]);
+  // Derived — no separate API call needed
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const loadNotifications = async (limit = showAll ? 100 : 50) => {
     setLoading(true);
@@ -59,35 +42,34 @@ export function NotificationCenter() {
     }
   };
 
-  const loadUnreadCount = async () => {
-    try {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-    } catch (error) {
-      console.error("Error loading unread count:", error);
-    }
-  };
+  // Single effect — one fetch on mount, one poll every 30 s
+  useEffect(() => {
+    loadNotifications();
 
-  const checkForNewNotifications = async () => {
-    try {
-      const data = await notificationService.getNotifications();
-      const newNotifications = data.filter(
-        (n) => !notifications.some((existing) => existing.id === n.id),
-      );
+    const interval = setInterval(() => {
+      notificationService.getNotifications().then((fresh) => {
+        const hasNew = fresh.some(
+          (n) => !notifications.find((e) => e.id === n.id),
+        );
+        if (hasNew) {
+          const newOnes = fresh.filter(
+            (n) => !notifications.some((e) => e.id === n.id),
+          );
+          setNotifications(fresh);
+          newOnes.forEach(showBrowserNotification);
+        }
+      });
+    }, 30000);
 
-      if (newNotifications.length > 0) {
-        setNotifications(data);
-        // Update unread count
-        loadUnreadCount();
-        // Show browser notifications for new ones
-        newNotifications.forEach((notification) => {
-          showBrowserNotification(notification);
-        });
-      }
-    } catch (error) {
-      console.error("Error checking for new notifications:", error);
-    }
-  };
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch only when the popover opens or the user toggles "show all"
+  useEffect(() => {
+    if (open) loadNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, showAll]);
 
   const showBrowserNotification = (notification: AppNotification) => {
     if (!("Notification" in window)) {

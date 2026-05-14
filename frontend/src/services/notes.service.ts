@@ -1,3 +1,4 @@
+import api from "./api";
 import { DonneesExtraites } from "./excel/excelExtractor";
 import {
   CONFIG_NOTE1,
@@ -31,8 +32,8 @@ import {
   CONFIG_NOTE18,
   CONFIG_NOTE19,
   CONFIG_NOTE20,
-  // CONFIG_NOTE21,
-  // CONFIG_NOTE22,
+  CONFIG_NOTE21,
+  CONFIG_NOTE22,
   CONFIG_NOTE23,
   CONFIG_NOTE24,
   CONFIG_NOTE25,
@@ -909,8 +910,8 @@ class NotesService {
       "18": CONFIG_NOTE18,
       "19": CONFIG_NOTE19,
       "20": CONFIG_NOTE20,
-      // "21": CONFIG_NOTE21,
-      // "22": CONFIG_NOTE22,
+      "21": CONFIG_NOTE21,
+      "22": CONFIG_NOTE22,
       "23": CONFIG_NOTE23,
       "24": CONFIG_NOTE24,
       "25": CONFIG_NOTE25,
@@ -2046,47 +2047,24 @@ class NotesService {
 
   // ==================== API METHODS ====================
 
-  async getNoteData(
-    folderId: string,
-    noteNumber: string,
-  ): Promise<NoteData | null> {
+  async getNoteData(folderId: string, noteNumber: string): Promise<NoteData | null> {
     try {
       const encodedNote = encodeURIComponent(noteNumber);
-      const response = await fetch(
-        `/api/notes/${encodedNote}?folderId=${encodeURIComponent(folderId)}`,
+      const response = await api.get(
+        `/notes/${encodedNote}?folderId=${encodeURIComponent(folderId)}`,
       );
-      // Return null for 401 (auth expired) or 404 (not found) - don't throw
-      if (response.status === 401 || response.status === 404) {
-        return null;
-      }
-      if (!response.ok) {
-        return null; // Silently fail for other errors
-      }
-      const { data } = await response.json();
-      return data;
-    } catch (error) {
+      return response.data?.data ?? null;
+    } catch (error: any) {
+      if (error.response?.status === 404) return null;
       console.error(`Error fetching Note ${noteNumber} data:`, error);
       return null;
     }
   }
 
-  async saveNoteData(
-    folderId: string,
-    noteNumber: string,
-    data: NoteData,
-  ): Promise<boolean> {
+  async saveNoteData(folderId: string, noteNumber: string, data: NoteData): Promise<boolean> {
     try {
       const encodedNote = encodeURIComponent(noteNumber);
-      const response = await fetch(`/api/notes/${encodedNote}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderId, noteNumber, data }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`Failed to save Note ${noteNumber}:`, errorData);
-        throw new Error(`Failed to save Note ${noteNumber} data`);
-      }
+      await api.post(`/notes/${encodedNote}`, { folderId, noteNumber, data });
       return true;
     } catch (error) {
       console.error(`Error saving Note ${noteNumber} data:`, error);
@@ -2094,28 +2072,16 @@ class NotesService {
     }
   }
 
-  async getNotesForFolder(folderId: string) {
-    if (!folderId || typeof folderId !== "string") {
-      console.warn("Invalid folderId:", folderId);
-      return [];
-    }
+  /**
+   * Fetch all notes with full data (used by report components).
+   * Pass light=true to get only { noteNumber, exists } flags (no data payload).
+   */
+  async getNotesForFolder(folderId: string, light = false) {
+    if (!folderId || typeof folderId !== "string") return [];
     try {
-      const response = await fetch(
-        `/api/notes/folder/${encodeURIComponent(folderId)}`,
-        {
-          method: "GET",
-          credentials: "include",
-          headers: { Accept: "application/json" },
-        },
-      );
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        throw new Error(
-          `Failed to fetch notes: ${response.status} ${errorText}`,
-        );
-      }
-      const json = await response.json();
-      return Array.isArray(json?.data) ? json.data : [];
+      const url = `/notes/folder/${encodeURIComponent(folderId)}${light ? "?light=true" : ""}`;
+      const response = await api.get(url);
+      return Array.isArray(response.data?.data) ? response.data.data : [];
     } catch (err) {
       console.error("getNotesForFolder failed:", err);
       return [];
@@ -2212,18 +2178,8 @@ class NotesService {
    * Delete all notes for a folder
    */
   async deleteAllNotes(folderId: string): Promise<{ message: string }> {
-    const response = await fetch(`/api/notes/folder/${folderId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete notes');
-    }
-
-    return response.json();
+    const response = await api.delete(`/notes/folder/${encodeURIComponent(folderId)}`);
+    return response.data;
   }
 }
 

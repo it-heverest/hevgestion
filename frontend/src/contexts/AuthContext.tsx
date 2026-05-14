@@ -53,13 +53,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authService.getProfile();
       if (response.success && response.user) {
-        // Check if this user should have restricted access
-        const isRestrictedUser = response.user.phoneNumber === "690909090";
-
-        return {
-          ...response.user,
-          isRestrictedUser,
-        };
+        // isRestrictedUser must come from the backend — never computed client-side
+        return response.user;
       }
       return null;
     } catch {
@@ -139,6 +134,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => { mounted = false; };
   }, [initialized, fetchUserProfile]);
 
+  // Listen for 401 signals from the shared axios instance and clean up state.
+  // This avoids window.location redirects from service files.
+  useEffect(() => {
+    const handle = () => handleInvalidSession();
+    window.addEventListener("auth:unauthorized", handle);
+    return () => window.removeEventListener("auth:unauthorized", handle);
+  }, [handleInvalidSession]);
+
   // Auto-refresh token every 4 minutes
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -167,16 +170,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const result = await authService.login(cleanPhone, credentials.password);
       if (result.success && result.user) {
-        // Check if this user should have restricted access (based on phone number)
-        const isRestrictedUser = cleanPhone === "690909090";
-
-        const userWithRestrictions = {
-          ...result.user,
-          isRestrictedUser,
-        };
-
-        setUser(userWithRestrictions);
-        return { success: true }; // Login successful
+        // isRestrictedUser is set by the backend — use the value as-is
+        setUser(result.user);
+        return { success: true };
       } else {
         // Don't throw, just set the error message
         const errorMsg = result.error || "Numéro de téléphone ou mot de passe incorrect";

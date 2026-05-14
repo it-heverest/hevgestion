@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"dgiConfig\\\\|DGI.*config\")"
+    ]
+  }
+}

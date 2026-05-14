@@ -190,6 +190,14 @@ export function useAppData() {
     await loadInitialData(true);
   }, [loadInitialData]);
 
+  // Auto-load data when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && !hasLoaded.current && !hasStartedLoading.current) {
+      console.log("🔐 User authenticated, loading initial data");
+      loadInitialData();
+    }
+  }, [isAuthenticated, loadInitialData]);
+
   // Auto-clear data when authentication is lost (but not during auth operations)
   useEffect(() => {
     // Only clear if we were previously authenticated and data was loaded

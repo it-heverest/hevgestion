@@ -1,7 +1,6 @@
 // services/folderService.ts
-import axios from "axios";
+import api from "./api";
 import { API_CONFIG } from "../config/api";
-import { authService } from "./auth.service"; // Import from auth.service, not AuthContext
 
 export interface Folder {
   id: string;
@@ -59,49 +58,6 @@ export interface UpdateFolderData {
  * - Centralize error handling for folder operations
  */
 class FolderService {
-  private api = axios.create({
-    baseURL: API_CONFIG.BASE_URL,
-    timeout: 10000,
-    withCredentials: true, // Required for HttpOnly cookies
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  constructor() {
-    this.setupInterceptors();
-  }
-
-  /**
-   * Setup request and response interceptors
-   */
-  private setupInterceptors(): void {
-    // Request interceptor to add auth token
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = authService.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      },
-    );
-
-    // Response interceptor to handle global errors
-    this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          // Token cleanup is handled by AuthService and AuthContext
-          window.location.href = "/login";
-        }
-        return Promise.reject(error);
-      },
-    );
-  }
 
   /**
    * Cancel all pending requests (placeholder for cleanup)
@@ -118,7 +74,7 @@ class FolderService {
    */
   async getFolders(clientId: string): Promise<Folder[]> {
     try {
-      const response = await this.api.get("/folders", {
+      const response = await api.get("/folders", {
         params: { clientId },
       });
       return response.data.folders;
@@ -134,7 +90,7 @@ class FolderService {
   async createFolder(folderData: CreateFolderData): Promise<Folder> {
     try {
       console.log("Creating folder with data:", folderData);
-      const response = await this.api.post("/folders", folderData);
+      const response = await api.post("/folders", folderData);
       return response.data.folder;
     } catch (error: any) {
       console.error("Error creating folder:", error);
@@ -153,7 +109,7 @@ class FolderService {
    */
   async closeFolder(folderId: string): Promise<Folder> {
     try {
-      const response = await this.api.put(`/folders/${folderId}/close`);
+      const response = await api.put(`/folders/${folderId}/close`);
       return response.data.folder;
     } catch (error: any) {
       console.error("Error closing folder:", error);
@@ -171,7 +127,7 @@ class FolderService {
    */
   async getFoldersByClient(clientId: string): Promise<Folder[]> {
     try {
-      const response = await this.api.get("/folders", {
+      const response = await api.get("/folders", {
         params: { clientId },
       });
       return response.data.folders;
@@ -186,7 +142,7 @@ class FolderService {
    */
   async getFolderById(folderId: string): Promise<Folder> {
     try {
-      const response = await this.api.get(`/folders/${folderId}`);
+      const response = await api.get(`/folders/${folderId}`);
       return response.data.folder;
     } catch (error) {
       console.error("Error fetching folder:", error);
@@ -199,7 +155,7 @@ class FolderService {
    */
   async getCurrentFolder(clientId: string): Promise<Folder | null> {
     try {
-      const response = await this.api.get("/folders/current", {
+      const response = await api.get("/folders/current", {
         params: { clientId },
       });
       return response.data.folder;
@@ -217,7 +173,7 @@ class FolderService {
     folderData: UpdateFolderData,
   ): Promise<Folder> {
     try {
-      const response = await this.api.put(`/folders/${folderId}`, folderData);
+      const response = await api.put(`/folders/${folderId}`, folderData);
       return response.data.folder;
     } catch (error: any) {
       console.error("Error updating folder:", error);
@@ -235,7 +191,7 @@ class FolderService {
    */
   async deleteFolder(folderId: string): Promise<void> {
     try {
-      await this.api.delete(`/folders/${folderId}`);
+      await api.delete(`/folders/${folderId}`);
     } catch (error) {
       console.error("Error deleting folder:", error);
       throw new Error("Erreur lors de la suppression du dossier");
@@ -249,7 +205,7 @@ class FolderService {
    */
   async getFolderWithDetails(folderId: string): Promise<Folder> {
     try {
-      const response = await this.api.get(`/folders/${folderId}/details`);
+      const response = await api.get(`/folders/${folderId}/details`);
       return response.data.folder;
     } catch (error) {
       console.error("Error fetching folder details:", error);
@@ -265,7 +221,7 @@ class FolderService {
     newFiscalYear: number,
   ): Promise<Folder> {
     try {
-      const response = await this.api.post(`/folders/${folderId}/duplicate`, {
+      const response = await api.post(`/folders/${folderId}/duplicate`, {
         fiscalYear: newFiscalYear,
       });
       return response.data.folder;
@@ -285,7 +241,7 @@ class FolderService {
    */
   async getFolderProgress(folderId: string): Promise<any> {
     try {
-      const response = await this.api.get(`/folders/${folderId}/progress`);
+      const response = await api.get(`/folders/${folderId}/progress`);
       return response.data;
     } catch (error) {
       console.error("Error fetching folder progress:", error);
@@ -302,7 +258,7 @@ class FolderService {
     status: Folder["status"],
   ): Promise<Folder> {
     try {
-      const response = await this.api.patch(`/folders/${folderId}/status`, {
+      const response = await api.patch(`/folders/${folderId}/status`, {
         status,
       });
       return response.data.folder;
@@ -322,7 +278,7 @@ class FolderService {
    */
   async refreshFolders(): Promise<Folder[]> {
     try {
-      const response = await this.api.get("/folders");
+      const response = await api.get("/folders");
       return response.data.folders;
     } catch (error) {
       console.error("Error refreshing folders:", error);
@@ -335,7 +291,7 @@ class FolderService {
    */
   async searchFolders(query: string, clientId?: string): Promise<Folder[]> {
     try {
-      const response = await this.api.get("/folders/search", {
+      const response = await api.get("/folders/search", {
         params: { query, ...(clientId && { clientId }) },
       });
       return response.data.folders;
@@ -352,7 +308,7 @@ class FolderService {
     clientId: string,
   ): Promise<{ [status: string]: number }> {
     try {
-      const response = await this.api.get("/folders/stats/summary", {
+      const response = await api.get("/folders/stats/summary", {
         params: { clientId },
       });
       return response.data.stats;
@@ -369,7 +325,7 @@ class FolderService {
    */
   async archiveFolder(folderId: string): Promise<Folder> {
     try {
-      const response = await this.api.put(`/folders/${folderId}/archive`);
+      const response = await api.put(`/folders/${folderId}/archive`);
       return response.data.folder;
     } catch (error: any) {
       console.error("Error archiving folder:", error);
@@ -387,7 +343,7 @@ class FolderService {
    */
   async restoreFolder(folderId: string): Promise<Folder> {
     try {
-      const response = await this.api.put(`/folders/${folderId}/restore`);
+      const response = await api.put(`/folders/${folderId}/restore`);
       return response.data.folder;
     } catch (error: any) {
       console.error("Error restoring folder:", error);
@@ -405,7 +361,7 @@ class FolderService {
    */
   async getFolderTimeline(folderId: string): Promise<any[]> {
     try {
-      const response = await this.api.get(`/folders/${folderId}/timeline`);
+      const response = await api.get(`/folders/${folderId}/timeline`);
       return response.data.timeline;
     } catch (error) {
       console.error("Error fetching folder timeline:", error);
