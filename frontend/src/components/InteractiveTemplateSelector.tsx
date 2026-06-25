@@ -269,12 +269,12 @@ export function InteractiveTemplateSelector({ onBack, onSelectTemplate }: Intera
         {templates.map((template) => (
           <Card 
             key={template.id}
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-blue-500 group"
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-orange-500 group"
             onClick={() => setSelectedTemplate(template)}
           >
             <CardHeader>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
+                <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400 group-hover:bg-orange-100 dark:group-hover:bg-orange-900/50 transition-colors">
                   <FileText className="h-5 w-5" />
                 </div>
                 <div className="flex-1">

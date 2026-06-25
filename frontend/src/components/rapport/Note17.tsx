@@ -253,7 +253,7 @@ const Note17: React.FC = () => {
             type="number"
             value={row.yearN}
             onChange={(e) => handleChange(row.id, "yearN", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.yearN.toLocaleString("fr-FR")
@@ -265,7 +265,7 @@ const Note17: React.FC = () => {
             type="number"
             value={row.yearN1}
             onChange={(e) => handleChange(row.id, "yearN1", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.yearN1.toLocaleString("fr-FR")
@@ -282,7 +282,7 @@ const Note17: React.FC = () => {
             onChange={(e) =>
               handleChange(row.id, "lessThan1Year", e.target.value)
             }
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.lessThan1Year.toLocaleString("fr-FR")
@@ -296,7 +296,7 @@ const Note17: React.FC = () => {
             onChange={(e) =>
               handleChange(row.id, "oneToFiveYears", e.target.value)
             }
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.oneToFiveYears.toLocaleString("fr-FR")
@@ -310,7 +310,7 @@ const Note17: React.FC = () => {
             onChange={(e) =>
               handleChange(row.id, "moreThanFiveYears", e.target.value)
             }
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.moreThanFiveYears.toLocaleString("fr-FR")
@@ -348,7 +348,7 @@ const Note17: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Note 17 - Fournisseurs d'Exploitation
         </h1>
         <div className="flex gap-3">
@@ -363,7 +363,7 @@ const Note17: React.FC = () => {
             disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
               } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {isSaving ? (
@@ -396,7 +396,7 @@ const Note17: React.FC = () => {
           )}
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -421,7 +421,7 @@ const Note17: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -437,7 +437,7 @@ const Note17: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-20 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-20 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-20 text-center">
@@ -453,7 +453,7 @@ const Note17: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -469,7 +469,7 @@ const Note17: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center">
@@ -544,7 +544,7 @@ const Note17: React.FC = () => {
           <div className="font-bold underline">Commentaire :</div>
           {isEditing ? (
             <textarea
-              className="w-full h-40 p-1 border border-blue-300 bg-blue-50 focus:outline-none resize-none"
+              className="w-full h-40 p-1 border border-orange-300 bg-orange-50 focus:outline-none resize-none"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />

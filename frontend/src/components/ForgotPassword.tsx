@@ -270,7 +270,7 @@ export function ForgotPassword({
                           if (error) setError(null);
                         }}
                         placeholder="votre@email.com"
-                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                         autoComplete="off"
                         required
                         disabled={isLoading}
@@ -368,7 +368,7 @@ export function ForgotPassword({
                           if (error) setError(null);
                         }}
                         placeholder="123456"
-                        className="text-center text-2xl tracking-widest transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        className="text-center text-2xl tracking-widest transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                         autoComplete="off"
                         required
                         disabled={isLoading}
@@ -470,7 +470,7 @@ export function ForgotPassword({
                           if (error) setError(null);
                         }}
                         placeholder="Votre nouveau mot de passe"
-                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                         autoComplete="new-password"
                         required
                         disabled={isLoading}
@@ -491,7 +491,7 @@ export function ForgotPassword({
                           if (error) setError(null);
                         }}
                         placeholder="Confirmer votre nouveau mot de passe"
-                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                        className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                         autoComplete="new-password"
                         required
                         disabled={isLoading}

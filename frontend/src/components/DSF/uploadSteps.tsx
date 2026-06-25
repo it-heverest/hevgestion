@@ -455,7 +455,7 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
 }) => (
   <div className="space-y-4">
     <div
-      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-orange-400 transition-colors cursor-pointer"
       onDragOver={onDragOver}
       onDrop={onDrop}
       onClick={() => fileInputRef.current?.click()}
@@ -495,8 +495,8 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-center">
-            <div className="p-3 bg-blue-50 rounded-full">
-              <Upload className="h-8 w-8 text-blue-600" />
+            <div className="p-3 bg-orange-50 rounded-full">
+              <Upload className="h-8 w-8 text-orange-600" />
             </div>
           </div>
           <div>
@@ -526,12 +526,12 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
 
 // ==================== FORMAT INFO ====================
 const FormatInfo: React.FC = () => (
-  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
     <div className="flex items-start gap-3">
-      <FileText className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+      <FileText className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
       <div className="flex-1 text-sm">
-        <p className="font-medium text-blue-900 mb-1">Format requis:</p>
-        <ul className="text-blue-700 space-y-1">
+        <p className="font-medium text-orange-900 mb-1">Format requis:</p>
+        <ul className="text-orange-700 space-y-1">
           <li>• Fichier Excel (.xlsx ou .xls)</li>
           <li>• Taille maximale: 10 MB</li>
           <li>• Structure DSF complète avec toutes les feuilles requises</li>
@@ -557,8 +557,8 @@ export const ProcessingView: React.FC<ProcessingViewProps> = ({
   <div className="space-y-6 py-4">
     <div className="text-center">
       <div className="flex items-center justify-center mb-4">
-        <div className="p-4 bg-blue-50 rounded-full">
-          <Loader className="h-12 w-12 text-blue-600 animate-spin" />
+        <div className="p-4 bg-orange-50 rounded-full">
+          <Loader className="h-12 w-12 text-orange-600 animate-spin" />
         </div>
       </div>
       <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -576,7 +576,7 @@ export const ProcessingView: React.FC<ProcessingViewProps> = ({
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          className="bg-orange-600 h-2 rounded-full transition-all duration-300"
           style={{ width: `${uploadProgress}%` }}
         />
       </div>
@@ -680,7 +680,7 @@ export const ErrorView: React.FC<ErrorViewProps> = ({
       </button>
       <button
         onClick={onRetry}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+        className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700"
       >
         Réessayer
       </button>

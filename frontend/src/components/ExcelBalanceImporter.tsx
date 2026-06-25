@@ -651,7 +651,7 @@ export function ExcelBalanceImporter({
           ? "border-gray-300 bg-gray-50 opacity-60"
           : isImported
             ? "border-green-200 bg-green-50"
-            : "border-blue-200 bg-blue-50 hover:border-blue-300 cursor-pointer"
+            : "border-orange-200 bg-orange-50 hover:border-orange-300 cursor-pointer"
       }`}
       onClick={() => !isImported && isAvailable && setImportType(type)}
     >
@@ -664,7 +664,7 @@ export function ExcelBalanceImporter({
                   ? "bg-gray-100 text-gray-400"
                   : isImported
                     ? "bg-green-100 text-green-600"
-                    : "bg-blue-100 text-blue-600"
+                    : "bg-orange-100 text-orange-600"
               }`}
             >
               {!isAvailable ? (
@@ -706,7 +706,7 @@ export function ExcelBalanceImporter({
   );
 
   const FileUploadZone = () => (
-    <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-blue-50/30">
+    <div className="border-2 border-dashed border-orange-300 rounded-lg p-8 text-center hover:border-orange-500 transition-colors bg-orange-50/30">
       <input
         type="file"
         accept=".xlsx,.xls"
@@ -721,7 +721,7 @@ export function ExcelBalanceImporter({
         id="file-upload"
       />
       <label htmlFor="file-upload" className="cursor-pointer">
-        <Upload className="h-12 w-12 mx-auto mb-3 text-blue-600" />
+        <Upload className="h-12 w-12 mx-auto mb-3 text-orange-600" />
         <p className="text-lg font-medium mb-2">
           Importer{" "}
           {importType === "current"

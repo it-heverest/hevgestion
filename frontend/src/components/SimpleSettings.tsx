@@ -479,7 +479,7 @@ export function SimpleSettings() {
               <CardContent className="space-y-6">
                 {/* Avatar et informations de base */}
                 <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white text-3xl">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center text-white text-3xl">
                     {user
                       ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
                       : "U"}
@@ -1138,8 +1138,8 @@ export function SimpleSettings() {
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <User className="h-5 w-5 text-blue-600" />
+                                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                  <User className="h-5 w-5 text-orange-600" />
                                 </div>
                                 <div>
                                   <p className="font-medium">

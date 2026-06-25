@@ -307,7 +307,7 @@ export default function DGIDeclarationProfessional() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center mx-auto mb-4">
             <Shield className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -416,7 +416,7 @@ export default function DGIDeclarationProfessional() {
             <button
               onClick={handleSubmitDSF}
               disabled={loading}
-              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <>
@@ -502,7 +502,7 @@ export default function DGIDeclarationProfessional() {
                   onChange={(e) =>
                     setConfig({ ...config, companyName: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   placeholder="Nom de l'entreprise"
                 />
               </div>
@@ -517,7 +517,7 @@ export default function DGIDeclarationProfessional() {
                   onChange={(e) =>
                     setConfig({ ...config, niu: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
                   placeholder="M000000000000"
                 />
               </div>
@@ -532,7 +532,7 @@ export default function DGIDeclarationProfessional() {
                   onChange={(e) =>
                     setConfig({ ...config, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   placeholder="utilisateur@entreprise.cm"
                 />
               </div>
@@ -548,7 +548,7 @@ export default function DGIDeclarationProfessional() {
                     onChange={(e) =>
                       setConfig({ ...config, password: e.target.value })
                     }
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Mot de passe DGI"
                   />
                   <button
@@ -606,7 +606,7 @@ export default function DGIDeclarationProfessional() {
               <button
                 onClick={handleSaveConfig}
                 disabled={configLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {configLoading ? "Sauvegarde..." : "Enregistrer"}
               </button>
@@ -635,7 +635,7 @@ export default function DGIDeclarationProfessional() {
                   <button
                     onClick={handleLoadDGIProcesses}
                     disabled={loadingProcesses}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loadingProcesses ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -751,7 +751,7 @@ export default function DGIDeclarationProfessional() {
             <div className="flex justify-end p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowHistory(false)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
               >
                 Fermer
               </button>

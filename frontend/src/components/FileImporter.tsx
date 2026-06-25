@@ -164,7 +164,7 @@ export function FileImporter() {
             </CardHeader>
             <CardContent>
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-orange-400 transition-colors cursor-pointer"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
@@ -202,7 +202,7 @@ export function FileImporter() {
                   {uploadedFiles.map((file) => (
                     <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-blue-600" />
+                        <FileText className="h-4 w-4 text-orange-600" />
                         <div>
                           <p className="font-medium">{file.name}</p>
                           <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
@@ -306,7 +306,7 @@ export function FileImporter() {
                   key={report.id}
                   className={`p-3 border rounded-lg cursor-pointer transition-all ${
                     selectedReports.includes(report.id)
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-orange-500 bg-orange-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => handleReportSelection(report.id)}
@@ -317,7 +317,7 @@ export function FileImporter() {
                       <p className="text-sm text-muted-foreground">{report.description}</p>
                     </div>
                     {selectedReports.includes(report.id) && (
-                      <CheckCircle className="h-4 w-4 text-blue-600" />
+                      <CheckCircle className="h-4 w-4 text-orange-600" />
                     )}
                   </div>
                 </div>

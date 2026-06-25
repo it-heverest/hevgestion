@@ -226,7 +226,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return (
       <div className="fixed inset-0 bg-gray-50 z-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <Loader2 className="h-12 w-12 text-orange-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">
             Vérification des données DSF existantes...
           </p>
@@ -242,8 +242,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-8">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <FileText className="h-8 w-8 text-blue-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
+                <FileText className="h-8 w-8 text-orange-600" />
               </div>
               <h2 className="text-2xl font-bold text-black mb-2">
                 Aucune DSF trouvée
@@ -253,18 +253,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap的四">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Import DSF Option */}
               <button
                 onClick={() => {
                   setShowChoiceModal(false);
                   onNewUpload();
                 }}
-                className="group relative overflow-hidden rounded-lg border-2 border-gray-200 p-6 hover:border-blue-500 hover:shadow-lg transition-all"
+                className="group relative overflow-hidden rounded-lg border-2 border-gray-200 p-6 hover:border-orange-500 hover:shadow-lg transition-all"
               >
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded-full mb-4 group-hover:bg-blue-100 transition-colors">
-                    <Upload className="h-6 w-6 text-blue-600" />
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-50 rounded-full mb-4 group-hover:bg-orange-100 transition-colors">
+                    <Upload className="h-6 w-6 text-orange-600" />
                   </div>
                   <h3 className="text-lg font-semibold text-black mb-2">
                     Importer DSF
@@ -337,7 +337,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <div className="flex gap-3">
                     <button
                       onClick={onNewUpload}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       Importer DSF
@@ -431,8 +431,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
             <div className="max-w-6xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between mb-3">
-                <div style={{ paddingLeft: "550px" }}>
-                  <h1 className="text-xl font-bold text-black text-center ">
+                <div>
+                  <h1 className="text-xl font-bold text-black">
                     Notes DSF
                   </h1>
                   <p className="text-sm text-gray-600">
@@ -440,7 +440,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer text-sm">
+                  <label className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors cursor-pointer text-sm">
                     {isUploadingTemplate ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                     ) : (
@@ -459,7 +459,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <button
                     onClick={handleExportExcel}
                     disabled={isExporting}
-                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                    className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 text-sm"
                   >
                     {isExporting ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -710,7 +710,7 @@ const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
                 onClick={() => setViewMode("component")}
                 className={`px-3 py-2 text-sm ${
                   viewMode === "component"
-                    ? "bg-blue-50 text-blue-600 font-medium"
+                    ? "bg-orange-50 text-orange-600 font-medium"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -720,7 +720,7 @@ const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
                 onClick={() => setViewMode("data")}
                 className={`px-3 py-2 text-sm border-l border-gray-300 ${
                   viewMode === "data"
-                    ? "bg-blue-50 text-blue-600 font-medium"
+                    ? "bg-orange-50 text-orange-600 font-medium"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >

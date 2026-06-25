@@ -1551,7 +1551,7 @@ ${
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
-              <Settings className="w-8 h-8 text-blue-600" />
+              <Settings className="w-8 h-8 text-orange-600" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
                   Configuration DSF - Mappings Comptes
@@ -1575,7 +1575,7 @@ ${
                 <select
                   value={selectedReportType}
                   onChange={(e) => setSelectedReportType(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-xs"
+                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 max-w-xs"
                 >
                   <option value="all">
                     Tous les rapports ({REPORT_TYPES.length})
@@ -1647,7 +1647,7 @@ ${
 
                 <button
                   onClick={loadTemplate}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700"
+                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded text-sm font-medium hover:bg-orange-700"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Modèle complet
@@ -1688,7 +1688,7 @@ ${
       <div className="max-w-7xl mx-auto px-6 py-6">
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
             <span className="ml-3 text-gray-600">
               Chargement des mappings...
             </span>
@@ -1746,7 +1746,7 @@ ${
                             onKeyDown={(e) =>
                               e.key === "Enter" && stopEditing()
                             }
-                            className="w-full px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none"
+                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
                             autoFocus
                           />
                         ) : (
@@ -1796,7 +1796,7 @@ ${
                               )
                             }
                             onBlur={stopEditing}
-                            className="w-full px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none"
+                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
                             autoFocus
                           >
                             {SOURCES.map((source) => (
@@ -1831,7 +1831,7 @@ ${
                             onKeyDown={(e) =>
                               e.key === "Enter" && stopEditing()
                             }
-                            className="w-full px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none"
+                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
                             autoFocus
                           />
                         ) : (

@@ -1156,7 +1156,7 @@ export function FullExcelEditor({
           <Button
             size="sm"
             onClick={handleSave}
-            className={"bg-blue-600 hover:bg-blue-700"}
+            className={"bg-orange-600 hover:bg-orange-700"}
           >
             <Save className="h-4 w-4 mr-2" />
             Sauvegarder
@@ -1244,9 +1244,9 @@ export function FullExcelEditor({
                             return (
                               <td
                                 key={cellKey}
-                                className={`border p-0 cursor-cell hover:bg-blue-50 ${
+                                className={`border p-0 cursor-cell hover:bg-orange-50 ${
                                   isSelected
-                                    ? "ring-1 ring-blue-500 bg-blue-100"
+                                    ? "ring-1 ring-orange-500 bg-orange-100"
                                     : ""
                                 } ${locked ? "bg-gray-50" : ""}`}
                                 style={{
@@ -1326,7 +1326,7 @@ export function FullExcelEditor({
                     <Label className="text-sm font-medium">
                       Cellule sélectionnée
                     </Label>
-                    <p className="font-mono text-sm mt-1 bg-blue-50 p-2 rounded">
+                    <p className="font-mono text-sm mt-1 bg-orange-50 p-2 rounded">
                       {selectedCell}
                     </p>
                   </div>

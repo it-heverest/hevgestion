@@ -69,7 +69,7 @@ const NoteSmt: React.FC = () => {
               type === "number" ? Number(e.target.value) || 0 : e.target.value
             )
           }
-          className="w-full h-full px-2 py-1 bg-blue-50 border-0 focus:outline-none"
+          className="w-full h-full px-2 py-1 bg-orange-50 border-0 focus:outline-none"
         />
       );
     }
@@ -103,7 +103,7 @@ const NoteSmt: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Note 1 - Suivi du Matériel, du Mobilier et des Cautions
         </h1>
         <div className="flex gap-3">
@@ -112,7 +112,7 @@ const NoteSmt: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
               isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
             }`}
           >
             {isEditing ? (
@@ -158,7 +158,7 @@ const NoteSmt: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -176,7 +176,7 @@ const NoteSmt: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-24 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-24 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-24">
@@ -194,7 +194,7 @@ const NoteSmt: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -212,7 +212,7 @@ const NoteSmt: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16">

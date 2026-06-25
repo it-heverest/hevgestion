@@ -370,7 +370,7 @@ export function BalanceImporter() {
             <Button
               onClick={() => openImportDialog("current")}
               variant={hasCurrentYear ? "outline" : "default"}
-              className={hasCurrentYear ? "" : "bg-blue-600 hover:bg-blue-700"}
+              className={hasCurrentYear ? "" : "bg-orange-600 hover:bg-orange-700"}
               title={
                 hasCurrentYear
                   ? "Balance N déjà importée"
@@ -479,7 +479,7 @@ export function BalanceImporter() {
             <Button
               variant="default"
               onClick={confirmImportDespiteMissingPrevious}
-              className="bg-blue-600"
+              className="bg-orange-600"
             >
               <Upload className="h-4 w-4 mr-2" />
               Importer quand même
@@ -522,8 +522,8 @@ function EmptyState({ onImport }: { onImport: () => void }) {
   return (
     <Card className="h-full">
       <CardContent className="flex flex-col items-center justify-center h-full py-16">
-        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-          <FileSpreadsheet className="h-8 w-8 text-blue-600" />
+        <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-4">
+          <FileSpreadsheet className="h-8 w-8 text-orange-600" />
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           Aucune balance importée
@@ -532,7 +532,7 @@ function EmptyState({ onImport }: { onImport: () => void }) {
           Importez votre balance comptable pour procéder à la ventilation et
           générer les états financiers.
         </p>
-        <Button onClick={onImport} className="bg-blue-600 hover:bg-blue-700">
+        <Button onClick={onImport} className="bg-orange-600 hover:bg-orange-700">
           <Upload className="h-4 w-4 mr-2" />
           Importer une balance
         </Button>
@@ -603,7 +603,7 @@ function BalanceListItem({
     <Card
       className={`flex-shrink-0 cursor-pointer transition-all ${
         isSelected
-          ? "border-blue-500 bg-blue-50 shadow-md"
+          ? "border-orange-500 bg-orange-50 shadow-md"
           : "hover:bg-gray-50 hover:shadow-sm"
       }`}
       onClick={onClick}
@@ -707,7 +707,7 @@ function EditableCell({
               target.blur(); // Trigger blur to save
             }
           }}
-          className="w-full h-8 text-right font-mono border-blue-300 focus:border-blue-500 focus:ring-blue-200"
+          className="w-full h-8 text-right font-mono border-orange-300 focus:border-orange-500 focus:ring-orange-200"
           autoFocus
           step="0.01"
           min="0"
@@ -720,7 +720,7 @@ function EditableCell({
 
   return (
     <TableCell
-      className={`font-mono cursor-pointer hover:bg-blue-50 transition-colors ${className}`}
+      className={`font-mono cursor-pointer hover:bg-orange-50 transition-colors ${className}`}
       onClick={onStartEdit}
     >
       {value > 0 ? (
@@ -1512,9 +1512,9 @@ function BalanceDetailView({
         </Button>
         {/* Show refresh status */}
         {isRefreshing && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">
-            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
-            <span className="text-sm text-blue-700">
+          <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg">
+            <RefreshCw className="h-4 w-4 text-orange-600 animate-spin" />
+            <span className="text-sm text-orange-700">
               Actualisation des données...
             </span>
           </div>
@@ -1703,7 +1703,7 @@ function BalanceDetailView({
                 setBulkEditMode(!bulkEditMode);
                 setSelectedRows(new Set());
               }}
-              className={bulkEditMode ? "bg-blue-50 border-blue-300" : ""}
+              className={bulkEditMode ? "bg-orange-50 border-orange-300" : ""}
             >
               {bulkEditMode ? "Annuler sélection" : "Édition multiple"}
             </Button>
@@ -1815,7 +1815,7 @@ function BalanceDetailView({
                       ${row.hasIssue ? "bg-red-50 hover:bg-red-100" : ""}
                       ${row.hasModification ? "bg-blue-50 hover:bg-blue-100" : ""}
                       ${row.hasCachedChanges ? "bg-yellow-50 hover:bg-yellow-100" : ""}
-                      ${isSelected ? "bg-blue-100 hover:bg-blue-150" : ""}
+                      ${isSelected ? "bg-orange-100 hover:bg-orange-150" : ""}
                     `}
                   >
                     {bulkEditMode && (
@@ -1981,7 +1981,7 @@ function BalanceDetailView({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleStartEdit(row)}
-                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                             title="Modifier"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
@@ -2268,7 +2268,7 @@ function BalanceDetailView({
                                               setHasUnsavedChanges(true);
                                               alert(`Correction appliquée au compte ${acc.account}`);
                                             }}
-                                            className="text-blue-600 hover:text-blue-700 h-6 w-6 p-0"
+                                            className="text-orange-600 hover:text-orange-700 h-6 w-6 p-0"
                                           >
                                             <RefreshCw className="h-3 w-3" />
                                           </Button>
@@ -2514,7 +2514,7 @@ function BalanceImportForm({
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
           isDragging
-            ? "border-blue-500 bg-blue-50"
+            ? "border-orange-500 bg-orange-50"
             : file
               ? validationErrors.length > 0
                 ? "border-red-400 bg-red-50"
@@ -2653,7 +2653,7 @@ function BalanceImportForm({
                 isValidating ||
                 validationErrors.length > 0
               }
-              className="bg-blue-600"
+              className="bg-orange-600"
             >
               <Upload className="h-4 w-4 mr-2" />
               Importer

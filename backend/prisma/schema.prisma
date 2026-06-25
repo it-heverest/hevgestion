@@ -10,26 +10,26 @@ datasource db {
 
 // ========== CORE ENTITIES ==========
 model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique
+  id               String   @id @default(uuid())
+  email            String?  @unique
   phoneCountryCode String?
-  phoneNumber String? @unique
-  password  String
-  firstName String
-  lastName  String
-  role      UserRole
-  isActive  Boolean  @default(true)
+  phoneNumber      String?  @unique
+  password         String
+  firstName        String
+  lastName         String
+  role             UserRole
+  isActive         Boolean  @default(true)
 
   // Assistant management for COMPTABLE users
   maxAssistants Int @default(0)
 
   // OTP verification fields
-  otpCode      String?
-  otpExpiry    DateTime?
-  isVerified   Boolean  @default(false)
+  otpCode    String?
+  otpExpiry  DateTime?
+  isVerified Boolean   @default(false)
 
   // Password reset fields
-  resetToken      String?
+  resetToken       String?
   resetTokenExpiry DateTime?
 
   // User's folders and assignments
@@ -54,6 +54,9 @@ model User {
   // DSF Mapping configurations
   dsfMappingConfigs DSFMappingConfig[]
 
+  // Ventilation configurations created by this user
+  ventilationConfigs VentilationConfig[]
+
   // Excel file uploads
   excelFileUploads ExcelFileUpload[]
 
@@ -73,23 +76,24 @@ model User {
 }
 
 model Client {
-  id        String     @id @default(cuid())
-  name      String
-  legalForm LegalForm
-  clientType ClientType @default(NORMAL)
-  taxNumber String?
-  address   String?
-  city      String?
-  phone     String?
-  country   CountrySelection
-  currency  String
-  createdBy String
+  id         String           @id @default(cuid())
+  name       String
+  legalForm  LegalForm
+  clientType ClientType       @default(NORMAL)
+  taxNumber  String?
+  address    String?
+  city       String?
+  phone      String?
+  country    CountrySelection
+  currency   String
+  createdBy  String
 
-  creator   User?      @relation("ClientCreator", fields: [createdBy], references: [id])
+  creator User? @relation("ClientCreator", fields: [createdBy], references: [id])
 
-  folders   Folder[]
-  excelFileUploads ExcelFileUpload[]
-  dsfImports DSFImport[]
+  folders            Folder[]
+  excelFileUploads   ExcelFileUpload[]
+  dsfImports         DSFImport[]
+  ventilationConfigs VentilationConfig[]
 
   // Audit logs
   auditLogs AuditLog[]
@@ -147,12 +151,12 @@ model FolderAssignment {
   folderId String
   userId   String
   role     AssignmentRole @default(VIEWER)
-  
+
   folder Folder @relation(fields: [folderId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
-  
+
   assignedAt DateTime @default(now())
-  
+
   @@unique([folderId, userId])
   @@map("folder_assignments")
 }
@@ -162,64 +166,64 @@ model Balance {
   id     String      @id @default(uuid())
   type   BalanceType
   period String
-  
+
   folderId String
   folder   Folder @relation(fields: [folderId], references: [id])
-  
+
   // File information
   fileName     String
   filePath     String?
   originalData Json?
-  
+
   // Processing status
   status           BalanceStatus @default(PENDING)
   validationErrors String?
-  
+
   // Processing results
   equilibrium   BalanceEquilibrium?
   accountIssues AccountIssue[]
   fixedAssets   FixedAsset[]
-  
-  importedAt  DateTime?  @default(now())
+
+  importedAt  DateTime? @default(now())
   processedAt DateTime?
-  
+
   @@map("balances")
 }
 
 model BalanceEquilibrium {
-  id        String @id @default(uuid())
-  balanceId String @unique
+  id        String  @id @default(uuid())
+  balanceId String  @unique
   balance   Balance @relation(fields: [balanceId], references: [id])
-  
+
   openingDebit   Float
   openingCredit  Float
   movementDebit  Float
   movementCredit Float
   closingDebit   Float
   closingCredit  Float
-  
+
   isBalanced Boolean
   anomalies  String?
-  
+
   @@map("balance_equilibriums")
 }
 
 model AccountIssue {
-  id        String    @id @default(uuid())
+  id        String  @id @default(uuid())
   balanceId String
-  balance   Balance   @relation(fields: [balanceId], references: [id])
-  
+  balance   Balance @relation(fields: [balanceId], references: [id])
+
   accountNumber String
   accountName   String
   issueType     IssueType
   description   String
   severity      Severity  @default(WARNING)
-  
+
   // Resolution
   isResolved Boolean   @default(false)
   resolvedAt DateTime?
   resolution String?
-  
+
   @@map("account_issues")
 }
 
@@ -227,18 +231,59 @@ model FixedAsset {
   id        String  @id @default(uuid())
   balanceId String
   balance   Balance @relation(fields: [balanceId], references: [id])
-  
+
   accountNumber String
   accountName   String
   grossValue    Float
   netValue      Float?
   depreciation  Float?
-  
-  movementType  AssetMovementType?
-  activityType  ActivityType?
+
+  movementType   AssetMovementType?
+  activityType   ActivityType?
   specifications Json?
-  
+
   @@map("fixed_assets")
+}
+
+// ========== VENTILATION CONFIGURATION ==========
+// Lets an accountant preconfigure, per client, the list of sub-accounts used
+// to dispatch the balance of a main account (e.g. 411000 -> named clients).
+model VentilationConfig {
+  id       String @id @default(uuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  mainAccountNumber String
+  mainAccountName   String
+
+  subAccounts VentilationSubAccount[]
+
+  createdBy String
+  creator   User   @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, mainAccountNumber])
+  @@index([clientId])
+  @@map("ventilation_configs")
+}
+
+model VentilationSubAccount {
+  id       String            @id @default(uuid())
+  configId String
+  config   VentilationConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  accountNumber String
+  accountName   String
+  order         Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([configId, accountNumber])
+  @@index([configId])
+  @@map("ventilation_sub_accounts")
 }
 
 // ========== DSF & TAX MANAGEMENT ==========
@@ -249,8 +294,8 @@ model DSF {
   status   DSFStatus @default(DRAFT)
 
   // Direct user relationship
-  userId   String?
-  user     User?     @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Import tracking
   isImported Boolean   @default(false)
@@ -259,82 +304,82 @@ model DSF {
   importedBy String?
 
   // Report sections as JSON
-  entete  Json?
-  sommaire Json?
-  page_de_garde Json?
-  informations_generales Json?
-  fiche1  Json?
-  fiche2  Json?
-  fiche3  Json?
-  statistiques_et_syntheses Json?
-  grille_analyse_des_notes Json?
-  bilan_paysage Json?
-  compte_de_resultat Json?
+  entete                      Json?
+  sommaire                    Json?
+  page_de_garde               Json?
+  informations_generales      Json?
+  fiche1                      Json?
+  fiche2                      Json?
+  fiche3                      Json?
+  statistiques_et_syntheses   Json?
+  grille_analyse_des_notes    Json?
+  bilan_paysage               Json?
+  compte_de_resultat          Json?
   tableau_des_flux_tresorerie Json?
-  
+
   // Notes 1-8
-  note1   Json?
-  note2   Json?
-  note3a  Json?
-  note3b  Json?
-  note3c  Json?
+  note1      Json?
+  note2      Json?
+  note3a     Json?
+  note3b     Json?
+  note3c     Json?
   note3c_co1 Json?
-  note3d  Json?
-  note3e  Json?
-  note3f  Json?
-  note4   Json?
-  note5   Json?
-  note6   Json?
-  note7   Json?
-  note8   Json?
-  
+  note3d     Json?
+  note3e     Json?
+  note3f     Json?
+  note4      Json?
+  note5      Json?
+  note6      Json?
+  note7      Json?
+  note8      Json?
+
   // Additional notes
-  note9   Json?
-  note10  Json?
-  note11  Json?
-  note12  Json?
-  note13  Json?
-  note14  Json?
-  note15a Json?
-  note15b Json?
-  note16a Json?
-  note16b Json?
+  note9       Json?
+  note10      Json?
+  note11      Json?
+  note12      Json?
+  note13      Json?
+  note14      Json?
+  note15a     Json?
+  note15b     Json?
+  note16a     Json?
+  note16b     Json?
   note16b_bis Json?
-  note16c Json?
-  note17  Json?
-  note17_c1 Json?
-  note18  Json?
-  note19  Json?
-  note20  Json?
-  note21  Json?
-  note23  Json?
-  note22  Json?
-  note24  Json?
-  note25 Json?
-  note25_c1 Json?
-  note25_c2 Json?
-  note26  Json?
-  note27a Json?
-  note27b Json?
-  note28  Json?
-  note28_c1 Json?
-  note28_c2 Json?
-  note29  Json?
-  note30  Json?
-  note31  Json?
-  note32  Json?
-  note33  Json?
-  note34  Json?
-  note35  Json?
-  
+  note16c     Json?
+  note17      Json?
+  note17_c1   Json?
+  note18      Json?
+  note19      Json?
+  note20      Json?
+  note21      Json?
+  note23      Json?
+  note22      Json?
+  note24      Json?
+  note25      Json?
+  note25_c1   Json?
+  note25_c2   Json?
+  note26      Json?
+  note27a     Json?
+  note27b     Json?
+  note28      Json?
+  note28_c1   Json?
+  note28_c2   Json?
+  note29      Json?
+  note30      Json?
+  note31      Json?
+  note32      Json?
+  note33      Json?
+  note34      Json?
+  note35      Json?
+
   // CF reports
-  cf1 Json?
-  cf1_bis Json?
-  cf1_ter Json?
+  cf1        Json?
+  cf1_bis    Json?
+  cf1_ter    Json?
   cf1_quater Json?
-  cf2 Json?
-  cf2_bis Json?
-  cf2_ter Json?
+  cf2        Json?
+  cf2_bis    Json?
+  cf2_ter    Json?
 
   // Reports storage
   reports Json?
@@ -356,45 +401,45 @@ model CoherenceControl {
   id    String @id @default(uuid())
   dsfId String @unique
   dsf   DSF    @relation(fields: [dsfId], references: [id])
-  
+
   performedAt DateTime @default(now())
   isCoherent  Boolean
   issues      Json?
   reportPath  String?
-  
+
   @@map("coherence_controls")
 }
 
 model TaxDeclaration {
-  id       String            @id @default(uuid())
+  id       String @id @default(uuid())
   folderId String
-  folder   Folder            @relation(fields: [folderId], references: [id])
-  
-  type   TaxType
-  period String
+  folder   Folder @relation(fields: [folderId], references: [id])
+
+  type    TaxType
+  period  String
   dueDate DateTime
-  status DeclarationStatus @default(PENDING)
-  
+  status  DeclarationStatus @default(PENDING)
+
   // E-declaration
   niuNumber   String?
   apiPassword String?
   dsfId       String?
-  
+
   // Financials
   amountDue  Float?
   amountPaid Float?
   filedAt    DateTime?
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("tax_declarations")
 }
 
 // ========== DSF CONFIGURATION MANAGEMENT ==========
 model DSFConfig {
-  id          String @id @default(uuid())
-  category    String @unique
+  id          String  @id @default(uuid())
+  category    String  @unique
   description String?
 
   // Relations
@@ -408,36 +453,37 @@ model DSFConfig {
 }
 
 model DSFComptableConfig {
-  id          String @id @default(uuid())
-  configId    String
-  config      DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  id       String    @id @default(uuid())
+  configId String
+  config   DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 
   // Owner information
-  ownerId     String
-  owner       User   @relation(fields: [ownerId], references: [id])
-  ownerType   ConfigOwnerType @default(ACCOUNTANT)
+  ownerId   String
+  owner     User            @relation(fields: [ownerId], references: [id])
+  ownerType ConfigOwnerType @default(ACCOUNTANT)
 
   // Configuration details
-  codeDsf     String
-  libelle     String
-  operations  String[]
+  codeDsf         String
+  libelle         String
+  operations      String[]
   destinationCell String?
 
   // Scope and settings
-  scope       ConfigScope @default(EXERCISE)
-  clientId    String?
-  exerciseId  String?
-  folder      Folder?     @relation(fields: [exerciseId], references: [id])
+  scope      ConfigScope @default(EXERCISE)
+  clientId   String?
+  exerciseId String?
+  folder     Folder?     @relation(fields: [exerciseId], references: [id])
 
   // Status
-  isActive    Boolean @default(true)
-  isLocked    Boolean @default(false)
-  isModified  Boolean @default(false)
+  isActive     Boolean @default(true)
+  isLocked     Boolean @default(false)
+  isModified   Boolean @default(false)
   baseConfigId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([configId, ownerId, ownerType, codeDsf, scope, clientId, exerciseId], name: "comptable_config_full_unique")
   @@index([configId])
   @@index([ownerId])
   @@index([ownerType])
@@ -446,25 +492,23 @@ model DSFComptableConfig {
   @@index([exerciseId])
   @@index([clientId])
   @@index([isActive])
-  @@unique([configId, ownerId, ownerType, codeDsf, scope, clientId, exerciseId], name: "comptable_config_full_unique")
-
   @@map("dsf_comptable_configs")
 }
 
 model DSFSystemConfig {
-  id          String @id @default(uuid())
-  configId    String @unique
-  config      DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  id       String    @id @default(uuid())
+  configId String    @unique
+  config   DSFConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 
   // Configuration details
-  codeDsf     String
-  libelle     String
-  operations  String[]
+  codeDsf         String
+  libelle         String
+  operations      String[]
   destinationCell String?
 
   // Status
-  isActive    Boolean @default(true)
-  isLocked    Boolean @default(true)
+  isActive Boolean @default(true)
+  isLocked Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -474,19 +518,19 @@ model DSFSystemConfig {
 
 // ========== DSF CONFIG IMPORT/EXPORT ==========
 model DSFConfigImport {
-  id          String   @id @default(uuid())
-  fileName    String
-  filePath    String?
-  importedBy  String
-  importer    User     @relation(fields: [importedBy], references: [id])
+  id         String  @id @default(uuid())
+  fileName   String
+  filePath   String?
+  importedBy String
+  importer   User    @relation(fields: [importedBy], references: [id])
 
   // Import results
-  totalConfigs Int      @default(0)
-  importedConfigs Int   @default(0)
-  failedConfigs Int     @default(0)
-  errors      String?
+  totalConfigs    Int     @default(0)
+  importedConfigs Int     @default(0)
+  failedConfigs   Int     @default(0)
+  errors          String?
 
-  importedAt  DateTime @default(now())
+  importedAt DateTime @default(now())
 
   @@map("dsf_config_imports")
 }
@@ -510,22 +554,22 @@ model DGIConfig {
 
 // ========== NOTIFICATIONS ==========
 model Notification {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
   // Notification content
-  type       NotificationType
-  title      String
-  message    String
-  link       String?
-  
+  type    NotificationType
+  title   String
+  message String
+  link    String?
+
   // Status
-  isRead     Boolean  @default(false)
-  readAt     DateTime?
-  
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
   @@index([userId, isRead])
   @@map("notifications")
@@ -544,23 +588,23 @@ enum NotificationType {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  timestamp   DateTime @default(now())
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
 
   // Who performed the action
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   // What action was performed
-  action      AuditAction
-  entityType  EntityType
-  entityId    String?
+  action     AuditAction
+  entityType EntityType
+  entityId   String?
 
   // Context information
-  folderId    String?
-  folder      Folder?  @relation(fields: [folderId], references: [id])
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id])
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id])
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
 
   // Action details
   description String
@@ -580,104 +624,99 @@ model AuditLog {
   @@index([folderId])
   @@index([timestamp])
   @@index([action])
-
   @@map("audit_logs")
 }
 
 // ========== DSF IMPORT & MATCHING ==========
 model ExcelFileUpload {
-  id          String   @id @default(uuid())
-  fileName    String
-  filePath    String
-  fileSize    Int
-  uploadedBy  String
-  uploader    User     @relation(fields: [uploadedBy], references: [id])
+  id         String @id @default(uuid())
+  fileName   String
+  filePath   String
+  fileSize   Int
+  uploadedBy String
+  uploader   User   @relation(fields: [uploadedBy], references: [id])
 
   // Context information
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id])
-  folderId    String?
-  folder      Folder?  @relation(fields: [folderId], references: [id])
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id])
 
   // File metadata
-  sheetCount  Int      @default(0)
-  sheets      String[]
-  fileType    String   @default("excel")
+  sheetCount Int      @default(0)
+  sheets     String[]
+  fileType   String   @default("excel")
 
   // Status
-  isActive    Boolean  @default(true)
-  uploadedAt  DateTime @default(now())
+  isActive   Boolean  @default(true)
+  uploadedAt DateTime @default(now())
 
   @@index([uploadedBy])
   @@index([clientId])
   @@index([folderId])
   @@index([uploadedAt])
-
   @@map("excel_file_uploads")
 }
 
 model DSFImport {
-  id            String   @id @default(cuid())
-  folderId      String
-  clientId      String
-  fileName      String
-  fileUrl       String
-  exerciseYear  Int
-  importedBy    String
-  importedAt    DateTime @default(now())
-  status        String   @default("processing")
-  totalSheets   Int      @default(0)
-  processedSheets Int    @default(0)
+  id              String   @id @default(cuid())
+  folderId        String
+  clientId        String
+  fileName        String
+  fileUrl         String
+  exerciseYear    Int
+  importedBy      String
+  importedAt      DateTime @default(now())
+  status          String   @default("processing")
+  totalSheets     Int      @default(0)
+  processedSheets Int      @default(0)
 
-  folder        Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  client        Client   @relation(fields: [clientId], references: [id])
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id])
 
+  @@unique([clientId, folderId, fileName], name: "dsf_import_unique_per_client_exercise")
   @@index([folderId])
   @@index([clientId])
   @@index([exerciseYear])
-  @@unique([clientId, folderId, fileName], name: "dsf_import_unique_per_client_exercise")
-
   @@map("dsf_imports")
 }
 
 // ========== DSF MAPPING CONFIGURATION ==========
 model DSFMappingConfig {
-  id              String   @id @default(cuid())
-  noteType        String   @unique
+  id                String   @id @default(cuid())
+  noteType          String   @unique
   sheetNamePatterns String[]
 
   // Owner and scope
-  ownerId         String?
-  owner           User?   @relation(fields: [ownerId], references: [id])
-  isSystem        Boolean @default(false)
-  isActive        Boolean @default(true)
+  ownerId  String?
+  owner    User?   @relation(fields: [ownerId], references: [id])
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
 
   // Fields
-  fields          DSFMappingField[]
+  fields DSFMappingField[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([noteType])
   @@index([ownerId])
-
   @@map("dsf_mapping_configs")
 }
 
 // ========== DSF MAPPING FIELD ==========
 model DSFMappingField {
-  id            String   @id @default(cuid())
-  configId      String
-  config        DSFMappingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
-  
-  fieldName     String
+  id       String           @id @default(cuid())
+  configId String
+  config   DSFMappingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  fieldName    String
   sheetName    String
   cellAddress  String?
-  isRequired  Boolean @default(false)
+  isRequired   Boolean @default(false)
   defaultValue Json?
 
   @@index([configId])
-
   @@map("dsf_mapping_fields")
 }
 
@@ -900,13 +939,13 @@ enum ChangeType {
 
 // ========== REVUE FISCAL MANAGEMENT ==========
 model RevueFiscalCompany {
-  id        String   @id @default(uuid())
-  name      String
-  sector    String?
-  exercice  String?
-  reviseur  String?
-  chef      String?
-  niu       String?
+  id       String  @id @default(uuid())
+  name     String
+  sector   String?
+  exercice String?
+  reviseur String?
+  chef     String?
+  niu      String?
 
   questionStates RevueFiscalQuestionState[]
 
@@ -917,9 +956,9 @@ model RevueFiscalCompany {
 }
 
 model RevueFiscalQuestionState {
-  id         String   @id @default(uuid())
-  companyId  String
-  company    RevueFiscalCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String             @id @default(uuid())
+  companyId String
+  company   RevueFiscalCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   questionId String
   eval       RevueFiscalEval?
@@ -936,10 +975,10 @@ model RevueFiscalQuestionState {
 
 // Questionnaire Configuration
 model RevueFiscalQuestionnaire {
-  id        String   @id @default(uuid())
-  name      String   @default("Default Questionnaire")
-  isActive  Boolean  @default(true)
-  isDefault Boolean  @default(true)
+  id        String  @id @default(uuid())
+  name      String  @default("Default Questionnaire")
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(true)
 
   sections RevueFiscalSection[]
 
@@ -950,57 +989,57 @@ model RevueFiscalQuestionnaire {
 }
 
 model RevueFiscalSection {
-  id             String   @id @default(uuid())
+  id              String                   @id @default(uuid())
   questionnaireId String
   questionnaire   RevueFiscalQuestionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
 
-  sectionId      String
-  number         String
-  title          String
+  sectionId String
+  number    String
+  title     String
 
   subsections RevueFiscalSubSection[]
 
-  order         Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([questionnaireId, sectionId])
   @@map("revue_fiscal_sections")
 }
 
 model RevueFiscalSubSection {
-  id         String   @id @default(uuid())
-  sectionId  String
-  section    RevueFiscalSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  id        String             @id @default(uuid())
+  sectionId String
+  section   RevueFiscalSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   subSectionId String
-  title       String
-  badge       String?
-  info        String?
+  title        String
+  badge        String?
+  info         String?
 
   questions RevueFiscalQuestion[]
 
-  order      Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([sectionId, subSectionId])
   @@map("revue_fiscal_subsections")
 }
 
 model RevueFiscalQuestion {
-  id            String   @id @default(uuid())
-  subSectionId  String
-  subSection    RevueFiscalSubSection @relation(fields: [subSectionId], references: [id], onDelete: Cascade)
+  id           String                @id @default(uuid())
+  subSectionId String
+  subSection   RevueFiscalSubSection @relation(fields: [subSectionId], references: [id], onDelete: Cascade)
 
-  questionId    String
-  text          String
-  isNew2026     Boolean  @default(false)
-  ref           String?
+  questionId String
+  text       String
+  isNew2026  Boolean @default(false)
+  ref        String?
 
-  order        Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([subSectionId, questionId])
   @@map("revue_fiscal_questions")

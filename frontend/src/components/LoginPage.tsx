@@ -71,7 +71,7 @@ export function LoginPage({
                     onLoginChange("phoneCountryCode", value)
                   }
                 >
-                  <SelectTrigger className="w-25 transition-all duration-200 focus:ring-2 focus:ring-blue-500">
+                  <SelectTrigger className="w-25 transition-all duration-200 focus:ring-2 focus:ring-orange-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -92,7 +92,7 @@ export function LoginPage({
                       onLoginChange("phoneNumber", e.target.value)
                     }
                     placeholder="6 67 12 34 56"
-                    className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                     autoComplete="off"
                     required
                   />
@@ -110,7 +110,7 @@ export function LoginPage({
                   value={loginForm.password}
                   onChange={(e) => onLoginChange("password", e.target.value)}
                   placeholder={t("password")}
-                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                   autoComplete="new-password"
                   required
                 />
@@ -119,7 +119,7 @@ export function LoginPage({
             <div className="space-y-2 text-right">
               <button
                 type="button"
-                className=" text-sm mb-4 text-blue-600 hover:underline font-medium transition-all duration-200"
+                className=" text-sm mb-4 text-orange-600 hover:underline font-medium transition-all duration-200"
                 onClick={() => {
                   navigate("/fr/web/user/forgot-password");
                 }}
@@ -153,7 +153,7 @@ export function LoginPage({
               Pas encore de compte ?{" "}
               <button
                 type="button"
-                className="text-blue-600 hover:underline font-medium transition-all duration-200"
+                className="text-orange-600 hover:underline font-medium transition-all duration-200"
                 onClick={onSwitchToRegister}
               >
                 S'inscrire

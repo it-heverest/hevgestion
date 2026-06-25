@@ -708,7 +708,7 @@ export function RegisterPage({
           <button
             type="button"
             onClick={onSwitchToLogin}
-            className="text-blue-600 hover:underline font-medium"
+            className="text-orange-600 hover:underline font-medium"
           >
             Login
           </button>

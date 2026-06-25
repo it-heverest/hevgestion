@@ -343,7 +343,7 @@ const Note3B: React.FC = () => {
             <input
               value={value as string}
               onChange={(e) => handleValueChange(row.id, field, e.target.value)}
-              className="w-full text-center bg-blue-50 focus:outline-none"
+              className="w-full text-center bg-orange-50 focus:outline-none"
             />
           ) : (
             value
@@ -361,7 +361,7 @@ const Note3B: React.FC = () => {
             min="0"
             value={value as number}
             onChange={(e) => handleValueChange(row.id, field, e.target.value)}
-            className="w-full text-right bg-blue-50 px-1 focus:outline-none"
+            className="w-full text-right bg-orange-50 px-1 focus:outline-none"
           />
         ) : (
           (value as number).toLocaleString("fr-FR")
@@ -407,7 +407,7 @@ const Note3B: React.FC = () => {
                   prev.map(r => r.id === row.id ? { ...r, label: e.target.value } : r)
                 )
               }
-              className="w-full bg-blue-50 px-1 focus:outline-none border-b border-blue-300"
+              className="w-full bg-orange-50 px-1 focus:outline-none border-b border-orange-300"
               placeholder="Libellé..."
             />
           ) : row.label}
@@ -476,7 +476,7 @@ const Note3B: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement des données...</p>
         </div>
       </div>
@@ -510,7 +510,7 @@ const Note3B: React.FC = () => {
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
           <h1 className="text-xl font-bold text-black flex items-center gap-2">
-            <FileText className="w-6 h-6 text-blue-600" />
+            <FileText className="w-6 h-6 text-orange-600" />
             Note 3B - Biens Pris en Location Acquisition
           </h1>
           <p className="text-sm text-gray-600 mt-1">
@@ -521,7 +521,7 @@ const Note3B: React.FC = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
             >
               <Pencil size={18} /> Éditer
             </button>
@@ -565,12 +565,12 @@ const Note3B: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
-          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-orange-800">
               <Pencil size={16} />
               <span className="font-medium">Mode édition activé</span>
             </div>
@@ -607,7 +607,7 @@ const Note3B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-full px-1">
@@ -625,7 +625,7 @@ const Note3B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-24 focus:outline-none px-1 text-center"
+                className="border-b border-orange-500 bg-orange-50 w-24 focus:outline-none px-1 text-center"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-24 text-center px-1">
@@ -643,7 +643,7 @@ const Note3B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-full px-1">
@@ -661,7 +661,7 @@ const Note3B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+                className="border-b border-orange-500 bg-orange-50 w-16 focus:outline-none px-1 text-center"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">
@@ -732,7 +732,7 @@ const Note3B: React.FC = () => {
                 <td colSpan={11} className="border border-gray-400 p-1">
                   <button
                     onClick={() => addRow("I")}
-                    className="text-blue-600 hover:text-blue-800 text-[10px] font-medium"
+                    className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
                   >
                     + Ajouter une ligne (Incorporelles)
                   </button>
@@ -759,7 +759,7 @@ const Note3B: React.FC = () => {
                 <td colSpan={11} className="border border-gray-400 p-1">
                   <button
                     onClick={() => addRow("C")}
-                    className="text-blue-600 hover:text-blue-800 text-[10px] font-medium"
+                    className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
                   >
                     + Ajouter une ligne (Corporelles)
                   </button>
@@ -838,7 +838,7 @@ const Note3B: React.FC = () => {
           </ul>
           {isEditing ? (
             <textarea
-              className="w-full h-16 p-2 border border-blue-300 bg-blue-50 text-xs focus:outline-none resize-none"
+              className="w-full h-16 p-2 border border-orange-300 bg-orange-50 text-xs focus:outline-none resize-none"
               placeholder="Saisir vos commentaires ici..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}

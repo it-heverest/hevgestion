@@ -29,7 +29,7 @@ const GrilleAnalyseNotes: React.FC = () => {
     <div className="min-h-screen bg-gray-50 p-8 font-sans text-xs text-gray-900">
       <div className="w-full max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow-md">
         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-7 h-7 text-blue-700" />
+          <FileText className="w-7 h-7 text-orange-700" />
           Grille d'Analyse des Notes
         </h1>
 
@@ -39,7 +39,7 @@ const GrilleAnalyseNotes: React.FC = () => {
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all shadow-sm ${
               isEditing
                 ? "bg-orange-600 text-white hover:bg-orange-700"
-                : "bg-blue-700 text-white hover:bg-blue-800"
+                : "bg-orange-700 text-white hover:bg-orange-800"
             }`}
           >
             {isEditing ? "Annuler" : <Pencil size={18} />}

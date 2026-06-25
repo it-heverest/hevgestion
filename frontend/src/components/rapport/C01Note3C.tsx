@@ -206,7 +206,7 @@ const C01Note3C: React.FC = () => {
             min="0"
             value={value}
             onChange={(e) => handleValueChange(row.id, field, e.target.value)}
-            className="w-full text-right bg-blue-50 px-1 focus:outline-none"
+            className="w-full text-right bg-orange-50 px-1 focus:outline-none"
           />
         ) : (
           value.toLocaleString("fr-FR")
@@ -241,7 +241,7 @@ const C01Note3C: React.FC = () => {
       {/* Barre d'outils */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           C01/NOTE 3C - Amortissements Différés
         </h1>
         <div className="flex gap-3">
@@ -256,7 +256,7 @@ const C01Note3C: React.FC = () => {
             disabled={isSaving || isLoading}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
               ? "bg-green-600 hover:bg-green-700"
-              : "bg-blue-600 hover:bg-blue-700"
+              : "bg-orange-600 hover:bg-orange-700"
               } ${(isSaving || isLoading) ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {isSaving ? (
@@ -284,7 +284,7 @@ const C01Note3C: React.FC = () => {
       </div>
 
       {isLoading && (
-        <div className="max-w-[210mm] mx-auto mb-6 bg-blue-50 p-4 rounded border border-blue-200 text-blue-700 flex items-center gap-2">
+        <div className="max-w-[210mm] mx-auto mb-6 bg-orange-50 p-4 rounded border border-orange-200 text-orange-700 flex items-center gap-2">
           <RefreshCw className="w-4 h-4 animate-spin" />
           Chargement des données...
         </div>

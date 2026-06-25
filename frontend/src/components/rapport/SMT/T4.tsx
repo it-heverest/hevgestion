@@ -172,7 +172,7 @@ const T4: React.FC = () => {
       {/* Barre d'actions */}
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-5 rounded-xl shadow-lg">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-8 h-8 text-blue-700" />
+          <FileText className="w-8 h-8 text-orange-700" />
           T4 - Extrait de la balance générale fournisseurs
         </h1>
 
@@ -182,7 +182,7 @@ const T4: React.FC = () => {
             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium shadow transition-all ${
               isEditing
                 ? "bg-orange-600 hover:bg-orange-700 text-white"
-                : "bg-blue-700 hover:bg-blue-800 text-white"
+                : "bg-orange-700 hover:bg-orange-800 text-white"
             }`}
           >
             {isEditing ? <X size={18} /> : <Pencil size={18} />}

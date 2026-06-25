@@ -146,14 +146,14 @@
 //               <div className="space-y-1">
 //                 <p className="text-xs text-muted-foreground">Date de début</p>
 //                 <div className="flex items-center gap-2">
-//                   <Calendar className="h-4 w-4 text-blue-600" />
+//                   <Calendar className="h-4 w-4 text-orange-600" />
 //                   <span>{new Date(currentExercise.startDate).toLocaleDateString('fr-FR')}</span>
 //                 </div>
 //               </div>
 //               <div className="space-y-1">
 //                 <p className="text-xs text-muted-foreground">Date de fin</p>
 //                 <div className="flex items-center gap-2">
-//                   <Calendar className="h-4 w-4 text-blue-600" />
+//                   <Calendar className="h-4 w-4 text-orange-600" />
 //                   <span>{new Date(currentExercise.endDate).toLocaleDateString('fr-FR')}</span>
 //                 </div>
 //               </div>
@@ -225,9 +225,9 @@
 //               <div key={exercise.year}>
 //                 <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
 //                   <div className="flex items-center gap-4">
-//                     <div className={`p-2 rounded-lg ${exercise.status === 'open' ? 'bg-blue-100' : 'bg-gray-100'}`}>
+//                     <div className={`p-2 rounded-lg ${exercise.status === 'open' ? 'bg-orange-100' : 'bg-gray-100'}`}>
 //                       {exercise.status === 'open' ? (
-//                         <Unlock className="h-5 w-5 text-blue-600" />
+//                         <Unlock className="h-5 w-5 text-orange-600" />
 //                       ) : (
 //                         <Lock className="h-5 w-5 text-gray-600" />
 //                       )}

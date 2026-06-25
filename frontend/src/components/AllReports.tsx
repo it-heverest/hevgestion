@@ -76,14 +76,14 @@ const StepDot: React.FC<{ active: boolean; done: boolean; label: string }> = ({
         done
           ? "bg-emerald-500 text-white"
           : active
-            ? "bg-blue-600 text-white ring-4 ring-blue-100"
+            ? "bg-orange-600 text-white ring-4 ring-orange-100"
             : "bg-gray-100 text-gray-400"
       }`}
     >
       {done && <CheckCircle2 className="w-4 h-4" />}
     </div>
     <span
-      className={`text-[11px] font-medium ${active ? "text-blue-600" : done ? "text-emerald-600" : "text-gray-400"}`}
+      className={`text-[11px] font-medium ${active ? "text-orange-600" : done ? "text-emerald-600" : "text-gray-400"}`}
     >
       {label}
     </span>
@@ -110,7 +110,7 @@ const OptionCard: React.FC<{
   title,
   description,
   badge,
-  badgeColor = "bg-blue-100 text-blue-700",
+  badgeColor = "bg-orange-100 text-orange-700",
   disabled,
   disabledReason,
   onClick,
@@ -121,7 +121,7 @@ const OptionCard: React.FC<{
     className={`group relative w-full text-left p-5 rounded-xl border-2 transition-all duration-200 ${
       disabled
         ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
-        : "border-gray-200 bg-white hover:border-blue-400 hover:shadow-md hover:shadow-blue-50 cursor-pointer"
+        : "border-gray-200 bg-white hover:border-orange-400 hover:shadow-md hover:shadow-orange-50 cursor-pointer"
     }`}
   >
     <div className="flex items-start gap-4">
@@ -129,7 +129,7 @@ const OptionCard: React.FC<{
         className={`flex-shrink-0 w-11 h-11 rounded-lg flex items-center justify-center transition-colors ${
           disabled
             ? "bg-gray-100 text-gray-400"
-            : "bg-blue-50 text-blue-600 group-hover:bg-blue-100"
+            : "bg-orange-50 text-orange-600 group-hover:bg-orange-100"
         }`}
       >
         {icon}
@@ -156,7 +156,7 @@ const OptionCard: React.FC<{
         )}
       </div>
       {!disabled && (
-        <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-400 group-hover:text-blue-500 mt-3 transition-colors" />
+        <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-400 group-hover:text-orange-500 mt-3 transition-colors" />
       )}
     </div>
   </button>
@@ -546,7 +546,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
                 className={`w-full pl-10 pr-4 py-3 text-sm border rounded-lg outline-none transition-all ${
                   clientNotFound
                     ? "border-red-300 focus:ring-2 focus:ring-red-200 bg-red-50"
-                    : "border-gray-200 focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                    : "border-gray-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
                 }`}
               />
             </div>
@@ -558,9 +558,9 @@ export const AllReports: React.FC<AllReportsProps> = ({
                   <button
                     key={client.id}
                     onClick={() => handleSelectClient(client)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {client.name?.charAt(0)?.toUpperCase() ?? "?"}
                     </div>
                     <div className="flex-1">
@@ -588,7 +588,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim() || isSearching}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSearching ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -603,7 +603,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
         {/* CHECKING */}
         {step === "checking" && (
           <div className="py-10 text-center space-y-3">
-            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto" />
+            <Loader2 className="w-10 h-10 text-orange-500 animate-spin mx-auto" />
             <p className="text-sm font-medium text-gray-700">
               {isLoadingBalances
                 ? "Vérification des balances disponibles..."
@@ -660,7 +660,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
                   </p>
                   <button
                     onClick={() => activeFolderId && runCheck(activeFolderId)}
-                    className="ml-auto text-gray-400 hover:text-blue-500 transition-colors"
+                    className="ml-auto text-gray-400 hover:text-orange-500 transition-colors"
                     title="Rafraîchir"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
@@ -738,7 +738,7 @@ export const AllReports: React.FC<AllReportsProps> = ({
               <button
                 onClick={handleUpload}
                 disabled={!selectedFile}
-                className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center px-5 py-2.5 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Extraire les données

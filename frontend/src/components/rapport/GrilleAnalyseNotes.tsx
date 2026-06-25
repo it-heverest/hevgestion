@@ -546,7 +546,7 @@ const GrilleAnalyseNotes: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-full max-w-[210mm] mx-auto mb-8 flex justify-between items-center bg-white p-5 rounded-lg shadow-md border border-gray-200">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-7 h-7 text-blue-600" />
+          <FileText className="w-7 h-7 text-orange-600" />
           Grille d'Analyse des Notes
         </h1>
         <div className="flex gap-4">
@@ -559,7 +559,7 @@ const GrilleAnalyseNotes: React.FC = () => {
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-white font-medium transition transform hover:scale-105 ${
               isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
             } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {saving ? (
@@ -611,7 +611,7 @@ const GrilleAnalyseNotes: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                   }
-                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium"
+                  className="border-b-2 border-orange-500 bg-orange-50 px-2 py-1 text-sm font-medium"
                 />
               ) : (
                 <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
@@ -631,7 +631,7 @@ const GrilleAnalyseNotes: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                   }
-                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium w-full"
+                  className="border-b-2 border-orange-500 bg-orange-50 px-2 py-1 text-sm font-medium w-full"
                 />
               ) : (
                 <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
@@ -654,7 +654,7 @@ const GrilleAnalyseNotes: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                   }
-                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium"
+                  className="border-b-2 border-orange-500 bg-orange-50 px-2 py-1 text-sm font-medium"
                 />
               ) : (
                 <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">
@@ -674,7 +674,7 @@ const GrilleAnalyseNotes: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, duration: e.target.value })
                   }
-                  className="border-b-2 border-blue-500 bg-blue-50 px-2 py-1 text-sm font-medium w-full"
+                  className="border-b-2 border-orange-500 bg-orange-50 px-2 py-1 text-sm font-medium w-full"
                 />
               ) : (
                 <span className="border-b-2 border-dotted border-gray-400 px-2 py-1 text-sm font-medium min-h-[24px]">

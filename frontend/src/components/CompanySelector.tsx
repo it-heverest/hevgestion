@@ -236,16 +236,16 @@ export function CompanySelector({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50 flex items-center justify-center p-6">
       <div className="w-full max-w-5xl space-y-6">
         {/* En-tête */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl p-4 shadow-lg">
+            <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white rounded-2xl p-4 shadow-lg">
               <Building2 className="h-10 w-10" />
             </div>
             <div className="text-left">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-blue-600 bg-clip-text text-transparent">
                 FinanceERP Pro
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -454,7 +454,7 @@ export function CompanySelector({
             filteredCompanies.map((company) => (
               <Card
                 key={company.id}
-                className="cursor-pointer hover:shadow-xl transition-all hover:border-blue-500 hover:-translate-y-1 group border-2"
+                className="cursor-pointer hover:shadow-xl transition-all hover:border-orange-500 hover:-translate-y-1 group border-2"
                 onClick={() => {
                   onSelectCompany(company);
                   const uid = user?.id ?? "me";
@@ -464,7 +464,7 @@ export function CompanySelector({
                 <CardContent className="p-5">
                   <div className="flex items-center gap-4">
                     {/* Logo */}
-                    <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-xl p-3 w-14 h-14 flex items-center justify-center flex-shrink-0 group-hover:shadow-lg transition-all">
+                    <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white rounded-xl p-3 w-14 h-14 flex items-center justify-center flex-shrink-0 group-hover:shadow-lg transition-all">
                       <span className="font-bold text-xl">{company.logo}</span>
                     </div>
 
@@ -482,7 +482,7 @@ export function CompanySelector({
                       {company.sector}
                     </Badge>
 
-                    <ChevronRight className="h-6 w-6 text-muted-foreground group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    <ChevronRight className="h-6 w-6 text-muted-foreground group-hover:text-orange-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>

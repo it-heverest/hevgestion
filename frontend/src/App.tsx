@@ -394,15 +394,15 @@ export function ProtectedLayout({
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <Sidebar className="border-r">
-          <SidebarHeader className="border-b p-4">
+        <Sidebar className="border-r border-sidebar-border">
+          <SidebarHeader className="border-b border-sidebar-border p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 text-white rounded-lg p-2">
+              <div className="bg-primary text-primary-foreground rounded-lg p-2 shadow-sm">
                 <BarChart3 className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="font-semibold">HevGestion DSF</h1>
-                <p className="text-xs text-muted-foreground">
+                <h1 className="font-semibold text-sidebar-foreground">HevGestion DSF</h1>
+                <p className="text-xs text-sidebar-foreground/60">
                   {t("systemStatusCompliant")}
                 </p>
               </div>
@@ -425,7 +425,7 @@ export function ProtectedLayout({
                             setActiveRoute(item.id);
                           }}
                           isActive={location.pathname.includes(item.path)}
-                          className="w-full"
+                          className="w-full data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-medium data-[active=true]:shadow-sm"
                         >
                           <Icon className="h-4 w-4" />
                           <span>{item.label}</span>
@@ -439,21 +439,18 @@ export function ProtectedLayout({
           </SidebarContent>
         </Sidebar>
 
-        <main className="flex-1 overflow-auto bg-gray-50">
-          <div className="border-b bg-white shadow-sm">
+        <main className="flex-1 overflow-auto bg-background">
+          <div className="border-b border-border bg-card shadow-sm">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <SidebarTrigger />
                   <div className="flex items-center gap-3">
-                    {/* <div className="bg-blue-600 p-2 rounded-lg">
-                      <BarChart3 className="h-5 w-5 text-white" />
-                    </div> */}
                     <div>
-                      <h1 className="text-lg font-semibold text-gray-900">
+                      <h1 className="text-lg font-semibold text-foreground">
                         HevGestion DSF
                       </h1>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-muted-foreground">
                         {t("welcomeUser")}, {user?.firstName || "User"}
                       </p>
                     </div>
@@ -461,16 +458,11 @@ export function ProtectedLayout({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                    <Wifi className="h-3 w-3" />
-                    {t("connected")}
-                  </div> */}
-
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => window.location.reload()}
-                    className="border-none bg-transparent hover:bg-gray-100 focus:ring-0 focus:outline-none"
+                    className="border-none bg-transparent hover:bg-muted focus:ring-0 focus:outline-none"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -482,7 +474,7 @@ export function ProtectedLayout({
                   />
 
                   <div
-                    className="flex items-center justify-center px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                    className="flex items-center justify-center px-3 py-2 bg-accent border border-accent-foreground/15 text-accent-foreground rounded-lg hover:bg-accent/70 transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedCountry(null);
                       setSelectedCompany(null);
@@ -496,20 +488,6 @@ export function ProtectedLayout({
                   </div>
 
                   <NotificationCenter />
-
-                  {/* {selectedExercise && (
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() =>
-                        navigate(`/${langPrefix}/web/user/exercise`)
-                      }
-                    >
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-sm font-medium">
-                        {selectedExercise.fiscalYear}
-                      </span>
-                    </div>
-                  )} */}
                 </div>
               </div>
             </div>
@@ -520,8 +498,8 @@ export function ProtectedLayout({
             <EntityHeader />
           </div>
 
-          <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white border-t border-gray-200">
-            <p className="text-xs text-gray-500 select-none">
+          <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-card border-t border-border">
+            <p className="text-xs text-muted-foreground select-none">
               {t("poweredBy")}
             </p>
           </footer>

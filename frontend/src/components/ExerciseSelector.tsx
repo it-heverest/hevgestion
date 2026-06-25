@@ -283,7 +283,7 @@ export function ExerciseSelector() {
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
           <p className="text-muted-foreground mt-4">
             Chargement des dossiers...
           </p>
@@ -305,7 +305,7 @@ export function ExerciseSelector() {
       <div className="flex justify-center">
         <Button
           onClick={() => setShowCreateDialog(true)}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-orange-600 hover:bg-orange-700"
           disabled={!selectedClient}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -511,7 +511,7 @@ export function ExerciseSelector() {
                 <div
                   className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                     createForm.workflow === "balance"
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-orange-500 bg-orange-50"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                   onClick={() =>
@@ -529,9 +529,9 @@ export function ExerciseSelector() {
                         workflow: "balance",
                       }))
                     }
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-orange-600"
                   />
-                  <Upload className="h-5 w-5 text-blue-600" />
+                  <Upload className="h-5 w-5 text-orange-600" />
                   <div>
                     <div className="font-medium">Importer les balances</div>
                     <div className="text-sm text-gray-600">
@@ -542,7 +542,7 @@ export function ExerciseSelector() {
                 <div
                   className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                     createForm.workflow === "dsf"
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-orange-500 bg-orange-50"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                   onClick={() =>
@@ -557,9 +557,9 @@ export function ExerciseSelector() {
                     onChange={() =>
                       setCreateForm((prev) => ({ ...prev, workflow: "dsf" }))
                     }
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-orange-600"
                   />
-                  <FileText className="h-5 w-5 text-blue-600" />
+                  <FileText className="h-5 w-5 text-orange-600" />
                   <div>
                     <div className="font-medium">Importer DSF existante</div>
                     <div className="text-sm text-gray-600">
