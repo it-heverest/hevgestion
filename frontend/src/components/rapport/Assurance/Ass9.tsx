@@ -66,17 +66,17 @@ const Ass9: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Tableau 27 - Charges et Produits à l'Étranger
         </h1>
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${isEditing ? "bg-green-600" : "bg-blue-600"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${isEditing ? "bg-green-600" : "bg-orange-600"}`}
           >
             {isEditing ? <> <Save size={18} /> Sauvegarder </> : <> <Pencil size={18} /> Éditer </>}
           </button>
-          <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded">
+          <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded">
             <Download size={18} /> PDF
           </button>
         </div>

@@ -101,7 +101,7 @@
 
 //             <Button onClick={generateExcelTemplate} variant="outline" className="h-auto p-4">
 //               <div className="flex flex-col items-center gap-2 w-full">
-//                 <FileSpreadsheet className="h-8 w-8 text-blue-600" />
+//                 <FileSpreadsheet className="h-8 w-8 text-orange-600" />
 //                 <div className="text-center">
 //                   <p>Template Excel</p>
 //                   <p className="text-xs text-muted-foreground">Format Microsoft Excel</p>
@@ -193,7 +193,7 @@
 //         <CardContent>
 //           <ol className="space-y-3 list-decimal list-inside">
 //             <li className="flex items-start gap-3">
-//               <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">1</span>
+//               <span className="bg-orange-100 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">1</span>
 //               <div className="flex-1">
 //                 <p>Téléchargez le template CSV ou Excel</p>
 //                 <p className="text-xs text-muted-foreground mt-1">
@@ -202,7 +202,7 @@
 //               </div>
 //             </li>
 //             <li className="flex items-start gap-3">
-//               <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">2</span>
+//               <span className="bg-orange-100 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">2</span>
 //               <div className="flex-1">
 //                 <p>Exportez votre balance depuis votre ERP (SAP, Oracle, Dynamics)</p>
 //                 <p className="text-xs text-muted-foreground mt-1">
@@ -211,7 +211,7 @@
 //               </div>
 //             </li>
 //             <li className="flex items-start gap-3">
-//               <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">3</span>
+//               <span className="bg-orange-100 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">3</span>
 //               <div className="flex-1">
 //                 <p>Vérifiez que toutes les colonnes obligatoires sont remplies</p>
 //                 <p className="text-xs text-muted-foreground mt-1">
@@ -220,7 +220,7 @@
 //               </div>
 //             </li>
 //             <li className="flex items-start gap-3">
-//               <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">4</span>
+//               <span className="bg-orange-100 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">4</span>
 //               <div className="flex-1">
 //                 <p>Importez le fichier via l'onglet "Import de Fichiers"</p>
 //                 <p className="text-xs text-muted-foreground mt-1">
@@ -229,7 +229,7 @@
 //               </div>
 //             </li>
 //             <li className="flex items-start gap-3">
-//               <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">5</span>
+//               <span className="bg-orange-100 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">5</span>
 //               <div className="flex-1">
 //                 <p>Vérifiez et validez les données importées</p>
 //                 <p className="text-xs text-muted-foreground mt-1">

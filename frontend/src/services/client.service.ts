@@ -1,6 +1,7 @@
 // services/client.service.ts
-import api from "./api";
+import axios from "axios";
 import { API_CONFIG } from "../config/api";
+import { authService } from "./auth.service";
 import { Client } from "@/types";
 
 export interface Country {
@@ -43,12 +44,49 @@ export interface CreateClientData {
  * Session management is now handled by AppContext
  */
 class ClientService {
+  private api = axios.create({
+    baseURL: API_CONFIG.BASE_URL,
+    timeout: 10000,
+    withCredentials: true,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  constructor() {
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors(): void {
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = authService.getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          window.location.href = "/fr/web/user/login";
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
 
   // ==================== COUNTRIES API ====================
 
   async getCountries(): Promise<Country[]> {
     try {
-      const response = await api.get("/clients/countries");
+      const response = await this.api.get("/clients/countries");
       return response.data.countries as Country[];
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -61,7 +99,7 @@ class ClientService {
   async getClients(country?: string): Promise<Client[]> {
     try {
       const params = country ? { country } : {};
-      const response = await api.get("/clients", { params });
+      const response = await this.api.get("/clients", { params });
       return response.data.clients as Client[];
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -71,7 +109,7 @@ class ClientService {
 
   async createClient(clientData: CreateClientData): Promise<Client> {
     try {
-      const response = await api.post("/clients", clientData);
+      const response = await this.api.post("/clients", clientData);
       return response.data.client;
     } catch (error: any) {
       console.error("Error creating client:", error);
@@ -89,7 +127,7 @@ class ClientService {
 
   async getClientsByCountry(countryCode: string): Promise<Client[]> {
     try {
-      const response = await api.get("/clients", {
+      const response = await this.api.get("/clients", {
         params: { country: countryCode },
       });
       return response.data.clients as Client[];
@@ -106,7 +144,7 @@ class ClientService {
         params.country = countryCode;
       }
 
-      const response = await api.get("/clients/search", {
+      const response = await this.api.get("/clients/search", {
         params,
       });
       return response.data.clients as Client[];
@@ -118,7 +156,7 @@ class ClientService {
 
   async getClientById(clientId: string): Promise<Client> {
     try {
-      const response = await api.get(`/clients/${clientId}`);
+      const response = await this.api.get(`/clients/${clientId}`);
       return response.data.client;
     } catch (error) {
       console.error("Error fetching client:", error);
@@ -131,7 +169,7 @@ class ClientService {
     clientData: Partial<Client>
   ): Promise<Client> {
     try {
-      const response = await api.put(`/clients/${clientId}`, clientData);
+      const response = await this.api.put(`/clients/${clientId}`, clientData);
       return response.data.client;
     } catch (error: any) {
       console.error("Error updating client:", error);
@@ -149,7 +187,7 @@ class ClientService {
 
   async deleteClient(clientId: string): Promise<void> {
     try {
-      await api.delete(`/clients/${clientId}`);
+      await this.api.delete(`/clients/${clientId}`);
     } catch (error) {
       console.error("Error deleting client:", error);
       throw new Error("Erreur lors de la suppression du client");
@@ -160,7 +198,7 @@ class ClientService {
 
   async uploadBalance(formData: FormData): Promise<any> {
     try {
-      const response = await api.post("/balances/upload", formData, {
+      const response = await this.api.post("/balances/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -182,7 +220,7 @@ class ClientService {
 
   async validateAccounts(accounts: { accountNumber: string; accountName: string }[]): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
     try {
-      const response = await api.post("/balances/validate-accounts", { accounts });
+      const response = await this.api.post("/balances/validate-accounts", { accounts });
       return response.data;
     } catch (error: any) {
       console.error("Error validating accounts:", error);
@@ -195,7 +233,7 @@ class ClientService {
 
   async createBalanceFromTemplate(folderId: string, type: "current" | "previous" = "current"): Promise<any> {
     try {
-      const response = await api.post("/balances/create-from-template", {
+      const response = await this.api.post("/balances/create-from-template", {
         folderId,
         type,
       });
@@ -211,7 +249,7 @@ class ClientService {
 
   async getBalancesByFolder(folderId: string): Promise<any> {
     try {
-      const response = await api.get(`/balances/folder/${folderId}`);
+      const response = await this.api.get(`/balances/folder/${folderId}`);
       return response.data;
     } catch (error: any) {
       console.error("Error fetching balances by folder:", error);
@@ -229,7 +267,7 @@ class ClientService {
 
   async getBalanceById(balanceId: string): Promise<any> {
     try {
-      const response = await api.get(`/balances/${balanceId}`);
+      const response = await this.api.get(`/balances/${balanceId}`);
       return response.data;
     } catch (error: any) {
       console.error("Error fetching balance:", error);
@@ -247,7 +285,7 @@ class ClientService {
 
   async checkBalanceEquilibrium(balanceId: string): Promise<any> {
     try {
-      const response = await api.post(
+      const response = await this.api.post(
         `/balances/${balanceId}/check-equilibrium`
       );
       return response.data;
@@ -259,7 +297,7 @@ class ClientService {
 
   async performBalanceVentilation(balanceId: string): Promise<any> {
     try {
-      const response = await api.post(
+      const response = await this.api.post(
         `/balances/${balanceId}/ventilation`
       );
       return response.data;
@@ -269,9 +307,34 @@ class ClientService {
     }
   }
 
+  async applyVentilationSplit(
+    balanceId: string,
+    mainAccountNumber: string,
+    allocations: Array<{ accountNumber: string; amount: number }>
+  ): Promise<any> {
+    try {
+      const response = await this.api.post(
+        `/balances/${balanceId}/apply-ventilation`,
+        { mainAccountNumber, allocations }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error applying ventilation split:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la répartition du compte");
+    }
+  }
+
   async getBalanceIssues(balanceId: string): Promise<any> {
     try {
-      const response = await api.get(`/balances/${balanceId}/issues`);
+      const response = await this.api.get(`/balances/${balanceId}/issues`);
       return response.data;
     } catch (error) {
       console.error("Error fetching balance issues:", error);
@@ -285,7 +348,7 @@ class ClientService {
     resolution: string
   ): Promise<any> {
     try {
-      const response = await api.post(
+      const response = await this.api.post(
         `/balances/${balanceId}/resolve-issue`,
         {
           issueId,
@@ -301,7 +364,7 @@ class ClientService {
 
   async deleteBalance(balanceId: string): Promise<any> {
     try {
-      const response = await api.delete(`/balances/${balanceId}`);
+      const response = await this.api.delete(`/balances/${balanceId}`);
       return response.data;
     } catch (error: any) {
       console.error("Error deleting balance:", error);
@@ -317,9 +380,27 @@ class ClientService {
     }
   }
 
+  async archiveBalance(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.patch(`/balances/${balanceId}/archive`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error archiving balance:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de l'archivage de la balance");
+    }
+  }
+
   async updateBalanceRows(balanceId: string, rows: any[]): Promise<any> {
     try {
-      const response = await api.put(`/balances/${balanceId}/rows`, { rows });
+      const response = await this.api.put(`/balances/${balanceId}/rows`, { rows });
       return response.data;
     } catch (error: any) {
       console.error("Error updating balance rows:", error);
@@ -337,7 +418,7 @@ class ClientService {
 
   async createBalanceTemplate(folderId: string): Promise<{ downloadUrl: string }> {
     try {
-      const response = await api.post("/balances/create-from-template", { folderId });
+      const response = await this.api.post("/balances/create-from-template", { folderId });
       return response.data;
     } catch (error: any) {
       console.error("Error creating balance template:", error);
@@ -349,7 +430,7 @@ class ClientService {
 
   async importDSF(formData: FormData): Promise<any> {
     try {
-      const response = await api.post("/dsf/import", formData, {
+      const response = await this.api.post("/dsf/import", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

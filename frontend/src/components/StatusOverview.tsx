@@ -55,24 +55,24 @@ export function StatusOverview({ companyName, currentExercise }: StatusOverviewP
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+        return <CheckCircle2 className="h-4 w-4 text-muted-foreground" />;
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-orange-600" />;
+        return <AlertTriangle className="h-4 w-4 text-muted-foreground" />;
       case 'error':
-        return <XCircle className="h-4 w-4 text-red-600" />;
+        return <XCircle className="h-4 w-4 text-muted-foreground" />;
       case 'pending':
-        return <Clock className="h-4 w-4 text-blue-600" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'success':
-        return <Badge variant="default" className="bg-green-600">Complété</Badge>;
+        return <Badge variant="success">Complété</Badge>;
       case 'warning':
-        return <Badge variant="default" className="bg-orange-600">Attention</Badge>;
+        return <Badge variant="warning">Attention</Badge>;
       case 'error':
         return <Badge variant="destructive">Erreur</Badge>;
       case 'pending':
@@ -87,25 +87,21 @@ export function StatusOverview({ companyName, currentExercise }: StatusOverviewP
       icon: Database,
       label: 'Comptes traités',
       value: '247',
-      color: 'text-blue-600'
     },
     {
       icon: FileCheck,
       label: 'Rapports générés',
       value: '8',
-      color: 'text-green-600'
     },
     {
       icon: Shield,
       label: 'Conformité',
       value: '95%',
-      color: 'text-purple-600'
     },
     {
       icon: TrendingUp,
       label: 'Performance',
       value: 'Excellente',
-      color: 'text-orange-600'
     },
   ];
 
@@ -119,7 +115,7 @@ export function StatusOverview({ companyName, currentExercise }: StatusOverviewP
             <Card key={index} className="border-2">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <Icon className={`h-5 w-5 ${metric.color}`} />
+                  <Icon className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-2xl font-bold">{metric.value}</p>
@@ -149,15 +145,7 @@ export function StatusOverview({ companyName, currentExercise }: StatusOverviewP
                   </div>
                 </div>
                 {item.progress !== undefined && (
-                  <Progress 
-                    value={item.progress} 
-                    className={`h-2 ${
-                      item.status === 'success' ? '[&>div]:bg-green-600' :
-                      item.status === 'warning' ? '[&>div]:bg-orange-600' :
-                      item.status === 'error' ? '[&>div]:bg-red-600' :
-                      '[&>div]:bg-blue-600'
-                    }`}
-                  />
+                  <Progress value={item.progress} className="h-2" />
                 )}
               </div>
             ))}

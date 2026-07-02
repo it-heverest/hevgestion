@@ -28,7 +28,7 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
             rotate: { duration: 2, ease: "linear", repeat: Infinity },
             scale: { duration: 1.5, repeat: Infinity },
           }}
-          className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto"
+          className="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center mx-auto"
         >
           <BarChart3 className="h-8 w-8 text-white" />
         </motion.div>

@@ -152,10 +152,10 @@ export function OtpVerificationPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Decorative */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-900 relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 -right-20 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 -right-20 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
         
         {/* Grid pattern */}
@@ -189,7 +189,7 @@ export function OtpVerificationPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-blue-200 text-lg text-center max-w-md"
+            className="text-orange-200 text-lg text-center max-w-md"
           >
             Système de gestion des déclarations statistiques et fiscales
           </motion.p>
@@ -198,7 +198,7 @@ export function OtpVerificationPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="mt-12 flex items-center gap-4 text-blue-200"
+            className="mt-12 flex items-center gap-4 text-orange-200"
           >
             <Lock className="w-5 h-5" />
             <span className="text-sm">Sécurité garantie</span>
@@ -215,7 +215,7 @@ export function OtpVerificationPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center">
               <Shield className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold text-slate-900">HevGestion</span>
@@ -236,7 +236,7 @@ export function OtpVerificationPage() {
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
+                className="mx-auto w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
               >
                 <Shield className="h-8 w-8 text-white" />
               </motion.div>
@@ -246,7 +246,7 @@ export function OtpVerificationPage() {
               <p className="text-slate-500 mt-3 text-sm">
                 Entrez le code à 6 chiffres envoyé à
               </p>
-              <p className="font-semibold text-blue-600">{user.email}</p>
+              <p className="font-semibold text-orange-600">{user.email}</p>
             </CardHeader>
 
             <CardContent className="space-y-6">
@@ -263,7 +263,7 @@ export function OtpVerificationPage() {
                       value={digit}
                       onChange={(e) => handleInputChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
-                      className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl transition-all"
+                      className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 rounded-xl transition-all"
                       disabled={isVerifying}
                       autoFocus={index === 0}
                     />
@@ -295,7 +295,7 @@ export function OtpVerificationPage() {
                 {/* Submit button */}
                 <Button
                   type="submit"
-                  className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
+                  className="w-full h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
                   disabled={isVerifying || otpCode.join("").length !== 6}
                 >
                   {isVerifying ? (
@@ -327,7 +327,7 @@ export function OtpVerificationPage() {
                 <button
                   onClick={handleResend}
                   disabled={isResending}
-                  className="flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm mx-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center justify-center gap-2 text-orange-600 hover:text-orange-700 font-medium text-sm mx-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isResending ? (
                     <>

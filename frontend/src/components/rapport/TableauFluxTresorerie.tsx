@@ -265,7 +265,7 @@ const TableauFluxTresorerie: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Tableau des Flux de Trésorerie
         </h1>
         <div className="flex gap-3">
@@ -273,7 +273,7 @@ const TableauFluxTresorerie: React.FC = () => {
             onClick={isEditing ? saveNoteData : () => setIsEditing(true)}
             disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-              isEditing ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"
+              isEditing ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"
             }`}
           >
             {isSaving ? (
@@ -293,7 +293,7 @@ const TableauFluxTresorerie: React.FC = () => {
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
           >
             <Download size={18} /> PDF
           </button>
@@ -315,7 +315,7 @@ const TableauFluxTresorerie: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -331,7 +331,7 @@ const TableauFluxTresorerie: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center">
@@ -347,7 +347,7 @@ const TableauFluxTresorerie: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -363,7 +363,7 @@ const TableauFluxTresorerie: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center">
@@ -374,8 +374,8 @@ const TableauFluxTresorerie: React.FC = () => {
         </div>
 
         {isEditing && (
-          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-orange-800">
               <Pencil size={16} />
               <span className="font-medium">Mode édition activé</span>
             </div>
@@ -431,7 +431,7 @@ const TableauFluxTresorerie: React.FC = () => {
                 key={index}
                 className={`${
                   row.highlight === "lightblue"
-                    ? "bg-blue-200"
+                    ? "bg-orange-200"
                     : row.highlight === "brown"
                     ? "bg-amber-700 text-white"
                     : ""
@@ -466,7 +466,7 @@ const TableauFluxTresorerie: React.FC = () => {
           </div>
           {isEditing ? (
             <textarea
-              className="w-full h-24 p-2 border border-blue-300 bg-blue-50 resize-none"
+              className="w-full h-24 p-2 border border-orange-300 bg-orange-50 resize-none"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Ajouter vos commentaires ici..."

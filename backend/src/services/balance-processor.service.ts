@@ -54,6 +54,21 @@ export class BalanceProcessor {
   private readonly EQUITY_ACCOUNTS = ["1"];
   private readonly FIXED_ASSET_ACCOUNTS = ["2"];
 
+  // originalData can come back from Prisma either as a parsed object
+  // (initial upload) or as a JSON-encoded string (rows saved through the
+  // manual edit / ventilation endpoints), so normalize both shapes here.
+  private getRows(originalData: unknown): BalanceRow[] {
+    let data: any = originalData;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(data?.rows) ? (data.rows as BalanceRow[]) : [];
+  }
+
   async processBalance(balanceId: string): Promise<void> {
     const balance = await prisma.balance.findUnique({
       where: { id: balanceId },
@@ -111,19 +126,13 @@ export class BalanceProcessor {
       // 4. Extract fixed assets
       const fixedAssets = await this.extractFixedAssets(balance);
 
-      // 5. Clean up existing opening issues for previous year balances
-      if (balance.type === BalanceType.PREVIOUS_YEAR) {
-        await prisma.accountIssue.deleteMany({
-          where: {
-            balanceId: balanceId,
-            OR: [
-              { accountName: { contains: 'mismatch between N-1 closing and N opening' } },
-              { description: { contains: 'previous closing net' } },
-              { description: { contains: 'current opening net' } },
-            ],
-          },
-        });
-      }
+      // 5. Clear previous processing results so this balance can be
+      // reprocessed safely (manual row edits, ventilation, re-runs, etc.) —
+      // equilibrium is a one-to-one relation, so a second `create` without
+      // first deleting the old row would violate its unique constraint.
+      await prisma.accountIssue.deleteMany({ where: { balanceId } });
+      await prisma.fixedAsset.deleteMany({ where: { balanceId } });
+      await prisma.balanceEquilibrium.deleteMany({ where: { balanceId } });
 
       // 6. Update balance with results
       await prisma.balance.update({
@@ -164,14 +173,12 @@ export class BalanceProcessor {
 
   async validateBalance(balance: Balance): Promise<string[]> {
     const errors: string[] = [];
-    const data = balance.originalData as any;
+    const rows = this.getRows(balance.originalData);
 
-    if (!data || !Array.isArray(data.rows)) {
+    if (rows.length === 0) {
       errors.push("Invalid balance data structure");
       return errors;
     }
-
-    const rows = data.rows as BalanceRow[];
 
     // Check required columns (opening balances are optional)
     const requiredFields = [
@@ -246,12 +253,10 @@ export class BalanceProcessor {
       throw new Error("Balance has no original data");
     }
 
-    const data = balance.originalData as any;
-    if (!data.rows || !Array.isArray(data.rows)) {
+    const rows = this.getRows(balance.originalData);
+    if (rows.length === 0) {
       throw new Error("Balance data has no valid rows array");
     }
-
-    const rows = data.rows as BalanceRow[];
 
     // Variables for each type (opening, movement, closing)
     let openingDebit15 = 0;
@@ -358,8 +363,7 @@ export class BalanceProcessor {
   }
 
   async detectAccountIssues(balance: Balance): Promise<any[]> {
-    const data = balance.originalData as any;
-    const rows = data.rows as BalanceRow[];
+    const rows = this.getRows(balance.originalData);
     const issues: any[] = [];
 
     rows.forEach((row) => {
@@ -410,8 +414,7 @@ export class BalanceProcessor {
   }
 
   async extractFixedAssets(balance: Balance): Promise<any[]> {
-    const data = balance.originalData as any;
-    const rows = data.rows as BalanceRow[];
+    const rows = this.getRows(balance.originalData);
     const fixedAssets: any[] = [];
 
     rows.forEach((row) => {
@@ -442,8 +445,7 @@ export class BalanceProcessor {
   }
 
   async performVentilation(balance: Balance): Promise<any> {
-    const data = balance.originalData as any;
-    const rows = data.rows as BalanceRow[];
+    const rows = this.getRows(balance.originalData);
 
     const ventilation = {
       assets: {
@@ -551,8 +553,8 @@ export class BalanceProcessor {
 
       if (!previous || !previous.originalData) return [];
 
-      const currRows = (balance.originalData as any).rows || [];
-      const prevRows = (previous.originalData as any).rows || [];
+      const currRows = this.getRows(balance.originalData);
+      const prevRows = this.getRows(previous.originalData);
 
       // Aggregate by root (first 3 digits)
       const agg = (rows: any[], keyField: string) => {
@@ -582,6 +584,10 @@ export class BalanceProcessor {
       ]);
 
       roots.forEach((root) => {
+        // Classes 6, 7, 8 (charges, produits, HAO) are comptes de gestion -
+        // closed to zero at year-end, so exclude them from this check.
+        if (/^[678]/.test(root)) return;
+
         const prevNet =
           (prevClosingByRootDebit[root] || 0) -
           (prevClosingByRootCredit[root] || 0);

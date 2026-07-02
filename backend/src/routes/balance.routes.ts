@@ -70,7 +70,16 @@ router.get(
   authenticate,
   balanceController.getBalanceById.bind(balanceController),
 );
-// router.post('/:id/check-equilibrium', authenticate, balanceController.checkEquilibrium);
+router.post(
+  "/:id/check-equilibrium",
+  authenticate,
+  balanceController.checkEquilibrium.bind(balanceController),
+);
+router.post(
+  "/:id/apply-ventilation",
+  authenticate,
+  balanceController.applyVentilation.bind(balanceController),
+);
 router.post(
   "/:id/ventilation",
   authenticate,
@@ -90,6 +99,11 @@ router.delete(
   "/:id",
   authenticate,
   balanceController.deleteBalance.bind(balanceController),
+);
+router.patch(
+  "/:id/archive",
+  authenticate,
+  balanceController.archiveBalance.bind(balanceController),
 );
 router.put(
   "/:id/rows",

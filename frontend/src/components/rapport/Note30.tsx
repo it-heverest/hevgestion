@@ -247,7 +247,7 @@ const Note30: React.FC = () => {
                 e.target.value
               )
             }
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.yearN.toLocaleString("fr-FR")
@@ -266,7 +266,7 @@ const Note30: React.FC = () => {
                 e.target.value
               )
             }
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.yearN1.toLocaleString("fr-FR")
@@ -283,7 +283,7 @@ const Note30: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Note 30 - Autres Charges et Produits HAO
         </h1>
         <div className="flex gap-3">
@@ -298,7 +298,7 @@ const Note30: React.FC = () => {
             disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
               } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {isSaving ? (
@@ -331,7 +331,7 @@ const Note30: React.FC = () => {
           )}
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -356,7 +356,7 @@ const Note30: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -372,7 +372,7 @@ const Note30: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-20 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-20 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-20 text-center">
@@ -388,7 +388,7 @@ const Note30: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -404,7 +404,7 @@ const Note30: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center">

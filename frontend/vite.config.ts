@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import tailwindcss from "@tailwindcss/vite";
 import path, { join } from "path";
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
 
@@ -26,6 +27,7 @@ function copyFolderRecursive(src: string, dest: string) {
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: "copy-assets",
       closeBundle() {

@@ -12,7 +12,7 @@ export function AuthLoader() {
         {/* Simple logo */}
         <div className="mb-8">
           <div className="w-16 h-16 bg-white/90 rounded-xl flex items-center justify-center shadow-lg mx-auto">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg"></div>
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-600 to-orange-800 rounded-lg"></div>
           </div>
         </div>
 
@@ -24,7 +24,7 @@ export function AuthLoader() {
         {/* Clean text */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-white">HevGestion DSF</h2>
-          <p className="text-sm text-blue-100">
+          <p className="text-sm text-orange-100">
             Chargement en cours...
           </p>
         </div>

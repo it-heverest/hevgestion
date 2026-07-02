@@ -202,7 +202,7 @@
 //                           {row.map((cell, colIdx) => (
 //                             <TableCell key={colIdx}>
 //                               <div
-//                                 className="relative cursor-pointer hover:bg-blue-50 p-2 rounded"
+//                                 className="relative cursor-pointer hover:bg-orange-50 p-2 rounded"
 //                                 onClick={() =>
 //                                   setSelectedCell({
 //                                     row: rowIdx + 1,

@@ -31,7 +31,7 @@ import {
   FileText,
   TrendingUp,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 interface BalanceTreatmentProps {
   onComplete?: () => void;
@@ -52,6 +52,8 @@ export function StepByStepProcessor({
   } = useApp();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { lang } = useParams<{ lang?: string }>();
+  const langPrefix = lang === "en" ? "en" : "fr";
 
   const {
     // États
@@ -112,7 +114,7 @@ export function StepByStepProcessor({
     } else {
       // Default back navigation to dashboard
       const uid = selectedClient?.id || "me";
-      navigate(`/web/user/dashboard/${uid}/dashboard`);
+      navigate(`/${langPrefix}/web/user/dashboard/${uid}/dashboard`);
     }
   };
 
@@ -123,7 +125,7 @@ export function StepByStepProcessor({
     } else {
       // Default completion navigation to reports
       const uid = selectedClient?.id || "me";
-      navigate(`/web/user/reports/${uid}/reports`);
+      navigate(`/${langPrefix}/web/user/reports/${uid}/reports`);
     }
   };
 
@@ -219,7 +221,7 @@ export function StepByStepProcessor({
                   }
                   onBlur={() => setEditingCell(null)}
                   onKeyDown={(e) => e.key === "Enter" && setEditingCell(null)}
-                  className="h-8 text-sm border-blue-300"
+                  className="h-8 text-sm border-orange-300"
                 />
               ) : (
                 <div
@@ -228,7 +230,7 @@ export function StepByStepProcessor({
                     (field.includes("debit") ||
                       field.includes("credit") ||
                       field === "libelle")
-                      ? "cursor-pointer hover:bg-blue-50 rounded"
+                      ? "cursor-pointer hover:bg-orange-50 rounded"
                       : ""
                   }`}
                   style={
@@ -305,7 +307,7 @@ export function StepByStepProcessor({
             variant="outline"
             size="sm"
             onClick={() => setShowFullExcelEditor(true)}
-            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+            className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
           >
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Éditeur Excel
@@ -349,7 +351,7 @@ export function StepByStepProcessor({
                       isCompleted
                         ? "bg-green-500 border-green-500 text-white"
                         : isCurrent
-                        ? "bg-blue-600 border-blue-600 text-white shadow-lg"
+                        ? "bg-orange-600 border-orange-600 text-white shadow-lg"
                         : "bg-gray-100 border-gray-300 text-gray-400"
                     }
                   `}
@@ -363,7 +365,7 @@ export function StepByStepProcessor({
                 <p
                   className={`text-sm text-center font-medium mb-1 ${
                     isCurrent
-                      ? "text-blue-600"
+                      ? "text-orange-600"
                       : isCompleted
                       ? "text-green-600"
                       : "text-gray-500"
@@ -504,7 +506,7 @@ export function StepByStepProcessor({
                 onClick={processCurrentStep}
                 disabled={processing}
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-semibold"
+                className="bg-orange-600 hover:bg-orange-700 px-8 py-3 text-base font-semibold"
               >
                 <Play className="h-5 w-5 mr-2" />
                 {processing

@@ -1426,7 +1426,7 @@ export const getCategories = (): string[] => {
 
 const ComponentSpinner: React.FC = () => (
   <div className="flex items-center justify-center py-12">
-    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+    <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
   </div>
 );
 
@@ -1537,7 +1537,7 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
           placeholder="Filtrer les rapports…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
       </div>
 
@@ -1550,7 +1550,7 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
       {Object.entries(grouped).map(([category, reports]) => (
         <div key={category} className="mb-4">
           <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-            <Filter className="h-4 w-4 mr-1 text-blue-600" />
+            <Filter className="h-4 w-4 mr-1 text-orange-600" />
             {category}
             <span className="ml-2 text-xs text-gray-500">
               ({reports.length})
@@ -1561,11 +1561,11 @@ export const AllReportsGrid: React.FC<AllReportsGridProps> = ({
             {reports.map((report) => (
               <div
                 key={report.name}
-                className="bg-white rounded border border-gray-200 p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer flex flex-col items-center text-center"
+                className="bg-white rounded border border-gray-200 p-3 hover:border-orange-300 hover:shadow-sm transition-all cursor-pointer flex flex-col items-center text-center"
                 onClick={() => handleView(report)}
               >
-                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mb-2">
-                  <FileText className="h-4 w-4 text-blue-600" />
+                <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center mb-2">
+                  <FileText className="h-4 w-4 text-orange-600" />
                 </div>
                 <div className="text-xs font-medium text-gray-900 leading-tight mb-1">
                   {report.name.replace('NOTE ', '')}

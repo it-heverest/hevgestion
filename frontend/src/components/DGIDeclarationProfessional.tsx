@@ -45,6 +45,8 @@ export default function DGIDeclarationProfessional() {
   const [selectedYear, setSelectedYear] = useState<string>("");
 
   const [config, setConfig] = useState({
+    companyName: "",
+    niu: "",
     username: "",
     password: "",
   });
@@ -68,8 +70,10 @@ export default function DGIDeclarationProfessional() {
       const dgiConfig = await dgiDeclarationService.getConfig(user.id);
       if (dgiConfig) {
         setConfig({
+          companyName: dgiConfig.companyName,
+          niu: dgiConfig.niu,
           username: dgiConfig.username,
-          password: "",  // never pre-filled for security
+          password: dgiConfig.password,
         });
       }
     } catch (error) {
@@ -115,7 +119,12 @@ export default function DGIDeclarationProfessional() {
       return;
     }
 
-    if (!config.username || !config.password) {
+    if (
+      !config.companyName ||
+      !config.niu ||
+      !config.username ||
+      !config.password
+    ) {
       alert(
         "🔧 Configuration DGI requise\nVeuillez configurer vos identifiants DGI avant de déclarer",
       );
@@ -157,18 +166,30 @@ export default function DGIDeclarationProfessional() {
   const handleSaveConfig = async () => {
     if (!user?.id) return;
 
+    // Validation des champs
+    if (!config.companyName.trim()) {
+      alert("❌ Veuillez saisir le nom de l'entreprise");
+      return;
+    }
+    if (!config.niu.trim()) {
+      alert("❌ Veuillez saisir le numéro NIU");
+      return;
+    }
     if (!config.username.trim()) {
       alert("❌ Veuillez saisir le nom d'utilisateur DGI");
       return;
     }
     if (!config.password.trim()) {
-      alert("❌ Veuillez saisir le mot de passe DGI");
+      alert("❌ Veuillez saisir le mot de passe API");
       return;
     }
 
     try {
       setConfigLoading(true);
-      await dgiDeclarationService.saveConfig(config);
+      await dgiDeclarationService.saveConfig({
+        ...config,
+        userId: user.id,
+      });
       setShowConfig(false);
       alert("✅ Configuration sauvegardée avec succès");
     } catch (error: any) {
@@ -184,6 +205,15 @@ export default function DGIDeclarationProfessional() {
   };
 
   const handleTestDGILogin = async () => {
+    // Validate all required fields
+    if (!config.companyName?.trim()) {
+      alert("❌ Veuillez saisir le nom de l'entreprise");
+      return;
+    }
+    if (!config.niu?.trim()) {
+      alert("❌ Veuillez saisir le numéro NIU");
+      return;
+    }
     if (!config.username?.trim()) {
       alert("❌ Veuillez saisir le nom d'utilisateur DGI");
       return;
@@ -277,7 +307,7 @@ export default function DGIDeclarationProfessional() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center mx-auto mb-4">
             <Shield className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -325,14 +355,14 @@ export default function DGIDeclarationProfessional() {
                 <h3 className="font-medium text-gray-900">Entreprise</h3>
               </div>
               <p className="text-gray-900 font-medium">
-                {selectedClient?.name || "Non configuré"}
+                {selectedClient?.name || config.companyName || "Non configuré"}
               </p>
               <p className="text-gray-600 text-sm mt-1">
-                Utilisateur DGI: {config.username || "Non configuré"}
+                NIU: {config.niu || "Non configuré"}
               </p>
-              {!config.username && (
+              {!config.companyName && (
                 <p className="text-xs text-orange-600 mt-2">
-                  ⚠️ Configuration DGI requise
+                  ⚠️ Configuration requise
                 </p>
               )}
             </div>
@@ -386,7 +416,7 @@ export default function DGIDeclarationProfessional() {
             <button
               onClick={handleSubmitDSF}
               disabled={loading}
-              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <>
@@ -462,13 +492,39 @@ export default function DGIDeclarationProfessional() {
             </div>
 
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-500">
-                Identifiants de connexion au portail DGI (TAS Server).
-              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom de l'entreprise
+                </label>
+                <input
+                  type="text"
+                  value={config.companyName}
+                  onChange={(e) =>
+                    setConfig({ ...config, companyName: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Nom de l'entreprise"
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom d'utilisateur DGI <span className="text-red-500">*</span>
+                  Numéro NIU
+                </label>
+                <input
+                  type="text"
+                  value={config.niu}
+                  onChange={(e) =>
+                    setConfig({ ...config, niu: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                  placeholder="M000000000000"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom d'utilisateur DGI
                 </label>
                 <input
                   type="text"
@@ -476,15 +532,14 @@ export default function DGIDeclarationProfessional() {
                   onChange={(e) =>
                     setConfig({ ...config, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   placeholder="utilisateur@entreprise.cm"
-                  autoComplete="username"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe DGI <span className="text-red-500">*</span>
+                  Mot de passe API
                 </label>
                 <div className="relative">
                   <input
@@ -493,9 +548,8 @@ export default function DGIDeclarationProfessional() {
                     onChange={(e) =>
                       setConfig({ ...config, password: e.target.value })
                     }
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Mot de passe DGI"
-                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -509,9 +563,6 @@ export default function DGIDeclarationProfessional() {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Le mot de passe est chiffré avant stockage.
-                </p>
               </div>
 
               {/* Test DGI Login Button */}
@@ -555,7 +606,7 @@ export default function DGIDeclarationProfessional() {
               <button
                 onClick={handleSaveConfig}
                 disabled={configLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {configLoading ? "Sauvegarde..." : "Enregistrer"}
               </button>
@@ -584,7 +635,7 @@ export default function DGIDeclarationProfessional() {
                   <button
                     onClick={handleLoadDGIProcesses}
                     disabled={loadingProcesses}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loadingProcesses ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -700,7 +751,7 @@ export default function DGIDeclarationProfessional() {
             <div className="flex justify-end p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowHistory(false)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
               >
                 Fermer
               </button>

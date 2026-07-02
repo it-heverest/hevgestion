@@ -447,7 +447,7 @@ const T5: React.FC = () => {
           type="number"
           value={row[field]}
           onChange={(e) => handleRowChange(row.id, field, e.target.value)}
-          className="w-full h-full px-2 py-1 bg-blue-50 border-0 focus:outline-none text-right"
+          className="w-full h-full px-2 py-1 bg-orange-50 border-0 focus:outline-none text-right"
         />
       );
     }
@@ -488,7 +488,7 @@ const T5: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Note 15 - Synthèse des Impôts et Taxes Versés
         </h1>
         <div className="flex gap-3">
@@ -497,7 +497,7 @@ const T5: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
               isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
             }`}
           >
             {isEditing ? (
@@ -536,7 +536,7 @@ const T5: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -554,7 +554,7 @@ const T5: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-24 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-24 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-24">
@@ -572,7 +572,7 @@ const T5: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -590,7 +590,7 @@ const T5: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16">
@@ -679,7 +679,7 @@ const T5: React.FC = () => {
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full border border-gray-400 p-2 min-h-[60px] bg-blue-50"
+              className="w-full border border-gray-400 p-2 min-h-[60px] bg-orange-50"
               placeholder="Commenter toute variation significative."
             />
           ) : (

@@ -89,7 +89,7 @@ const ModeBilan: React.FC = () => {
       {/* Barre d'actions */}
       <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow">
         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-7 h-7 text-blue-700" />
+          <FileText className="w-7 h-7 text-orange-700" />
           Modèle Bilan et Compte de Résultat – Système Minimal
         </h1>
 
@@ -99,7 +99,7 @@ const ModeBilan: React.FC = () => {
             className={`flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-all shadow ${
               isEditing
                 ? "bg-orange-600 hover:bg-orange-700 text-white"
-                : "bg-blue-700 hover:bg-blue-800 text-white"
+                : "bg-orange-700 hover:bg-orange-800 text-white"
             }`}
           >
             {isEditing ? "Annuler" : <Pencil size={18} />}

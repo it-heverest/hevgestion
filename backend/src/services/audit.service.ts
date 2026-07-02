@@ -167,6 +167,38 @@ export class AuditService {
     });
   }
 
+  async logFolderAssigned(
+    userId: string,
+    folderId: string,
+    metadata?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.FOLDER_ASSIGNED,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: "Attribution d'un dossier à un assistant",
+      metadata,
+    });
+  }
+
+  async logFolderUnassigned(
+    userId: string,
+    folderId: string,
+    metadata?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.FOLDER_UNASSIGNED,
+      entityType: EntityType.FOLDER,
+      entityId: folderId,
+      folderId,
+      description: "Retrait d'un dossier à un assistant",
+      metadata,
+    });
+  }
+
   /**
    * Log DSF configuration actions
    */
@@ -536,6 +568,39 @@ export class AuditService {
       folderId,
       description: `Export du rapport ${reportType} en format: ${format}`,
       metadata: { format, reportType },
+    });
+  }
+
+  /**
+   * Log user account management actions
+   */
+  async logUserCreated(userId: string, userData: any): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.USER_CREATED,
+      entityType: EntityType.USER,
+      entityId: userId,
+      description: `Création du compte: ${userData.firstName} ${userData.lastName} (${userData.email || userData.phoneNumber})`,
+      newValue: userData,
+    });
+  }
+
+  async logUserUpdated(
+    userId: string,
+    description: string,
+    oldData?: any,
+    newData?: any,
+    metadata?: any
+  ): Promise<void> {
+    await this.logAction({
+      userId,
+      action: AuditAction.USER_UPDATED,
+      entityType: EntityType.USER,
+      entityId: userId,
+      description,
+      oldValue: oldData,
+      newValue: newData,
+      metadata,
     });
   }
 

@@ -168,7 +168,7 @@ const Note6: React.FC = () => {
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full h-full px-1 bg-blue-50 border-none focus:outline-none ${className}`}
+        className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
     ) : (
       <span className="px-1">{value || ""}</span>
@@ -190,7 +190,7 @@ const Note6: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement des données...</p>
         </div>
       </div>
@@ -203,7 +203,7 @@ const Note6: React.FC = () => {
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
           <h1 className="text-xl font-bold text-black flex items-center gap-2">
-            <FileText className="w-6 h-6 text-blue-600" />
+            <FileText className="w-6 h-6 text-orange-600" />
             Note 6 - Stocks et en cours
           </h1>
           <p className="text-sm text-gray-600 mt-1">
@@ -214,7 +214,7 @@ const Note6: React.FC = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
             >
               <Pencil size={18} /> Éditer
             </button>
@@ -258,12 +258,12 @@ const Note6: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-blue-500" : "border-gray-200"
+        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
-          <div className="mb-4 bg-blue-100 border border-blue-300 rounded-lg p-3 text-sm">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3 text-sm">
+            <div className="flex items-center gap-2 text-orange-800">
               <Pencil size={16} />
               <span className="font-medium">Mode édition activé</span>
             </div>
@@ -301,7 +301,7 @@ const Note6: React.FC = () => {
               <input
                 value={entete.entityName}
                 onChange={(e) => setEntete({ ...entete, entityName: e.target.value })}
-                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.entityName || "-"}</span>
@@ -313,7 +313,7 @@ const Note6: React.FC = () => {
               <input
                 value={entete.fiscalYear}
                 onChange={(e) => setEntete({ ...entete, fiscalYear: e.target.value })}
-                className="border-b border-blue-500 bg-blue-50 w-20 focus:outline-none px-1 text-center"
+                className="border-b border-orange-500 bg-orange-50 w-20 focus:outline-none px-1 text-center"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-20 text-center px-1">{entete.fiscalYear || "-"}</span>
@@ -325,7 +325,7 @@ const Note6: React.FC = () => {
               <input
                 value={entete.idNumber}
                 onChange={(e) => setEntete({ ...entete, idNumber: e.target.value })}
-                className="border-b border-blue-500 bg-blue-50 w-full focus:outline-none px-1"
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-full px-1">{entete.idNumber || "-"}</span>
@@ -337,7 +337,7 @@ const Note6: React.FC = () => {
               <input
                 value={entete.duration}
                 onChange={(e) => setEntete({ ...entete, duration: e.target.value })}
-                className="border-b border-blue-500 bg-blue-50 w-16 focus:outline-none px-1 text-center"
+                className="border-b border-orange-500 bg-orange-50 w-16 focus:outline-none px-1 text-center"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center px-1">{entete.duration || "-"}</span>
@@ -443,7 +443,7 @@ const Note6: React.FC = () => {
           </div>
           {isEditing ? (
             <textarea
-              className="w-full h-24 p-2 border border-blue-300 bg-blue-50 text-[11px] focus:outline-none resize-none"
+              className="w-full h-24 p-2 border border-orange-300 bg-orange-50 text-[11px] focus:outline-none resize-none"
               placeholder="Saisir votre commentaire ici..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}

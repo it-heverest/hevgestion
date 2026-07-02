@@ -99,6 +99,20 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
   useEffect(() => {
     if (!folderId) return;
 
+    // Only nag for missing header info once the DSF has actually been
+    // generated for this folder - before that, notes don't exist yet and
+    // the check is premature.
+    const dsfAlreadyGenerated =
+      selectedFolder?.status === "DSF_GENERATED" ||
+      selectedFolder?.status === "DSF_VALIDATED" ||
+      selectedFolder?.status === "COMPLETED";
+
+    if (!dsfAlreadyGenerated) {
+      setMissingNotes([]);
+      setIsOpen(false);
+      return;
+    }
+
     const checkNotesHeader = async () => {
       setIsLoading(true);
       const missing: string[] = [];
@@ -222,7 +236,7 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
     <>
       {/* Hidden check - shows loading indicator if checking */}
       {isLoading && (
-        <div className="fixed top-4 right-4 bg-blue-100 text-blue-800 px-4 py-2 rounded-md flex items-center gap-2">
+        <div className="fixed top-4 right-4 bg-orange-100 text-orange-800 px-4 py-2 rounded-md flex items-center gap-2">
           <FileText className="h-4 w-4 animate-pulse" />
           <span>Vérification des informations des notes...</span>
         </div>
@@ -230,7 +244,7 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
 
       {/* Dialog for entering header information */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[50%] max-w-[50%] w-50 ">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -321,7 +335,7 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
             </div>
 
             {/* Info message */}
-            <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-sm">
+            <div className="bg-orange-50 text-orange-800 p-3 rounded-md text-sm">
               <strong>Note:</strong> Ces informations seront appliquées à toutes
               les notes ({missingNotes.length}) qui n'ont pas encore de données
               d'en-tête.

@@ -208,7 +208,7 @@
 //         <CardHeader>
 //           <div className="flex items-center justify-between">
 //             <div className="flex items-center gap-2">
-//               <Users className="h-5 w-5 text-blue-600" />
+//               <Users className="h-5 w-5 text-orange-600" />
 //               <CardTitle>Collaborateurs</CardTitle>
 //             </div>
 //             <Button size="sm" variant="outline">
@@ -271,7 +271,7 @@
 //       <Card>
 //         <CardHeader>
 //           <div className="flex items-center gap-2">
-//             <MessageSquare className="h-5 w-5 text-blue-600" />
+//             <MessageSquare className="h-5 w-5 text-orange-600" />
 //             <CardTitle>Commentaires</CardTitle>
 //           </div>
 //           <CardDescription>

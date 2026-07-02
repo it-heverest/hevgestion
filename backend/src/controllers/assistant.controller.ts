@@ -5,6 +5,7 @@ import { ResponseBuilder } from "../utils/response-builder";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../lib/errors";
 import { hashPassword } from "../utils/auth";
+import { auditService } from "../services/audit.service";
 
 export class AssistantController {
   /**
@@ -152,6 +153,13 @@ export class AssistantController {
         },
       });
 
+      await auditService.logUserAction(
+        userId,
+        "ASSISTANT_CREATED",
+        `Création de l'assistant ${email || assistant.id}`,
+        { assistantId: assistant.id },
+      );
+
       return ResponseBuilder.success(
         res,
         assistant,
@@ -218,6 +226,13 @@ export class AssistantController {
         },
       });
 
+      await auditService.logUserAction(
+        userId,
+        "ASSISTANT_UPDATED",
+        "Modification d'un assistant",
+        { assistantId },
+      );
+
       return ResponseBuilder.success(
         res,
         updatedAssistant,
@@ -269,6 +284,13 @@ export class AssistantController {
         where: { id: assistantId },
         data: { isActive: false },
       });
+
+      await auditService.logUserAction(
+        userId,
+        "ASSISTANT_DELETED",
+        "Suppression d'un assistant",
+        { assistantId },
+      );
 
       return ResponseBuilder.success(
         res,
@@ -358,6 +380,12 @@ export class AssistantController {
             },
           })
         )
+      );
+
+      await Promise.all(
+        folderIds.map((folderId: string) =>
+          auditService.logFolderAssigned(userId, folderId, { assistantId }),
+        ),
       );
 
       return ResponseBuilder.success(
@@ -472,6 +500,12 @@ export class AssistantController {
           },
         },
       });
+
+      await Promise.all(
+        folderIds.map((folderId: string) =>
+          auditService.logFolderUnassigned(userId, folderId, { assistantId }),
+        ),
+      );
 
       return ResponseBuilder.success(
         res,

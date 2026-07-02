@@ -72,7 +72,7 @@ export function LoginPage({
                     onLoginChange("phoneCountryCode", value)
                   }
                 >
-                  <SelectTrigger className="w-25 transition-all duration-200 focus:ring-2 focus:ring-blue-500">
+                  <SelectTrigger className="w-25 transition-all duration-200 focus:ring-2 focus:ring-orange-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -93,7 +93,7 @@ export function LoginPage({
                       onLoginChange("phoneNumber", e.target.value)
                     }
                     placeholder="6 67 12 34 56"
-                    className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                    className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                     autoComplete="off"
                     required
                   />
@@ -104,21 +104,21 @@ export function LoginPage({
             <div className="space-y-2">
               <Label htmlFor="login-password">{t("password")}</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-password"
                   type={showPassword ? "text" : "password"}
                   value={loginForm.password}
                   onChange={(e) => onLoginChange("password", e.target.value)}
                   placeholder={t("password")}
-                  className="pl-10 pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 pr-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
                   autoComplete="new-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -128,7 +128,7 @@ export function LoginPage({
             <div className="space-y-2 text-right">
               <button
                 type="button"
-                className=" text-sm mb-4 text-blue-600 hover:underline font-medium transition-all duration-200"
+                className=" text-sm mb-4 text-orange-600 hover:underline font-medium transition-all duration-200"
                 onClick={() => {
                   navigate("/fr/web/user/forgot-password");
                 }}
@@ -162,7 +162,7 @@ export function LoginPage({
               Pas encore de compte ?{" "}
               <button
                 type="button"
-                className="text-blue-600 hover:underline font-medium transition-all duration-200"
+                className="text-orange-600 hover:underline font-medium transition-all duration-200"
                 onClick={onSwitchToRegister}
               >
                 S'inscrire

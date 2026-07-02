@@ -3,12 +3,13 @@ import { Response, NextFunction } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../lib/errors";
-import { BalanceType, BalanceStatus } from "@prisma/client";
+import { BalanceType, BalanceStatus, DSFStatus } from "@prisma/client";
 import { BalanceProcessor } from "../services/balance-processor.service";
 import { ExcelService } from "../services/excel.service";
 import { planComptableService } from "../services/plan-comptable.service";
 import * as path from "path";
 import { config } from "../config";
+import { auditService } from "../services/audit.service";
 
 class BalanceController {
   private balanceProcessor: BalanceProcessor;
@@ -88,6 +89,45 @@ class BalanceController {
         );
       }
 
+      // If a DSF has already been generated, reset it to DRAFT so it stays in sync
+      const existingDSF = await prisma.dSF.findUnique({
+        where: { folderId },
+        select: { id: true, lastGeneratedAt: true },
+      });
+      let dsfWasReset = false;
+      if (existingDSF?.lastGeneratedAt) {
+        await prisma.dSF.update({
+          where: { folderId },
+          data: { status: DSFStatus.DRAFT, lastGeneratedAt: null },
+        });
+        dsfWasReset = true;
+      }
+
+      // For PREVIOUS_YEAR: auto-sync originalData from the previous year's N balance
+      // so N-1 is always coherent with the actual N of the prior exercise.
+      let syncedData: any = null;
+      if (balanceType === BalanceType.PREVIOUS_YEAR) {
+        const prevYearFolder = await prisma.folder.findFirst({
+          where: {
+            clientId: folder.clientId,
+            fiscalYear: folder.fiscalYear - 1,
+          },
+        });
+        if (prevYearFolder) {
+          const prevNBalance = await prisma.balance.findFirst({
+            where: {
+              folderId: prevYearFolder.id,
+              type: BalanceType.CURRENT_YEAR,
+              archived: false,
+              status: { in: [BalanceStatus.PROCESSED, BalanceStatus.UPDATED] },
+            },
+          });
+          if (prevNBalance?.originalData) {
+            syncedData = prevNBalance.originalData;
+          }
+        }
+      }
+
       // Check if balance already exists
       console.log("Checking for existing balance:", {
         folderId,
@@ -97,6 +137,7 @@ class BalanceController {
         where: {
           folderId,
           type: balanceType,
+          archived: false,
         },
       });
 
@@ -121,53 +162,52 @@ class BalanceController {
         });
       }
 
-      // Read and parse Excel file
-      console.log("Parsing Excel file:", file.path);
-      // Optional column mapping can be supplied in the request body as `mapping`.
-      // mapping keys: accountNumber, accountName, openingDebit, openingCredit,
-      // movementDebit, movementCredit, closingDebit, closingCredit
-      const mapping = req.body?.mapping as
-        | { [key: string]: number | string }
-        | undefined;
-      const data = await ExcelService.parseBalanceFile(file.path, mapping, { useIndexMapping: true });
-      console.log("Parsed data successfully:", {
-        rowCount: data.rows?.length || 0,
-      });
+      // Read and parse Excel file (skipped when syncing N-1 from previous year)
+      let data: any;
+      if (syncedData) {
+        data = syncedData;
+      } else {
+        console.log("Parsing Excel file:", file.path);
+        const mapping = req.body?.mapping as
+          | { [key: string]: number | string }
+          | undefined;
+        data = await ExcelService.parseBalanceFile(file.path, mapping, { useIndexMapping: true });
+        console.log("Parsed data successfully:", { rowCount: data.rows?.length || 0 });
+        console.log(balancePeriod);
 
-      console.log(balancePeriod);
-
-      // Validate accounts against plan comptable (existence check)
-      const accountValidation = await ExcelService.validateBalanceAccounts(
-        data.rows || [],
-      );
-      if (!accountValidation.valid) {
-        await prisma.balance
-          .delete({ where: { id: existingBalance?.id } })
-          .catch(() => {});
-        throw new BadRequestError(
-          "Erreur de validation:\n- " +
-            accountValidation.errors.slice(0, 10).join("\n- ") +
-            (accountValidation.errors.length > 10
-              ? `\n... et ${accountValidation.errors.length - 10} autres erreurs`
-              : ""),
+        // Validate accounts against plan comptable (existence check)
+        const accountValidation = await ExcelService.validateBalanceAccounts(
+          data.rows || [],
         );
-      }
+        if (!accountValidation.valid) {
+          await prisma.balance
+            .delete({ where: { id: existingBalance?.id } })
+            .catch(() => {});
+          throw new BadRequestError(
+            "Erreur de validation:\n- " +
+              accountValidation.errors.slice(0, 10).join("\n- ") +
+              (accountValidation.errors.length > 10
+                ? `\n... et ${accountValidation.errors.length - 10} autres erreurs`
+                : ""),
+          );
+        }
 
-      // Validate debit/credit positions against plan comptable rules
-      const positionValidation = ExcelService.validateBalanceWithPosition(
-        data.rows || [],
-      );
-      if (!positionValidation.valid) {
-        await prisma.balance
-          .delete({ where: { id: existingBalance?.id } })
-          .catch(() => {});
-        throw new BadRequestError(
-          "Erreur de position (débit/crédit):\n- " +
-            positionValidation.errors.slice(0, 10).join("\n- ") +
-            (positionValidation.errors.length > 10
-              ? `\n... et ${positionValidation.errors.length - 10} autres erreurs`
-              : ""),
+        // Validate debit/credit positions against plan comptable rules
+        const positionValidation = ExcelService.validateBalanceWithPosition(
+          data.rows || [],
         );
+        if (!positionValidation.valid) {
+          await prisma.balance
+            .delete({ where: { id: existingBalance?.id } })
+            .catch(() => {});
+          throw new BadRequestError(
+            "Erreur de position (débit/crédit):\n- " +
+              positionValidation.errors.slice(0, 10).join("\n- ") +
+              (positionValidation.errors.length > 10
+                ? `\n... et ${positionValidation.errors.length - 10} autres erreurs`
+                : ""),
+          );
+        }
       }
 
       // Create balance record
@@ -183,10 +223,18 @@ class BalanceController {
         },
       });
 
+      await auditService.logBalanceUploaded(req.user!.userId, folderId, {
+        fileName: file.originalname,
+        type,
+      });
+
       // Process balance synchronously for now
       try {
         await this.balanceProcessor.processBalance(balance.id);
         console.log(`Balance ${balance.id} processed successfully`);
+        await auditService.logBalanceProcessed(req.user!.userId, folderId, {
+          balanceId: balance.id,
+        });
       } catch (processError) {
         console.error("Balance processing error:", processError);
         // Update status but don't fail the upload
@@ -203,12 +251,12 @@ class BalanceController {
       }
 
       res.status(201).json({
-        message: "Balance uploaded and processed successfully",
-        balance: {
-          id: balance.id,
-          type: balance.type,
-          status: balance.status,
-        },
+        message: syncedData
+          ? "Balance N-1 synchronisée depuis la balance N de l'exercice précédent"
+          : "Balance uploaded and processed successfully",
+        balance: { id: balance.id, type: balance.type, status: balance.status },
+        syncedFromPreviousYear: !!syncedData,
+        dsfWasReset,
       });
     } catch (error) {
       next(error);
@@ -318,12 +366,13 @@ class BalanceController {
         throw new NotFoundError("Folder not found");
       }
 
-      if (folder.ownerId !== req.user?.userId) {
+      const isAdmin = req.user?.role === "ADMIN";
+      if (!isAdmin && folder.ownerId !== req.user?.userId) {
         throw new ForbiddenError("You don't have access to this folder");
       }
 
       const balances = await prisma.balance.findMany({
-        where: { folderId },
+        where: isAdmin ? { folderId } : { folderId, archived: false },
         include: {
           equilibrium: true,
           accountIssues: {
@@ -340,10 +389,48 @@ class BalanceController {
       });
 
       // Map balances to include originalData (strip the 'rows' wrapper for cleaner API)
-      const balancesWithOriginalData = balances.map((balance) => ({
+      const balancesWithOriginalData: any[] = balances.map((balance) => ({
         ...balance,
         originalData: balance.originalData,
       }));
+
+      // If no PREVIOUS_YEAR balance is stored in this folder, derive N-1 from the
+      // previous fiscal year's CURRENT_YEAR balance (same client) so the DSF always
+      // has coherent N-1 data.
+      const hasPreviousYear = balancesWithOriginalData.some(
+        (b) => b.type === BalanceType.PREVIOUS_YEAR && !b.archived,
+      );
+      if (!hasPreviousYear) {
+        const prevYearFolder = await prisma.folder.findFirst({
+          where: { clientId: folder.clientId, fiscalYear: folder.fiscalYear - 1 },
+        });
+        if (prevYearFolder) {
+          const prevNBalance = await prisma.balance.findFirst({
+            where: {
+              folderId: prevYearFolder.id,
+              type: BalanceType.CURRENT_YEAR,
+              archived: false,
+              status: { in: [BalanceStatus.PROCESSED, BalanceStatus.UPDATED] },
+            },
+            include: {
+              equilibrium: true,
+              accountIssues: { orderBy: { severity: "desc" } },
+              fixedAssets: true,
+              folder: { include: { client: true } },
+            },
+          });
+          if (prevNBalance) {
+            balancesWithOriginalData.push({
+              ...prevNBalance,
+              type: BalanceType.PREVIOUS_YEAR,
+              isDerived: true,
+              derivedFromFolderYear: prevYearFolder.fiscalYear,
+              derivedFromFolderId: prevYearFolder.id,
+              originalData: prevNBalance.originalData,
+            });
+          }
+        }
+      }
 
       res.json({ balances: balancesWithOriginalData });
     } catch (error) {
@@ -382,142 +469,233 @@ class BalanceController {
     }
   }
 
-  // async checkEquilibrium(req: AuthRequest, res: Response, next: NextFunction) {
-  //   try {
-  //     const { clientId, folderId } = req.params;
+  async checkEquilibrium(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
 
-  //     console.log("🔍 Checking equilibrium for:", { clientId, folderId });
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
 
-  //     if (!clientId || !folderId) {
-  //       throw new BadRequestError("Client ID and Folder ID are required");
-  //     }
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
 
-  //     // Vérifier que le contrôleur est correctement initialisé
-  //     if (!this.balanceProcessor) {
-  //       console.error("❌ balanceProcessor is not initialized");
-  //       // Réinitialiser en cas de problème
-  //       this.balanceProcessor = new BalanceProcessor();
-  //       console.log("✅ balanceProcessor reinitialized");
-  //     }
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
 
-  //     // Vérifier l'accès au dossier
-  //     const folder = await prisma.folder.findUnique({
-  //       where: { id: folderId },
-  //       include: {
-  //         balances: {
-  //           include: {
-  //             equilibrium: true,
-  //           },
-  //         },
-  //       },
-  //     });
+      const equilibrium = await this.balanceProcessor.checkEquilibrium(
+        balance,
+      );
 
-  //     if (!folder) {
-  //       throw new NotFoundError("Exercise not found");
-  //     }
+      res.json({
+        isBalanced: equilibrium.isBalanced,
+        message: equilibrium.isBalanced
+          ? "La balance est équilibrée"
+          : equilibrium.anomalies || "La balance n'est pas équilibrée",
+        details: equilibrium,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
-  //     // Vérifier que l'utilisateur a accès à ce client/dossier
-  //     if (folder.ownerId !== req.user?.userId) {
-  //       throw new ForbiddenError("You don't have access to this exercise");
-  //     }
+  async applyVentilation(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { mainAccountNumber, allocations } = req.body as {
+        mainAccountNumber: string;
+        allocations: Array<{ accountNumber: string; amount: number }>;
+      };
 
-  //     console.log("📊 Folder balances:", folder.balances.length);
+      if (
+        !mainAccountNumber ||
+        !Array.isArray(allocations) ||
+        allocations.length === 0
+      ) {
+        throw new BadRequestError(
+          "Le compte principal et la répartition sont requis",
+        );
+      }
 
-  //     // Vérifier s'il y a des balances
-  //     if (!folder.balances || folder.balances.length === 0) {
-  //       return res.json({
-  //         isBalanced: false,
-  //         message: "Aucune balance trouvée pour cet exercice",
-  //         details: {
-  //           hasBalances: false,
-  //           currentYear: null,
-  //           previousYear: null,
-  //         },
-  //       });
-  //     }
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
 
-  //     // Récupérer les balances actuelles et précédentes
-  //     const currentBalance = folder.balances.find(
-  //       (b) => b.type === BalanceType.CURRENT_YEAR
-  //     );
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
 
-  //     const previousBalance = folder.balances.find(
-  //       (b) => b.type === BalanceType.PREVIOUS_YEAR
-  //     );
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
 
-  //     console.log("📈 Balances found:", {
-  //       current: currentBalance?.id,
-  //       previous: previousBalance?.id,
-  //     });
+      // Block ventilation if DSF has already been generated
+      await this.checkDSFGenerated(balance.folderId);
 
-  //     // Vérifier l'équilibre
-  //     let equilibrium;
+      const config = await prisma.ventilationConfig.findUnique({
+        where: {
+          clientId_mainAccountNumber: {
+            clientId: balance.folder.clientId,
+            mainAccountNumber,
+          },
+        },
+        include: { subAccounts: true },
+      });
 
-  //     if (currentBalance) {
-  //       console.log(
-  //         "🔄 Checking equilibrium for current balance:",
-  //         currentBalance.id
-  //       );
-  //       equilibrium =
-  //         await this.balanceProcessor.checkEquilibrium(currentBalance);
-  //       console.log("✅ Equilibrium result:", equilibrium);
-  //     } else {
-  //       equilibrium = {
-  //         isBalanced: false,
-  //         message: "Balance de l'année courante manquante",
-  //         details: {
-  //           totalDebit: 0,
-  //           totalCredit: 0,
-  //           difference: 0,
-  //           tolerance: 0.01,
-  //         },
-  //       };
-  //     }
+      if (!config) {
+        throw new NotFoundError(
+          `Aucune configuration de ventilation pour le compte ${mainAccountNumber}`,
+        );
+      }
 
-  //     res.json({
-  //       isBalanced: equilibrium.isBalanced,
-  //       message: equilibrium.message,
-  //       details: {
-  //         hasBalances: !!currentBalance,
-  //         currentYear: currentBalance
-  //           ? {
-  //               id: currentBalance.id,
-  //               type: currentBalance.type,
-  //               status: currentBalance.status,
-  //               isBalanced: equilibrium.isBalanced,
-  //               totals: equilibrium.details,
-  //             }
-  //           : null,
-  //         previousYear: previousBalance
-  //           ? {
-  //               id: previousBalance.id,
-  //               type: previousBalance.type,
-  //               status: previousBalance.status,
-  //             }
-  //           : null,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     console.error("❌ Error in checkEquilibrium:", error);
+      const subAccountsByNumber = new Map(
+        config.subAccounts.map((sub) => [sub.accountNumber, sub]),
+      );
+      for (const allocation of allocations) {
+        if (!subAccountsByNumber.has(allocation.accountNumber)) {
+          throw new BadRequestError(
+            `Le compte ${allocation.accountNumber} n'est pas un sous-compte configuré pour ${mainAccountNumber}`,
+          );
+        }
+      }
 
-  //     // En cas d'erreur, retourner une réponse d'erreur structurée
-  //     if (error instanceof NotFoundError || error instanceof ForbiddenError) {
-  //       next(error);
-  //     } else {
-  //       // Pour les autres erreurs, retourner un statut non équilibré avec le message d'erreur
-  //       res.json({
-  //         isBalanced: false,
-  //         message: `Erreur lors de la vérification: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
-  //         details: {
-  //           hasBalances: false,
-  //           error: true,
-  //           errorMessage:
-  //             error instanceof Error ? error.message : "Unknown error",
-  //         },
-  //       });
-  //     }
-  //   }
-  // }
+      let currentData: any;
+      try {
+        currentData =
+          typeof balance.originalData === "string"
+            ? JSON.parse(balance.originalData)
+            : balance.originalData || {};
+      } catch {
+        currentData = {};
+      }
+
+      const currentRows: any[] = Array.isArray(currentData?.rows)
+        ? currentData.rows
+        : [];
+
+      const mainRowIndex = currentRows.findIndex(
+        (row) => row.accountNumber === mainAccountNumber,
+      );
+      if (mainRowIndex === -1) {
+        throw new NotFoundError(
+          `Le compte ${mainAccountNumber} n'existe pas dans cette balance`,
+        );
+      }
+
+      const mainRow = currentRows[mainRowIndex];
+
+      // Calculate total balance amount to validate
+      const totalBalance =
+        (Number(mainRow.closingDebit) || 0) - (Number(mainRow.closingCredit) || 0);
+      const allocatedSum = allocations.reduce(
+        (sum, a) => sum + (Number(a.amount) || 0),
+        0,
+      );
+      if (Math.abs(allocatedSum - Math.abs(totalBalance)) > 0.01) {
+        throw new BadRequestError(
+          `Les montants alloués doivent totaliser ${Math.abs(totalBalance).toLocaleString()}`,
+        );
+      }
+
+      // The main account's balance sits on whichever side carries its net
+      // total; allocated amounts are booked as movement on that same side.
+      const isDebitSide = totalBalance >= 0;
+      const allocatedAccountNumbers = new Set(
+        allocations.map((a) => a.accountNumber),
+      );
+
+      // Each sub-account keeps its own pre-existing opening/movement (it may
+      // already exist as its own row in the balance); the allocated amount
+      // is added as additional movement, and closing is recomputed from it.
+      const newRows = allocations.map((allocation) => {
+        const sub = subAccountsByNumber.get(allocation.accountNumber)!;
+        const existing = currentRows.find(
+          (row) => row.accountNumber === allocation.accountNumber,
+        );
+
+        const openingDebit = Number(existing?.openingDebit) || 0;
+        const openingCredit = Number(existing?.openingCredit) || 0;
+        const movementDebit =
+          (Number(existing?.movementDebit) || 0) +
+          (isDebitSide ? allocation.amount : 0);
+        const movementCredit =
+          (Number(existing?.movementCredit) || 0) +
+          (isDebitSide ? 0 : allocation.amount);
+
+        return {
+          accountNumber: sub.accountNumber,
+          accountName: sub.accountName,
+          openingDebit,
+          openingCredit,
+          movementDebit,
+          movementCredit,
+          closingDebit: openingDebit + movementDebit,
+          closingCredit: openingCredit + movementCredit,
+        };
+      });
+
+      const updatedRows = [
+        ...currentRows.filter(
+          (row) =>
+            row.accountNumber !== mainAccountNumber &&
+            !allocatedAccountNumbers.has(row.accountNumber),
+        ),
+        ...newRows,
+      ];
+
+      await prisma.balance.update({
+        where: { id },
+        data: {
+          originalData: { rows: updatedRows },
+        },
+      });
+
+      await auditService.logBalanceCorrected(
+        req.user!.userId,
+        balance.folderId,
+        id,
+        {
+          action: 'ventilation',
+          mainAccount: {
+            accountNumber: mainRow.accountNumber,
+            accountName: mainRow.accountName,
+            closingDebit: mainRow.closingDebit,
+            closingCredit: mainRow.closingCredit,
+          },
+        },
+        {
+          summary: `Compte ${mainAccountNumber} ventilé en ${allocations.length} sous-compte(s)`,
+          mainAccountNumber,
+          subAccounts: newRows.map((r) => ({
+            accountNumber: r.accountNumber,
+            accountName: r.accountName,
+            movementDebit: r.movementDebit,
+            movementCredit: r.movementCredit,
+            closingDebit: r.closingDebit,
+            closingCredit: r.closingCredit,
+          })),
+        },
+      );
+
+      await this.balanceProcessor.processBalance(id);
+
+      const refreshed = await prisma.balance.findUnique({
+        where: { id },
+        include: { equilibrium: true, accountIssues: true, fixedAssets: true },
+      });
+
+      res.json({
+        message: `Compte ${mainAccountNumber} ventilé avec succès`,
+        balance: refreshed,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
   async performVentilation(
     req: AuthRequest,
@@ -580,6 +758,13 @@ class BalanceController {
         },
       });
 
+      await auditService.logUserAction(
+        req.user!.userId,
+        "BALANCE_ISSUE_RESOLVED",
+        `Résolution d'un problème de balance`,
+        { issueId },
+      );
+
       res.json({
         message: "Issue resolved successfully",
         issue,
@@ -630,8 +815,64 @@ class BalanceController {
         where: { id },
       });
 
+      await auditService.logUserAction(
+        req.user!.userId,
+        "BALANCE_DELETED",
+        `Suppression de la balance ${id}`,
+        { balanceId: id },
+      );
+
       res.json({
         message: "Balance deleted successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async archiveBalance(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        throw new BadRequestError("Balance ID is required");
+      }
+
+      // Check if balance exists and user has access
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: {
+          folder: true,
+        },
+      });
+
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
+
+      const isAdmin = req.user?.role === "ADMIN";
+      if (!isAdmin && balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
+      const archivedBalance = await prisma.balance.update({
+        where: { id },
+        data: {
+          archived: true,
+          archivedAt: new Date(),
+        },
+      });
+
+      await auditService.logUserAction(
+        req.user!.userId,
+        "BALANCE_ARCHIVED",
+        `Archivage de la balance ${id}`,
+        { balanceId: id },
+      );
+
+      res.json({
+        message: "Balance archivée avec succès",
+        balance: archivedBalance,
       });
     } catch (error) {
       next(error);
@@ -667,6 +908,9 @@ class BalanceController {
       if (balance.folder.ownerId !== req.user?.userId) {
         throw new ForbiddenError("You don't have access to this balance");
       }
+
+      // Block row edits if DSF has already been generated
+      await this.checkDSFGenerated(balance.folderId);
 
       // Get current original data
       console.log("Raw originalData type:", typeof balance.originalData);
@@ -705,6 +949,62 @@ class BalanceController {
         currentRows.map((row: any) => [row.accountNumber, row]),
       );
 
+      // --- Field-level diff (computed before mutating rowsMap) ---
+      const NUMERIC_FIELDS = [
+        'openingDebit', 'openingCredit',
+        'movementDebit', 'movementCredit',
+        'closingDebit', 'closingCredit',
+      ];
+      const FIELD_LABELS: Record<string, string> = {
+        openingDebit: 'Ouverture Débit', openingCredit: 'Ouverture Crédit',
+        movementDebit: 'Mouvement Débit', movementCredit: 'Mouvement Crédit',
+        closingDebit: 'Clôture Débit',   closingCredit: 'Clôture Crédit',
+        accountName: 'Libellé',
+      };
+      const changes: Array<{
+        accountNumber: string;
+        accountName: string;
+        field: string;
+        label: string;
+        from: any;
+        to: any;
+      }> = [];
+
+      rows.forEach((updatedRow: any) => {
+        if (!updatedRow.accountNumber) return;
+        const oldRow: any = rowsMap.get(updatedRow.accountNumber);
+        if (!oldRow) return; // new account added, not an edit
+
+        NUMERIC_FIELDS.forEach((field) => {
+          const from = Number(oldRow[field]) || 0;
+          const to   = Number(updatedRow[field]) || 0;
+          if (Math.abs(from - to) > 0.001) {
+            changes.push({
+              accountNumber: updatedRow.accountNumber,
+              accountName: updatedRow.accountName || oldRow.accountName || '',
+              field,
+              label: FIELD_LABELS[field] || field,
+              from,
+              to,
+            });
+          }
+        });
+
+        if (
+          updatedRow.accountName != null &&
+          updatedRow.accountName !== oldRow.accountName
+        ) {
+          changes.push({
+            accountNumber: updatedRow.accountNumber,
+            accountName: updatedRow.accountName,
+            field: 'accountName',
+            label: FIELD_LABELS.accountName,
+            from: oldRow.accountName,
+            to: updatedRow.accountName,
+          });
+        }
+      });
+
       // Update with new values
       rows.forEach((updatedRow: any) => {
         if (updatedRow.accountNumber) {
@@ -717,14 +1017,34 @@ class BalanceController {
       const updatedRows = Array.from(rowsMap.values());
       console.log("Final rows count:", updatedRows.length);
 
-      // Update the balance
+      // Update the balance, then reprocess it so equilibrium, account
+      // issues and status reflect the edited rows (otherwise the balance
+      // is left in a stale state that downstream features like DSF
+      // generation won't recognize as processed).
       await prisma.balance.update({
         where: { id },
         data: {
-          originalData: JSON.stringify({ rows: updatedRows }),
-          status: BalanceStatus.UPDATED,
+          originalData: { rows: updatedRows } as any,
         },
       });
+
+      await this.balanceProcessor.processBalance(id);
+
+      // Log with full field-level diff so every changed value is traceable
+      if (changes.length > 0) {
+        const affectedAccounts = [...new Set(changes.map((c) => c.accountNumber))];
+        await auditService.logBalanceCorrected(
+          req.user!.userId,
+          balance.folderId,
+          id,
+          null,
+          {
+            summary: `${changes.length} champ(s) modifié(s) sur ${affectedAccounts.length} compte(s)`,
+            affectedAccounts,
+            changes,
+          },
+        );
+      }
 
       res.json({
         message: "Balance rows updated successfully",
@@ -732,6 +1052,19 @@ class BalanceController {
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  private async checkDSFGenerated(folderId: string): Promise<void> {
+    const dsf = await prisma.dSF.findUnique({
+      where: { folderId },
+      select: { status: true, lastGeneratedAt: true },
+    });
+    if (dsf?.lastGeneratedAt || (dsf && dsf.status !== DSFStatus.DRAFT)) {
+      throw new ForbiddenError(
+        'Modification refusée : une DSF a déjà été générée pour cet exercice. ' +
+        'Veuillez régénérer la DSF après vos modifications.',
+      );
     }
   }
 

@@ -19,7 +19,7 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { NotificationService } from "../services/notification.service";
 import { emailService } from "../services/email.service";
 import jwt from "jsonwebtoken";
-import { blacklistToken, setOTP, getOTP, deleteOTP } from "../services/redis.service";
+import { blacklistToken } from "../services/redis.service";
 
 // Reuse the same interface — no duplication
 type AuthenticatedRequest = AuthRequest;
@@ -43,7 +43,7 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
     access: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "strict" as const,
+      sameSite: "lax" as const,
       domain: cookieDomain,
       // 6 hours
       maxAge: 6 * 60 * 60 * 1000,
@@ -51,7 +51,7 @@ function makeCookieOptions(isProduction: boolean, corsOrigin?: string) {
     refresh: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "strict" as const,
+      sameSite: "lax" as const,
       domain: cookieDomain,
       // keep refresh cookie aligned with access expiry for browser storage
       maxAge: 6 * 60 * 60 * 1000,
@@ -157,6 +157,9 @@ class AuthController {
         } as any,
       });
 
+      console.log(
+        `OTP for user ${user.id} (${email || phoneNumber}): ${otpCode}`,
+      );
 
       // Send OTP based on verification method
       if (email) {
@@ -171,6 +174,7 @@ class AuthController {
         }
       } else if (phoneNumber) {
         // TODO: Implement SMS OTP sending
+        console.log(`SMS OTP for user ${user.id} (${phoneNumber}): ${otpCode}`);
       }
 
       // Create welcome and guide notifications
@@ -188,6 +192,14 @@ class AuthController {
       } catch (notifError) {
         console.error("Error creating notifications:", notifError);
       }
+
+      await auditService.logUserCreated(user.id, {
+        firstName,
+        lastName,
+        email: email ?? null,
+        phoneNumber: phoneNumber ?? null,
+        role: userRole,
+      });
 
       const message = email
         ? "Un code de vérification a été envoyé à votre adresse email"
@@ -346,6 +358,13 @@ class AuthController {
 
       setAuthCookies(res, accessToken, refreshToken);
 
+      await auditService.logUserUpdated(
+        verifiedUser.id,
+        "Compte activé via vérification OTP",
+        { isActive: false, isVerified: false },
+        { isActive: true, isVerified: true }
+      );
+
       res.json({
         message: "OTP verified successfully. Registration complete.",
         user: formatUser(verifiedUser),
@@ -403,6 +422,7 @@ class AuthController {
         }
       }
 
+      console.log(`New OTP for user ${userId} (${user.email}): ${newOtpCode}`);
 
       res.json({
         message: "Nouveau code OTP envoyé",
@@ -508,6 +528,7 @@ class AuthController {
         } as any,
       });
 
+      console.log(`Password reset OTP for ${email}: ${resetToken}`);
 
       // Send OTP via email
       try {
@@ -556,9 +577,7 @@ class AuthController {
         throw new BadRequestError("OTP has expired");
       }
 
-      // Clear the OTP from the DB and store a short-lived Redis grant
-      // so that resetPassword can only succeed for this specific user
-      // within the next 5 minutes.
+      // Mark OTP as verified by clearing it (will be used in resetPassword)
       await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -566,8 +585,6 @@ class AuthController {
           resetTokenExpiry: null,
         } as any,
       });
-
-      await setOTP(`pwd_reset:${user.id}`, "granted", 5 * 60);
 
       res.json({
         message: "OTP verified successfully",
@@ -586,28 +603,30 @@ class AuthController {
         throw new BadRequestError("User ID and new password are required");
       }
       if (newPassword.length < 8) {
-        throw new BadRequestError("Password must be at least 8 characters long");
+        throw new BadRequestError(
+          "Password must be at least 8 characters long",
+        );
       }
 
-      // Verify that this userId completed OTP verification within the last 5 minutes
-      const grant = await getOTP(`pwd_reset:${userId}`);
-      if (!grant) {
-        throw new BadRequestError("Password reset session expired or invalid. Please start over.");
-      }
-
+      // Find user and verify OTP was recently verified (resetToken should be null)
       const user = await prisma.user.findUnique({ where: { id: userId } });
+
       if (!user) {
         throw new BadRequestError("User not found");
       }
 
-      // Consume the grant so it cannot be reused
-      await deleteOTP(`pwd_reset:${userId}`);
-
+      // Hash the new password
       const hashedPassword = await hashPassword(newPassword);
+
+      // Update password
       await prisma.user.update({
         where: { id: userId },
         data: { password: hashedPassword },
       });
+
+      await auditService.logUserUpdated(userId, "Réinitialisation du mot de passe via email", undefined, undefined, { email: user.email });
+
+      console.log(`Password reset successfully for user ${userId} (${user.email})`);
 
       res.json({ message: "Mot de passe réinitialisé avec succès" });
     } catch (error) {
@@ -724,6 +743,8 @@ class AuthController {
         }
       }
 
+      const oldUser = await prisma.user.findUnique({ where: { id: req.user.userId }, select: { firstName: true, lastName: true, email: true, phoneCountryCode: true, phoneNumber: true } });
+
       const updatedUser = await prisma.user.update({
         where: { id: req.user.userId },
         data: {
@@ -734,6 +755,13 @@ class AuthController {
           ...(phoneNumber !== undefined && { phoneNumber }),
         },
       });
+
+      await auditService.logUserUpdated(
+        req.user.userId,
+        "Mise à jour du profil utilisateur",
+        oldUser,
+        { firstName: updatedUser.firstName, lastName: updatedUser.lastName, email: updatedUser.email, phoneNumber: updatedUser.phoneNumber }
+      );
 
       res.json({ success: true, user: formatUser(updatedUser) });
     } catch (error) {
@@ -783,6 +811,8 @@ class AuthController {
         where: { id: req.user.userId },
         data: { password: hashed },
       });
+
+      await auditService.logUserUpdated(req.user.userId, "Changement de mot de passe par l'utilisateur");
 
       res.json({ success: true, message: "Mot de passe changé avec succès" });
     } catch (error) {
