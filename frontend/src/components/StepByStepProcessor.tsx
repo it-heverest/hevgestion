@@ -31,7 +31,7 @@ import {
   FileText,
   TrendingUp,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 interface BalanceTreatmentProps {
   onComplete?: () => void;
@@ -52,6 +52,8 @@ export function StepByStepProcessor({
   } = useApp();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { lang } = useParams<{ lang?: string }>();
+  const langPrefix = lang === "en" ? "en" : "fr";
 
   const {
     // États
@@ -112,7 +114,7 @@ export function StepByStepProcessor({
     } else {
       // Default back navigation to dashboard
       const uid = selectedClient?.id || "me";
-      navigate(`/web/user/dashboard/${uid}/dashboard`);
+      navigate(`/${langPrefix}/web/user/dashboard/${uid}/dashboard`);
     }
   };
 
@@ -123,7 +125,7 @@ export function StepByStepProcessor({
     } else {
       // Default completion navigation to reports
       const uid = selectedClient?.id || "me";
-      navigate(`/web/user/reports/${uid}/reports`);
+      navigate(`/${langPrefix}/web/user/reports/${uid}/reports`);
     }
   };
 

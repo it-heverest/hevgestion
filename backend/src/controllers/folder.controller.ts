@@ -431,6 +431,8 @@ class FolderController {
         data: { status: FolderStatus.COMPLETED },
       });
 
+      await auditService.logFolderStatusChanged(userId, id, folder.status, FolderStatus.COMPLETED, { name: folder.name });
+
       res.json({ message: "Folder closed successfully", folder: updatedFolder });
     } catch (error) {
       next(error);
@@ -461,6 +463,8 @@ class FolderController {
 
       await this.checkFolderAccess(userId, id, req.user!.role);
 
+      const currentFolder = await prisma.folder.findUnique({ where: { id }, select: { status: true, name: true } });
+
       const updatedFolder = await prisma.folder.update({
         where: { id },
         data: { status },
@@ -471,6 +475,8 @@ class FolderController {
           },
         },
       });
+
+      await auditService.logFolderStatusChanged(userId, id, currentFolder?.status ?? "unknown", status, { name: currentFolder?.name });
 
       res.json({ message: "Folder status updated", folder: updatedFolder });
     } catch (error) {
@@ -502,6 +508,8 @@ class FolderController {
         data: { status: FolderStatus.COMPLETED, isActive: false },
       });
 
+      await auditService.logFolderStatusChanged(userId, id, folder.status, "ARCHIVED", { name: folder.name, isActive: false });
+
       res.json({ message: "Folder archived successfully", folder: updatedFolder });
     } catch (error) {
       next(error);
@@ -530,6 +538,8 @@ class FolderController {
         data: { status: FolderStatus.DRAFT, isActive: true },
       });
 
+      await auditService.logFolderStatusChanged(userId, id, folder.status, FolderStatus.DRAFT, { name: folder.name, isActive: true, action: "restored" });
+
       res.json({ message: "Folder restored successfully", folder: updatedFolder });
     } catch (error) {
       next(error);
@@ -553,14 +563,12 @@ class FolderController {
       await this.checkFolderAccess(userId, id, req.user!.role);
 
       // When activating this folder, deactivate all siblings
-      if (isActive === true) {
-        const folder = await prisma.folder.findUnique({ where: { id } });
-        if (folder) {
-          await prisma.folder.updateMany({
-            where: { clientId: folder.clientId, id: { not: id } },
-            data: { isActive: false },
-          });
-        }
+      const oldFolder = await prisma.folder.findUnique({ where: { id } });
+      if (isActive === true && oldFolder) {
+        await prisma.folder.updateMany({
+          where: { clientId: oldFolder.clientId, id: { not: id } },
+          data: { isActive: false },
+        });
       }
 
       const updatedFolder = await prisma.folder.update({
@@ -578,6 +586,8 @@ class FolderController {
           },
         },
       });
+
+      await auditService.logFolderUpdated(userId, id, oldFolder, updatedFolder);
 
       res.json({ message: "Folder updated successfully", folder: updatedFolder });
     } catch (error) {
@@ -622,6 +632,8 @@ class FolderController {
       }
 
       await prisma.folder.delete({ where: { id } });
+
+      await auditService.logFolderDeleted(userId, id, folder);
 
       res.json({ message: "Folder deleted successfully" });
     } catch (error) {

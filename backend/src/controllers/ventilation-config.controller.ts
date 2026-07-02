@@ -8,10 +8,12 @@ import { auditService } from "../services/audit.service";
 interface SubAccountInput {
   accountNumber: string;
   accountName: string;
+  debitAmount?: number;
+  creditAmount?: number;
 }
 
 export class VentilationConfigController {
-  async getConfigs(req: AuthRequest, res: Response, next: NextFunction) {
+  getConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { clientId } = req.query as { clientId: string };
       const userId = req.user!.userId;
@@ -31,9 +33,9 @@ export class VentilationConfigController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async createConfig(req: AuthRequest, res: Response, next: NextFunction) {
+  createConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
@@ -76,6 +78,8 @@ export class VentilationConfigController {
               accountNumber: sub.accountNumber,
               accountName: sub.accountName,
               order: index,
+              debitAmount: sub.debitAmount,
+              creditAmount: sub.creditAmount,
             })),
           },
         },
@@ -96,9 +100,9 @@ export class VentilationConfigController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async updateConfig(req: AuthRequest, res: Response, next: NextFunction) {
+  updateConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
@@ -168,6 +172,8 @@ export class VentilationConfigController {
                       accountNumber: sub.accountNumber,
                       accountName: sub.accountName,
                       order: index,
+                      debitAmount: sub.debitAmount,
+                      creditAmount: sub.creditAmount,
                     })),
                   },
                 }
@@ -191,9 +197,9 @@ export class VentilationConfigController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async deleteConfig(req: AuthRequest, res: Response, next: NextFunction) {
+  deleteConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
@@ -208,20 +214,56 @@ export class VentilationConfigController {
 
       await this.checkClientAccess(existing.clientId, userId, userRole);
 
-      await prisma.ventilationConfig.delete({ where: { id } });
+      await prisma.ventilationConfig.update({
+        where: { id },
+        data: { archived: true, archivedAt: new Date() },
+      });
 
       await auditService.logUserAction(
         userId,
-        "VENTILATION_CONFIG_DELETED",
-        `Configuration de ventilation supprimée pour le compte ${existing.mainAccountNumber}`,
+        "VENTILATION_CONFIG_ARCHIVED",
+        `Configuration de ventilation archivée pour le compte ${existing.mainAccountNumber}`,
         { clientId: existing.clientId, configId: id }
       );
 
-      res.json({ message: "Configuration de ventilation supprimée avec succès" });
+      res.json({ message: "Configuration de ventilation archivée avec succès" });
     } catch (error) {
       next(error);
     }
-  }
+  };
+
+restoreConfig = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.userId;
+      const userRole = req.user!.role;
+
+      const existing = await prisma.ventilationConfig.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundError("Configuration de ventilation introuvable");
+      }
+
+      await this.checkClientAccess(existing.clientId, userId, userRole);
+
+      await prisma.ventilationConfig.update({
+        where: { id },
+        data: { archived: false, archivedAt: null },
+      });
+
+      await auditService.logUserAction(
+        userId,
+        "VENTILATION_CONFIG_RESTORED",
+        `Configuration de ventilation restaurée pour le compte ${existing.mainAccountNumber}`,
+        { clientId: existing.clientId, configId: id }
+      );
+
+      res.json({ message: "Configuration de ventilation restaurée avec succès" });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   private findDuplicates(values: string[]): string[] {
     const seen = new Set<string>();

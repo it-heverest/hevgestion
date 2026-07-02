@@ -162,7 +162,7 @@ export function ForgotPassword({
       if (result.success) {
         setSuccessMessage("Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.");
         setTimeout(() => {
-          navigate("/login");
+          navigate("/fr/web/user/login");
         }, 2000);
       } else {
         setError(

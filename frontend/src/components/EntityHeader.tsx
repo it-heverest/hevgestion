@@ -99,6 +99,20 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
   useEffect(() => {
     if (!folderId) return;
 
+    // Only nag for missing header info once the DSF has actually been
+    // generated for this folder - before that, notes don't exist yet and
+    // the check is premature.
+    const dsfAlreadyGenerated =
+      selectedFolder?.status === "DSF_GENERATED" ||
+      selectedFolder?.status === "DSF_VALIDATED" ||
+      selectedFolder?.status === "COMPLETED";
+
+    if (!dsfAlreadyGenerated) {
+      setMissingNotes([]);
+      setIsOpen(false);
+      return;
+    }
+
     const checkNotesHeader = async () => {
       setIsLoading(true);
       const missing: string[] = [];

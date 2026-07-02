@@ -184,9 +184,14 @@ model Balance {
   accountIssues AccountIssue[]
   fixedAssets   FixedAsset[]
 
+  // Archiving (set when a balance is replaced via reimport instead of deleted)
+  archived   Boolean   @default(false)
+  archivedAt DateTime?
+
   importedAt  DateTime? @default(now())
   processedAt DateTime?
 
+  @@index([folderId, archived])
   @@map("balances")
 }
 
@@ -249,7 +254,7 @@ model FixedAsset {
 // Lets an accountant preconfigure, per client, the list of sub-accounts used
 // to dispatch the balance of a main account (e.g. 411000 -> named clients).
 model VentilationConfig {
-  id       String @id @default(uuid())
+  id     String @id @default(uuid())
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -264,6 +269,10 @@ model VentilationConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Archiving (set when a config is replaced via reimport instead of deleted)
+  archived   Boolean   @default(false)
+  archivedAt DateTime?
+
   @@unique([clientId, mainAccountNumber])
   @@index([clientId])
   @@map("ventilation_configs")
@@ -277,6 +286,10 @@ model VentilationSubAccount {
   accountNumber String
   accountName   String
   order         Int    @default(0)
+
+  // Amount split for debit/credit distribution
+  debitAmount   Float?  @default(0)
+  creditAmount  Float?  @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

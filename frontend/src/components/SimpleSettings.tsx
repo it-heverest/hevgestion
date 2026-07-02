@@ -698,6 +698,9 @@ export function SimpleSettings() {
                 <CardTitle className="text-lg">Sécurité</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Hidden dummy inputs prevent browser from autofilling the real fields */}
+                <input type="text" tabIndex={-1} aria-hidden="true" style={{ display: "none" }} autoComplete="username" />
+                <input type="password" tabIndex={-1} aria-hidden="true" style={{ display: "none" }} autoComplete="current-password" />
                 <div className="space-y-2">
                   <Label htmlFor="currentPassword">Mot de passe actuel</Label>
                   <div className="relative">
@@ -713,7 +716,7 @@ export function SimpleSettings() {
                       }
                       className="pr-10"
                       placeholder="••••••••"
-                      autoComplete="off"
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -740,7 +743,7 @@ export function SimpleSettings() {
                         newPassword: e.target.value,
                       })
                     }
-                    autoComplete="off"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                   />
                   <Label htmlFor="confirmPassword">
@@ -756,7 +759,7 @@ export function SimpleSettings() {
                         confirmPassword: e.target.value,
                       })
                     }
-                    autoComplete="off"
+                    autoComplete="new-password"
                     placeholder="••••••••"
                   />
                 </div>

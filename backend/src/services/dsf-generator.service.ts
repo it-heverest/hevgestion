@@ -1948,14 +1948,11 @@ export class DSFGenerator {
     // Import prisma here to avoid circular dependencies
     const { prisma } = require("../lib/prisma");
 
-    // Find the config by category
+    // Find the config by category. Note: DSFConfig has no `accountMappings`
+    // relation in the schema - this only carries comptableConfigs/systemConfig,
+    // so callers fall back to an empty mapping list via `?.accountMappings || []`.
     const config = await prisma.dSFConfig.findUnique({
       where: { category: category.toLowerCase() },
-      include: {
-        accountMappings: {
-          where: { isActive: true },
-        },
-      },
     });
 
     return config;

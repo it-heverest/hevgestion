@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { RevueFiscalEval, RevueFiscalPriority } from '@prisma/client';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { auditService } from '../services/audit.service';
 
 interface CreateCompanyRequest {
   name: string;
@@ -85,6 +87,16 @@ export class RevueFiscalController {
         },
       });
 
+      const userId = (req as AuthRequest).user?.userId;
+      if (userId) {
+        await auditService.logUserAction(
+          userId,
+          'REVUE_FISCAL_COMPANY_CREATED',
+          `Création de la société pour la revue fiscale`,
+          { companyId: company.id },
+        );
+      }
+
       res.status(201).json(company);
     } catch (error: any) {
       console.error('Error creating company:', error);
@@ -131,6 +143,16 @@ export class RevueFiscalController {
         },
       });
 
+      const userId = (req as AuthRequest).user?.userId;
+      if (userId) {
+        await auditService.logUserAction(
+          userId,
+          'REVUE_FISCAL_COMPANY_UPDATED',
+          "Modification de la société (revue fiscale)",
+          { companyId: id },
+        );
+      }
+
       res.json(company);
     } catch (error: any) {
       console.error('Error updating company:', error);
@@ -149,6 +171,16 @@ export class RevueFiscalController {
       await prisma.revueFiscalCompany.delete({
         where: { id },
       });
+
+      const userId = (req as AuthRequest).user?.userId;
+      if (userId) {
+        await auditService.logUserAction(
+          userId,
+          'REVUE_FISCAL_COMPANY_DELETED',
+          "Suppression de la société (revue fiscale)",
+          { companyId: id },
+        );
+      }
 
       res.status(204).send();
     } catch (error: any) {
@@ -272,6 +304,16 @@ export class RevueFiscalController {
           });
         })
       );
+
+      const userId = (req as AuthRequest).user?.userId;
+      if (userId) {
+        await auditService.logUserAction(
+          userId,
+          'REVUE_FISCAL_ANSWERS_SAVED',
+          "Enregistrement des réponses de la revue fiscale",
+          { companyId: updates[0]?.companyId, count: results.length },
+        );
+      }
 
       res.json(results);
     } catch (error: any) {
@@ -681,6 +723,16 @@ export class RevueFiscalController {
           },
         });
       });
+
+      const userId = (req as AuthRequest).user?.userId;
+      if (userId) {
+        await auditService.logUserAction(
+          userId,
+          'REVUE_FISCAL_QUESTIONNAIRE_UPDATED',
+          "Mise à jour du questionnaire de revue fiscale",
+          {},
+        );
+      }
 
       res.json({ success: true });
     } catch (error: any) {

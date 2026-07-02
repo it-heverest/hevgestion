@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -45,14 +45,16 @@ import {
   Save,
   Edit3,
   Check,
-  ArrowLeft,
-  ArrowRight,
-  ChevronsLeft,
-  ChevronsRight,
   ChevronUp,
+  Split,
+  CornerDownRight,
 } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
+import {
+  ventilationConfigService,
+  VentilationConfig,
+} from "../services/ventilation-config.service";
 import * as XLSX from "xlsx";
 
 import { BalanceRow, normalizeRow } from "../types/balance.types";
@@ -76,7 +78,14 @@ interface BalanceData {
     difference: number;
   };
   importedAt: string;
+  archived?: boolean;
 }
+
+// Classes 6 (charges), 7 (produits) and 8 (HAO) are comptes de gestion in
+// SYSCOHADA - they're closed to zero at year-end and never carry an opening
+// balance via report à nouveau, unlike balance-sheet accounts (classes 1-5).
+const isComptesDeGestion = (accountNumber: string): boolean =>
+  /^[678]/.test(accountNumber);
 
 const parseExcelFilePreview = async (
   file: File,
@@ -298,13 +307,33 @@ export function BalanceImporter() {
     }
   };
 
-  // Get current and previous year balances (using type field)
-  const currentYearBalance = balances.find(
-    (b) => b.type?.toUpperCase() === "CURRENT_YEAR",
-  );
-  const previousYearBalance = balances.find(
-    (b) => b.type?.toUpperCase() === "PREVIOUS_YEAR",
-  );
+  const handleBalanceArchived = async (balanceId: string) => {
+    try {
+      await clientService.archiveBalance(balanceId);
+      setSelectedBalance(null);
+      await loadBalances();
+    } catch (err: any) {
+      console.error("Error archiving balance:", err);
+      alert(err.message || "Erreur lors de l'archivage de la balance");
+    }
+  };
+
+  // Get current and previous year balances (using type field), preferring the active (non-archived) one
+  const currentYearBalance =
+    balances.find((b) => b.type?.toUpperCase() === "CURRENT_YEAR" && !b.archived) ||
+    balances.find((b) => b.type?.toUpperCase() === "CURRENT_YEAR");
+  const previousYearBalance =
+    balances.find((b) => b.type?.toUpperCase() === "PREVIOUS_YEAR" && !b.archived) ||
+    balances.find((b) => b.type?.toUpperCase() === "PREVIOUS_YEAR");
+
+  // Stable display order: N-1 always before N regardless of import order, active balances before archived ones
+  const sortedBalances = [...balances].sort((a, b) => {
+    const typeRank = (type?: string) =>
+      type?.toUpperCase() === "PREVIOUS_YEAR" ? 0 : 1;
+    const typeDiff = typeRank(a.type) - typeRank(b.type);
+    if (typeDiff !== 0) return typeDiff;
+    return (a.archived ? 1 : 0) - (b.archived ? 1 : 0);
+  });
 
   const openImportDialog = (type: "current" | "previous") => {
     setImportBalanceType(type);
@@ -340,54 +369,27 @@ export function BalanceImporter() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Button for N-1 */}
-            <Button
-              onClick={() => openImportDialog("previous")}
-              variant={hasPreviousYear ? "outline" : "default"}
-              className={
-                hasPreviousYear ? "" : "bg-green-600 hover:bg-green-700"
-              }
-              title={
-                hasPreviousYear
-                  ? "Balance N-1 déjà importée"
-                  : `Importer Balance N-1 (${previousYear})`
-              }
-            >
-              {hasPreviousYear ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
-                  N-1 ({previousYear})
-                </>
-              ) : (
-                <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  N-1 ({previousYear})
-                </>
-              )}
-            </Button>
-
-            {/* Button for N */}
-            <Button
-              onClick={() => openImportDialog("current")}
-              variant={hasCurrentYear ? "outline" : "default"}
-              className={hasCurrentYear ? "" : "bg-orange-600 hover:bg-orange-700"}
-              title={
-                hasCurrentYear
-                  ? "Balance N déjà importée"
-                  : `Importer Balance N (${fiscalYear})`
-              }
-            >
-              {hasCurrentYear ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />N (
-                  {fiscalYear})
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />N ({fiscalYear})
-                </>
-              )}
-            </Button>
+            {/* Import N-1 is only a call-to-action while it's missing; once
+                imported it's already represented by the period card below. */}
+            {!hasPreviousYear && (
+              <Button
+                onClick={() => openImportDialog("previous")}
+                className="bg-green-600 hover:bg-green-700"
+                title={`Importer Balance N-1 (${previousYear})`}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                N-1 ({previousYear})
+              </Button>
+            )}
+            {!hasCurrentYear && (
+              <Button
+                onClick={() => openImportDialog("current")}
+                className="bg-orange-600 hover:bg-orange-700"
+                title={`Importer Balance N (${fiscalYear})`}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />N ({fiscalYear})
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -404,7 +406,7 @@ export function BalanceImporter() {
           <div className="flex flex-col h-full gap-4">
             {/* Balance List - Horizontal */}
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {balances.map((balance) => (
+              {sortedBalances.map((balance) => (
                 <BalanceListItem
                   key={balance.id}
                   balance={balance}
@@ -424,13 +426,13 @@ export function BalanceImporter() {
                   onDelete={() => handleBalanceDeleted(selectedBalance.id)}
                   onRefresh={refreshCurrentBalance}
                   isRefreshing={isRefreshing}
-                  onReimport={() => {
-                    handleBalanceDeleted(selectedBalance.id);
-                    openImportDialog(
+                  onReimport={async () => {
+                    const type =
                       selectedBalance.type === "PREVIOUS_YEAR"
                         ? "previous"
-                        : "current",
-                    );
+                        : "current";
+                    await handleBalanceArchived(selectedBalance.id);
+                    openImportDialog(type);
                   }}
                 />
               ) : (
@@ -621,11 +623,13 @@ function BalanceListItem({
             >
               {isBalanced ? "Équilibrée" : "Déséquilibrée"}
             </Badge>
+            {balance.archived && (
+              <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
+                Archivée
+              </Badge>
+            )}
           </div>
-          <p className="text-xs text-gray-500">
-            {rows.length} comptes • {totalDebit.toLocaleString()} D /{" "}
-            {totalCredit.toLocaleString()} C
-          </p>
+          <p className="text-xs text-gray-500">{rows.length} comptes</p>
         </div>
         <div className="relative">
           <Button
@@ -775,6 +779,70 @@ function BalanceDetailView({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Ventilation, step 1: accounts detected as matching a configured main
+  // account, awaiting the user's choice of which ones to process now.
+  const [ventilationCandidates, setVentilationCandidates] = useState<
+    { config: VentilationConfig; amount: number }[]
+  >([]);
+  const [selectedVentilationAccounts, setSelectedVentilationAccounts] =
+    useState<Set<string>>(new Set());
+
+  // Ventilation, step 2: the accounts the user confirmed, now being split
+  // across their preconfigured sub-accounts.
+  const [pendingVentilations, setPendingVentilations] = useState<
+    { config: VentilationConfig; amount: number }[]
+  >([]);
+  // Amounts keyed by [mainAccountNumber][subAccountNumber]
+  const [ventilationAmounts, setVentilationAmounts] = useState<
+    Record<string, Record<string, number>>
+  >({});
+  const [isApplyingVentilation, setIsApplyingVentilation] = useState(false);
+  const [ventilationError, setVentilationError] = useState<string | null>(
+    null,
+  );
+  const { selectedClient } = useApp();
+
+  // All configured main/sub-account links for this client, used to nest
+  // sub-account rows under their main account in the table below.
+  const [ventilationConfigs, setVentilationConfigs] = useState<
+    VentilationConfig[]
+  >([]);
+
+  useEffect(() => {
+    if (!selectedClient?.id) {
+      setVentilationConfigs([]);
+      return;
+    }
+    let cancelled = false;
+    ventilationConfigService
+      .getConfigs(selectedClient.id)
+      .then((configs) => {
+        if (!cancelled) setVentilationConfigs(configs);
+      })
+      .catch(() => {
+        if (!cancelled) setVentilationConfigs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedClient?.id]);
+
+  const subAccountToMain = useMemo(() => {
+    const map = new Map<
+      string,
+      { mainAccountNumber: string; mainAccountName: string }
+    >();
+    ventilationConfigs.forEach((config) => {
+      config.subAccounts.forEach((sub) => {
+        map.set(sub.accountNumber, {
+          mainAccountNumber: config.mainAccountNumber,
+          mainAccountName: config.mainAccountName,
+        });
+      });
+    });
+    return map;
+  }, [ventilationConfigs]);
+
   // Cache for temporary edits (not yet applied to modifiedRows)
   const [editCache, setEditCache] = useState<{
     [accountNumber: string]: {
@@ -785,9 +853,6 @@ function BalanceDetailView({
     };
   }>({});
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
@@ -845,7 +910,10 @@ function BalanceDetailView({
     balanceRows.forEach((row) => {
       const accNum = row.accountNumber?.trim() || "";
       if (!accNum) return;
-      
+      // Classes 6, 7, 8 (charges, produits, HAO) are comptes de gestion -
+      // closed to zero at year-end, so they never carry an opening balance.
+      if (isComptesDeGestion(accNum)) return;
+
       const prevData = previousYearAccounts[accNum];
       if (prevData) {
         const prevClosing = prevData.debit - prevData.credit;
@@ -941,6 +1009,9 @@ function BalanceDetailView({
     } = {};
     previousYearRows.forEach((row) => {
       const root = row.accountNumber?.substring(0, 3) || "";
+      // Classes 6, 7, 8 (charges, produits, HAO) are comptes de gestion -
+      // closed to zero at year-end, so exclude them from this check.
+      if (isComptesDeGestion(root)) return;
       if (!previousYearByRoot[root]) {
         previousYearByRoot[root] = { debit: 0, credit: 0 };
       }
@@ -954,6 +1025,7 @@ function BalanceDetailView({
     } = {};
     balanceRows.forEach((row) => {
       const root = row.accountNumber?.substring(0, 3) || "";
+      if (isComptesDeGestion(root)) return;
       if (!currentYearByRoot[root]) {
         currentYearByRoot[root] = { debit: 0, credit: 0 };
       }
@@ -1322,7 +1394,7 @@ function BalanceDetailView({
   };
 
   // Prepare filtered and sorted data
-  const processedData = balanceRows
+  const sortedRows = balanceRows
     .map((row) => {
       const hasModification = !!modifiedRows[row.accountNumber];
       const cachedEdits = editCache[row.accountNumber];
@@ -1386,11 +1458,48 @@ function BalanceDetailView({
         : ((bVal as number) || 0) - ((aVal as number) || 0);
     });
 
-  // Pagination
+  // Nest sub-accounts (configured via "Ventilation des comptes") directly
+  // under their main account row, indented, regardless of the active sort -
+  // mirrors the root grouping already used in the opening-mismatch dialog.
+  const rowsByAccountNumber = new Map(
+    sortedRows.map((row) => [row.accountNumber, row]),
+  );
+  const consumedAccounts = new Set<string>();
+  const processedData: ((typeof sortedRows)[number] & {
+    isSubAccount?: boolean;
+    mainAccountNumber?: string;
+    mainAccountName?: string;
+  })[] = [];
+
+  sortedRows.forEach((row) => {
+    if (consumedAccounts.has(row.accountNumber)) return;
+
+    const subLink = subAccountToMain.get(row.accountNumber);
+    // This row is a sub-account whose main account is also visible in this
+    // view - it gets appended right after its parent below, so skip for now.
+    if (subLink && rowsByAccountNumber.has(subLink.mainAccountNumber)) return;
+
+    processedData.push(row);
+    consumedAccounts.add(row.accountNumber);
+
+    const config = ventilationConfigs.find(
+      (c) => c.mainAccountNumber === row.accountNumber,
+    );
+    config?.subAccounts.forEach((sub) => {
+      const subRow = rowsByAccountNumber.get(sub.accountNumber);
+      if (subRow && !consumedAccounts.has(subRow.accountNumber)) {
+        processedData.push({
+          ...subRow,
+          isSubAccount: true,
+          mainAccountNumber: config.mainAccountNumber,
+          mainAccountName: config.mainAccountName,
+        });
+        consumedAccounts.add(subRow.accountNumber);
+      }
+    });
+  });
+
   const totalItems = processedData.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedData = processedData.slice(startIndex, startIndex + pageSize);
 
   const accountClasses = Array.from(
     new Set(
@@ -1407,17 +1516,182 @@ function BalanceDetailView({
     }
   };
 
+  const buildEqualSplit = (match: { config: VentilationConfig; amount: number }): Record<string, number> => {
+    const equalShare = match.config.subAccounts.length
+      ? Math.round((Math.abs(match.amount) / match.config.subAccounts.length) * 100) / 100
+      : 0;
+    const amounts: Record<string, number> = {};
+    match.config.subAccounts.forEach((sub) => {
+      amounts[sub.accountNumber] = equalShare;
+    });
+    return amounts;
+  };
+
   const handleProcess = async () => {
     setIsProcessing(true);
     try {
       await clientService.checkBalanceEquilibrium(balance.id);
       await clientService.performBalanceVentilation(balance.id);
+
+      if (selectedClient) {
+        const configs = await ventilationConfigService.getConfigs(
+          selectedClient.id,
+        );
+        const matches = configs
+          .map((config) => {
+            const row = balanceRows.find(
+              (r) => r.accountNumber === config.mainAccountNumber,
+            );
+            if (!row) return null;
+            const amount = (row.closingDebit || 0) - (row.closingCredit || 0);
+            if (Math.abs(amount) < 0.01) return null;
+            return { config, amount };
+          })
+          .filter(
+            (m): m is { config: VentilationConfig; amount: number } =>
+              m !== null,
+          );
+
+        if (matches.length > 0) {
+          setVentilationCandidates(matches);
+          setSelectedVentilationAccounts(
+            new Set(matches.map((m) => m.config.mainAccountNumber)),
+          );
+          setVentilationError(null);
+          return;
+        }
+      }
+
       alert("Traitement terminé avec succès!");
     } catch (error) {
       console.error("Processing error:", error);
       alert("Erreur lors du traitement");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const toggleVentilationCandidate = (mainAccountNumber: string) => {
+    setSelectedVentilationAccounts((prev) => {
+      const next = new Set(prev);
+      if (next.has(mainAccountNumber)) {
+        next.delete(mainAccountNumber);
+      } else {
+        next.add(mainAccountNumber);
+      }
+      return next;
+    });
+  };
+
+  const handleSkipAllVentilation = () => {
+    setVentilationCandidates([]);
+    setSelectedVentilationAccounts(new Set());
+    alert("Traitement terminé avec succès!");
+  };
+
+  const handleConfirmVentilationSelection = () => {
+    const chosen = ventilationCandidates.filter((match) =>
+      selectedVentilationAccounts.has(match.config.mainAccountNumber),
+    );
+
+    setVentilationCandidates([]);
+    setSelectedVentilationAccounts(new Set());
+
+    if (chosen.length === 0) {
+      alert("Traitement terminé avec succès!");
+      return;
+    }
+
+    const initialAmounts: Record<string, Record<string, number>> = {};
+    chosen.forEach((match) => {
+      initialAmounts[match.config.mainAccountNumber] = buildEqualSplit(match);
+    });
+    setPendingVentilations(chosen);
+    setVentilationAmounts(initialAmounts);
+    setVentilationError(null);
+  };
+
+  const handleVentilationAmountChange = (
+    mainAccountNumber: string,
+    subAccountNumber: string,
+    value: number,
+  ) => {
+    setVentilationAmounts((prev) => ({
+      ...prev,
+      [mainAccountNumber]: {
+        ...prev[mainAccountNumber],
+        [subAccountNumber]: value,
+      },
+    }));
+  };
+
+  const handleRemoveVentilationGroup = (mainAccountNumber: string) => {
+    setPendingVentilations((prev) => {
+      const remaining = prev.filter(
+        (m) => m.config.mainAccountNumber !== mainAccountNumber,
+      );
+      if (remaining.length === 0) {
+        alert("Traitement terminé avec succès!");
+      }
+      return remaining;
+    });
+  };
+
+  const handleApplyAllVentilations = async () => {
+    setVentilationError(null);
+
+    for (const match of pendingVentilations) {
+      const groupAmounts =
+        ventilationAmounts[match.config.mainAccountNumber] || {};
+      const total = match.config.subAccounts.reduce(
+        (sum, sub) => sum + (groupAmounts[sub.accountNumber] || 0),
+        0,
+      );
+      if (Math.abs(total - Math.abs(match.amount)) > 0.01) {
+        setVentilationError(
+          `Le compte ${match.config.mainAccountNumber} doit totaliser ${Math.abs(match.amount).toLocaleString()} (actuellement ${total.toLocaleString()})`,
+        );
+        return;
+      }
+    }
+
+    setIsApplyingVentilation(true);
+    try {
+      for (const match of pendingVentilations) {
+        const groupAmounts =
+          ventilationAmounts[match.config.mainAccountNumber] || {};
+        const allocations = match.config.subAccounts
+          .map((sub) => ({
+            accountNumber: sub.accountNumber,
+            amount: groupAmounts[sub.accountNumber] || 0,
+          }))
+          .filter((a) => a.amount > 0);
+
+        await clientService.applyVentilationSplit(
+          balance.id,
+          match.config.mainAccountNumber,
+          allocations,
+        );
+
+        // Remove this group once applied, so a failure further down the
+        // list doesn't re-submit accounts that already succeeded.
+        setPendingVentilations((prev) =>
+          prev.filter(
+            (m) => m.config.mainAccountNumber !== match.config.mainAccountNumber,
+          ),
+        );
+      }
+
+      if (onRefresh) {
+        await onRefresh();
+      }
+      alert("Traitement terminé avec succès!");
+    } catch (error: any) {
+      setVentilationError(
+        error.message || "Erreur lors de la répartition du compte",
+      );
+    } finally {
+      setIsApplyingVentilation(false);
     }
   };
 
@@ -1432,229 +1706,203 @@ function BalanceDetailView({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <Hash className="h-3 w-3" />
-              Comptes
+      {/* Toolbar: key stats + actions in one consolidated bar */}
+      <Card className="mb-4">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+          {/* Stat strip */}
+          <div className="flex items-center gap-5 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 text-gray-400" />
+              <span className="text-sm text-gray-500">Comptes</span>
+              <span className="font-semibold text-gray-900">
+                {balanceRows.length}
+              </span>
             </div>
-            <p className="text-xl font-semibold">{balanceRows.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <AlertTriangle className="h-3 w-3 text-orange-500" />À problème
+            <div className="h-5 w-px bg-gray-200" />
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <span className="text-sm text-gray-500">À problème</span>
+              <span
+                className={`font-semibold ${
+                  accountsWithIssues.size > 0
+                    ? "text-orange-600"
+                    : "text-gray-900"
+                }`}
+              >
+                {accountsWithIssues.size}
+              </span>
             </div>
-            <p className="text-xl font-semibold text-orange-600">
-              {accountsWithIssues.size}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <LayoutList className="h-3 w-3" />
-              Total Débits
+            <div className="h-5 w-px bg-gray-200" />
+            <div className="flex items-center gap-2">
+              <LayoutList className="h-4 w-4 text-gray-400" />
+              <span className="text-sm text-gray-500">Débits / Crédits</span>
+              <span className="font-semibold text-gray-900">
+                {totals.closingDebit.toLocaleString()} /{" "}
+                {totals.closingCredit.toLocaleString()}
+              </span>
             </div>
-            <p className="text-xl font-semibold">
-              {totals.closingDebit.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <LayoutList className="h-3 w-3" />
-              Total Crédits
-            </div>
-            <p className="text-xl font-semibold">
-              {totals.closingCredit.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card
-          className={
-            isBalanced
-              ? "bg-green-50 border-green-200"
-              : "bg-red-50 border-red-200"
-          }
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Équilibre
-            </div>
-            <p
-              className={`text-xl font-semibold ${isBalanced ? "text-green-600" : "text-red-600"}`}
+            <div className="h-5 w-px bg-gray-200" />
+            <Badge
+              className={
+                isBalanced
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }
             >
-              {isBalanced ? "OK" : "Différé"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="outline" size="sm" onClick={onReimport}>
-          <Upload className="h-4 w-4 mr-1" />
-          Réimporter
-        </Button>
-        <Button size="sm" onClick={handleProcess} disabled={isProcessing}>
-          {isProcessing ? (
-            <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4 mr-1" />
-          )}
-          Ventiler
-        </Button>
-        {/* Show refresh status */}
-        {isRefreshing && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg">
-            <RefreshCw className="h-4 w-4 text-orange-600 animate-spin" />
-            <span className="text-sm text-orange-700">
-              Actualisation des données...
-            </span>
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              {isBalanced ? "Équilibrée" : "Déséquilibrée"}
+            </Badge>
           </div>
-        )}
 
-        {/* Show cache status */}
-        {Object.keys(editCache).length > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <span className="text-sm text-yellow-700">
-              💾 {Object.keys(editCache).length} modification(s) en cache
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Apply all cached changes to staging area
-                const newModifiedRows = { ...modifiedRows };
-                Object.entries(editCache).forEach(([accountNumber, cachedEdits]) => {
-                  const originalRow = balanceRows.find(r => r.accountNumber === accountNumber);
-                  if (originalRow) {
-                    newModifiedRows[accountNumber] = {
-                      ...originalRow,
-                      ...cachedEdits,
-                      accountNumber,
-                      accountName: originalRow.accountName || "",
-                    };
-                  }
-                });
-                setModifiedRows(newModifiedRows);
-                setEditCache({});
-                setHasUnsavedChanges(true);
-              }}
-              className="text-yellow-700 border-yellow-300 hover:bg-yellow-50"
-            >
-              Appliquer tout
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onReimport}>
+              <Upload className="h-4 w-4 mr-1" />
+              Réimporter
             </Button>
-          </div>
-        )}
-
-        {hasUnsavedChanges && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCancelChanges}
-              className="text-orange-700 border-orange-300 hover:bg-orange-50"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Annuler tout
-            </Button>
+            {previousYearBalance && (
+              <Button variant="outline" size="sm" onClick={checkOpeningBalance}>
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Vérifier ouverture N
+              </Button>
+            )}
             <Button
               size="sm"
-              onClick={handleSaveToBackend}
-              disabled={isSaving || Object.keys(modifiedRows).length === 0}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+              onClick={handleProcess}
+              disabled={isProcessing}
+              className="bg-orange-600 hover:bg-orange-700"
             >
-              {isSaving ? (
+              {isProcessing ? (
                 <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
               ) : (
-                <Save className="h-4 w-4 mr-1" />
+                <Play className="h-4 w-4 mr-1" />
               )}
-              Sauvegarder en base ({Object.keys(modifiedRows).length})
+              Ventiler
             </Button>
-          </>
-        )}
-        {previousYearBalance && (
-          <Button variant="outline" size="sm" onClick={checkOpeningBalance}>
-            <CheckCircle2 className="h-4 w-4 mr-1" />
-            Vérifier ouverture N
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 className="h-4 w-4 mr-1 text-red-500" />
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="mb-4">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Rechercher un compte..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-              >
-                <option value="all">Toutes les classes</option>
-                {accountClasses.map((cls) => (
-                  <option key={cls} value={cls}>
-                    Classe {cls}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="h-5 w-px bg-gray-200 mx-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              title="Supprimer la balance"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>
 
+      {/* Contextual status banners */}
+      {(isRefreshing ||
+        Object.keys(editCache).length > 0 ||
+        hasUnsavedChanges) && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {isRefreshing && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 border border-orange-200 rounded-lg">
+              <RefreshCw className="h-4 w-4 text-orange-600 animate-spin" />
+              <span className="text-sm text-orange-700">
+                Actualisation des données...
+              </span>
+            </div>
+          )}
+
+          {Object.keys(editCache).length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <span className="text-sm text-yellow-700">
+                💾 {Object.keys(editCache).length} modification(s) en cache
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Apply all cached changes to staging area
+                  const newModifiedRows = { ...modifiedRows };
+                  Object.entries(editCache).forEach(([accountNumber, cachedEdits]) => {
+                    const originalRow = balanceRows.find(r => r.accountNumber === accountNumber);
+                    if (originalRow) {
+                      newModifiedRows[accountNumber] = {
+                        ...originalRow,
+                        ...cachedEdits,
+                        accountNumber,
+                        accountName: originalRow.accountName || "",
+                      };
+                    }
+                  });
+                  setModifiedRows(newModifiedRows);
+                  setEditCache({});
+                  setHasUnsavedChanges(true);
+                }}
+                className="text-yellow-700 border-yellow-300 hover:bg-yellow-50"
+              >
+                Appliquer tout
+              </Button>
+            </div>
+          )}
+
+          {hasUnsavedChanges && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelChanges}
+                className="text-orange-700 border-orange-300 hover:bg-orange-50"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Annuler tout
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveToBackend}
+                disabled={isSaving || Object.keys(modifiedRows).length === 0}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+              >
+                {isSaving ? (
+                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1" />
+                )}
+                Sauvegarder en base ({Object.keys(modifiedRows).length})
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <Card className="flex-1 overflow-hidden flex flex-col">
-        {/* Table Header with Pagination Info */}
-        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              {totalItems} comptes • Page {currentPage} sur {totalPages}
-            </span>
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Afficher:</label>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(2);
-                }}
-                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
+        {/* Table Toolbar: search, class filter, result count and bulk edit */}
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Rechercher un compte..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 bg-white"
+            />
           </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="h-9 rounded-md border border-input bg-white px-3 py-1 text-sm"
+            >
+              <option value="all">Toutes les classes</option>
+              {accountClasses.map((cls) => (
+                <option key={cls} value={cls}>
+                  Classe {cls}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-sm text-gray-500">
+            {totalItems} compte{totalItems !== 1 ? "s" : ""}
+          </span>
 
           {/* Bulk Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             {bulkEditMode && selectedRows.size > 0 && (
               <div className="flex items-center gap-2">
                 <Button
@@ -1703,7 +1951,7 @@ function BalanceDetailView({
                 setBulkEditMode(!bulkEditMode);
                 setSelectedRows(new Set());
               }}
-              className={bulkEditMode ? "bg-orange-50 border-orange-300" : ""}
+              className={bulkEditMode ? "bg-orange-50 border-orange-300" : "bg-white"}
             >
               {bulkEditMode ? "Annuler sélection" : "Édition multiple"}
             </Button>
@@ -1719,10 +1967,10 @@ function BalanceDetailView({
                   <TableHead className="w-12">
                     <input
                       type="checkbox"
-                      checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                      checked={selectedRows.size === processedData.length && processedData.length > 0}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedRows(new Set(paginatedData.map(row => row.accountNumber)));
+                          setSelectedRows(new Set(processedData.map(row => row.accountNumber)));
                         } else {
                           setSelectedRows(new Set());
                         }
@@ -1803,20 +2051,27 @@ function BalanceDetailView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedData.map((row, idx) => {
+              {processedData.map((row, idx) => {
                 const isEditing = editingAccount === row.accountNumber;
                 const isSelected = selectedRows.has(row.accountNumber);
+                // Zebra-stripe rows with no special status for readability;
+                // status-based highlights take priority over the stripe.
+                const rowBgClass = row.hasIssue
+                  ? "bg-red-50 hover:bg-red-100"
+                  : row.hasModification
+                    ? "bg-blue-50 hover:bg-blue-100"
+                    : row.hasCachedChanges
+                      ? "bg-yellow-50 hover:bg-yellow-100"
+                      : isSelected
+                        ? "bg-orange-100 hover:bg-orange-150"
+                        : idx % 2 === 0
+                          ? "bg-white hover:bg-gray-50"
+                          : "bg-gray-50 hover:bg-gray-100";
 
                 return (
                   <TableRow
                     key={row.accountNumber || idx}
-                    className={`
-                      hover:bg-gray-50 transition-colors
-                      ${row.hasIssue ? "bg-red-50 hover:bg-red-100" : ""}
-                      ${row.hasModification ? "bg-blue-50 hover:bg-blue-100" : ""}
-                      ${row.hasCachedChanges ? "bg-yellow-50 hover:bg-yellow-100" : ""}
-                      ${isSelected ? "bg-orange-100 hover:bg-orange-150" : ""}
-                    `}
+                    className={`transition-colors ${rowBgClass}`}
                   >
                     {bulkEditMode && (
                       <TableCell className="w-12">
@@ -1839,9 +2094,17 @@ function BalanceDetailView({
 
                     {/* Account Number */}
                     <TableCell className="font-mono font-medium">
-                      <div className="flex items-center gap-2">
+                      <div
+                        className={`flex items-center gap-2 ${row.isSubAccount ? "pl-6" : ""}`}
+                      >
+                        {row.isSubAccount && (
+                          <CornerDownRight
+                            className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"
+                            title={`Sous-compte de ${row.mainAccountNumber} - ${row.mainAccountName}`}
+                          />
+                        )}
                         <span className={row.hasIssue ? "text-red-700 font-bold" : "text-gray-900"}>
-                          {row.accountNumber?.replace(/[^0-9]/g, "") || row.accountNumber}
+                          {row.accountNumber}
                         </span>
                         {row.hasIssue && (
                           <span
@@ -2006,7 +2269,7 @@ function BalanceDetailView({
             </TableBody>
           </Table>
 
-          {paginatedData.length === 0 && (
+          {processedData.length === 0 && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -2017,58 +2280,6 @@ function BalanceDetailView({
           )}
         </div>
 
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="h-8 w-8 p-0"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-
-              <span className="text-sm text-gray-600 mx-2">
-                Page {currentPage} sur {totalPages}
-              </span>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="text-sm text-gray-500">
-              {startIndex + 1}-{Math.min(startIndex + pageSize, totalItems)} sur {totalItems} comptes
-            </div>
-          </div>
-        )}
       </Card>
 
       {/* Opening Mismatch Dialog - Custom Overlay */}
@@ -2386,6 +2597,330 @@ function BalanceDetailView({
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ventilation Dialog — Step 1: choose which detected accounts to process now */}
+      <Dialog open={ventilationCandidates.length > 0} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-lg"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Split className="h-5 w-5 text-orange-600" />
+              Comptes à ventiler détectés
+              <Badge variant="secondary" className="ml-1 font-normal">
+                Étape 1 sur 2
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>
+              {ventilationCandidates.length} compte
+              {ventilationCandidates.length !== 1 ? "s" : ""} de cette balance
+              {ventilationCandidates.length !== 1
+                ? " ont une configuration"
+                : " a une configuration"}{" "}
+              de ventilation. Choisissez ceux à répartir maintenant.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2 max-h-[50vh] overflow-y-auto">
+            {ventilationCandidates.map((match) => {
+              const isChecked = selectedVentilationAccounts.has(
+                match.config.mainAccountNumber,
+              );
+              return (
+                <label
+                  key={match.config.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    isChecked
+                      ? "border-orange-300 bg-orange-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() =>
+                      toggleVentilationCandidate(match.config.mainAccountNumber)
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-gray-900">
+                      {match.config.mainAccountNumber} –{" "}
+                      {match.config.mainAccountName}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {match.config.subAccounts.length} sous-compte(s)
+                      préconfigurés
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-700">
+                    {Math.abs(match.amount).toLocaleString()}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="sm:justify-between">
+            <Button variant="ghost" onClick={handleSkipAllVentilation}>
+              Ignorer tout
+            </Button>
+            <Button
+              onClick={handleConfirmVentilationSelection}
+              disabled={selectedVentilationAccounts.size === 0}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Continuer ({selectedVentilationAccounts.size} sélectionné
+              {selectedVentilationAccounts.size !== 1 ? "s" : ""})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ventilation Dialog — Step 2: split each selected account across its sub-accounts */}
+      <Dialog open={pendingVentilations.length > 0} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-6xl w-[95vw] max-h-[88vh] flex flex-col"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Split className="h-5 w-5 text-orange-600" />
+              Répartition des comptes
+              <Badge variant="secondary" className="ml-1 font-normal">
+                Étape 2 sur 2
+              </Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Répartissez le solde de chaque compte entre ses sous-comptes
+              préconfigurés. L'ouverture de chaque sous-compte est reprise de
+              la balance ; la clôture est calculée automatiquement à partir du
+              mouvement saisi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-100">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Compte</TableHead>
+                  <TableHead className="text-right">Débit ouverture</TableHead>
+                  <TableHead className="text-right">Crédit ouverture</TableHead>
+                  <TableHead className="text-right">Débit mouvement</TableHead>
+                  <TableHead className="text-right">Crédit mouvement</TableHead>
+                  <TableHead className="text-right">Débit clôture</TableHead>
+                  <TableHead className="text-right">Crédit clôture</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingVentilations.map((match) => {
+                  const groupAmounts =
+                    ventilationAmounts[match.config.mainAccountNumber] || {};
+                  const groupTotal = match.config.subAccounts.reduce(
+                    (sum, sub) =>
+                      sum + (groupAmounts[sub.accountNumber] || 0),
+                    0,
+                  );
+                  const mainRow = balanceRows.find(
+                    (r) => r.accountNumber === match.config.mainAccountNumber,
+                  );
+                  // The amount entered per sub-account is a movement on
+                  // whichever side carries the main account's balance.
+                  const isDebitSide = match.amount >= 0;
+
+                  return (
+                    <Fragment key={match.config.id}>
+                      <TableRow className="bg-gray-50">
+                        <TableCell>
+                          <div className="font-medium">
+                            {match.config.mainAccountNumber} –{" "}
+                            {match.config.mainAccountName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Solde: {match.amount.toLocaleString()}
+                          </div>
+                        </TableCell>
+                        <TableCell
+                          className={`text-right ${
+                            (mainRow?.openingDebit || 0) > 0
+                              ? "text-gray-900 font-medium"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {(mainRow?.openingDebit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right ${
+                            (mainRow?.openingCredit || 0) > 0
+                              ? "text-gray-900 font-medium"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {(mainRow?.openingCredit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-400">
+                          {(mainRow?.movementDebit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-400">
+                          {(mainRow?.movementCredit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-400">
+                          {(mainRow?.closingDebit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-gray-400">
+                          {(mainRow?.closingCredit || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Ignorer ce compte"
+                            onClick={() =>
+                              handleRemoveVentilationGroup(
+                                match.config.mainAccountNumber,
+                              )
+                            }
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {match.config.subAccounts.map((sub) => {
+                        const amount = groupAmounts[sub.accountNumber] || 0;
+                        const subRow = balanceRows.find(
+                          (r) => r.accountNumber === sub.accountNumber,
+                        );
+                        const openingDebit = subRow?.openingDebit || 0;
+                        const openingCredit = subRow?.openingCredit || 0;
+                        const movementDebit = isDebitSide ? amount : 0;
+                        const movementCredit = isDebitSide ? 0 : amount;
+                        const closingDebit = openingDebit + movementDebit;
+                        const closingCredit = openingCredit + movementCredit;
+
+                        return (
+                          <TableRow key={sub.id}>
+                            <TableCell className="pl-6 text-sm text-gray-600">
+                              {sub.accountNumber} – {sub.accountName}
+                            </TableCell>
+                            <TableCell
+                              className={`text-right bg-gray-50 ${
+                                openingDebit > 0
+                                  ? "text-gray-900 font-medium"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {openingDebit.toLocaleString()}
+                            </TableCell>
+                            <TableCell
+                              className={`text-right bg-gray-50 ${
+                                openingCredit > 0
+                                  ? "text-gray-900 font-medium"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {openingCredit.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isDebitSide ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  value={amount}
+                                  onChange={(e) =>
+                                    handleVentilationAmountChange(
+                                      match.config.mainAccountNumber,
+                                      sub.accountNumber,
+                                      parseFloat(e.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-8 w-24 text-right"
+                                />
+                              ) : (
+                                <span className="text-gray-400">0</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isDebitSide ? (
+                                <span className="text-gray-400">0</span>
+                              ) : (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  value={amount}
+                                  onChange={(e) =>
+                                    handleVentilationAmountChange(
+                                      match.config.mainAccountNumber,
+                                      sub.accountNumber,
+                                      parseFloat(e.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-8 w-24 text-right"
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-gray-500 bg-gray-50">
+                              {closingDebit.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right text-gray-500 bg-gray-50">
+                              {closingCredit.toLocaleString()}
+                            </TableCell>
+                            <TableCell></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow>
+                        <TableCell className="pl-6 text-xs text-gray-500">
+                          Total ventilé
+                        </TableCell>
+                        <TableCell colSpan={2} />
+                        <TableCell
+                          colSpan={2}
+                          className={`text-right text-xs ${
+                            Math.abs(groupTotal - Math.abs(match.amount)) < 0.01
+                              ? "text-green-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          {groupTotal.toLocaleString()} /{" "}
+                          {Math.abs(match.amount).toLocaleString()}
+                        </TableCell>
+                        <TableCell colSpan={3} />
+                      </TableRow>
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {ventilationError && (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {ventilationError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              onClick={handleApplyAllVentilations}
+              disabled={isApplyingVentilation || pendingVentilations.length === 0}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isApplyingVentilation ? (
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+              )}
+              {isApplyingVentilation
+                ? "Application..."
+                : "Confirmer les répartitions"}
             </Button>
           </DialogFooter>
         </DialogContent>

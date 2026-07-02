@@ -34,5 +34,10 @@ router.delete(
   validate(ventilationConfigIdSchema),
   ventilationConfigController.deleteConfig
 );
+router.post(
+  "/:id/restore",
+  validate(ventilationConfigIdSchema),
+  ventilationConfigController.restoreConfig
+);
 
 export default router;

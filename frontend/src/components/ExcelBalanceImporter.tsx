@@ -59,7 +59,8 @@ export function ExcelBalanceImporter({
   onComplete,
 }: ExcelBalanceImporterProps = {}) {
   const navigate = useNavigate();
-  const { userId, actionId } = useParams();
+  const { userId, actionId, lang } = useParams();
+  const langPrefix = lang === "en" ? "en" : "fr";
   const {
     addToHistory,
     setBalanceImported,
@@ -111,7 +112,7 @@ export function ExcelBalanceImporter({
     ) {
       console.log("Both balances available, auto-navigating to traitement");
       setBalanceProcessed(true);
-      navigate(`/web/user/traitement/${userId}/traitement`);
+      navigate(`/${langPrefix}/web/user/traitement/${userId}/traitement`);
     }
   }, [storedBalances, balanceProcessed, navigate, userId]);
 
@@ -301,42 +302,9 @@ export function ExcelBalanceImporter({
         return;
       }
 
-      // Determine the correct folder for the balance type
-      let targetFolderId = selectedFolder.id;
-
-      if (type === "previous") {
-        // For previous balance, we need to find or create the previous year's folder
-        const previousYear = selectedFolder.fiscalYear - 1;
-
-        // First try to find existing folder for previous year
-        const allFolders = await folderService.getFoldersByClient(
-          selectedFolder.clientId,
-        );
-        const previousFolder = allFolders.find(
-          (f) => f.fiscalYear === previousYear,
-        );
-
-        if (previousFolder) {
-          targetFolderId = previousFolder.id;
-          console.log(
-            "Using existing previous year folder:",
-            previousFolder.id,
-          );
-        } else {
-          // Create the previous year folder
-          console.log("Creating previous year folder for year:", previousYear);
-          const previousFolderData = await folderService.createFolder({
-            name: `Exercice ${previousYear}`,
-            description: `Dossier automatique pour balance précédente ${previousYear}`,
-            clientId: selectedFolder.clientId,
-            fiscalYear: previousYear,
-            startDate: `${previousYear}-01-01`,
-            endDate: `${previousYear}-12-31`,
-          });
-          targetFolderId = previousFolderData.id;
-          console.log("Created previous year folder:", previousFolderData.id);
-        }
-      }
+      // Always upload to the current folder. For "previous" type, the backend
+      // will auto-sync data from the previous year's N balance if available.
+      const targetFolderId = selectedFolder.id;
 
       // Create FormData for file upload
       const formData = new FormData();
@@ -398,7 +366,7 @@ export function ExcelBalanceImporter({
     if (storedBalances.current && storedBalances.previous) {
       setBalanceProcessed(true);
       // Navigation avec ID d'action personnalisé
-      navigate(`/web/user/traitement/${userId}/traitement`);
+      navigate(`/${langPrefix}/web/user/traitement/${userId}/traitement`);
     } else {
       alert(
         "Les deux balances (courante et précédente) doivent être importées avant de commencer le traitement.",

@@ -224,13 +224,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Show loading state while checking
   if (isCheckingDSF) {
     return (
-      <div className="fixed inset-0 bg-gray-50 z-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 text-orange-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">
-            Vérification des données DSF existantes...
-          </p>
-        </div>
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-7 w-7 text-primary animate-spin mr-3" />
+        <p className="text-sm text-muted-foreground">
+          Vérification des données DSF existantes...
+        </p>
       </div>
     );
   }
@@ -319,101 +317,90 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   if (showAllReportsGrid) {
     return (
       <>
-        <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
-          <div className="min-h-screen">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-              <div className="max-w-7xl mx-auto px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold text-black">
-                      Tous les Rapports Disponibles
-                    </h1>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Sélectionnez un rapport pour le visualiser ou commencer à
-                      le remplir
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={onNewUpload}
-                      className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Importer DSF
-                    </button>
-                    <button
-                      onClick={() => setShowAllReportsGrid(false)}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Retour
-                    </button>
-                  </div>
-                </div>
-              </div>
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                Tous les Rapports Disponibles
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Sélectionnez un rapport pour le visualiser ou commencer à le remplir
+              </p>
             </div>
-
-            {/* All Reports Grid */}
-            <div className="max-w-7xl mx-auto px-6 py-6">
-              <AllReportsGrid
-                folderId={folderId}
-                onViewReport={(name, Component) => {
-                  // Find the report route from ALL_REPORTS
-                  const report = ALL_REPORTS.find((r) => r.name === name);
-                  const route =
-                    report?.route?.replace("rapport/", "") ||
-                    name.toLowerCase().replace(" ", "");
-
-                  // Open notes in a new tab instead of modal
-                  const newTabReports = [
-                    "NOTE 1",
-                    "NOTE 2",
-                    "NOTE 3A",
-                    "NOTE 3B",
-                    "NOTE 3C",
-                    "NOTE 3D",
-                    "NOTE 3F",
-                    "ASS 1",
-                    "ASS 2",
-                    "TVA",
-                  ];
-                  if (newTabReports.includes(name)) {
-                    const userId = user?.id || "current";
-                    window.open(
-                      `/reports/${userId}/reports/rapport/${route}?folderId=${folderId || ""}`,
-                      "_blank",
-                    );
-                  } else {
-                    setSelectedManualReport({ name, component: Component });
-                  }
-                }}
-              />
+            <div className="flex gap-2">
+              <button
+                onClick={onNewUpload}
+                className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Importer DSF
+              </button>
+              <button
+                onClick={() => setShowAllReportsGrid(false)}
+                className="inline-flex items-center px-3 py-1.5 text-sm border border-border bg-white text-foreground rounded-md hover:bg-muted/50 transition-colors"
+              >
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                Retour
+              </button>
             </div>
           </div>
+
+          {/* All Reports Grid */}
+          <AllReportsGrid
+            folderId={folderId}
+            onViewReport={(name, Component) => {
+              const report = ALL_REPORTS.find((r) => r.name === name);
+              const route =
+                report?.route?.replace("rapport/", "") ||
+                name.toLowerCase().replace(" ", "");
+
+              const newTabReports = [
+                "NOTE 1",
+                "NOTE 2",
+                "NOTE 3A",
+                "NOTE 3B",
+                "NOTE 3C",
+                "NOTE 3D",
+                "NOTE 3F",
+                "ASS 1",
+                "ASS 2",
+                "TVA",
+              ];
+              if (newTabReports.includes(name)) {
+                const userId = user?.id || "current";
+                window.open(
+                  `/reports/${userId}/reports/rapport/${route}?folderId=${folderId || ""}`,
+                  "_blank",
+                );
+              } else {
+                setSelectedManualReport({ name, component: Component });
+              }
+            }}
+          />
         </div>
 
         {/* Preview Modal for Manual Reports */}
         {selectedManualReport && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
-              <div className="p-6 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-md shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+              <div className="px-5 py-4 border-b flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold text-black">
+                  <h2 className="text-base font-semibold text-foreground">
                     {selectedManualReport.name}
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Prévisualisation du rapport
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedManualReport(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-muted rounded transition-colors"
                 >
-                  <X className="h-5 w-5 text-gray-500" />
+                  <X className="h-4 w-4 text-muted-foreground" />
                 </button>
               </div>
-              <div className="overflow-y-auto flex-1 p-6">
+              <div className="overflow-y-auto flex-1 p-5">
                 <selectedManualReport.component folderId={folderId} />
               </div>
             </div>
@@ -425,150 +412,104 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
-        <div className="min-h-screen">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-            <div className="max-w-6xl mx-auto px-4 py-3">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h1 className="text-xl font-bold text-black">
-                    Notes DSF
-                  </h1>
-                  <p className="text-sm text-gray-600">
-                    {successCount} sur {allReports.length} rapports disponibles
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors cursor-pointer text-sm">
-                    {isUploadingTemplate ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <UploadCloud className="h-4 w-4 mr-1" />
-                    )}
-                    Template
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleTemplateUpload}
-                      disabled={isUploadingTemplate}
-                      className="hidden"
-                    />
-                  </label>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Notes DSF</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {successCount} sur {allReports.length} rapports disponibles
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label className="inline-flex items-center px-3 py-1.5 text-sm bg-white border border-border text-foreground rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
+              {isUploadingTemplate ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <UploadCloud className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Template
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleTemplateUpload}
+                disabled={isUploadingTemplate}
+                className="hidden"
+              />
+            </label>
 
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={isExporting}
-                    className="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 text-sm"
-                  >
-                    {isExporting ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <FileSpreadsheet className="h-4 w-4 mr-1" />
-                    )}
-                    Export
-                  </button>
+            <button
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isExporting ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Exporter
+            </button>
 
-                  <button
-                    onClick={handleDeleteDSF}
-                    disabled={isDeleting}
-                    className=" inline-flex items-center px-3 py-2 bg-orange-600 text-black rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 mr-1" />
-                    )}
-                    Supprimer
-                  </button>
+            <button
+              onClick={handleDeleteDSF}
+              disabled={isDeleting}
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-white border border-border text-red-600 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Supprimer
+            </button>
 
-                  <button
-                    onClick={onClose}
-                    className="p-2 hover:bg-gray-100 rounded-lg"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-muted/50 rounded transition-colors border border-border"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="bg-white rounded-md border border-border overflow-hidden">
+          <div className="p-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-1.5">
+              {paginatedReports.map((report, idx) => (
+                <ReportCard
+                  key={idx}
+                  report={report}
+                  onView={() => handleViewReport(report)}
+                />
+              ))}
             </div>
 
-            {/* Content
-            <div className="max-w-6xl mx-auto px-4 py-8">
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div>
-                  <div className="text-xl font-bold text-green-600">
-                    {successCount}
-                  </div>
-                  <div className="text-xs text-gray-600">Réussis</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-red-600">
-                    {extractionResults.length - successCount}
-                  </div>
-                  <div className="text-xs text-gray-600">Échecs</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold text-orange-600">
-                    {extractionResults.length > 0
-                      ? Math.round(
-                          (successCount / extractionResults.length) * 100,
-                        )
-                      : 0}
-                    %
-                  </div>
-                  <div className="text-xs text-gray-600">Taux</div>
-                </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-border rounded text-sm hover:bg-muted/50 disabled:opacity-40"
+                >
+                  Précédent
+                </button>
+
+                <span className="text-xs text-muted-foreground">
+                  {startIndex + 1}–{Math.min(startIndex + itemsPerPage, allReports.length)} / {allReports.length}
+                </span>
+
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-border rounded text-sm hover:bg-muted/50 disabled:opacity-40"
+                >
+                  Suivant
+                </button>
               </div>
-            </div> */}
-
-            {/* Grid */}
-            <div className="bg-white rounded-lg border border-gray-300 overflow-hidden">
-              <div className="p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
-                  {paginatedReports.map((report, idx) => (
-                    <ReportCard
-                      key={idx}
-                      report={report}
-                      onView={() => handleViewReport(report)}
-                    />
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between">
-                    <button
-                      onClick={() =>
-                        setCurrentPage(Math.max(1, currentPage - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Précédent
-                    </button>
-
-                    <span className="text-sm text-gray-600">
-                      {startIndex + 1}-
-                      {Math.min(
-                        startIndex + itemsPerPage,
-                        extractionResults.length,
-                      )}{" "}
-                      / {extractionResults.length}
-                    </span>
-
-                    <button
-                      onClick={() =>
-                        setCurrentPage(Math.min(totalPages, currentPage + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Suivant
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -596,36 +537,18 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onView }) => {
 
   return (
     <div
-      className={`bg-gray-100 border border-gray-300 rounded-lg p-3 cursor-pointer hover:bg-orange-50 hover:border-orange-300 transition-all duration-200 ${
-        !report.success ? "opacity-75" : ""
+      className={`bg-secondary border border-border rounded p-2.5 cursor-pointer hover:bg-orange-50 hover:border-primary/40 transition-all duration-150 ${
+        !report.success ? "opacity-60" : ""
       }`}
       onClick={onView}
     >
-      <div className="flex flex-col items-center text-center">
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-            report.success
-              ? isAdditional
-                ? "bg-blue-200 text-blue-700"
-                : "bg-green-200 text-green-700"
-              : "bg-red-200 text-red-700"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-        </div>
-        <div className="text-xs font-medium text-gray-800 leading-tight">
+      <div className="flex flex-col items-center text-center gap-1.5">
+        <FileText className="h-4 w-4 text-muted-foreground" />
+        <div className="text-[11px] font-medium text-foreground leading-tight">
           {displayName}
         </div>
-        <div
-          className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
-            report.success
-              ? isAdditional
-                ? "bg-blue-100 text-blue-700"
-                : "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
-          }`}
-        >
-          {report.success ? (isAdditional ? "●" : "✓") : "✗"}
+        <div className="text-[10px] text-muted-foreground">
+          {report.success ? "✓" : "✗"}
         </div>
       </div>
     </div>

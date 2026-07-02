@@ -75,7 +75,7 @@ class ClientService {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          window.location.href = "/web/user/login";
+          window.location.href = "/fr/web/user/login";
         }
         return Promise.reject(error);
       }
@@ -307,6 +307,31 @@ class ClientService {
     }
   }
 
+  async applyVentilationSplit(
+    balanceId: string,
+    mainAccountNumber: string,
+    allocations: Array<{ accountNumber: string; amount: number }>
+  ): Promise<any> {
+    try {
+      const response = await this.api.post(
+        `/balances/${balanceId}/apply-ventilation`,
+        { mainAccountNumber, allocations }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error applying ventilation split:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de la répartition du compte");
+    }
+  }
+
   async getBalanceIssues(balanceId: string): Promise<any> {
     try {
       const response = await this.api.get(`/balances/${balanceId}/issues`);
@@ -352,6 +377,24 @@ class ClientService {
       }
 
       throw new Error("Erreur lors de la suppression de la balance");
+    }
+  }
+
+  async archiveBalance(balanceId: string): Promise<any> {
+    try {
+      const response = await this.api.patch(`/balances/${balanceId}/archive`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error archiving balance:", error);
+
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      throw new Error("Erreur lors de l'archivage de la balance");
     }
   }
 

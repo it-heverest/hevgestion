@@ -3,6 +3,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { ResponseBuilder } from "../utils/response-builder";
 import { notesService } from "../services/notes.service";
+import { auditService } from "../services/audit.service";
 
 const VALID_NOTE_NUMBERS = [
   "1", "2", "3A", "3B", "3C", "3D", "3E", "3F",
@@ -61,6 +62,13 @@ export class NotesController {
       }
 
       console.log(`✅ NOTE ${noteNumber} saved successfully`);
+
+      await auditService.logUserAction(
+        req.user!.userId,
+        "NOTE_SAVED",
+        `Enregistrement de la note ${noteNumber ?? ""}`,
+        { folderId, noteNumber },
+      );
 
       return ResponseBuilder.success(
         res,
@@ -161,6 +169,13 @@ export class NotesController {
 
       // TODO: Implement delete logic in notesService
       console.log(`✅ NOTE ${noteNumber} deleted successfully`);
+
+      await auditService.logUserAction(
+        req.user!.userId,
+        "NOTE_DELETED",
+        "Suppression d'une note",
+        { folderId, noteNumber },
+      );
 
       return ResponseBuilder.success(
         res,
@@ -302,6 +317,13 @@ export class NotesController {
       if (!success) {
         return ResponseBuilder.error(res, "No DSF data found for this folder", 404);
       }
+
+      await auditService.logUserAction(
+        req.user!.userId,
+        "NOTES_DELETED_ALL",
+        "Suppression de toutes les notes du dossier",
+        { folderId },
+      );
 
       return ResponseBuilder.success(
         res,

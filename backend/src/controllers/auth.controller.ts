@@ -193,6 +193,14 @@ class AuthController {
         console.error("Error creating notifications:", notifError);
       }
 
+      await auditService.logUserCreated(user.id, {
+        firstName,
+        lastName,
+        email: email ?? null,
+        phoneNumber: phoneNumber ?? null,
+        role: userRole,
+      });
+
       const message = email
         ? "Un code de vérification a été envoyé à votre adresse email"
         : "Un code de vérification a été envoyé par SMS";
@@ -349,6 +357,13 @@ class AuthController {
       });
 
       setAuthCookies(res, accessToken, refreshToken);
+
+      await auditService.logUserUpdated(
+        verifiedUser.id,
+        "Compte activé via vérification OTP",
+        { isActive: false, isVerified: false },
+        { isActive: true, isVerified: true }
+      );
 
       res.json({
         message: "OTP verified successfully. Registration complete.",
@@ -609,6 +624,8 @@ class AuthController {
         data: { password: hashedPassword },
       });
 
+      await auditService.logUserUpdated(userId, "Réinitialisation du mot de passe via email", undefined, undefined, { email: user.email });
+
       console.log(`Password reset successfully for user ${userId} (${user.email})`);
 
       res.json({ message: "Mot de passe réinitialisé avec succès" });
@@ -726,6 +743,8 @@ class AuthController {
         }
       }
 
+      const oldUser = await prisma.user.findUnique({ where: { id: req.user.userId }, select: { firstName: true, lastName: true, email: true, phoneCountryCode: true, phoneNumber: true } });
+
       const updatedUser = await prisma.user.update({
         where: { id: req.user.userId },
         data: {
@@ -736,6 +755,13 @@ class AuthController {
           ...(phoneNumber !== undefined && { phoneNumber }),
         },
       });
+
+      await auditService.logUserUpdated(
+        req.user.userId,
+        "Mise à jour du profil utilisateur",
+        oldUser,
+        { firstName: updatedUser.firstName, lastName: updatedUser.lastName, email: updatedUser.email, phoneNumber: updatedUser.phoneNumber }
+      );
 
       res.json({ success: true, user: formatUser(updatedUser) });
     } catch (error) {
@@ -785,6 +811,8 @@ class AuthController {
         where: { id: req.user.userId },
         data: { password: hashed },
       });
+
+      await auditService.logUserUpdated(req.user.userId, "Changement de mot de passe par l'utilisateur");
 
       res.json({ success: true, message: "Mot de passe changé avec succès" });
     } catch (error) {
