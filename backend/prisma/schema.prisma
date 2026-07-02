@@ -136,6 +136,9 @@ model Folder {
   // DSF Configurations
   dsfComptableConfigs DSFComptableConfig[]
 
+  // Ventilation configurations scoped to this exercise
+  ventilationConfigs VentilationConfig[]
+
   // Sharing
   assignments FolderAssignment[]
 
@@ -196,8 +199,29 @@ model Balance {
   importedAt  DateTime? @default(now())
   processedAt DateTime?
 
+  ventilationLogs VentilationLog[]
+
   @@index([folderId, archived])
   @@map("balances")
+}
+
+model VentilationLog {
+  id                String    @id @default(uuid())
+  balanceId         String
+  balance           Balance   @relation(fields: [balanceId], references: [id], onDelete: Cascade)
+  mainAccountNumber String
+  mainAccountName   String
+  // Rows replaced by ventilation (main account + any pre-existing sub-account rows)
+  replacedRows      Json
+  // New sub-account rows created by ventilation
+  newRows           Json
+  appliedAt         DateTime  @default(now())
+  appliedBy         String
+  reverted          Boolean   @default(false)
+  revertedAt        DateTime?
+
+  @@index([balanceId])
+  @@map("ventilation_logs")
 }
 
 model BalanceEquilibrium {
@@ -259,9 +283,12 @@ model FixedAsset {
 // Lets an accountant preconfigure, per client, the list of sub-accounts used
 // to dispatch the balance of a main account (e.g. 411000 -> named clients).
 model VentilationConfig {
-  id     String @id @default(uuid())
+  id       String @id @default(uuid())
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
   mainAccountNumber String
   mainAccountName   String
@@ -278,8 +305,9 @@ model VentilationConfig {
   archived   Boolean   @default(false)
   archivedAt DateTime?
 
-  @@unique([clientId, mainAccountNumber])
+  @@unique([clientId, folderId, mainAccountNumber])
   @@index([clientId])
+  @@index([folderId])
   @@map("ventilation_configs")
 }
 

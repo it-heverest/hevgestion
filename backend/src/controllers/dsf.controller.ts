@@ -491,11 +491,38 @@ class DSFController {
                 dsfData.informations_generales = sanitizeForDB(report.data);
                 break;
               case "NOTES":
-                // Handle notes - this might contain multiple note types
+                // Handle notes - generator uses camelCase keys, schema uses snake_case.
+                // Map known variants and skip keys that have no schema field.
                 if (report.data && typeof report.data === "object") {
+                  const NOTE_KEY_MAP: Record<string, string> = {
+                    note3A: "note3a", note3B: "note3b", note3C: "note3c",
+                    c1Note3C: "note3c_co1",
+                    note3D: "note3d", note3E: "note3e", note3F: "note3f",
+                    note15A: "note15a", note15B: "note15b",
+                    note16A: "note16a", note16B: "note16b",
+                    note16BBis: "note16b_bis", note16C: "note16c",
+                    c1Note17: "note17_c1",
+                    note27A: "note27a", note27B: "note27b",
+                    c1Note25: "note25_c1", c2Note25: "note25_c2",
+                    c1Note28: "note28_c1", c2Note28: "note28_c2",
+                  };
+                  // Allowed DB field names (all JSON? fields on the DSF model)
+                  const VALID_DSF_NOTE_FIELDS = new Set([
+                    "note1","note2","note3a","note3b","note3c","note3c_co1",
+                    "note3d","note3e","note3f","note4","note5","note6","note7",
+                    "note8","note9","note10","note11","note12","note13","note14",
+                    "note15a","note15b","note16a","note16b","note16b_bis","note16c",
+                    "note17","note17_c1","note18","note19","note20","note21",
+                    "note22","note23","note24","note25","note25_c1","note25_c2",
+                    "note26","note27a","note27b","note28","note28_c1","note28_c2",
+                    "note29","note30","note31","note32","note33","note34","note35",
+                    "cf1","cf1_bis","cf1_ter","cf1_quater","cf2","cf2_bis","cf2_ter",
+                  ]);
                   Object.entries(report.data).forEach(([noteKey, noteData]) => {
-                    if (noteData) {
-                      dsfData[noteKey] = sanitizeForDB(noteData);
+                    if (!noteData) return;
+                    const dbKey = NOTE_KEY_MAP[noteKey] ?? noteKey;
+                    if (VALID_DSF_NOTE_FIELDS.has(dbKey)) {
+                      dsfData[dbKey] = sanitizeForDB(noteData);
                     }
                   });
                 }

@@ -9,6 +9,10 @@ import {
   Upload,
   Plus,
   Copy,
+  MoreHorizontal,
+  Archive,
+  ArchiveRestore,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -17,6 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useState, useMemo } from "react";
@@ -35,6 +45,7 @@ import { useExerciseManager, Folder } from "../hooks/useExerciseManager";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useTranslation } from "../hooks/useTranslation";
+import { folderService } from "../services/folder.service";
 
 export function ExerciseSelector() {
   const navigate = useNavigate();
@@ -67,6 +78,9 @@ export function ExerciseSelector() {
     confirmToggleStatus,
     setShowToggleDialog,
     handleDuplicate,
+    handleArchiveFolder,
+    handleRestoreFolder,
+    handleDeleteFolder,
     setShowDuplicateDialog,
     setFolderToDuplicate,
     setDuplicateForm,
@@ -76,6 +90,34 @@ export function ExerciseSelector() {
     isLatestFolder,
     loading,
   } = useExerciseManager();
+
+  const [folderToDelete, setFolderToDelete] = useState<Folder | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (folder: Folder) => {
+    setFolderToDelete(folder);
+    setDeleteError(null);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!folderToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await handleDeleteFolder(folderToDelete);
+      setShowDeleteDialog(false);
+      setFolderToDelete(null);
+    } catch (error: any) {
+      setDeleteError(
+        error?.message || "Erreur lors de la suppression de l'exercice"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const sortedFolders = useMemo(() => {
     return [...allFolders].sort((a, b) => b.fiscalYear - a.fiscalYear);
@@ -189,20 +231,13 @@ export function ExerciseSelector() {
 
     setIsCreating(true);
     try {
-      const startDate = `${duplicateForm.fiscalYear}-01-01`;
-      const endDate = `${duplicateForm.fiscalYear}-12-31`;
-
-      const duplicatedFolder = await createFolder({
-        name: `Exercice ${duplicateForm.fiscalYear}`,
-        description: `Duplication de l'exercice ${folderToDuplicate.fiscalYear}`,
-        clientId: selectedClient.id,
-        fiscalYear: duplicateForm.fiscalYear,
-        startDate,
-        endDate,
-      });
+      const clonedFolder = await folderService.cloneFolder(
+        folderToDuplicate.id,
+        duplicateForm.fiscalYear,
+      );
 
       await reloadFolders();
-      setSelectedFolder(duplicatedFolder);
+      setSelectedFolder(clonedFolder);
 
       const uid = user?.id || "me";
       navigate(`/${langPrefix}/web/user/import/${uid}/import`);
@@ -210,7 +245,7 @@ export function ExerciseSelector() {
       setShowDuplicateDialog(false);
       setFolderToDuplicate(null);
     } catch (error: any) {
-      alert(error.message || "Erreur lors de la duplication de l'exercice");
+      alert(error.message || "Erreur lors du clonage de l'exercice");
     } finally {
       setIsCreating(false);
     }
@@ -305,6 +340,9 @@ export function ExerciseSelector() {
                   onToggleActive={handleToggleActive}
                   onToggleStatus={handleCloseButtonClick}
                   onDuplicate={handleDuplicateClick}
+                  onArchive={handleArchiveFolder}
+                  onRestore={handleRestoreFolder}
+                  onDelete={handleDeleteClick}
                 />
               ))}
             </tbody>
@@ -494,10 +532,10 @@ export function ExerciseSelector() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Dupliquer l'exercice {folderToDuplicate?.fiscalYear}
+              Cloner l'exercice {folderToDuplicate?.fiscalYear}
             </DialogTitle>
             <DialogDescription>
-              Choisissez l'année pour la duplication de cet exercice
+              Toutes les données seront copiées (balance, ventilation, DSF). Si un exercice existe déjà pour l'année choisie, il sera archivé.
             </DialogDescription>
           </DialogHeader>
 
@@ -541,11 +579,56 @@ export function ExerciseSelector() {
               onClick={handleDuplicateConfirm}
               disabled={isCreating}
             >
-              {isCreating ? "Duplication..." : "Dupliquer"}
+              {isCreating ? "Clonage..." : "Cloner"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Supprimer l'exercice {folderToDelete?.fiscalYear}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Cette action est irréversible. L'exercice ne peut être
+                  supprimé que s'il ne contient aucune balance, DSF ou
+                  déclaration.
+                </p>
+                {deleteError && (
+                  <p className="text-red-600 text-sm font-medium">
+                    {deleteError}
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setFolderToDelete(null);
+                setDeleteError(null);
+              }}
+            >
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -560,6 +643,9 @@ interface FolderRowProps {
   onToggleActive: (folder: Folder) => void;
   onToggleStatus: (folder: Folder, e: React.MouseEvent) => void;
   onDuplicate: (folder: Folder) => void;
+  onArchive: (folder: Folder) => void;
+  onRestore: (folder: Folder) => void;
+  onDelete: (folder: Folder) => void;
 }
 
 function FolderRow({
@@ -572,8 +658,12 @@ function FolderRow({
   onToggleActive,
   onToggleStatus,
   onDuplicate,
+  onArchive,
+  onRestore,
+  onDelete,
 }: FolderRowProps) {
   const isClosed = folder.status !== "DRAFT";
+  const isArchived = folder.status === "COMPLETED" && !isActive;
 
   return (
     <tr
@@ -621,13 +711,6 @@ function FolderRow({
             {isSelected ? "Sélectionné" : "Sélectionner"}
           </button>
           <button
-            onClick={() => onDuplicate(folder)}
-            title="Dupliquer l'exercice"
-            className="p-1.5 text-gray-400 hover:text-gray-700 rounded hover:bg-gray-100 transition-colors"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
-          <button
             onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
               onToggleStatus(folder, e)
             }
@@ -641,6 +724,40 @@ function FolderRow({
           >
             {isClosed ? "Réouvrir" : "Clôturer"}
           </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                title="Plus d'actions"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded hover:bg-gray-100 transition-colors"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onDuplicate(folder)}>
+                <Copy className="h-3.5 w-3.5" />
+                Cloner
+              </DropdownMenuItem>
+              {isArchived ? (
+                <DropdownMenuItem onClick={() => onRestore(folder)}>
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                  Restaurer
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onArchive(folder)}>
+                  <Archive className="h-3.5 w-3.5" />
+                  Archiver
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDelete(folder)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {!isClosed && !canClose && (
           <p className="text-xs text-gray-400 text-right mt-1">

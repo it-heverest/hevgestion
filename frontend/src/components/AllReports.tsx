@@ -37,8 +37,9 @@ type MainStep =
   | "error";
 
 interface BalanceStatus {
-  hasCurrentYear: boolean; // Balance N
-  hasPreviousYear: boolean; // Balance N-1
+  hasCurrentYear: boolean;       // Balance N exists AND is processed
+  hasPreviousYear: boolean;      // Balance N-1 exists
+  currentYearIsPending?: boolean; // Balance N exists but not yet ventilated
 }
 
 interface AllReportsProps {
@@ -246,16 +247,25 @@ export const AllReports: React.FC<AllReportsProps> = ({
         const balancesResponse = await getBalancesByFolder(folderId);
 
         // Derive hasCurrentYear / hasPreviousYear.
-        // The API may return an array or { current, previous } object.
-        // We also fall back to AppContext's currentFolder / previousFolder
-        // which are already computed based on folder status + fiscalYear.
+        // hasCurrentYear is only true when a CURRENT_YEAR balance has been
+        // ventilated (PROCESSED / UPDATED / INVALID) — matching the backend
+        // guard in generateDSF. A PENDING balance exists but blocks generation.
         let hasCurrentYear = false;
         let hasPreviousYear = false;
+        let currentYearIsPending = false;
+        const READY_STATUSES = ["PROCESSED", "UPDATED", "INVALID"];
 
         if (Array.isArray(balancesResponse)) {
           const currentFY = currentFolder?.fiscalYear;
           const previousFY = previousFolder?.fiscalYear;
           hasCurrentYear = balancesResponse.some(
+            (b: any) =>
+              (b.fiscalYear === currentFY ||
+               b.year === currentFY ||
+               b.type === "N" ||
+               b.period === "current") && READY_STATUSES.includes(b.status),
+          );
+          currentYearIsPending = !hasCurrentYear && balancesResponse.some(
             (b: any) =>
               b.fiscalYear === currentFY ||
               b.year === currentFY ||
@@ -271,21 +281,21 @@ export const AllReports: React.FC<AllReportsProps> = ({
           );
         } else if (balancesResponse && typeof balancesResponse === "object") {
           if (balancesResponse.balances) {
-            hasCurrentYear = balancesResponse.balances.some((b: any) => b.type === "CURRENT_YEAR");
-            hasPreviousYear = balancesResponse.balances.some((b: any) => b.type === "PREVIOUS_YEAR");
+            const currentBalances = balancesResponse.balances.filter(
+              (b: any) => b.type === "CURRENT_YEAR" && !b.archived,
+            );
+            hasCurrentYear = currentBalances.some((b: any) => READY_STATUSES.includes(b.status));
+            currentYearIsPending = !hasCurrentYear && currentBalances.length > 0;
+            hasPreviousYear = balancesResponse.balances.some(
+              (b: any) => b.type === "PREVIOUS_YEAR" && !b.archived,
+            );
           } else {
             hasCurrentYear = !!balancesResponse.current;
             hasPreviousYear = !!balancesResponse.previous;
           }
         }
 
-        // Authoritative fallback: use AppContext's pre-computed folders
-        if (!hasCurrentYear && !hasPreviousYear) {
-          hasCurrentYear = !!currentFolder;
-          hasPreviousYear = !!previousFolder;
-        }
-
-        setBalanceStatus({ hasCurrentYear, hasPreviousYear });
+        setBalanceStatus({ hasCurrentYear, hasPreviousYear, currentYearIsPending });
       } catch {
         // Fallback entirely to context-derived state
         setBalanceStatus({
@@ -437,7 +447,9 @@ export const AllReports: React.FC<AllReportsProps> = ({
 
   const generateDisabledReason = balanceStatus
     ? !balanceStatus.hasCurrentYear
-      ? "Balance N (exercice en cours) manquante."
+      ? balanceStatus.currentYearIsPending
+        ? "Balance N importée mais pas encore ventilée. Traitez-la d'abord dans l'onglet Balance."
+        : "Balance N (exercice en cours) manquante."
       : undefined
     : "Impossible de vérifier les balances.";
 

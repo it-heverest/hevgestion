@@ -80,6 +80,16 @@ router.post(
   authenticate,
   balanceController.applyVentilation.bind(balanceController),
 );
+router.get(
+  "/:id/ventilation-logs",
+  authenticate,
+  balanceController.getVentilationLogs.bind(balanceController),
+);
+router.post(
+  "/:id/revert-ventilation/:logId",
+  authenticate,
+  balanceController.revertVentilation.bind(balanceController),
+);
 router.post(
   "/:id/ventilation",
   authenticate,

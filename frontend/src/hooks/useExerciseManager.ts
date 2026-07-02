@@ -40,6 +40,9 @@ export function useExerciseManager() {
     updateFolderStatus,
     createFolder,
     duplicateFolder,
+    archiveFolder: archiveFolderService,
+    restoreFolder: restoreFolderService,
+    deleteFolder: deleteFolderService,
     addToHistory,
     refreshFolders,
 
@@ -132,6 +135,82 @@ export function useExerciseManager() {
     });
     setShowDuplicateDialog(true);
   }, []);
+
+  // Archive an exercise (soft-archive: isActive=false, status=COMPLETED)
+  const handleArchiveFolder = useCallback(
+    async (folder: Folder) => {
+      try {
+        setLocalLoading(true);
+        setLocalError(null);
+        await archiveFolderService(folder.id);
+        await refreshFolders();
+        if (selectedFolder?.id === folder.id) {
+          setSelectedFolder(null as any);
+        }
+        addToHistory(
+          "ARCHIVE_FOLDER",
+          `Exercice ${folder.fiscalYear} archivé`
+        );
+      } catch (err) {
+        setLocalError(
+          err instanceof Error ? err.message : "Erreur lors de l'archivage"
+        );
+      } finally {
+        setLocalLoading(false);
+      }
+    },
+    [archiveFolderService, refreshFolders, selectedFolder, setSelectedFolder, addToHistory]
+  );
+
+  // Restore an archived exercise
+  const handleRestoreFolder = useCallback(
+    async (folder: Folder) => {
+      try {
+        setLocalLoading(true);
+        setLocalError(null);
+        await restoreFolderService(folder.id);
+        await refreshFolders();
+        addToHistory(
+          "RESTORE_FOLDER",
+          `Exercice ${folder.fiscalYear} restauré`
+        );
+      } catch (err) {
+        setLocalError(
+          err instanceof Error ? err.message : "Erreur lors de la restauration"
+        );
+      } finally {
+        setLocalLoading(false);
+      }
+    },
+    [restoreFolderService, refreshFolders, addToHistory]
+  );
+
+  // Permanently delete an exercise
+  const handleDeleteFolder = useCallback(
+    async (folder: Folder) => {
+      try {
+        setLocalLoading(true);
+        setLocalError(null);
+        await deleteFolderService(folder.id);
+        await refreshFolders();
+        if (selectedFolder?.id === folder.id) {
+          setSelectedFolder(null as any);
+        }
+        addToHistory(
+          "DELETE_FOLDER",
+          `Exercice ${folder.fiscalYear} supprimé`
+        );
+      } catch (err) {
+        setLocalError(
+          err instanceof Error ? err.message : "Erreur lors de la suppression"
+        );
+        throw err;
+      } finally {
+        setLocalLoading(false);
+      }
+    },
+    [deleteFolderService, refreshFolders, selectedFolder, setSelectedFolder, addToHistory]
+  );
 
   // Force reload folders using AppContext
   const reloadFolders = useCallback(async () => {
@@ -431,6 +510,9 @@ export function useExerciseManager() {
     setShowToggleDialog,
     setFolderToToggle,
     handleDuplicate,
+    handleArchiveFolder,
+    handleRestoreFolder,
+    handleDeleteFolder,
     setShowDuplicateDialog,
     setFolderToDuplicate,
     setDuplicateForm,

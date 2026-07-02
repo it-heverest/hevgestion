@@ -440,8 +440,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
             <button
               onClick={handleExportExcel}
-              disabled={isExporting}
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              disabled={isExporting || !templateStatus?.hasTemplate}
+              title={
+                !templateStatus?.hasTemplate
+                  ? "Importez d'abord un template Excel via le bouton « Template »"
+                  : "Exporter les données DSF vers Excel"
+              }
+              className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isExporting ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />

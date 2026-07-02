@@ -1,4 +1,4 @@
-// src/controllers/ventilation-config.controller.ts
+// src/controllers/ventilation-config.controller.ts (folder-scoped v2)
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { prisma } from "../lib/prisma";
@@ -15,14 +15,17 @@ interface SubAccountInput {
 export class VentilationConfigController {
   getConfigs = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { clientId } = req.query as { clientId: string };
+      const { clientId, folderId } = req.query as { clientId: string; folderId?: string };
       const userId = req.user!.userId;
       const userRole = req.user!.role;
 
       await this.checkClientAccess(clientId, userId, userRole);
 
       const configs = await prisma.ventilationConfig.findMany({
-        where: { clientId },
+        where: {
+          clientId,
+          folderId: folderId ?? null,
+        },
         include: {
           subAccounts: { orderBy: { order: "asc" } },
         },
@@ -39,9 +42,10 @@ export class VentilationConfigController {
     try {
       const userId = req.user!.userId;
       const userRole = req.user!.role;
-      const { clientId, mainAccountNumber, mainAccountName, subAccounts } =
+      const { clientId, folderId, mainAccountNumber, mainAccountName, subAccounts } =
         req.body as {
           clientId: string;
+          folderId?: string;
           mainAccountNumber: string;
           mainAccountName: string;
           subAccounts: SubAccountInput[];
@@ -58,8 +62,12 @@ export class VentilationConfigController {
         );
       }
 
-      const existing = await prisma.ventilationConfig.findUnique({
-        where: { clientId_mainAccountNumber: { clientId, mainAccountNumber } },
+      const existing = await prisma.ventilationConfig.findFirst({
+        where: {
+          clientId,
+          folderId: folderId ?? null,
+          mainAccountNumber,
+        },
       });
       if (existing) {
         throw new BadRequestError(
@@ -70,6 +78,7 @@ export class VentilationConfigController {
       const config = await prisma.ventilationConfig.create({
         data: {
           clientId,
+          folderId: folderId ?? null,
           mainAccountNumber,
           mainAccountName,
           createdBy: userId,
@@ -138,12 +147,11 @@ export class VentilationConfigController {
         mainAccountNumber &&
         mainAccountNumber !== existing.mainAccountNumber
       ) {
-        const duplicate = await prisma.ventilationConfig.findUnique({
+        const duplicate = await prisma.ventilationConfig.findFirst({
           where: {
-            clientId_mainAccountNumber: {
-              clientId: existing.clientId,
-              mainAccountNumber,
-            },
+            clientId: existing.clientId,
+            folderId: existing.folderId,
+            mainAccountNumber,
           },
         });
         if (duplicate) {

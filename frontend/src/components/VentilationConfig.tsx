@@ -106,6 +106,7 @@ const extractAccountsFromBalance = (balance: any): AvailableAccount[] => {
 
 export function VentilationConfig() {
   const { selectedClient, selectedFolder } = useApp();
+  const isClosed = selectedFolder?.status === 'COMPLETED';
 
   const [configs, setConfigs] = useState<VentilationConfigData[]>([]);
   const [archivedConfigs, setArchivedConfigs] = useState<VentilationConfigData[]>(
@@ -167,7 +168,7 @@ export function VentilationConfig() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await ventilationConfigService.getConfigs(selectedClient.id);
+      const data = await ventilationConfigService.getConfigs(selectedClient.id, selectedFolder?.id);
       setConfigs(data.filter((c) => !c.archived));
       setArchivedConfigs(data.filter((c) => c.archived));
     } catch (err: any) {
@@ -180,7 +181,7 @@ export function VentilationConfig() {
   useEffect(() => {
     loadConfigs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClient?.id]);
+  }, [selectedClient?.id, selectedFolder?.id]);
 
   const openCreateDialog = () => {
     setEditingId(null);
@@ -292,6 +293,7 @@ export function VentilationConfig() {
       } else {
         await ventilationConfigService.createConfig({
           clientId: selectedClient.id,
+          folderId: selectedFolder?.id,
           mainAccountNumber: mainAccountNumber.trim(),
           mainAccountName: mainAccountName.trim(),
           subAccounts: cleanRows,
@@ -361,13 +363,20 @@ export function VentilationConfig() {
             pour ventiler le solde d'un compte principal.
           </p>
         </div>
-        <Button
-          onClick={openCreateDialog}
-          disabled={isLoadingAccounts || availableAccounts.length === 0}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter un compte à ventiler
-        </Button>
+        {isClosed ? (
+          <div className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-200 rounded-md px-3 py-1.5">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Exercice clôturé — lecture seule
+          </div>
+        ) : (
+          <Button
+            onClick={openCreateDialog}
+            disabled={isLoadingAccounts || availableAccounts.length === 0}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Ajouter un compte à ventiler
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -434,22 +443,24 @@ export function VentilationConfig() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(config)}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(config)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
+                      {!isClosed && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(config)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(config)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -500,14 +511,16 @@ export function VentilationConfig() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setRestoreTarget(config)}
-                        title="Restaurer"
-                      >
-                        <RefreshCw className="h-4 w-4 text-green-600" />
-                      </Button>
+                      {!isClosed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRestoreTarget(config)}
+                          title="Restaurer"
+                        >
+                          <RefreshCw className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

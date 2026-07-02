@@ -310,7 +310,12 @@ class ClientService {
   async applyVentilationSplit(
     balanceId: string,
     mainAccountNumber: string,
-    allocations: Array<{ accountNumber: string; amount: number }>
+    allocations: Array<{
+      accountNumber: string;
+      amount: number;
+      openingDebit?: number;
+      openingCredit?: number;
+    }>
   ): Promise<any> {
     try {
       const response = await this.api.post(
@@ -329,6 +334,26 @@ class ClientService {
       }
 
       throw new Error("Erreur lors de la répartition du compte");
+    }
+  }
+
+  async getVentilationLogs(balanceId: string): Promise<any[]> {
+    try {
+      const response = await this.api.get(`/balances/${balanceId}/ventilation-logs`);
+      return response.data.logs || [];
+    } catch (error: any) {
+      console.error("Error fetching ventilation logs:", error);
+      return [];
+    }
+  }
+
+  async revertVentilation(balanceId: string, logId: string): Promise<any> {
+    try {
+      const response = await this.api.post(`/balances/${balanceId}/revert-ventilation/${logId}`);
+      return response.data;
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.response?.data?.error || "Erreur lors de l'annulation de la ventilation";
+      throw new Error(msg);
     }
   }
 

@@ -245,12 +245,6 @@ function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
           path: "/web/user/import",
         },
         {
-          id: "traitement",
-          label: t("traitement"),
-          icon: Edit3,
-          path: "/web/user/traitement",
-        },
-        {
           id: "ventilation-config",
           label: t("ventilationConfig"),
           icon: Split,

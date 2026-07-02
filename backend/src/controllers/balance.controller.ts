@@ -507,7 +507,12 @@ class BalanceController {
       const { id } = req.params;
       const { mainAccountNumber, allocations } = req.body as {
         mainAccountNumber: string;
-        allocations: Array<{ accountNumber: string; amount: number }>;
+        allocations: Array<{
+          accountNumber: string;
+          amount: number;
+          openingDebit?: number;
+          openingCredit?: number;
+        }>;
       };
 
       if (
@@ -536,12 +541,12 @@ class BalanceController {
       // Block ventilation if DSF has already been generated
       await this.checkDSFGenerated(balance.folderId);
 
-      const config = await prisma.ventilationConfig.findUnique({
+      const config = await prisma.ventilationConfig.findFirst({
         where: {
-          clientId_mainAccountNumber: {
-            clientId: balance.folder.clientId,
-            mainAccountNumber,
-          },
+          clientId: balance.folder.clientId,
+          folderId: balance.folderId,
+          mainAccountNumber,
+          archived: false,
         },
         include: { subAccounts: true },
       });
@@ -588,6 +593,24 @@ class BalanceController {
 
       const mainRow = currentRows[mainRowIndex];
 
+      // The main account's own opening + movement must reconcile with its
+      // closing before it can be split; otherwise the inconsistency would
+      // silently propagate into the newly created sub-accounts.
+      const mainOpeningDebit = Number(mainRow.openingDebit) || 0;
+      const mainOpeningCredit = Number(mainRow.openingCredit) || 0;
+      const mainMovementDebit = Number(mainRow.movementDebit) || 0;
+      const mainMovementCredit = Number(mainRow.movementCredit) || 0;
+      const mainClosingDebit = Number(mainRow.closingDebit) || 0;
+      const mainClosingCredit = Number(mainRow.closingCredit) || 0;
+      if (
+        Math.abs(mainOpeningDebit + mainMovementDebit - mainClosingDebit) > 0.01 ||
+        Math.abs(mainOpeningCredit + mainMovementCredit - mainClosingCredit) > 0.01
+      ) {
+        throw new BadRequestError(
+          `Le compte ${mainAccountNumber} n'est pas cohérent (ouverture + mouvement ≠ clôture) ; corrigez la balance avant de ventiler`,
+        );
+      }
+
       // Calculate total balance amount to validate
       const totalBalance =
         (Number(mainRow.closingDebit) || 0) - (Number(mainRow.closingCredit) || 0);
@@ -608,17 +631,49 @@ class BalanceController {
         allocations.map((a) => a.accountNumber),
       );
 
-      // Each sub-account keeps its own pre-existing opening/movement (it may
-      // already exist as its own row in the balance); the allocated amount
-      // is added as additional movement, and closing is recomputed from it.
+      // Rows being replaced: the main account + any pre-existing sub-account rows
+      const replacedRows = currentRows.filter(
+        (row) =>
+          row.accountNumber === mainAccountNumber ||
+          allocatedAccountNumbers.has(row.accountNumber),
+      );
+
+      // Opening balances being redistributed must keep the balance sheet
+      // equilibrated: the sum of sub-account openings (user-editable) has to
+      // match what's being removed (main account opening + any pre-existing
+      // sub-account rows' openings).
+      const expectedOpeningNet = replacedRows.reduce(
+        (sum, row) =>
+          sum + ((Number(row.openingDebit) || 0) - (Number(row.openingCredit) || 0)),
+        0,
+      );
+      const allocatedOpeningNet = allocations.reduce((sum, a) => {
+        const existing = currentRows.find(
+          (row) => row.accountNumber === a.accountNumber,
+        );
+        const openingDebit = a.openingDebit ?? Number(existing?.openingDebit) ?? 0;
+        const openingCredit = a.openingCredit ?? Number(existing?.openingCredit) ?? 0;
+        return sum + (openingDebit - openingCredit);
+      }, 0);
+      if (Math.abs(allocatedOpeningNet - expectedOpeningNet) > 0.01) {
+        throw new BadRequestError(
+          `Le total des ouvertures des sous-comptes doit être égal à ${expectedOpeningNet.toLocaleString()}`,
+        );
+      }
+
+      // Each sub-account keeps its own pre-existing opening/movement unless
+      // the user has overridden the opening amount; the allocated amount is
+      // added as additional movement, and closing is recomputed from it.
       const newRows = allocations.map((allocation) => {
         const sub = subAccountsByNumber.get(allocation.accountNumber)!;
         const existing = currentRows.find(
           (row) => row.accountNumber === allocation.accountNumber,
         );
 
-        const openingDebit = Number(existing?.openingDebit) || 0;
-        const openingCredit = Number(existing?.openingCredit) || 0;
+        const openingDebit =
+          allocation.openingDebit ?? Number(existing?.openingDebit) ?? 0;
+        const openingCredit =
+          allocation.openingCredit ?? Number(existing?.openingCredit) ?? 0;
         const movementDebit =
           (Number(existing?.movementDebit) || 0) +
           (isDebitSide ? allocation.amount : 0);
@@ -646,6 +701,17 @@ class BalanceController {
         ),
         ...newRows,
       ];
+
+      await prisma.ventilationLog.create({
+        data: {
+          balanceId: id,
+          mainAccountNumber,
+          mainAccountName: mainRow.accountName || mainAccountNumber,
+          replacedRows,
+          newRows,
+          appliedBy: req.user!.userId,
+        },
+      });
 
       await prisma.balance.update({
         where: { id },
@@ -720,6 +786,87 @@ class BalanceController {
         message: "Ventilation completed successfully",
         result,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getVentilationLogs(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const logs = await prisma.ventilationLog.findMany({
+        where: { balanceId: id },
+        orderBy: { appliedAt: 'desc' },
+      });
+      res.json({ logs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async revertVentilation(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { id, logId } = req.params;
+
+      const log = await prisma.ventilationLog.findFirst({
+        where: { id: logId, balanceId: id },
+      });
+
+      if (!log) throw new NotFoundError('Ventilation log not found');
+      if (log.reverted) throw new BadRequestError('Cette ventilation a déjà été annulée');
+
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
+
+      if (!balance) throw new NotFoundError('Balance not found');
+      if (balance.folder.ownerId !== req.user?.userId) throw new ForbiddenError('Accès refusé');
+
+      let currentData: any;
+      try {
+        currentData = typeof balance.originalData === 'string'
+          ? JSON.parse(balance.originalData)
+          : balance.originalData || {};
+      } catch { currentData = {}; }
+
+      const currentRows: any[] = Array.isArray(currentData?.rows) ? currentData.rows : [];
+      const newRowNumbers = new Set((log.newRows as any[]).map((r: any) => r.accountNumber));
+
+      // Verify sub-accounts still exist (not replaced by another ventilation)
+      for (const newRow of log.newRows as any[]) {
+        const found = currentRows.find((r: any) => r.accountNumber === newRow.accountNumber);
+        if (!found) {
+          throw new BadRequestError(
+            `Impossible d'annuler: le compte ${newRow.accountNumber} n'existe plus (peut-être ré-ventilé depuis)`,
+          );
+        }
+      }
+
+      // Remove ventilated sub-accounts and restore original rows
+      const restoredRows = [
+        ...currentRows.filter((r: any) => !newRowNumbers.has(r.accountNumber)),
+        ...(log.replacedRows as any[]),
+      ];
+
+      await prisma.balance.update({
+        where: { id },
+        data: { originalData: { rows: restoredRows } },
+      });
+
+      await prisma.ventilationLog.update({
+        where: { id: logId },
+        data: { reverted: true, revertedAt: new Date() },
+      });
+
+      await this.balanceProcessor.processBalance(id);
+
+      const refreshed = await prisma.balance.findUnique({
+        where: { id },
+        include: { equilibrium: true, accountIssues: true, fixedAssets: true },
+      });
+
+      res.json({ message: 'Ventilation annulée avec succès', balance: refreshed });
     } catch (error) {
       next(error);
     }

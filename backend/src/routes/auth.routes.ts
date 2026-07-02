@@ -16,19 +16,19 @@ import { authenticate } from "../middleware/auth.middleware";
 
 const router = Router();
 
-// Strict limiter: 10 attempts per 15 min — login, register, OTP
+// Strict limiter: 100 attempts per 15 min — login, register, OTP
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts. Please try again in 15 minutes." },
 });
 
-// OTP limiter: 5 attempts per 5 min — verify/resend OTP, password reset OTP
+// OTP limiter: 30 attempts per 5 min — verify/resend OTP, password reset OTP
 const otpLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 5,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many OTP attempts. Please try again in 5 minutes." },

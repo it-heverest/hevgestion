@@ -16,6 +16,7 @@ export interface VentilationSubAccount {
 export interface VentilationConfig {
   id: string;
   clientId: string;
+  folderId: string | null;
   mainAccountNumber: string;
   mainAccountName: string;
   subAccounts: VentilationSubAccount[];
@@ -34,6 +35,7 @@ export interface SubAccountInput {
 
 export interface CreateVentilationConfigData {
   clientId: string;
+  folderId?: string;
   mainAccountNumber: string;
   mainAccountName: string;
   subAccounts: SubAccountInput[];
@@ -72,10 +74,10 @@ class VentilationConfigService {
     );
   }
 
-  async getConfigs(clientId: string): Promise<VentilationConfig[]> {
+  async getConfigs(clientId: string, folderId?: string): Promise<VentilationConfig[]> {
     try {
       const response = await this.api.get("/ventilation-configs", {
-        params: { clientId },
+        params: { clientId, ...(folderId ? { folderId } : {}) },
       });
       return response.data.configs;
     } catch (error: any) {

@@ -11,6 +11,7 @@ const subAccountSchema = z.object({
 export const createVentilationConfigSchema = z.object({
   body: z.object({
     clientId: z.string().min(1, "clientId is required"),
+    folderId: z.string().optional(),
     mainAccountNumber: z.string().min(1, "Main account number is required").max(20),
     mainAccountName: z.string().min(1, "Main account name is required").max(255),
     subAccounts: z
@@ -39,5 +40,6 @@ export const ventilationConfigIdSchema = z.object({
 export const ventilationConfigQuerySchema = z.object({
   query: z.object({
     clientId: z.string().min(1, "clientId is required"),
+    folderId: z.string().optional(),
   }),
 });
