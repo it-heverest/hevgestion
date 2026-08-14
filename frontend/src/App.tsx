@@ -45,6 +45,7 @@ import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { EntityHeader } from "./components/EntityHeader";
 import { AuthLoader } from "./components/AuthLoader";
+import { DSFAssistantChat } from "./components/DSFAssistantChat";
 import {
   LayoutDashboard,
   Upload,
@@ -59,6 +60,9 @@ import {
   MoreHorizontal,
   RefreshCw,
   Wifi,
+  Sun,
+  Moon,
+  Languages,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import DGIDeclarationProfessional from "./components/DGIDeclarationProfessional";
@@ -371,8 +375,9 @@ export function ProtectedLayout({
   const isRestrictedUser = user?.isRestrictedUser;
   const navigate = useNavigate();
   const location = useLocation();
-  const { language } = useApp();
+  const { language, theme, setTheme } = useApp();
   const { t } = useTranslation();
+  const { changeLanguage } = useLanguageRoute();
 
   // Get translated navigation items, filtered for restricted users
   const translatedNavItems = useMemo(() => {
@@ -418,17 +423,17 @@ export function ProtectedLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar className="border-r">
-          <SidebarHeader className="border-b p-4">
+      <div className="flex min-h-screen w-full bg-gray-50 dark:bg-gray-950">
+        <Sidebar className="border-r dark:bg-gray-900 dark:border-gray-700">
+          <SidebarHeader className="border-b dark:border-gray-700 p-4">
             <div className="flex items-center gap-3">
               <div className="bg-blue-600 text-white rounded-lg p-2">
                 <BarChart3 className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="font-semibold">HevGestion DSF</h1>
-                <p className="text-xs text-muted-foreground">
-                  {isRestrictedUser ? "AccÃ¨s Restreint - Revue Fiscale" : t("systemStatusCompliant")}
+                <h1 className="font-semibold dark:text-white">HevGestion DSF</h1>
+                <p className="text-xs text-muted-foreground dark:text-gray-400">
+                  {isRestrictedUser ? "Accès Restreint - Revue Fiscale" : t("systemStatusCompliant")}
                 </p>
               </div>
             </div>
@@ -450,7 +455,7 @@ export function ProtectedLayout({
                             setActiveRoute(item.id);
                           }}
                           isActive={location.pathname.includes(item.path)}
-                          className="w-full"
+                          className="w-full dark:text-gray-300 dark:hover:bg-gray-700 dark:data-[active=true]:bg-blue-900 dark:data-[active=true]:text-blue-200"
                         >
                           <Icon className="h-4 w-4" />
                           <span>{item.label}</span>
@@ -464,38 +469,28 @@ export function ProtectedLayout({
           </SidebarContent>
         </Sidebar>
 
-        <main className="flex-1 overflow-auto bg-gray-50">
-          <div className="border-b bg-white shadow-sm">
+        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
+          <div className="border-b bg-white dark:bg-gray-900 dark:border-gray-700 shadow-sm">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <SidebarTrigger />
-                  <div className="flex items-center gap-3">
-                    {/* <div className="bg-blue-600 p-2 rounded-lg">
-                      <BarChart3 className="h-5 w-5 text-white" />
-                    </div> */}
-                    <div>
-                      <h1 className="text-lg font-semibold text-gray-900">
-                        HevGestion DSF
-                      </h1>
-                      <p className="text-sm text-gray-500">
-                        {t("welcomeUser")}, {user?.firstName || "User"}
-                      </p>
-                    </div>
+                  <SidebarTrigger className="dark:text-gray-300 dark:hover:bg-gray-700" />
+                  <div>
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      HevGestion DSF
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {t("welcomeUser")}, {user?.firstName || "User"}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {/* <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                    <Wifi className="h-3 w-3" />
-                    {t("connected")}
-                  </div> */}
-
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => window.location.reload()}
-                    className="border-none bg-transparent hover:bg-gray-100 focus:ring-0 focus:outline-none"
+                    className="border-none bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 focus:ring-0 focus:outline-none"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -507,34 +502,58 @@ export function ProtectedLayout({
                   />
 
                   <div
-                    className="flex items-center justify-center px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                    className="flex items-center justify-center px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedCountry(null);
                       setSelectedCompany(null);
                       navigate(`/${langPrefix}/web/user/select-country`);
                     }}
                   >
-                    <span className="text-sm font-medium truncate">
-                      {" "}
+                    <span className="text-sm font-medium truncate text-gray-700 dark:text-gray-300">
                       {selectedClient?.name || t("selectCompany")}
                     </span>
                   </div>
 
                   <NotificationCenter />
 
-                  {/* {selectedExercise && (
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                      onClick={() =>
-                        navigate(`/${langPrefix}/web/user/exercise`)
-                      }
+                  {/* ── Language toggle ── */}
+                  <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    <button
+                      onClick={() => changeLanguage("fr")}
+                      title="Français"
+                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        language === "fr"
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
                     >
-                      <Calendar className="h-4 w-4" />
-                      <span className="text-sm font-medium">
-                        {selectedExercise.fiscalYear}
-                      </span>
-                    </div>
-                  )} */}
+                      FR
+                    </button>
+                    <button
+                      onClick={() => changeLanguage("en")}
+                      title="English"
+                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        language === "en"
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      EN
+                    </button>
+                  </div>
+
+                  {/* ── Theme toggle ── */}
+                  <button
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+                    className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    {theme === "dark" ? (
+                      <Sun className="h-4 w-4" />
+                    ) : (
+                      <Moon className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -545,11 +564,13 @@ export function ProtectedLayout({
             <EntityHeader />
           </div>
 
-          <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white border-t border-gray-200">
-            <p className="text-xs text-gray-500 select-none">
+          <footer className="fixed bottom-0 right-0 left-0 md:left-[280px] py-2 px-6 text-center bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 select-none">
               {t("poweredBy")}
             </p>
           </footer>
+
+          <DSFAssistantChat />
         </main>
       </div>
     </SidebarProvider>

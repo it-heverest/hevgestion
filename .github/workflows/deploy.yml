@@ -74,9 +74,9 @@ jobs:
             # Installer toutes les dépendances (y compris prisma CLI en devDep)
             npm install
 
-            # 3. Prisma — générer le client et appliquer les migrations
+            # 3. Prisma — générer le client et synchroniser le schéma
             npx prisma generate
-            npx prisma migrate deploy
+            npx prisma db push --accept-data-loss
 
             # 4. Redémarrer l'API avec PM2
             # On essaie de restart, sinon on start le fichier principal dans dist/

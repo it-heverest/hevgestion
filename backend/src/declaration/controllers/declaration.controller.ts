@@ -9,8 +9,6 @@ import { prisma } from "../../lib/prisma";
 import { AuthRequest } from "../types/declaration.types";
 import { declarationService } from "../services/declaration.service";
 import { EncryptionUtil } from "../../utils/encryption";
-
-const encryption = new EncryptionUtil();
 import {
   DGIAuthRequest,
   DGIDeclarationType,
@@ -38,6 +36,8 @@ import {
   DGINote12Data,
   DGINote13Data,
 } from "../types/declaration.types";
+
+const encryption = new EncryptionUtil();
 
 export class DeclarationController {
   // ============================================
@@ -88,7 +88,14 @@ export class DeclarationController {
           "Serveur DGI inaccessible. Veuillez vérifier votre connexion.";
       }
 
-      res.status(error.response?.status || 500).json({
+      // Never forward DGI's 401 as our own 401 — the frontend global interceptor
+      // would mistake it for a session expiry and log the user out.
+      // DGI credential errors become 400 on our side.
+      const httpStatus = error.response?.status === 401
+        ? 400
+        : (error.response?.status || 500);
+
+      res.status(httpStatus).json({
         success: false,
         message: errorMessage,
       });
