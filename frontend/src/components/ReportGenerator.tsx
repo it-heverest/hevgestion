@@ -314,7 +314,7 @@
 //               </div>
 
 //               {/* RÉSULTAT */}
-//               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+//               <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
 //                 <div className="flex items-center justify-between">
 //                   <div className="flex items-center gap-2">
 //                     {resultat > 0 ? (
@@ -366,7 +366,7 @@
 //                       <TableRow>
 //                         <TableCell><strong>Flux net de trésorerie généré par l'activité</strong></TableCell>
 //                         <TableCell className="text-right">
-//                           <strong className="text-blue-600">{totalFluxExploitation.toLocaleString()} {country.currency}</strong>
+//                           <strong className="text-orange-600">{totalFluxExploitation.toLocaleString()} {country.currency}</strong>
 //                         </TableCell>
 //                       </TableRow>
 //                     </TableBody>
@@ -391,7 +391,7 @@
 //                       <TableRow>
 //                         <TableCell><strong>Flux net de trésorerie lié aux investissements</strong></TableCell>
 //                         <TableCell className="text-right">
-//                           <strong className="text-blue-600">{totalFluxInvestissement.toLocaleString()} {country.currency}</strong>
+//                           <strong className="text-orange-600">{totalFluxInvestissement.toLocaleString()} {country.currency}</strong>
 //                         </TableCell>
 //                       </TableRow>
 //                     </TableBody>
@@ -416,7 +416,7 @@
 //                       <TableRow>
 //                         <TableCell><strong>Flux net de trésorerie lié au financement</strong></TableCell>
 //                         <TableCell className="text-right">
-//                           <strong className="text-blue-600">{totalFluxFinancement.toLocaleString()} {country.currency}</strong>
+//                           <strong className="text-orange-600">{totalFluxFinancement.toLocaleString()} {country.currency}</strong>
 //                         </TableCell>
 //                       </TableRow>
 //                     </TableBody>
@@ -425,7 +425,7 @@
 //               </div>
 
 //               {/* Variation totale */}
-//               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+//               <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
 //                 <div className="flex items-center justify-between">
 //                   <span className="text-lg">Variation de trésorerie</span>
 //                   <span className={`text-xl ${variationTresorerie > 0 ? 'text-green-600' : 'text-red-600'}`}>

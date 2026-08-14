@@ -59,7 +59,8 @@ export function ExcelBalanceImporter({
   onComplete,
 }: ExcelBalanceImporterProps = {}) {
   const navigate = useNavigate();
-  const { userId, actionId } = useParams();
+  const { userId, actionId, lang } = useParams();
+  const langPrefix = lang === "en" ? "en" : "fr";
   const {
     addToHistory,
     setBalanceImported,
@@ -111,7 +112,7 @@ export function ExcelBalanceImporter({
     ) {
       console.log("Both balances available, auto-navigating to traitement");
       setBalanceProcessed(true);
-      navigate(`/web/user/traitement/${userId}/traitement`);
+      navigate(`/${langPrefix}/web/user/traitement/${userId}/traitement`);
     }
   }, [storedBalances, balanceProcessed, navigate, userId]);
 
@@ -301,42 +302,9 @@ export function ExcelBalanceImporter({
         return;
       }
 
-      // Determine the correct folder for the balance type
-      let targetFolderId = selectedFolder.id;
-
-      if (type === "previous") {
-        // For previous balance, we need to find or create the previous year's folder
-        const previousYear = selectedFolder.fiscalYear - 1;
-
-        // First try to find existing folder for previous year
-        const allFolders = await folderService.getFoldersByClient(
-          selectedFolder.clientId,
-        );
-        const previousFolder = allFolders.find(
-          (f) => f.fiscalYear === previousYear,
-        );
-
-        if (previousFolder) {
-          targetFolderId = previousFolder.id;
-          console.log(
-            "Using existing previous year folder:",
-            previousFolder.id,
-          );
-        } else {
-          // Create the previous year folder
-          console.log("Creating previous year folder for year:", previousYear);
-          const previousFolderData = await folderService.createFolder({
-            name: `Exercice ${previousYear}`,
-            description: `Dossier automatique pour balance précédente ${previousYear}`,
-            clientId: selectedFolder.clientId,
-            fiscalYear: previousYear,
-            startDate: `${previousYear}-01-01`,
-            endDate: `${previousYear}-12-31`,
-          });
-          targetFolderId = previousFolderData.id;
-          console.log("Created previous year folder:", previousFolderData.id);
-        }
-      }
+      // Always upload to the current folder. For "previous" type, the backend
+      // will auto-sync data from the previous year's N balance if available.
+      const targetFolderId = selectedFolder.id;
 
       // Create FormData for file upload
       const formData = new FormData();
@@ -398,7 +366,7 @@ export function ExcelBalanceImporter({
     if (storedBalances.current && storedBalances.previous) {
       setBalanceProcessed(true);
       // Navigation avec ID d'action personnalisé
-      navigate(`/web/user/traitement/${userId}/traitement`);
+      navigate(`/${langPrefix}/web/user/traitement/${userId}/traitement`);
     } else {
       alert(
         "Les deux balances (courante et précédente) doivent être importées avant de commencer le traitement.",
@@ -651,7 +619,7 @@ export function ExcelBalanceImporter({
           ? "border-gray-300 bg-gray-50 opacity-60"
           : isImported
             ? "border-green-200 bg-green-50"
-            : "border-blue-200 bg-blue-50 hover:border-blue-300 cursor-pointer"
+            : "border-orange-200 bg-orange-50 hover:border-orange-300 cursor-pointer"
       }`}
       onClick={() => !isImported && isAvailable && setImportType(type)}
     >
@@ -664,7 +632,7 @@ export function ExcelBalanceImporter({
                   ? "bg-gray-100 text-gray-400"
                   : isImported
                     ? "bg-green-100 text-green-600"
-                    : "bg-blue-100 text-blue-600"
+                    : "bg-orange-100 text-orange-600"
               }`}
             >
               {!isAvailable ? (
@@ -706,7 +674,7 @@ export function ExcelBalanceImporter({
   );
 
   const FileUploadZone = () => (
-    <div className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-blue-50/30">
+    <div className="border-2 border-dashed border-orange-300 rounded-lg p-8 text-center hover:border-orange-500 transition-colors bg-orange-50/30">
       <input
         type="file"
         accept=".xlsx,.xls"
@@ -721,7 +689,7 @@ export function ExcelBalanceImporter({
         id="file-upload"
       />
       <label htmlFor="file-upload" className="cursor-pointer">
-        <Upload className="h-12 w-12 mx-auto mb-3 text-blue-600" />
+        <Upload className="h-12 w-12 mx-auto mb-3 text-orange-600" />
         <p className="text-lg font-medium mb-2">
           Importer{" "}
           {importType === "current"

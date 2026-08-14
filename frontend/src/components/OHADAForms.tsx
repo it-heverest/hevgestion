@@ -96,7 +96,7 @@
 //                     Identifiant Fiscal Unique - {country.name}
 //                   </CardDescription>
 //                 </div>
-//                 <FileCheck className="h-8 w-8 text-blue-600" />
+//                 <FileCheck className="h-8 w-8 text-orange-600" />
 //               </div>
 //             </CardHeader>
 //             <CardContent className="space-y-4">
@@ -284,9 +284,9 @@
 //                   </div>
 //                 </div>
 
-//                 <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
+//                 <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
 //                   <div className="flex items-start gap-3">
-//                     <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
+//                     <Calendar className="h-5 w-5 text-orange-600 mt-0.5" />
 //                     <div>
 //                       <p className="text-sm mb-1">Échéance annuelle</p>
 //                       <p className="text-xs text-muted-foreground">

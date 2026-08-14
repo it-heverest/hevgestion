@@ -410,6 +410,249 @@ class FolderController {
   };
 
   /**
+   * POST /:id/clone
+   * Deep-clones a folder: copies all balances (with equilibrium, issues, fixed assets,
+   * ventilation logs), DSF (with coherence control), tax declarations, folder assignments,
+   * and exercise-scoped DSF comptable configs into a new DRAFT folder.
+   */
+  cloneFolder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.userId;
+      const { id: sourceFolderId } = req.params;
+      const { fiscalYear, startDate, endDate } = req.body;
+
+      if (!fiscalYear || !startDate || !endDate) {
+        throw new BadRequestError("fiscalYear, startDate et endDate sont requis");
+      }
+
+      const sourceFolder = await prisma.folder.findUnique({
+        where: { id: sourceFolderId },
+        include: {
+          balances: {
+            include: {
+              equilibrium: true,
+              accountIssues: true,
+              fixedAssets: true,
+              ventilationLogs: true,
+            },
+          },
+          dsf: { include: { coherenceControl: true } },
+          taxDeclarations: true,
+          assignments: true,
+          dsfComptableConfigs: { where: { exerciseId: sourceFolderId } },
+          ventilationConfigs: {
+            where: { archived: false },
+            include: { subAccounts: true },
+          },
+        },
+      });
+
+      if (!sourceFolder) throw new NotFoundError("Dossier source introuvable");
+      await this.checkClientAccess(userId, sourceFolder.clientId, req.user!.role);
+
+      // If an exercise for the same fiscal year already exists, archive it first.
+      const existing = await prisma.folder.findFirst({
+        where: { clientId: sourceFolder.clientId, fiscalYear },
+      });
+      if (existing) {
+        await prisma.folder.update({
+          where: { id: existing.id },
+          data: { status: FolderStatus.COMPLETED, isActive: false },
+        });
+        await auditService.logFolderStatusChanged(userId, existing.id, existing.status, "ARCHIVED", {
+          name: existing.name,
+          isActive: false,
+          reason: `Archived to make room for clone of fiscal year ${fiscalYear}`,
+        });
+      }
+
+      const cloned = await prisma.$transaction(async (tx) => {
+        // 1. New folder
+        const baseName = sourceFolder.name.replace(/ - \d{4}$/, "").trim();
+        const folder = await tx.folder.create({
+          data: {
+            name: `${baseName} - ${fiscalYear}`,
+            description: sourceFolder.description ?? undefined,
+            clientId: sourceFolder.clientId,
+            ownerId: userId,
+            fiscalYear,
+            startDate: new Date(startDate),
+            endDate: new Date(endDate),
+            status: FolderStatus.DRAFT,
+          },
+        });
+
+        // 2. Balances + children
+        for (const bal of sourceFolder.balances) {
+          const newBal = await tx.balance.create({
+            data: {
+              folderId: folder.id,
+              type: bal.type,
+              period: bal.period,
+              fileName: bal.fileName,
+              filePath: bal.filePath,
+              originalData: (bal.originalData ?? undefined) as any,
+              status: bal.status,
+              validationErrors: bal.validationErrors,
+              archived: bal.archived,
+              archivedAt: bal.archivedAt,
+            },
+          });
+
+          if (bal.equilibrium) {
+            await tx.balanceEquilibrium.create({
+              data: {
+                balanceId: newBal.id,
+                openingDebit: bal.equilibrium.openingDebit,
+                openingCredit: bal.equilibrium.openingCredit,
+                movementDebit: bal.equilibrium.movementDebit,
+                movementCredit: bal.equilibrium.movementCredit,
+                closingDebit: bal.equilibrium.closingDebit,
+                closingCredit: bal.equilibrium.closingCredit,
+                isBalanced: bal.equilibrium.isBalanced,
+                anomalies: bal.equilibrium.anomalies,
+              },
+            });
+          }
+
+          if (bal.accountIssues.length > 0) {
+            await tx.accountIssue.createMany({
+              data: bal.accountIssues.map(({ id: _id, balanceId: _bid, ...issue }) => ({
+                ...issue,
+                balanceId: newBal.id,
+                isResolved: false,
+                resolvedAt: null,
+                resolution: null,
+              })),
+            });
+          }
+
+          if (bal.fixedAssets.length > 0) {
+            await tx.fixedAsset.createMany({
+              data: bal.fixedAssets.map(({ id: _id, balanceId: _bid, ...asset }) => ({
+                ...asset,
+                balanceId: newBal.id,
+              })) as any,
+            });
+          }
+
+          if (bal.ventilationLogs.length > 0) {
+            await tx.ventilationLog.createMany({
+              data: bal.ventilationLogs.map(({ id: _id, balanceId: _bid, ...log }) => ({
+                ...log,
+                balanceId: newBal.id,
+                replacedRows: log.replacedRows as any,
+                newRows: log.newRows as any,
+              })),
+            });
+          }
+        }
+
+        // 3. DSF + CoherenceControl
+        if (sourceFolder.dsf) {
+          const {
+            id: _did, folderId: _dfid, folder: _df, user: _du,
+            coherenceControl, createdAt: _dca, updatedAt: _dua,
+            ...dsfData
+          } = sourceFolder.dsf as any;
+          const newDsf = await tx.dSF.create({
+            data: {
+              ...dsfData,
+              folderId: folder.id,
+              status: "DRAFT",
+              isImported: false,
+              importId: null,
+              importedAt: null,
+              importedBy: null,
+            },
+          });
+
+          if (coherenceControl) {
+            const { id: _ccid, dsfId: _ccdid, ...ccData } = coherenceControl;
+            await tx.coherenceControl.create({
+              data: { ...ccData, dsfId: newDsf.id },
+            });
+          }
+        }
+
+        // 4. TaxDeclarations (reset payment/filing state)
+        if (sourceFolder.taxDeclarations.length > 0) {
+          await tx.taxDeclaration.createMany({
+            data: sourceFolder.taxDeclarations.map(
+              ({ id: _id, folderId: _fid, createdAt: _ca, updatedAt: _ua, ...decl }) => ({
+                ...decl,
+                folderId: folder.id,
+                dsfId: null,
+                status: "PENDING" as any,
+                amountPaid: null,
+                filedAt: null,
+              }),
+            ),
+          });
+        }
+
+        // 5. FolderAssignments
+        if (sourceFolder.assignments.length > 0) {
+          await tx.folderAssignment.createMany({
+            data: sourceFolder.assignments.map(
+              ({ folderId: _fid, assignedAt: _at, ...assign }) => ({
+                ...assign,
+                folderId: folder.id,
+              }),
+            ),
+          });
+        }
+
+        // 6. Exercise-scoped DSFComptableConfigs
+        if (sourceFolder.dsfComptableConfigs.length > 0) {
+          await tx.dSFComptableConfig.createMany({
+            data: sourceFolder.dsfComptableConfigs.map(
+              ({ id: _id, exerciseId: _eid, createdAt: _ca, updatedAt: _ua, ...cfg }) => ({
+                ...cfg,
+                exerciseId: folder.id,
+              }),
+            ),
+          });
+        }
+
+        // 7. VentilationConfigs (folder-scoped only)
+        for (const vc of (sourceFolder as any).ventilationConfigs) {
+          await tx.ventilationConfig.create({
+            data: {
+              clientId: vc.clientId,
+              folderId: folder.id,
+              mainAccountNumber: vc.mainAccountNumber,
+              mainAccountName: vc.mainAccountName,
+              createdBy: userId,
+              subAccounts: {
+                create: vc.subAccounts.map(
+                  ({ id: _id, configId: _cid, createdAt: _ca, updatedAt: _ua, ...sub }: any) => sub
+                ),
+              },
+            },
+          });
+        }
+
+        return folder;
+      }, { timeout: 30000 });
+
+      const folderWithDetails = await prisma.folder.findUnique({
+        where: { id: cloned.id },
+        include: {
+          client: true,
+          owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      });
+
+      await auditService.logFolderCreated(userId, cloned, cloned.id);
+
+      res.status(201).json({ message: "Exercice cloné avec succès", folder: folderWithDetails });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * PUT /:id/close
    * Permanently closes a folder by setting its status to COMPLETED.
    */
@@ -430,6 +673,8 @@ class FolderController {
         where: { id },
         data: { status: FolderStatus.COMPLETED },
       });
+
+      await auditService.logFolderStatusChanged(userId, id, folder.status, FolderStatus.COMPLETED, { name: folder.name });
 
       res.json({ message: "Folder closed successfully", folder: updatedFolder });
     } catch (error) {
@@ -461,6 +706,8 @@ class FolderController {
 
       await this.checkFolderAccess(userId, id, req.user!.role);
 
+      const currentFolder = await prisma.folder.findUnique({ where: { id }, select: { status: true, name: true } });
+
       const updatedFolder = await prisma.folder.update({
         where: { id },
         data: { status },
@@ -471,6 +718,8 @@ class FolderController {
           },
         },
       });
+
+      await auditService.logFolderStatusChanged(userId, id, currentFolder?.status ?? "unknown", status, { name: currentFolder?.name });
 
       res.json({ message: "Folder status updated", folder: updatedFolder });
     } catch (error) {
@@ -502,6 +751,8 @@ class FolderController {
         data: { status: FolderStatus.COMPLETED, isActive: false },
       });
 
+      await auditService.logFolderStatusChanged(userId, id, folder.status, "ARCHIVED", { name: folder.name, isActive: false });
+
       res.json({ message: "Folder archived successfully", folder: updatedFolder });
     } catch (error) {
       next(error);
@@ -530,6 +781,8 @@ class FolderController {
         data: { status: FolderStatus.DRAFT, isActive: true },
       });
 
+      await auditService.logFolderStatusChanged(userId, id, folder.status, FolderStatus.DRAFT, { name: folder.name, isActive: true, action: "restored" });
+
       res.json({ message: "Folder restored successfully", folder: updatedFolder });
     } catch (error) {
       next(error);
@@ -553,14 +806,12 @@ class FolderController {
       await this.checkFolderAccess(userId, id, req.user!.role);
 
       // When activating this folder, deactivate all siblings
-      if (isActive === true) {
-        const folder = await prisma.folder.findUnique({ where: { id } });
-        if (folder) {
-          await prisma.folder.updateMany({
-            where: { clientId: folder.clientId, id: { not: id } },
-            data: { isActive: false },
-          });
-        }
+      const oldFolder = await prisma.folder.findUnique({ where: { id } });
+      if (isActive === true && oldFolder) {
+        await prisma.folder.updateMany({
+          where: { clientId: oldFolder.clientId, id: { not: id } },
+          data: { isActive: false },
+        });
       }
 
       const updatedFolder = await prisma.folder.update({
@@ -578,6 +829,8 @@ class FolderController {
           },
         },
       });
+
+      await auditService.logFolderUpdated(userId, id, oldFolder, updatedFolder);
 
       res.json({ message: "Folder updated successfully", folder: updatedFolder });
     } catch (error) {
@@ -622,6 +875,8 @@ class FolderController {
       }
 
       await prisma.folder.delete({ where: { id } });
+
+      await auditService.logFolderDeleted(userId, id, folder);
 
       res.json({ message: "Folder deleted successfully" });
     } catch (error) {

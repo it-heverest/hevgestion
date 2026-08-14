@@ -25,6 +25,7 @@ import dgiRoutes from "./declaration/routes/declaration.routes";
 import notificationRoutes from "./routes/notification.routes";
 import redisRoutes from "./routes/redis.routes";
 import revueFiscalRoutes from "./routes/revue-fiscal.routes";
+import ventilationConfigRoutes from "./routes/ventilation-config.routes";
 import { SchedulerService } from "./services/scheduler.service";
 
 const app: Express = express();
@@ -178,6 +179,7 @@ if (!config.isProduction) {
   app.use("/api/debug/redis", redisRoutes);
 }
 app.use("/api/revue-fiscal", revueFiscalRoutes);
+app.use("/api/ventilation-configs", ventilationConfigRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling

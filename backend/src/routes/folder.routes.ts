@@ -41,8 +41,11 @@ router.post(
   folderController.createFolder
 );
 
-// POST /api/folders/:id/duplicate  — duplicate for a new fiscal year
+// POST /api/folders/:id/duplicate  — duplicate for a new fiscal year (metadata only)
 router.post("/:id/duplicate", authenticate, folderController.duplicateFolder);
+
+// POST /api/folders/:id/clone  — full deep clone including balances, DSF, assignments, etc.
+router.post("/:id/clone", authenticate, folderController.cloneFolder);
 
 // PUT /api/folders/:id/close  — set status → COMPLETED
 router.put("/:id/close", authenticate, folderController.closeFolder);

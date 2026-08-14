@@ -186,7 +186,7 @@ export function PDFViewer({
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-600" />
               <p className="text-gray-600">Chargement du PDF...</p>
             </div>
           </div>
@@ -209,7 +209,7 @@ export function PDFViewer({
                 onLoadError={onDocumentLoadError}
                 loading={
                   <div className="flex items-center justify-center py-20">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
                   </div>
                 }
               >
@@ -219,7 +219,7 @@ export function PDFViewer({
                   rotate={rotation}
                   loading={
                     <div className="flex items-center justify-center py-20">
-                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
                     </div>
                   }
                   renderTextLayer={false}

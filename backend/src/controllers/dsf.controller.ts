@@ -15,6 +15,7 @@ import * as path from "path";
 import { config } from "../config";
 import * as XLSX from "xlsx";
 import * as fs from "fs/promises";
+import { auditService } from "../services/audit.service";
 
 // Type pour les relations complètes du dossier
 type FolderWithFullRelations = {
@@ -55,6 +56,8 @@ type FolderWithFullRelations = {
     originalData: any;
     status: BalanceStatus;
     validationErrors: string | null;
+    archived: boolean;
+    archivedAt: Date | null;
     importedAt: Date;
     processedAt: Date | null;
     equilibrium: {
@@ -299,6 +302,13 @@ class DSFController {
           data: { status: FolderStatus.BALANCE_READY },
         });
 
+        await auditService.logUserAction(
+          userId,
+          "DSF_DELETED",
+          `Suppression de la DSF du dossier ${dsfImport.folderId}`,
+          { folderId: dsfImport.folderId },
+        );
+
         return res.json({
           success: true,
           message: "DSF import deleted successfully",
@@ -338,6 +348,13 @@ class DSFController {
         data: { status: FolderStatus.BALANCE_READY },
       });
 
+      await auditService.logUserAction(
+        userId,
+        "DSF_DELETED",
+        `Suppression de la DSF du dossier ${dsf.folderId}`,
+        { folderId: dsf.folderId },
+      );
+
       res.json({
         success: true,
         message: "DSF deleted successfully",
@@ -360,15 +377,20 @@ class DSFController {
       const folder = await prisma.folder.findUnique({
         where: { id: folderId },
         include: {
-          client: true, // Full client object to match LegalForm/ClientType types
+          client: true,
           balances: {
-            where: { status: BalanceStatus.PROCESSED },
+            where: {
+              archived: false,
+              status: {
+                in: [BalanceStatus.PROCESSED, BalanceStatus.UPDATED, BalanceStatus.INVALID],
+              },
+            },
             include: {
               equilibrium: true,
               fixedAssets: true,
             },
+            orderBy: { importedAt: "desc" },
           },
-          // Ensure any other fields required by FolderWithFullRelations are included here
         },
       });
 
@@ -390,6 +412,39 @@ class DSFController {
         throw new BadRequestError(
           "Balance N (année en cours) introuvable ou non traitée",
         );
+      }
+
+      // If no PREVIOUS_YEAR balance exists in the folder, derive N-1 from the
+      // previous fiscal year's CURRENT_YEAR balance (same client/owner) so the
+      // DSF always uses coherent N-1 data instead of a synthetic approximation.
+      const hasPreviousYearBalance = folder.balances.some(
+        (b) => b.type === BalanceType.PREVIOUS_YEAR,
+      );
+      if (!hasPreviousYearBalance) {
+        const prevYearFolder = await prisma.folder.findFirst({
+          where: {
+            clientId: folder.clientId,
+            fiscalYear: folder.fiscalYear - 1,
+            ownerId: folder.ownerId,
+          },
+        });
+        if (prevYearFolder) {
+          const prevNBalance = await prisma.balance.findFirst({
+            where: {
+              folderId: prevYearFolder.id,
+              type: BalanceType.CURRENT_YEAR,
+              archived: false,
+              status: { in: [BalanceStatus.PROCESSED, BalanceStatus.UPDATED] },
+            },
+            include: { equilibrium: true, fixedAssets: true },
+          });
+          if (prevNBalance) {
+            (folder.balances as any[]).push({
+              ...prevNBalance,
+              type: BalanceType.PREVIOUS_YEAR,
+            });
+          }
+        }
       }
 
       // 4. Shared Generation Logic
@@ -436,11 +491,38 @@ class DSFController {
                 dsfData.informations_generales = sanitizeForDB(report.data);
                 break;
               case "NOTES":
-                // Handle notes - this might contain multiple note types
+                // Handle notes - generator uses camelCase keys, schema uses snake_case.
+                // Map known variants and skip keys that have no schema field.
                 if (report.data && typeof report.data === "object") {
+                  const NOTE_KEY_MAP: Record<string, string> = {
+                    note3A: "note3a", note3B: "note3b", note3C: "note3c",
+                    c1Note3C: "note3c_co1",
+                    note3D: "note3d", note3E: "note3e", note3F: "note3f",
+                    note15A: "note15a", note15B: "note15b",
+                    note16A: "note16a", note16B: "note16b",
+                    note16BBis: "note16b_bis", note16C: "note16c",
+                    c1Note17: "note17_c1",
+                    note27A: "note27a", note27B: "note27b",
+                    c1Note25: "note25_c1", c2Note25: "note25_c2",
+                    c1Note28: "note28_c1", c2Note28: "note28_c2",
+                  };
+                  // Allowed DB field names (all JSON? fields on the DSF model)
+                  const VALID_DSF_NOTE_FIELDS = new Set([
+                    "note1","note2","note3a","note3b","note3c","note3c_co1",
+                    "note3d","note3e","note3f","note4","note5","note6","note7",
+                    "note8","note9","note10","note11","note12","note13","note14",
+                    "note15a","note15b","note16a","note16b","note16b_bis","note16c",
+                    "note17","note17_c1","note18","note19","note20","note21",
+                    "note22","note23","note24","note25","note25_c1","note25_c2",
+                    "note26","note27a","note27b","note28","note28_c1","note28_c2",
+                    "note29","note30","note31","note32","note33","note34","note35",
+                    "cf1","cf1_bis","cf1_ter","cf1_quater","cf2","cf2_bis","cf2_ter",
+                  ]);
                   Object.entries(report.data).forEach(([noteKey, noteData]) => {
-                    if (noteData) {
-                      dsfData[noteKey] = sanitizeForDB(noteData);
+                    if (!noteData) return;
+                    const dbKey = NOTE_KEY_MAP[noteKey] ?? noteKey;
+                    if (VALID_DSF_NOTE_FIELDS.has(dbKey)) {
+                      dsfData[dbKey] = sanitizeForDB(noteData);
                     }
                   });
                 }
@@ -491,6 +573,10 @@ class DSFController {
           });
         }
         return dsf;
+      });
+
+      await auditService.logDSFGenerated(req.user!.userId, folderId, {
+        name: folder.name,
       });
 
       // 6. Final Response
@@ -608,6 +694,10 @@ class DSFController {
         });
       }
 
+      await auditService.logDSFValidated(req.user!.userId, dsf.folderId, {
+        result: coherenceResult,
+      });
+
       res.json({
         message: "DSF validation completed",
         isValid: coherenceResult.isCoherent,
@@ -663,6 +753,10 @@ class DSFController {
         data: { status: DSFStatus.EXPORTED },
       });
 
+      await auditService.logDSFExported(req.user!.userId, dsf.folderId, {
+        folderName: dsf.folder.name,
+      });
+
       res.json({
         message: "DSF exported successfully",
         downloadUrl: `/api/files/download/${config.upload.subDirectories.exports}/${path.basename(filePath)}`,
@@ -702,13 +796,29 @@ class DSFController {
         const currentReports = (dsf.reports as any[]) || [];
         const updatedReports = [...currentReports];
 
-        // Update or add reports based on type
+        // --- Section-level diff (computed before mutating updatedReports) ---
+        const sectionDiffs: Array<{
+          section: string;
+          action: 'updated' | 'added';
+          changedKeys: string[];
+        }> = [];
+
         reports.forEach((newReport: any) => {
           const existingIndex = updatedReports.findIndex(
             (r) => r.type === newReport.type,
           );
 
           if (existingIndex !== -1) {
+            // Compute shallow key diff on the data object
+            const oldData = updatedReports[existingIndex].data || {};
+            const newData = newReport.data || {};
+            const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+            const changedKeys = [...allKeys].filter(
+              (k) => JSON.stringify(oldData[k]) !== JSON.stringify(newData[k]),
+            );
+
+            sectionDiffs.push({ section: newReport.type, action: 'updated', changedKeys });
+
             // Update existing report
             updatedReports[existingIndex] = {
               ...updatedReports[existingIndex],
@@ -718,6 +828,11 @@ class DSFController {
               },
             };
           } else {
+            sectionDiffs.push({
+              section: newReport.type,
+              action: 'added',
+              changedKeys: Object.keys(newReport.data || {}),
+            });
             // Add new report
             updatedReports.push(newReport);
           }
@@ -728,9 +843,23 @@ class DSFController {
           data: {
             reports: updatedReports as any,
             lastGeneratedAt: new Date(),
-            userId: dsf.userId || userId, // Set userId if not already set
+            userId: dsf.userId || userId,
           },
         });
+
+        await auditService.logDSFUpdated(
+          userId,
+          dsf.folderId,
+          id,
+          { reports: dsf.reports },
+          {
+            reports,
+            diff: {
+              summary: `${sectionDiffs.length} section(s) DSF modifiée(s)`,
+              sections: sectionDiffs,
+            },
+          },
+        );
       }
 
       res.json({
@@ -919,6 +1048,13 @@ class DSFController {
           data: { status: FolderStatus.DSF_GENERATED },
         });
       }
+
+      await auditService.logDSFImported(
+        req.user!.userId,
+        folderId,
+        file.originalname,
+        { dsfId: dsf.id },
+      );
 
       res.json({
         message: "DSF imported successfully",

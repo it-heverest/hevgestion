@@ -6,6 +6,7 @@ import { BadRequestError, NotFoundError } from "../lib/errors";
 import { DGIService } from "../services/dgi.service";
 import { EncryptionUtil } from "../utils/encryption";
 import { TaxType, DeclarationStatus } from "@prisma/client";
+import { auditService } from "../services/audit.service";
 
 const encryption = new EncryptionUtil();
 
@@ -56,6 +57,13 @@ class DeclarationController {
           status: DeclarationStatus.PENDING,
         },
       });
+
+      await auditService.logUserAction(
+        req.user!.userId,
+        "TAX_DECLARATION_CREATED",
+        "Création d'une déclaration fiscale",
+        { declarationId: declaration.id },
+      );
 
       res.status(201).json({
         message: "Declaration created successfully",
@@ -156,6 +164,14 @@ class DeclarationController {
           filedAt: result.success ? new Date() : null,
         },
       });
+
+      if (result.success) {
+        await auditService.logTaxDeclarationSubmitted(
+          req.user!.userId,
+          declaration.folderId,
+          { folderName: declaration.folder.name },
+        );
+      }
 
       res.json({
         message: result.success
@@ -261,6 +277,14 @@ class DeclarationController {
 
       const result = await this.dgiService.login(username, password);
 
+      if (req.user?.userId) {
+        await auditService.logUserAction(
+          req.user.userId,
+          "DGI_LOGIN",
+          "Connexion au portail DGI",
+        );
+      }
+
       res.json(result);
     } catch (error: any) {
       // Handle specific DGI errors
@@ -308,6 +332,13 @@ class DeclarationController {
 
       // Delete process
       const result = await this.dgiService.deleteProcess(id, authToken);
+
+      await auditService.logUserAction(
+        userId,
+        "DECLARATION_PROCESS_DELETED",
+        "Suppression d'un processus de déclaration",
+        { processId: id },
+      );
 
       res.json(result);
     } catch (error: any) {
@@ -400,6 +431,13 @@ class DeclarationController {
         declaration_year,
         declaration_type,
         authToken
+      );
+
+      await auditService.logUserAction(
+        userId,
+        "DECLARATION_PROCESS_CREATED",
+        "Création d'un processus de déclaration",
+        { processId: result.id },
       );
 
       res.json(result);

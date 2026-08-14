@@ -136,7 +136,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleDirigeantChange(row.id, "nom", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.nom
@@ -149,7 +149,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleDirigeantChange(row.id, "prenom", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.prenom
@@ -162,7 +162,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleDirigeantChange(row.id, "qualite", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.qualite
@@ -175,7 +175,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleDirigeantChange(row.id, "nIdFiscale", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.nIdFiscale
@@ -188,7 +188,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleDirigeantChange(row.id, "adresse", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.adresse
@@ -206,7 +206,7 @@ const FicheR3: React.FC = () => {
           <input
             value={row.nom}
             onChange={(e) => handleConseilChange(row.id, "nom", e.target.value)}
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.nom
@@ -219,7 +219,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleConseilChange(row.id, "prenom", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.prenom
@@ -232,7 +232,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleConseilChange(row.id, "qualite", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.qualite
@@ -245,7 +245,7 @@ const FicheR3: React.FC = () => {
             onChange={(e) =>
               handleConseilChange(row.id, "adresse", e.target.value)
             }
-            className="w-full bg-blue-50 focus:outline-none"
+            className="w-full bg-orange-50 focus:outline-none"
           />
         ) : (
           row.adresse
@@ -266,7 +266,7 @@ const FicheR3: React.FC = () => {
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing ? "bg-green-600" : "bg-blue-600"
+              isEditing ? "bg-green-600" : "bg-orange-600"
             }`}
           >
             {isEditing ? (
@@ -281,7 +281,7 @@ const FicheR3: React.FC = () => {
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -311,7 +311,7 @@ const FicheR3: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                   }
-                  className="w-full border-b border-blue-500 bg-blue-50 focus:outline-none px-1"
+                  className="w-full border-b border-orange-500 bg-orange-50 focus:outline-none px-1"
                 />
               ) : (
                 headerInfo.entityName
@@ -330,7 +330,7 @@ const FicheR3: React.FC = () => {
                       fiscalYearEnd: e.target.value,
                     })
                   }
-                  className="w-full text-center border-b border-blue-500 bg-blue-50 focus:outline-none px-1"
+                  className="w-full text-center border-b border-orange-500 bg-orange-50 focus:outline-none px-1"
                 />
               ) : (
                 headerInfo.fiscalYearEnd
@@ -351,7 +351,7 @@ const FicheR3: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                   }
-                  className="w-full border-b border-blue-500 bg-blue-50 focus:outline-none px-1"
+                  className="w-full border-b border-orange-500 bg-orange-50 focus:outline-none px-1"
                 />
               ) : (
                 headerInfo.idNumber
@@ -367,7 +367,7 @@ const FicheR3: React.FC = () => {
                   onChange={(e) =>
                     setHeaderInfo({ ...headerInfo, duration: e.target.value })
                   }
-                  className="w-full text-center border-b border-blue-500 bg-blue-50 focus:outline-none px-1"
+                  className="w-full text-center border-b border-orange-500 bg-orange-50 focus:outline-none px-1"
                 />
               ) : (
                 headerInfo.duration

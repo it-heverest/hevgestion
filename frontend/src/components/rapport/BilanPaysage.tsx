@@ -752,7 +752,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.brutN}
             onChange={(e) => handleChange(row.id, "brutN", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.brutN.toLocaleString("fr-FR")
@@ -764,7 +764,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.amortN}
             onChange={(e) => handleChange(row.id, "amortN", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.amortN.toLocaleString("fr-FR")
@@ -776,7 +776,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.netN}
             onChange={(e) => handleChange(row.id, "netN", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.netN.toLocaleString("fr-FR")
@@ -788,7 +788,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.netN1}
             onChange={(e) => handleChange(row.id, "netN1", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.netN1.toLocaleString("fr-FR")
@@ -814,7 +814,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.netN}
             onChange={(e) => handleChange(row.id, "netN", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.netN.toLocaleString("fr-FR")
@@ -826,7 +826,7 @@ const BilanPaysage: React.FC = () => {
             type="number"
             value={row.netN1}
             onChange={(e) => handleChange(row.id, "netN1", e.target.value)}
-            className="w-full text-right bg-blue-50"
+            className="w-full text-right bg-orange-50"
           />
         ) : (
           row.netN1.toLocaleString("fr-FR")
@@ -839,7 +839,7 @@ const BilanPaysage: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Bilan Paysage
         </h1>
         <div className="flex gap-3">
@@ -849,7 +849,7 @@ const BilanPaysage: React.FC = () => {
               setIsEditing(!isEditing);
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-blue-600"
+              isEditing ? "bg-green-600" : "bg-orange-600"
             }`}
           >
             {isEditing ? (
@@ -866,7 +866,7 @@ const BilanPaysage: React.FC = () => {
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
           >
             <Download size={18} /> PDF
           </button>

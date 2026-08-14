@@ -310,14 +310,14 @@ export function ReportEditor() {
       if (col === 0) className += ' left-0 z-10 min-w-[40px]';
     } else {
       if (isSelected) {
-        className += ' ring-2 ring-blue-600 bg-blue-50';
+        className += ' ring-2 ring-orange-600 bg-orange-50';
       }
       if (isEditing) {
         className += ' p-0';
       }
       // Style pour les totaux
       if (spreadsheetData[row][1]?.includes('Total') || spreadsheetData[row][1]?.includes('TOTAL')) {
-        className += ' font-medium bg-blue-50';
+        className += ' font-medium bg-orange-50';
       }
     }
     
@@ -512,10 +512,10 @@ export function ReportEditor() {
       {/* Panneau latéral des comptes avec scroll */}
       {showSidebar && (
         <div className="w-96 border-l bg-white flex flex-col flex-shrink-0 h-full">
-          <div className="border-b p-4 bg-blue-50 flex-shrink-0">
+          <div className="border-b p-4 bg-orange-50 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <List className="h-5 w-5 text-blue-600" />
+                <List className="h-5 w-5 text-orange-600" />
                 <h3 className="font-medium">Détails des Comptes</h3>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowSidebar(false)}>
@@ -534,7 +534,7 @@ export function ReportEditor() {
               {accountDetails ? (
                 <div className="space-y-4">
                   {/* Valeur totale */}
-                  <Card className="bg-blue-50 border-blue-200">
+                  <Card className="bg-orange-50 border-orange-200">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <Info className="h-4 w-4" />
@@ -542,7 +542,7 @@ export function ReportEditor() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">
+                      <div className="text-2xl font-bold text-orange-600">
                         {accountDetails.value ? parseFloat(accountDetails.value).toLocaleString('fr-FR') + ' €' : '0 €'}
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">

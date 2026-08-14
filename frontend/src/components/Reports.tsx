@@ -468,7 +468,7 @@
 //                       </div>
 //                       <div className="flex justify-between items-center">
 //                         <span>Time Saved</span>
-//                         <span className="font-bold text-blue-600">25.3 hrs</span>
+//                         <span className="font-bold text-orange-600">25.3 hrs</span>
 //                       </div>
 //                     </div>
 //                   </div>

@@ -28,14 +28,14 @@ const Note35: React.FC = () => {
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           NOTE 35 - Fiche de synthèse des principaux indicateurs financiers
         </h1>
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-blue-600"
+              isEditing ? "bg-green-600" : "bg-orange-600"
             }`}
           >
             {isEditing ? (
@@ -238,7 +238,7 @@ const Note35: React.FC = () => {
           <div className="min-h-[6rem] border border-gray-400 p-2 whitespace-pre-wrap">
             {isEditing ? (
               <textarea
-                className="w-full h-24 p-2 border border-blue-300 bg-blue-50 resize-none"
+                className="w-full h-24 p-2 border border-orange-300 bg-orange-50 resize-none"
                 placeholder="Ajouter vos commentaires ici..."
               />
             ) : (

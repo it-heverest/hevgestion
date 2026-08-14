@@ -190,7 +190,7 @@ export function HelpCenter({ context }: HelpCenterProps) {
       <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Book className="h-5 w-5 text-blue-600" />
+            <Book className="h-5 w-5 text-orange-600" />
             Centre d'Aide
           </DialogTitle>
           <DialogDescription>

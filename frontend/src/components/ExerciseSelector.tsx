@@ -1,23 +1,18 @@
 // components/ExerciseSelector.tsx
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import {
-  Calendar,
   Lock,
   Unlock,
   AlertTriangle,
   FileText,
   Upload,
   Plus,
-  X,
+  Copy,
+  MoreHorizontal,
+  Archive,
+  ArchiveRestore,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -26,10 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,11 +44,13 @@ import {
 import { useExerciseManager, Folder } from "../hooks/useExerciseManager";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
-import { Copy } from "lucide-react";
 import { useTranslation } from "../hooks/useTranslation";
+import { folderService } from "../services/folder.service";
 
 export function ExerciseSelector() {
   const navigate = useNavigate();
+  const { lang } = useParams<{ lang?: string }>();
+  const langPrefix = lang === "en" ? "en" : "fr";
   const { selectedClient, setSelectedFolder, createFolder, updateFolder } =
     useApp();
   const { user } = useAuth();
@@ -75,6 +78,9 @@ export function ExerciseSelector() {
     confirmToggleStatus,
     setShowToggleDialog,
     handleDuplicate,
+    handleArchiveFolder,
+    handleRestoreFolder,
+    handleDeleteFolder,
     setShowDuplicateDialog,
     setFolderToDuplicate,
     setDuplicateForm,
@@ -85,12 +91,38 @@ export function ExerciseSelector() {
     loading,
   } = useExerciseManager();
 
-  // Trier les dossiers par année fiscale décroissante (plus récent en premier)
+  const [folderToDelete, setFolderToDelete] = useState<Folder | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (folder: Folder) => {
+    setFolderToDelete(folder);
+    setDeleteError(null);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!folderToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await handleDeleteFolder(folderToDelete);
+      setShowDeleteDialog(false);
+      setFolderToDelete(null);
+    } catch (error: any) {
+      setDeleteError(
+        error?.message || "Erreur lors de la suppression de l'exercice"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const sortedFolders = useMemo(() => {
     return [...allFolders].sort((a, b) => b.fiscalYear - a.fiscalYear);
   }, [allFolders]);
 
-  // Get active folder (the most recent non-completed folder)
   const activeFolder = useMemo(() => {
     return (
       allFolders
@@ -99,7 +131,6 @@ export function ExerciseSelector() {
     );
   }, [allFolders]);
 
-  // Vérifier si la date de début est valide (doit être dans le passé ou présent)
   const isStartDateValid = (
     fiscalYear: number
   ): { isValid: boolean; message: string } => {
@@ -125,16 +156,8 @@ export function ExerciseSelector() {
   };
 
   const handleDuplicateClick = (folder: Folder) => {
-    console.log(
-      "Opening duplicate dialog for folder:",
-      folder.id,
-      "client:",
-      folder.clientId
-    );
     setFolderToDuplicate(folder);
-    setDuplicateForm({
-      fiscalYear: folder.fiscalYear + 1,
-    });
+    setDuplicateForm({ fiscalYear: folder.fiscalYear + 1 });
     setShowDuplicateDialog(true);
   };
 
@@ -144,7 +167,6 @@ export function ExerciseSelector() {
       return;
     }
 
-    // Validation de la date de début
     const dateValidation = isStartDateValid(createForm.fiscalYear);
     if (!dateValidation.isValid) {
       setCreateError(dateValidation.message);
@@ -155,32 +177,26 @@ export function ExerciseSelector() {
     setCreateError(null);
 
     try {
-      // Calculate start and end dates for the fiscal year
       const startDate = `${createForm.fiscalYear}-01-01`;
       const endDate = `${createForm.fiscalYear}-12-31`;
 
-      // Create the folder using AppContext
       const newFolder = await createFolder({
         name: createForm.name || `Exercice ${createForm.fiscalYear}`,
         description: createForm.description,
         clientId: selectedClient.id,
         fiscalYear: createForm.fiscalYear,
-        startDate: startDate,
-        endDate: endDate,
+        startDate,
+        endDate,
       });
 
-      // Force reload folders to update the list
       await reloadFolders();
-
-      // Auto-select the created folder
       setSelectedFolder(newFolder);
 
-      // Navigate based on workflow choice with proper route structure
       const uid = user?.id || "me";
       if (createForm.workflow === "dsf") {
-        navigate(`/web/user/dsf-import/${newFolder.id}`);
+        navigate(`/${langPrefix}/web/user/dsf-import/${newFolder.id}`);
       } else {
-        navigate(`/web/user/import/${uid}/import`);
+        navigate(`/${langPrefix}/web/user/import/${uid}/import`);
       }
 
       setShowCreateDialog(false);
@@ -191,7 +207,6 @@ export function ExerciseSelector() {
         workflow: "balance",
       });
     } catch (error: any) {
-      console.error("Error creating exercise:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
@@ -208,51 +223,29 @@ export function ExerciseSelector() {
       return;
     }
 
-    // Validation pour la duplication aussi
     const dateValidation = isStartDateValid(duplicateForm.fiscalYear);
     if (!dateValidation.isValid) {
       alert(dateValidation.message);
       return;
     }
 
-    console.log(
-      "Duplicating folder for client:",
-      selectedClient.id,
-      "folder:",
-      folderToDuplicate.id
-    );
-
     setIsCreating(true);
     try {
-      const startDate = `${duplicateForm.fiscalYear}-01-01`;
-      const endDate = `${duplicateForm.fiscalYear}-12-31`;
+      const clonedFolder = await folderService.cloneFolder(
+        folderToDuplicate.id,
+        duplicateForm.fiscalYear,
+      );
 
-      // Create the folder using AppContext
-      const duplicatedFolder = await createFolder({
-        name: `Exercice ${duplicateForm.fiscalYear}`,
-        description: `Duplication de l'exercice ${folderToDuplicate.fiscalYear}`,
-        clientId: selectedClient.id,
-        fiscalYear: duplicateForm.fiscalYear,
-        startDate: startDate,
-        endDate: endDate,
-      });
-
-      // Force reload folders to update the list
       await reloadFolders();
+      setSelectedFolder(clonedFolder);
 
-      // Auto-select the duplicated folder
-      setSelectedFolder(duplicatedFolder);
-
-      // Navigate to balance import by default with proper route structure
       const uid = user?.id || "me";
-      navigate(`/web/user/import/${uid}/import`);
+      navigate(`/${langPrefix}/web/user/import/${uid}/import`);
 
       setShowDuplicateDialog(false);
       setFolderToDuplicate(null);
     } catch (error: any) {
-      console.error("Error duplicating exercise:", error);
-      console.error("Error details:", error.response?.data);
-      alert(error.message || "Erreur lors de la duplication de l'exercice");
+      alert(error.message || "Erreur lors du clonage de l'exercice");
     } finally {
       setIsCreating(false);
     }
@@ -260,168 +253,120 @@ export function ExerciseSelector() {
 
   const handleToggleActive = async (folder: Folder) => {
     try {
-      // Toggle the isActive status
-      const newIsActive = !folder.isActive;
-
-      // Update the folder in the backend
-      await updateFolder(folder.id, { isActive: newIsActive });
-
-      // Force reload folders to update the list
+      await updateFolder(folder.id, { isActive: !folder.isActive });
       await reloadFolders();
-
-      console.log(
-        `Folder ${folder.name} ${newIsActive ? "activated" : "deactivated"}`
-      );
-    } catch (error: any) {
-      console.error("Error toggling folder active status:", error);
+    } catch {
       alert("Erreur lors de la modification du statut actif");
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-muted-foreground mt-4">
-            Chargement des dossiers...
-          </p>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
+        <span className="ml-3 text-sm text-gray-500">Chargement des dossiers...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2>{t("exerciseManagement")}</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("selectFolderDescription")}
-        </p>
-      </div>
-
-      {/* Bouton pour ajouter un nouvel exercice - toujours visible */}
-      <div className="flex justify-center">
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">{t("exerciseManagement")}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{t("selectFolderDescription")}</p>
+        </div>
         <Button
           onClick={() => setShowCreateDialog(true)}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-orange-600 hover:bg-orange-700 text-white h-8 px-3 text-sm"
           disabled={!selectedClient}
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
           {t("addExercise")}
         </Button>
       </div>
 
-      {/* Show active folder if exists */}
-      {activeFolder && (
-        <Card className="border-green-500 bg-green-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Dossier actif</p>
-                  <p className="text-lg">Dossier {activeFolder.fiscalYear}</p>
-                </div>
-              </div>
-              <Badge variant="default" className="bg-green-100 text-green-800">
-                Actif
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Show selected folder if different from active folder */}
-      {selectedFolder && selectedFolder.id !== activeFolder?.id && (
-        <Card className="border-blue-500 bg-blue-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Dossier sélectionné
-                  </p>
-                  <p className="text-lg">Dossier {selectedFolder.fiscalYear}</p>
-                </div>
-              </div>
-              <Badge variant="default">
-                {selectedFolder.status === "DRAFT" ? (
-                  <>
-                    <Unlock className="h-3 w-3 mr-1" />
-                    Ouvert
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-3 w-3 mr-1" />
-                    Clôturé
-                  </>
-                )}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
+      {/* Compact info note */}
+      <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-gray-400" />
+        <span>
           La clôture d'un exercice empêche toute modification des écritures
           comptables. Vous pouvez le réouvrir à tout moment.
-        </AlertDescription>
-      </Alert>
+        </span>
+      </div>
 
-      {selectedClient && allFolders.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {sortedFolders.map((folder: Folder) => (
-            <FolderCard
-              key={folder.id}
-              folder={folder}
-              isSelected={selectedFolder?.id === folder.id}
-              isActive={folder.isActive || false}
-              canClose={canCloseFolder(folder)}
-              closurePossibleDate={getClosurePossibleDate(folder)}
-              onSelect={handleSelectFolder}
-              onToggleActive={handleToggleActive}
-              onToggleStatus={handleCloseButtonClick}
-              onDuplicate={handleDuplicateClick}
-            />
-          ))}
+      {/* No client selected */}
+      {!selectedClient && (
+        <div className="flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2.5">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-500" />
+          <div>
+            <p className="font-medium text-amber-700">{t("noClientSelected")}</p>
+            <p className="text-xs text-amber-600 mt-0.5">{t("selectClientFirst")}</p>
+          </div>
         </div>
       )}
 
-      {selectedClient && allFolders.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="text-center py-8">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-medium text-lg mb-2">Aucun dossier trouvé</h3>
-            <p className="text-muted-foreground mb-4">
-              Créez votre premier dossier pour commencer.
-            </p>
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Créer un dossier
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Folder table */}
+      {selectedClient && allFolders.length > 0 && (
+        <div className="border border-gray-200 rounded-md overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Exercice
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Période
+                </th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Statut
+                </th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {sortedFolders.map((folder: Folder) => (
+                <FolderRow
+                  key={folder.id}
+                  folder={folder}
+                  isSelected={selectedFolder?.id === folder.id}
+                  isActive={folder.isActive || false}
+                  canClose={canCloseFolder(folder)}
+                  closurePossibleDate={getClosurePossibleDate(folder)}
+                  onSelect={handleSelectFolder}
+                  onToggleActive={handleToggleActive}
+                  onToggleStatus={handleCloseButtonClick}
+                  onDuplicate={handleDuplicateClick}
+                  onArchive={handleArchiveFolder}
+                  onRestore={handleRestoreFolder}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {!selectedClient && (
-        <Card className="border-orange-500 bg-orange-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t("noClientSelected")}
-                </p>
-                <p className="text-lg">{t("selectClientFirst")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Empty state */}
+      {selectedClient && allFolders.length === 0 && (
+        <div className="text-center py-12 border border-dashed border-gray-200 rounded-md">
+          <FileText className="h-8 w-8 mx-auto text-gray-300 mb-3" />
+          <p className="text-sm font-medium text-gray-700 mb-1">Aucun dossier trouvé</p>
+          <p className="text-xs text-gray-500 mb-4">
+            Créez votre premier dossier pour commencer.
+          </p>
+          <Button
+            size="sm"
+            onClick={() => setShowCreateDialog(true)}
+            className="bg-orange-600 hover:bg-orange-700 text-white h-8 px-3 text-sm"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Créer un dossier
+          </Button>
+        </div>
       )}
 
       <ToggleStatusDialog
@@ -432,7 +377,7 @@ export function ExerciseSelector() {
         onConfirm={confirmToggleStatus}
       />
 
-      {/* Dialog de création d'exercice */}
+      {/* Create dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -441,7 +386,6 @@ export function ExerciseSelector() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Message d'erreur */}
             {createError && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -468,10 +412,7 @@ export function ExerciseSelector() {
                 id="description"
                 value={createForm.description}
                 onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
+                  setCreateForm((prev) => ({ ...prev, description: e.target.value }))
                 }
                 placeholder="Description de l'exercice"
               />
@@ -484,34 +425,29 @@ export function ExerciseSelector() {
                 type="number"
                 value={createForm.fiscalYear}
                 onChange={(e) => {
-                  const year =
-                    parseInt(e.target.value) || new Date().getFullYear();
+                  const year = parseInt(e.target.value) || new Date().getFullYear();
                   setCreateForm((prev) => ({ ...prev, fiscalYear: year }));
                   setCreateError(null);
-
-                  // Validation en temps réel
                   const validation = isStartDateValid(year);
-                  if (!validation.isValid) {
-                    setCreateError(validation.message);
-                  } else if (validation.message) {
+                  if (!validation.isValid || validation.message) {
                     setCreateError(validation.message);
                   }
                 }}
                 min={2000}
                 max={2100}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 L'année fiscale doit être égale ou antérieure à l'année en cours
               </p>
             </div>
 
             <div>
               <Label>Workflow initial</Label>
-              <div className="space-y-3">
+              <div className="space-y-2 mt-1">
                 <div
-                  className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors ${
                     createForm.workflow === "balance"
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-orange-400 bg-orange-50"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                   onClick={() =>
@@ -524,25 +460,22 @@ export function ExerciseSelector() {
                     value="balance"
                     checked={createForm.workflow === "balance"}
                     onChange={() =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        workflow: "balance",
-                      }))
+                      setCreateForm((prev) => ({ ...prev, workflow: "balance" }))
                     }
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-orange-600"
                   />
-                  <Upload className="h-5 w-5 text-blue-600" />
+                  <Upload className="h-4 w-4 text-gray-500 flex-shrink-0" />
                   <div>
-                    <div className="font-medium">Importer les balances</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm font-medium text-gray-800">Importer les balances</div>
+                    <div className="text-xs text-gray-500">
                       Générer automatiquement la DSF
                     </div>
                   </div>
                 </div>
                 <div
-                  className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center gap-3 p-3 border rounded cursor-pointer transition-colors ${
                     createForm.workflow === "dsf"
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-orange-400 bg-orange-50"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                   onClick={() =>
@@ -557,12 +490,12 @@ export function ExerciseSelector() {
                     onChange={() =>
                       setCreateForm((prev) => ({ ...prev, workflow: "dsf" }))
                     }
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-orange-600"
                   />
-                  <FileText className="h-5 w-5 text-blue-600" />
+                  <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                   <div>
-                    <div className="font-medium">Importer DSF existante</div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm font-medium text-gray-800">Importer DSF existante</div>
+                    <div className="text-xs text-gray-500">
                       Utiliser une DSF déjà préparée
                     </div>
                   </div>
@@ -571,9 +504,10 @@ export function ExerciseSelector() {
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setShowCreateDialog(false);
                 setCreateError(null);
@@ -582,6 +516,8 @@ export function ExerciseSelector() {
               Annuler
             </Button>
             <Button
+              size="sm"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
               onClick={CreateExercise}
               disabled={isCreating || !createForm.name.trim() || !!createError}
             >
@@ -591,15 +527,15 @@ export function ExerciseSelector() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de duplication d'exercice */}
+      {/* Duplicate dialog */}
       <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Dupliquer l'exercice {folderToDuplicate?.fiscalYear}
+              Cloner l'exercice {folderToDuplicate?.fiscalYear}
             </DialogTitle>
             <DialogDescription>
-              Choisissez l'année pour la duplication de cet exercice
+              Toutes les données seront copiées (balance, ventilation, DSF). Si un exercice existe déjà pour l'année choisie, il sera archivé.
             </DialogDescription>
           </DialogHeader>
 
@@ -620,15 +556,16 @@ export function ExerciseSelector() {
                 min={2000}
                 max={2100}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 L'année fiscale doit être égale ou antérieure à l'année en cours
               </p>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setShowDuplicateDialog(false);
                 setFolderToDuplicate(null);
@@ -636,18 +573,67 @@ export function ExerciseSelector() {
             >
               Annuler
             </Button>
-            <Button onClick={handleDuplicateConfirm} disabled={isCreating}>
-              {isCreating ? "Duplication..." : "Dupliquer"}
+            <Button
+              size="sm"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleDuplicateConfirm}
+              disabled={isCreating}
+            >
+              {isCreating ? "Clonage..." : "Cloner"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Supprimer l'exercice {folderToDelete?.fiscalYear}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Cette action est irréversible. L'exercice ne peut être
+                  supprimé que s'il ne contient aucune balance, DSF ou
+                  déclaration.
+                </p>
+                {deleteError && (
+                  <p className="text-red-600 text-sm font-medium">
+                    {deleteError}
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setFolderToDelete(null);
+                setDeleteError(null);
+              }}
+            >
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-// Sous-composant pour la carte de dossier
-interface FolderCardProps {
+interface FolderRowProps {
   folder: Folder;
   isSelected: boolean;
   isActive: boolean;
@@ -657,9 +643,12 @@ interface FolderCardProps {
   onToggleActive: (folder: Folder) => void;
   onToggleStatus: (folder: Folder, e: React.MouseEvent) => void;
   onDuplicate: (folder: Folder) => void;
+  onArchive: (folder: Folder) => void;
+  onRestore: (folder: Folder) => void;
+  onDelete: (folder: Folder) => void;
 }
 
-function FolderCard({
+function FolderRow({
   folder,
   isSelected,
   isActive,
@@ -669,105 +658,117 @@ function FolderCard({
   onToggleActive,
   onToggleStatus,
   onDuplicate,
-}: FolderCardProps) {
+  onArchive,
+  onRestore,
+  onDelete,
+}: FolderRowProps) {
+  const isClosed = folder.status !== "DRAFT";
+  const isArchived = folder.status === "COMPLETED" && !isActive;
+
   return (
-    <Card
-      className={`transition-all ${
-        isActive
-          ? "border-green-500 bg-green-50/50"
-          : isSelected
-          ? "border-blue-500 bg-blue-50/50"
-          : "hover:border-blue-300"
-      }`}
+    <tr
+      className={`${
+        isSelected ? "bg-orange-50" : "bg-white hover:bg-gray-50"
+      } transition-colors`}
     >
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Dossier {folder.fiscalYear}</CardTitle>
-          <div className="flex gap-2">
-            {isActive && (
-              <Badge variant="default" className="bg-green-100 text-green-800">
-                Actif
-              </Badge>
-            )}
-            <Badge
-              variant={folder.status === "DRAFT" ? "default" : "secondary"}
-            >
-              {folder.status === "DRAFT" ? (
-                <>
-                  <Unlock className="h-3 w-3 mr-1" />
-                  Ouvert
-                </>
-              ) : (
-                <>
-                  <Lock className="h-3 w-3 mr-1" />
-                  Clôturé
-                </>
-              )}
-            </Badge>
-          </div>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {isSelected && (
+            <span className="inline-block w-0.5 h-4 bg-orange-500 rounded-full flex-shrink-0" />
+          )}
+          <span className={`font-medium ${isClosed ? "text-gray-500" : "text-gray-900"}`}>
+            Exercice {folder.fiscalYear}
+          </span>
+          {isActive && (
+            <span className="text-xs text-gray-400 font-normal">• actif</span>
+          )}
         </div>
-        <CardDescription>
-          Du {new Date(folder.startDate).toLocaleDateString("fr-FR")} au{" "}
-          {new Date(folder.endDate).toLocaleDateString("fr-FR")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {isSelected && (
-          <div className="flex items-center gap-2 text-sm text-blue-600 mb-2">
-            <Calendar className="h-4 w-4" />
-            <span>Dossier sélectionné</span>
-          </div>
+      </td>
+      <td className="px-4 py-3 text-gray-500 text-xs">
+        {new Date(folder.startDate).toLocaleDateString("fr-FR")} –{" "}
+        {new Date(folder.endDate).toLocaleDateString("fr-FR")}
+      </td>
+      <td className="px-4 py-3">
+        {isClosed ? (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+            <Lock className="h-3 w-3" />
+            Clôturé
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+            <Unlock className="h-3 w-3" />
+            Ouvert
+          </span>
         )}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1">
+          <button
             onClick={() => onSelect(folder)}
-            disabled={isActive}
+            disabled={isSelected}
+            className="px-2.5 py-1 text-xs border border-gray-200 rounded hover:border-gray-400 hover:text-gray-900 text-gray-600 disabled:opacity-40 disabled:cursor-default transition-colors"
           >
-            {isActive ? "Déjà actif" : "Sélectionner"}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => onDuplicate(folder)}
-            title="Dupliquer l'exercice"
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-          <Button
-            variant={folder.status === "DRAFT" ? "destructive" : "default"}
-            size="sm"
+            {isSelected ? "Sélectionné" : "Sélectionner"}
+          </button>
+          <button
             onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
               onToggleStatus(folder, e)
             }
-            disabled={folder.status === "DRAFT" && !canClose}
+            disabled={!isClosed && !canClose}
+            title={
+              !isClosed && !canClose
+                ? `Clôture possible le ${closurePossibleDate}`
+                : undefined
+            }
+            className="px-2.5 py-1 text-xs border border-gray-200 rounded hover:border-gray-400 hover:text-gray-900 text-gray-600 disabled:opacity-40 disabled:cursor-default transition-colors"
           >
-            {folder.status === "DRAFT" ? (
-              <>
-                <Lock className="h-3 w-3 mr-1" />
-                Clôturer
-              </>
-            ) : (
-              <>
-                <Unlock className="h-3 w-3 mr-1" />
-                Réouvrir
-              </>
-            )}
-          </Button>
+            {isClosed ? "Réouvrir" : "Clôturer"}
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                title="Plus d'actions"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded hover:bg-gray-100 transition-colors"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onDuplicate(folder)}>
+                <Copy className="h-3.5 w-3.5" />
+                Cloner
+              </DropdownMenuItem>
+              {isArchived ? (
+                <DropdownMenuItem onClick={() => onRestore(folder)}>
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                  Restaurer
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onArchive(folder)}>
+                  <Archive className="h-3.5 w-3.5" />
+                  Archiver
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => onDelete(folder)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        {folder.status === "DRAFT" && !canClose && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Clôture possible le {closurePossibleDate}
+        {!isClosed && !canClose && (
+          <p className="text-xs text-gray-400 text-right mt-1">
+            Possible le {closurePossibleDate}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </td>
+    </tr>
   );
 }
 
-// Sous-composant pour la boîte de dialogue de confirmation
 interface ToggleStatusDialogProps {
   folder: Folder | null;
   isOpen: boolean;
@@ -790,33 +791,28 @@ function ToggleStatusDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {folder.status === "DRAFT" ? "Clôturer" : "Réouvrir"} le dossier{" "}
+            {folder.status === "DRAFT" ? "Clôturer" : "Réouvrir"} l'exercice{" "}
             {folder.fiscalYear}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div>
               {folder.status === "DRAFT" ? (
-                <>
-                  <div className="space-y-2">
-                    <p>
-                      Êtes-vous sûr de vouloir clôturer ce dossier ? Cette
-                      action empêchera toute modification des écritures
-                      comptables. Vous pourrez le réouvrir ultérieurement si
-                      nécessaire.
-                    </p>
-
-                    {isLatest && (
-                      <Alert className="bg-blue-50 border-blue-200">
-                        <AlertTriangle className="h-4 w-4 text-blue-600" />
-                        <AlertDescription className="text-blue-800">
-                          <strong>Nouveau dossier :</strong> Le dossier{" "}
-                          {folder.fiscalYear + 1} sera automatiquement créé et
-                          ouvert.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <p>
+                    Êtes-vous sûr de vouloir clôturer ce dossier ? Cette action
+                    empêchera toute modification des écritures comptables. Vous
+                    pourrez le réouvrir ultérieurement si nécessaire.
+                  </p>
+                  {isLatest && (
+                    <div className="flex items-start gap-2 text-sm bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+                      <span className="text-blue-700">
+                        <strong>Nouveau dossier :</strong> Le dossier{" "}
+                        {folder.fiscalYear + 1} sera automatiquement créé et ouvert.
+                      </span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   Êtes-vous sûr de vouloir réouvrir ce dossier ? Cela permettra

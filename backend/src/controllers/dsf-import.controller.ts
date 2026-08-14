@@ -3,6 +3,7 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError } from "../lib/errors";
 import { NoteDataService } from "../services/dsf-import.service";
+import { auditService } from "../services/audit.service";
 
 class DSFImportController {
   private noteDataService = new NoteDataService();
@@ -77,6 +78,13 @@ class DSFImportController {
           processedSheets: results.successful.length,
         },
       });
+
+      await auditService.logDSFImported(
+        req.user!.userId,
+        folderId,
+        file.originalname,
+        { importId: dsfImport.id, processedSheets: results.successful.length, failedSheets: results.failed.length, totalSheets: results.total }
+      );
 
       res.json({
         message: "DSF import completed successfully",

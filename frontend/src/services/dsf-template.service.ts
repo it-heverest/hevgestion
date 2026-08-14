@@ -125,14 +125,16 @@ class DsfTemplateService {
             console.error("Error exporting DSF:", error);
             if (error.response?.data instanceof Blob) {
                 const text = await error.response.data.text();
+                let message = "Erreur lors de l'export";
                 try {
                     const json = JSON.parse(text);
-                    throw new Error(json.message || "Erreur lors de l'export");
+                    message = json.message || message;
                 } catch {
-                    throw new Error("Erreur lors de l'export");
+                    // JSON parse failed, use default message
                 }
+                throw new Error(message);
             }
-            throw new Error(error.response?.data?.message || "Erreur lors de l'export");
+            throw new Error(error.message || "Erreur lors de l'export");
         }
     }
 }

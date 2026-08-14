@@ -229,7 +229,7 @@ export function NotificationCenter() {
                 <div
                   key={notification.id}
                   className={`p-3 transition-all ${getBackgroundColor(notification.type, notification.isRead)} ${
-                    !notification.isRead ? "border-l-4 border-blue-600" : ""
+                    !notification.isRead ? "border-l-4 border-orange-600" : ""
                   }`}
                 >
                   <div className="flex items-start gap-2">

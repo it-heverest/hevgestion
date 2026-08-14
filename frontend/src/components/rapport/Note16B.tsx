@@ -264,7 +264,7 @@ const Note16B: React.FC = () => {
       {/* Barre d'actions */}
       <div className="w-3/4 max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
-          <FileText className="w-6 h-6 text-blue-600" />
+          <FileText className="w-6 h-6 text-orange-600" />
           Note 16B - Engagements de Retraite et Avantages Assimilés
         </h1>
         <div className="flex gap-3">
@@ -279,7 +279,7 @@ const Note16B: React.FC = () => {
             disabled={isSaving}
             className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
                 ? "bg-green-600 hover:bg-green-700"
-                : "bg-blue-600 hover:bg-blue-700"
+                : "bg-orange-600 hover:bg-orange-700"
               } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {isSaving ? (
@@ -312,7 +312,7 @@ const Note16B: React.FC = () => {
           )}
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-red-700 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
           >
             <Download size={18} /> Télécharger PDF
           </button>
@@ -337,7 +337,7 @@ const Note16B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, entityName: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -353,7 +353,7 @@ const Note16B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-20 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-20 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-20 text-center">
@@ -369,7 +369,7 @@ const Note16B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 flex-1 px-1"
+                className="border-b border-orange-500 bg-orange-50 flex-1 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 flex-1">
@@ -385,7 +385,7 @@ const Note16B: React.FC = () => {
                 onChange={(e) =>
                   setHeaderInfo({ ...headerInfo, duration: e.target.value })
                 }
-                className="border-b border-blue-500 bg-blue-50 w-16 px-1"
+                className="border-b border-orange-500 bg-orange-50 w-16 px-1"
               />
             ) : (
               <span className="border-b border-dotted border-gray-400 w-16 text-center">
@@ -426,7 +426,7 @@ const Note16B: React.FC = () => {
                       onChange={(e) =>
                         handleHypothesisChange(row.id, "yearN", e.target.value)
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.yearN.toFixed(2) + "%"
@@ -440,7 +440,7 @@ const Note16B: React.FC = () => {
                       onChange={(e) =>
                         handleHypothesisChange(row.id, "yearN1", e.target.value)
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.yearN1.toFixed(2) + "%"
@@ -460,7 +460,7 @@ const Note16B: React.FC = () => {
           </div>
           {isEditing ? (
             <textarea
-              className="w-full h-24 p-1 border border-blue-300 bg-blue-50 resize-none"
+              className="w-full h-24 p-1 border border-orange-300 bg-orange-50 resize-none"
               value={hypothesisComment}
               onChange={(e) => setHypothesisComment(e.target.value)}
             />
@@ -506,7 +506,7 @@ const Note16B: React.FC = () => {
                       onChange={(e) =>
                         handleObligationChange(row.id, "yearN", e.target.value)
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.yearN.toLocaleString("fr-FR")
@@ -520,7 +520,7 @@ const Note16B: React.FC = () => {
                       onChange={(e) =>
                         handleObligationChange(row.id, "yearN1", e.target.value)
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.yearN1.toLocaleString("fr-FR")
@@ -547,7 +547,7 @@ const Note16B: React.FC = () => {
           </div>
           {isEditing ? (
             <textarea
-              className="w-full h-24 p-1 border border-blue-300 bg-blue-50 resize-none"
+              className="w-full h-24 p-1 border border-orange-300 bg-orange-50 resize-none"
               value={obligationComment}
               onChange={(e) => setObligationComment(e.target.value)}
             />
@@ -607,7 +607,7 @@ const Note16B: React.FC = () => {
                           e.target.value
                         )
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.increaseN.toLocaleString("fr-FR")
@@ -625,7 +625,7 @@ const Note16B: React.FC = () => {
                           e.target.value
                         )
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.decreaseN.toLocaleString("fr-FR")
@@ -643,7 +643,7 @@ const Note16B: React.FC = () => {
                           e.target.value
                         )
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.increaseN1.toLocaleString("fr-FR")
@@ -661,7 +661,7 @@ const Note16B: React.FC = () => {
                           e.target.value
                         )
                       }
-                      className="w-full text-right bg-blue-50"
+                      className="w-full text-right bg-orange-50"
                     />
                   ) : (
                     row.decreaseN1.toLocaleString("fr-FR")
@@ -677,7 +677,7 @@ const Note16B: React.FC = () => {
           <div className="font-bold">Commentaire :</div>
           {isEditing ? (
             <textarea
-              className="w-full h-24 p-1 border border-blue-300 bg-blue-50 resize-none"
+              className="w-full h-24 p-1 border border-orange-300 bg-orange-50 resize-none"
               value={sensitivityComment}
               onChange={(e) => setSensitivityComment(e.target.value)}
             />

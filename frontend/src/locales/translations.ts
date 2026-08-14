@@ -14,6 +14,10 @@ export interface TranslationKeys {
   televersion: string;
   other: string;
   revueFiscal: string;
+  ventilationConfig: string;
+  navGroupWorkflow: string;
+  navGroupCompliance: string;
+  navGroupAdmin: string;
 
   // Common
   loading: string;
@@ -186,13 +190,17 @@ export const translations: Record<string, TranslationKeys> = {
     reports: "Reports",
     settings: "Settings",
     exercise: "Exercise",
-    importBalance: "Import Balance",
+    importBalance: "Balance",
     traitement: "Processing",
     dsf: "DSF",
     history: "History",
     televersion: "File Transfer",
-    other: "Other",
+    other: "Account Mapping",
     revueFiscal: "Fiscal Review",
+    ventilationConfig: "Account Ventilation",
+    navGroupWorkflow: "Accounting Workflow",
+    navGroupCompliance: "Compliance & Filings",
+    navGroupAdmin: "Administration",
 
     // Common
     loading: "Loading...",
@@ -358,12 +366,17 @@ export const translations: Record<string, TranslationKeys> = {
     reports: "Rapports",
     settings: "Paramètres",
     exercise: "Exercice",
-    importBalance: "Importer Balance",
+    importBalance: "Balance",
     traitement: "Traitement",
     dsf: "DSF",
     history: "Historique",
     televersion: "Téléversion",
-    other: "Autres",
+    other: "Mapping comptable",
+    revueFiscal: "Revue Fiscale",
+    ventilationConfig: "Ventilation des comptes",
+    navGroupWorkflow: "Workflow comptable",
+    navGroupCompliance: "Déclarations & Conformité",
+    navGroupAdmin: "Administration",
 
     // Common
     loading: "Chargement...",

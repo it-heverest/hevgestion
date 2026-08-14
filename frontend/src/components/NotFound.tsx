@@ -63,7 +63,7 @@ export function NotFound() {
     },
     btnPrimary: {
       padding: "10px 24px",
-      backgroundColor: "#2563eb", // blue-600
+      backgroundColor: "#ea580c", // orange-600
       color: "white",
       border: "none",
       borderRadius: "6px",
@@ -176,7 +176,7 @@ export function NotFound() {
 
         <p style={{ marginTop: "40px", fontSize: "12px", color: "#94a3b8" }}>
           Contact technique :{" "}
-          <span style={{ color: "#2563eb" }}>
+          <span style={{ color: "#ea580c" }}>
             heverest.consulting@gmail.com
           </span>
         </p>

@@ -214,25 +214,49 @@ class FolderService {
   }
 
   /**
-   * Duplicate folder for a new fiscal year
+   * Duplicate folder for a new fiscal year (metadata only — no accounting data)
    */
   async duplicateFolder(
     folderId: string,
     newFiscalYear: number,
   ): Promise<Folder> {
     try {
+      const startDate = `${newFiscalYear}-01-01`;
+      const endDate = `${newFiscalYear}-12-31`;
       const response = await api.post(`/folders/${folderId}/duplicate`, {
         fiscalYear: newFiscalYear,
+        startDate,
+        endDate,
       });
       return response.data.folder;
     } catch (error: any) {
       console.error("Error duplicating folder:", error);
-
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
-      }
-
+      if (error.response?.data?.message) throw new Error(error.response.data.message);
       throw new Error("Erreur lors de la duplication du dossier");
+    }
+  }
+
+  /**
+   * Full deep clone of a folder: copies balances (with all nested data),
+   * DSF, tax declarations, assignments and exercise configs.
+   */
+  async cloneFolder(
+    folderId: string,
+    newFiscalYear: number,
+  ): Promise<Folder> {
+    try {
+      const startDate = `${newFiscalYear}-01-01`;
+      const endDate = `${newFiscalYear}-12-31`;
+      const response = await api.post(`/folders/${folderId}/clone`, {
+        fiscalYear: newFiscalYear,
+        startDate,
+        endDate,
+      });
+      return response.data.folder;
+    } catch (error: any) {
+      console.error("Error cloning folder:", error);
+      if (error.response?.data?.message) throw new Error(error.response.data.message);
+      throw new Error("Erreur lors du clonage de l'exercice");
     }
   }
 

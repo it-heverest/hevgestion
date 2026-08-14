@@ -19,6 +19,13 @@ import {
 } from "./ui/select";
 import { Input } from "./ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
   History,
   Search,
   Filter,
@@ -83,6 +90,7 @@ export function AuditHistory() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [entityFilter, setEntityFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -212,7 +220,7 @@ export function AuditHistory() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
             <span className="ml-2">Chargement de l'historique...</span>
           </div>
         </CardContent>
@@ -333,11 +341,13 @@ export function AuditHistory() {
                       {formatDate(log.timestamp)}
                     </TableCell>
                     <TableCell>
-                      {(log.oldValue || log.newValue) && (
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedLog(log)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -346,6 +356,170 @@ export function AuditHistory() {
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={!!selectedLog}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLog(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedLog && getActionIcon(selectedLog.action)}
+              {selectedLog?.action.replace(/_/g, " ")}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedLog && formatDate(selectedLog.timestamp)}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedLog && (
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                  <div className="text-xs text-muted-foreground">Entité</div>
+                  <div className="font-medium">
+                    {getEntityTypeLabel(selectedLog.entityType)}
+                  </div>
+                </div>
+                {selectedLog.entityId && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      ID entité
+                    </div>
+                    <div className="font-mono text-xs break-all">
+                      {selectedLog.entityId}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.user && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Utilisateur
+                    </div>
+                    <div className="font-medium">
+                      {selectedLog.user.firstName} {selectedLog.user.lastName}{" "}
+                      <span className="text-muted-foreground font-normal">
+                        ({selectedLog.user.role})
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {selectedLog.user.email}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.client && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">Client</div>
+                    <div className="font-medium">
+                      {selectedLog.client.name}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.folder && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Dossier
+                    </div>
+                    <div className="font-medium">
+                      {selectedLog.folder.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {selectedLog.folder.client?.name}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.worksheet && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Feuille
+                    </div>
+                    <div className="font-medium">{selectedLog.worksheet}</div>
+                  </div>
+                )}
+                {selectedLog.cellAddress && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Cellule
+                    </div>
+                    <div className="font-medium">
+                      {selectedLog.cellAddress}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.fieldName && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">Champ</div>
+                    <div className="font-medium">{selectedLog.fieldName}</div>
+                  </div>
+                )}
+                {selectedLog.changeType && (
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      Type de changement
+                    </div>
+                    <div className="font-medium">
+                      {selectedLog.changeType}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  Description
+                </div>
+                <div className="bg-muted/50 rounded-md p-3 whitespace-pre-wrap">
+                  {selectedLog.description}
+                </div>
+              </div>
+
+              {selectedLog.oldValue !== undefined &&
+                selectedLog.oldValue !== null && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Ancienne valeur
+                    </div>
+                    <pre className="bg-muted/50 rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                      {typeof selectedLog.oldValue === "string"
+                        ? selectedLog.oldValue
+                        : JSON.stringify(selectedLog.oldValue, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+              {selectedLog.newValue !== undefined &&
+                selectedLog.newValue !== null && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Nouvelle valeur
+                    </div>
+                    <pre className="bg-muted/50 rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                      {typeof selectedLog.newValue === "string"
+                        ? selectedLog.newValue
+                        : JSON.stringify(selectedLog.newValue, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+              {selectedLog.metadata !== undefined &&
+                selectedLog.metadata !== null && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Métadonnées
+                    </div>
+                    <pre className="bg-muted/50 rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                      {typeof selectedLog.metadata === "string"
+                        ? selectedLog.metadata
+                        : JSON.stringify(selectedLog.metadata, null, 2)}
+                    </pre>
+                  </div>
+                )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

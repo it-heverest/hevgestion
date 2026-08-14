@@ -115,7 +115,7 @@ export function KeyboardShortcuts({ onNavigate }: KeyboardShortcutsProps) {
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Command className="h-5 w-5 text-blue-600" />
+            <Command className="h-5 w-5 text-orange-600" />
             Raccourcis Clavier
           </DialogTitle>
           <DialogDescription>
