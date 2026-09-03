@@ -49,6 +49,9 @@ router.post(
   dsfController.importDSF
 );
 router.get("/check-status", authenticate, dsfController.checkDSFStatus);
+// Doit être déclaré avant "/:folderId": sinon Express matche ce paramètre
+// générique en premier et "formulas" serait pris pour un folderId.
+router.get("/formulas", authenticate, dsfController.getFormulaCatalog);
 router.get("/:folderId", authenticate, dsfController.getDSF);
 router.put("/:id", authenticate, dsfController.updateDSF);
 router.post("/:id/validate", authenticate, dsfController.validateDSF);

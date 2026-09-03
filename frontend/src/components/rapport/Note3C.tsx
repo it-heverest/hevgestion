@@ -304,23 +304,7 @@ const AmortizationReport: React.FC = () => {
 
   // --- Rendu des Lignes ---
 
-  const renderRow = (row: AmortizationRow, index: number) => {
-    if (row.isSubHeader) {
-      return (
-        <tr
-          key={row.id}
-          className={index === 0 ? "" : "border-t-2 border-gray-400"}
-        >
-          <td
-            colSpan={5}
-            className="font-bold p-1 pl-2 bg-gray-100 border border-gray-400"
-          >
-            {row.label}
-          </td>
-        </tr>
-      );
-    }
-
+  const renderRow = (row: AmortizationRow) => {
     const closing = calculateClosingCumulative(row);
 
     return (
@@ -477,7 +461,7 @@ const AmortizationReport: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >
@@ -595,26 +579,24 @@ const AmortizationReport: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-400 text-[9px]">
             <thead>
-              <tr className="bg-gray-700 text-white">
+              <tr className="bg-gray-300">
                 <th
-                  className="border border-gray-600 p-0 align-bottom relative"
+                  className="border border-gray-600 p-0 relative h-16"
                   style={{ width: "200px" }}
                 >
-                  <div className="relative h-16 w-full">
-                    <div className="absolute bottom-0 left-0 w-full h-16 flex items-end">
-                      <div className="w-full text-left pl-1 pb-1">
-                        RUBRIQUES
-                      </div>
-                    </div>
-                    <div className="absolute top-0 right-0 h-full w-16 flex items-start justify-end">
-                      <div className="transform -rotate-90 origin-top-right whitespace-nowrap pr-1 pt-1">
-                        SITUATION ET MOUVEMENTS
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="absolute top-0 right-0 w-0.5 h-full bg-gray-600 transform rotate-45 origin-top"></div>
-                    </div>
-                  </div>
+                  <span
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(to top right, transparent calc(50% - 1px), #4b5563 calc(50% - 1px), #4b5563 calc(50% + 1px), transparent calc(50% + 1px))",
+                    }}
+                  />
+                  <span className="absolute top-0.5 right-1 text-[8px] font-bold text-black text-right leading-tight">
+                    SITUATION ET MOUVEMENTS
+                  </span>
+                  <span className="absolute bottom-0.5 left-1 text-[9px] font-bold text-black">
+                    RUBRIQUES
+                  </span>
                 </th>
                 <th
                   className="border border-gray-600 p-1 text-center align-top"
@@ -657,8 +639,8 @@ const AmortizationReport: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {amortizationData.map((row, index) => renderRow(row, index))}
-              <tr className="bg-gray-200 font-bold border-t-2 border-black">
+              {amortizationData.filter((row) => !row.isSubHeader).map(renderRow)}
+              <tr className="bg-gray-300 font-bold border-t-2 border-black">
                 <td className="border border-gray-400 p-1 pl-2">
                   SOUS TOTAL : IMMOBILISATIONS INCORPORELLES
                 </td>
@@ -675,7 +657,7 @@ const AmortizationReport: React.FC = () => {
                   {incorporealClosing.toLocaleString("fr-FR")}
                 </td>
               </tr>
-              <tr className="bg-gray-200 font-bold">
+              <tr className="bg-gray-300 font-bold">
                 <td className="border border-gray-400 p-1 pl-2">
                   SOUS TOTAL : IMMOBILISATIONS CORPORELLES
                 </td>

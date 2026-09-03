@@ -7698,3 +7698,161 @@ export const CONFIG_NOTE22: ConfigurationMapping = {
     },
   },
 };
+
+// ==================== FICHE R2 ====================
+// Cellules déduites de l'inspection du template réel (dsf_complet.xlsx,
+// onglet "Fiche R2"): libellés ZK-ZP en colonne B (fusionnée B:E), valeur
+// dans la première cellule libre après la fusion (colonne F). Les cases à
+// cocher ZQ/ZR/ZS (controleEntite) ne sont pas mappées: écrire un booléen
+// brut ("TRUE"/"FALSE") n'a pas le rendu d'une coche et risquerait de
+// dérouter plus qu'aider.
+export const CONFIG_FICHE_R2: ConfigurationMapping = {
+  flat: {
+    "renseignements.ZK.value": "F9", // Forme juridique
+    "renseignements.ZL.value": "F11", // Régistre fiscal
+    "renseignements.ZM.value": "F13", // Pays du siège social
+    "renseignements.ZN.value": "F15", // Nombre d'établissement dans le pays
+    "renseignements.ZO.value": "F17", // Nombre d'établissement hors du pays
+    "renseignements.ZP.value": "F20", // Première année d'exercice dans le pays
+    "divers.montant": "M47",
+    "divers.pourcentage": "P47",
+    "totalCA": "M48",
+  },
+  sections: {
+    activites: {
+      libelles: ["Activité 1", "Activité 2", "Activité 3", "Activité 4", "Activité 5", "Activité 6"],
+      lignes: [
+        { designation: "A29", codeNomenclature: "F29", montant: "M29", pourcentage: "P29" },
+        { designation: "A30", codeNomenclature: "F30", montant: "M30", pourcentage: "P30" },
+        { designation: "A31", codeNomenclature: "F31", montant: "M31", pourcentage: "P31" },
+        { designation: "A32", codeNomenclature: "F32", montant: "M32", pourcentage: "P32" },
+        { designation: "A33", codeNomenclature: "F33", montant: "M33", pourcentage: "P33" },
+        { designation: "A34", codeNomenclature: "F34", montant: "M34", pourcentage: "P34" },
+      ],
+    },
+  },
+};
+
+// ==================== FICHE R3 ====================
+// Onglet "Fiche R3": tableau DIRIGEANTS (en-tête fusionné lignes 9-10,
+// données lignes 11-23 = 13 lignes) puis MEMBRE DU CONSEIL D'ADMINISTRATION
+// (en-tête ligne 32, données lignes 33-43 = 11 lignes, colonnes C:D
+// fusionnées pour "Qualité", pas de colonne N° d'identification fiscale).
+export const CONFIG_FICHE_R3: ConfigurationMapping = {
+  sections: {
+    dirigeants: {
+      libelles: [],
+      lignes: [
+        { nom: "A11", prenom: "B11", qualite: "C11", nIdFiscale: "D11", adresse: "E11" },
+        { nom: "A12", prenom: "B12", qualite: "C12", nIdFiscale: "D12", adresse: "E12" },
+        { nom: "A13", prenom: "B13", qualite: "C13", nIdFiscale: "D13", adresse: "E13" },
+        { nom: "A14", prenom: "B14", qualite: "C14", nIdFiscale: "D14", adresse: "E14" },
+        { nom: "A15", prenom: "B15", qualite: "C15", nIdFiscale: "D15", adresse: "E15" },
+        { nom: "A16", prenom: "B16", qualite: "C16", nIdFiscale: "D16", adresse: "E16" },
+        { nom: "A17", prenom: "B17", qualite: "C17", nIdFiscale: "D17", adresse: "E17" },
+        { nom: "A18", prenom: "B18", qualite: "C18", nIdFiscale: "D18", adresse: "E18" },
+        { nom: "A19", prenom: "B19", qualite: "C19", nIdFiscale: "D19", adresse: "E19" },
+        { nom: "A20", prenom: "B20", qualite: "C20", nIdFiscale: "D20", adresse: "E20" },
+        { nom: "A21", prenom: "B21", qualite: "C21", nIdFiscale: "D21", adresse: "E21" },
+        { nom: "A22", prenom: "B22", qualite: "C22", nIdFiscale: "D22", adresse: "E22" },
+        { nom: "A23", prenom: "B23", qualite: "C23", nIdFiscale: "D23", adresse: "E23" },
+      ],
+    },
+    conseilAdministration: {
+      libelles: [],
+      lignes: [
+        { nom: "A33", prenom: "B33", qualite: "C33", adresse: "E33" },
+        { nom: "A34", prenom: "B34", qualite: "C34", adresse: "E34" },
+        { nom: "A35", prenom: "B35", qualite: "C35", adresse: "E35" },
+        { nom: "A36", prenom: "B36", qualite: "C36", adresse: "E36" },
+        { nom: "A37", prenom: "B37", qualite: "C37", adresse: "E37" },
+        { nom: "A38", prenom: "B38", qualite: "C38", adresse: "E38" },
+        { nom: "A39", prenom: "B39", qualite: "C39", adresse: "E39" },
+        { nom: "A40", prenom: "B40", qualite: "C40", adresse: "E40" },
+        { nom: "A41", prenom: "B41", qualite: "C41", adresse: "E41" },
+        { nom: "A42", prenom: "B42", qualite: "C42", adresse: "E42" },
+        { nom: "A43", prenom: "B43", qualite: "C43", adresse: "E43" },
+      ],
+    },
+  },
+};
+
+// ==================== BILAN PAYSAGE ====================
+// Onglet "BILAN PAYSAGE": chaque ligne porte son code SYSCOHADA officiel en
+// colonne A (actif, ex. "AD") ou H (passif, ex. "CA") — vérifié cellule par
+// cellule contre le vrai template. actifRows/passifRows sont mappés par
+// `id` (byKey), pas par position: le générateur ne garantit pas l'ordre du
+// tableau, seulement les codes.
+export const CONFIG_BILAN_PAYSAGE: ConfigurationMapping = {
+  byKey: {
+    actif: {
+      arrayField: "actifRows",
+      keyField: "id",
+      rows: {
+        ad: { brutN: "D12", amortN: "E12", netN: "F12", netN1: "G12" },
+        ae: { brutN: "D13", amortN: "E13", netN: "F13", netN1: "G13" },
+        af: { brutN: "D14", amortN: "E14", netN: "F14", netN1: "G14" },
+        ag: { brutN: "D15", amortN: "E15", netN: "F15", netN1: "G15" },
+        ah: { brutN: "D16", amortN: "E16", netN: "F16", netN1: "G16" },
+        ai: { brutN: "D17", amortN: "E17", netN: "F17", netN1: "G17" },
+        aj: { brutN: "D18", amortN: "E18", netN: "F18", netN1: "G18" },
+        ak: { brutN: "D19", amortN: "E19", netN: "F19", netN1: "G19" },
+        al: { brutN: "D20", amortN: "E20", netN: "F20", netN1: "G20" },
+        am: { brutN: "D21", amortN: "E21", netN: "F21", netN1: "G21" },
+        an: { brutN: "D22", amortN: "E22", netN: "F22", netN1: "G22" },
+        ap: { brutN: "D23", amortN: "E23", netN: "F23", netN1: "G23" },
+        aq: { brutN: "D24", amortN: "E24", netN: "F24", netN1: "G24" },
+        ar: { brutN: "D25", amortN: "E25", netN: "F25", netN1: "G25" },
+        as: { brutN: "D26", amortN: "E26", netN: "F26", netN1: "G26" },
+        az: { brutN: "D27", amortN: "E27", netN: "F27", netN1: "G27" },
+        ba: { brutN: "D28", amortN: "E28", netN: "F28", netN1: "G28" },
+        bb: { brutN: "D29", amortN: "E29", netN: "F29", netN1: "G29" },
+        bc: { brutN: "D30", amortN: "E30", netN: "F30", netN1: "G30" },
+        bh: { brutN: "D31", amortN: "E31", netN: "F31", netN1: "G31" },
+        bi: { brutN: "D32", amortN: "E32", netN: "F32", netN1: "G32" },
+        bj: { brutN: "D33", amortN: "E33", netN: "F33", netN1: "G33" },
+        bk: { brutN: "D34", amortN: "E34", netN: "F34", netN1: "G34" },
+        bq: { brutN: "D35", amortN: "E35", netN: "F35", netN1: "G35" },
+        br: { brutN: "D36", amortN: "E36", netN: "F36", netN1: "G36" },
+        bs: { brutN: "D37", amortN: "E37", netN: "F37", netN1: "G37" },
+        bt: { brutN: "D38", amortN: "E38", netN: "F38", netN1: "G38" },
+        bu: { brutN: "D39", amortN: "E39", netN: "F39", netN1: "G39" },
+        bz: { brutN: "D40", amortN: "E40", netN: "F40", netN1: "G40" },
+      },
+    },
+    passif: {
+      arrayField: "passifRows",
+      keyField: "id",
+      rows: {
+        ca: { netN: "K12", netN1: "L12" },
+        cb: { netN: "K13", netN1: "L13" },
+        cd: { netN: "K14", netN1: "L14" },
+        ce: { netN: "K15", netN1: "L15" },
+        cf: { netN: "K16", netN1: "L16" },
+        cg: { netN: "K17", netN1: "L17" },
+        ch: { netN: "K18", netN1: "L18" },
+        cj: { netN: "K19", netN1: "L19" },
+        cl: { netN: "K20", netN1: "L20" },
+        cm: { netN: "K21", netN1: "L21" },
+        cp: { netN: "K22", netN1: "L22" },
+        da: { netN: "K23", netN1: "L23" },
+        db: { netN: "K24", netN1: "L24" },
+        dc: { netN: "K25", netN1: "L25" },
+        dd: { netN: "K26", netN1: "L26" },
+        df: { netN: "K27", netN1: "L27" },
+        dh: { netN: "K28", netN1: "L28" },
+        di: { netN: "K29", netN1: "L29" },
+        dj: { netN: "K30", netN1: "L30" },
+        dk: { netN: "K31", netN1: "L31" },
+        dm: { netN: "K32", netN1: "L32" },
+        dn: { netN: "K33", netN1: "L33" },
+        dp: { netN: "K34", netN1: "L34" },
+        dq: { netN: "K36", netN1: "L36" },
+        dr: { netN: "K37", netN1: "L37" },
+        dt: { netN: "K38", netN1: "L38" },
+        dy: { netN: "K39", netN1: "L39" },
+        dz: { netN: "K40", netN1: "L40" },
+      },
+    },
+  },
+};

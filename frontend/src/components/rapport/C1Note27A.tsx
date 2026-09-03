@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
@@ -43,7 +43,6 @@ const C1Note27A: React.FC = () => {
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -59,13 +58,9 @@ const C1Note27A: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await dsfService.getDSF(folderId);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      const data = await notesService.getNoteData(folderId, "C1/27A") as any;
 
-      if (dsf.notes && dsf.notes.c1note27A) {
-        const data = dsf.notes.c1note27A;
-
+      if (data) {
         if (data.headerInfo) {
           setHeaderInfo(data.headerInfo);
         }
@@ -82,7 +77,7 @@ const C1Note27A: React.FC = () => {
   };
 
   const saveToBackend = async () => {
-    if (!dsfId) return;
+    if (!folderId) return;
 
     try {
       setSaving(true);
@@ -92,9 +87,10 @@ const C1Note27A: React.FC = () => {
         monthlyRows,
       };
 
-      const notes = { c1note27A: c1note27AData };
-
-      await dsfService.updateDSF(dsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "C1/27A", c1note27AData as any);
+      if (!success) {
+        alert("Erreur lors de la sauvegarde");
+      }
     } catch (error) {
       console.error("Error saving to backend:", error);
       alert("Erreur lors de la sauvegarde");
@@ -273,7 +269,7 @@ const C1Note27A: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">55</div>

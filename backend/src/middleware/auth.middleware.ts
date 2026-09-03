@@ -4,6 +4,7 @@ import { UnauthorizedError, ForbiddenError } from "../lib/errors";
 import { verifyAccessToken } from "../utils/auth";
 import { prisma } from "../lib/prisma";
 import { NotificationService } from "../services/notification.service";
+import { shouldUpdateActivity } from "../utils/activity-throttle";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -52,10 +53,13 @@ export const authenticate = async (
       role: user.role,
     };
 
-    // Update last activity (fire and forget)
-    NotificationService.updateLastActivity(user.id).catch(error =>
-      console.error("Failed to update last activity:", error)
-    );
+    // Update last activity (fire and forget) — throttled so we don't issue a DB
+    // write on every single authenticated request (see activity-throttle).
+    if (shouldUpdateActivity(user.id)) {
+      NotificationService.updateLastActivity(user.id).catch(error =>
+        console.error("Failed to update last activity:", error)
+      );
+    }
 
     next();
   } catch (error) {
@@ -75,4 +79,27 @@ export const authorize = (...allowedRoles: string[]) => {
 
     next();
   };
+};
+
+/**
+ * Ensures a body/query "userId" field, when present, matches the
+ * authenticated user. Several DGI declaration endpoints accept a userId to
+ * scope which DGIConfig credentials to use — without this check, any
+ * authenticated user could submit declarations using another user's DGI
+ * (government tax portal) credentials.
+ */
+export const verifySelfUserId = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const targetUserId = (req.body?.userId ?? req.query?.userId) as
+    | string
+    | undefined;
+
+  if (targetUserId && targetUserId !== req.user?.userId) {
+    return next(new ForbiddenError("Unauthorized access"));
+  }
+
+  next();
 };

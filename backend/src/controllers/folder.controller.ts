@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../lib/errors";
 import { FolderStatus } from "@prisma/client";
 import { auditService } from "../services/audit.service";
+import { trashService } from "../services/trash.service";
 
 const VALID_STATUSES: string[] = [
   "DRAFT",
@@ -840,7 +841,8 @@ class FolderController {
 
   /**
    * DELETE /:id
-   * Permanently deletes a folder. Owner or admin only. No associated data allowed.
+   * Place le dossier en corbeille (suppression réversible). Propriétaire ou
+   * administrateur uniquement. Le dossier ne doit plus porter de données.
    */
   deleteFolder = async (
     req: AuthRequest,
@@ -850,6 +852,7 @@ class FolderController {
     try {
       const { id } = req.params;
       const userId = req.user!.userId;
+      const { reason } = req.body || {};
 
       const folder = await prisma.folder.findUnique({
         where: { id },
@@ -874,11 +877,13 @@ class FolderController {
         throw new BadRequestError("Cannot delete folder with associated data");
       }
 
-      await prisma.folder.delete({ where: { id } });
+      await trashService.archiveAndDelete("Folder", id, userId, reason);
 
       await auditService.logFolderDeleted(userId, id, folder);
 
-      res.json({ message: "Folder deleted successfully" });
+      res.json({
+        message: "Dossier placé dans la corbeille. Un administrateur peut le restaurer.",
+      });
     } catch (error) {
       next(error);
     }

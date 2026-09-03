@@ -120,7 +120,7 @@ export function EntityHeader({ onComplete }: EntityHeaderProps) {
       try {
         // Use bulk load to get all notes at once - avoids multiple API calls
         const allNotes = await notesService.getNotesForFolder(folderId);
-        const notesMap = new Map(
+        const notesMap = new Map<string, any>(
           (allNotes || []).map((n: any) => [n.noteNumber, n.data])
         );
 

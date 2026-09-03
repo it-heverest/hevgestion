@@ -47,9 +47,12 @@ export const loginSchema = z.object({
 });
 
 export const verifyOtpSchema = z.object({
+  // NOTE: the field is `otpCode` to match the controller (auth.controller.verifyOtp
+  // reads req.body.otpCode) and the frontend (auth.service sends { userId, otpCode }).
+  // It was previously `otp`, which made every verification fail validation (400).
   body: z.object({
     userId: z.string().uuid("Invalid user ID"),
-    otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d{6}$/, "OTP must be numeric"),
+    otpCode: z.string().length(6, "OTP must be 6 digits").regex(/^\d{6}$/, "OTP must be numeric"),
   }),
 });
 

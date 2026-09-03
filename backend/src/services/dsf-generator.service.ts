@@ -3,6 +3,10 @@ import { DSF, Folder, Balance, Client } from "@prisma/client";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import { config } from "../config";
+import { getMappingLine, getMappingLines } from "./dsf/account-mapping.data";
+import { sumMappingLine, sumBySide, sumMovement } from "./dsf/account-sum.util";
+import { evaluateFormulaSource } from "./dsf/formula-engine";
+import { TFT_LINES } from "./dsf/tft-mapping.data";
 
 interface DSFData {
   taxTables: any;
@@ -100,7 +104,7 @@ export class DSFGenerator {
 
     reports.push({
       type: "NOTES",
-      data: await this.generateAllNotes(nData, n1Data, nBalance, folder),
+      data: await this.generateAllNotes(nData, n1Data, nBalance, n1Balance, folder),
     });
 
     reports.push({
@@ -436,6 +440,597 @@ export class DSFGenerator {
     };
   }
 
+  /**
+   * Calcule les lignes du Bilan Paysage à partir de la table de correspondance
+   * comptes → notes OHADA (fichier Excel de référence de l'utilisateur, voir
+   * account-mapping.data.ts). Utilise une recherche "fail-soft" (jamais
+   * d'exception) car cette fonction tourne au milieu de generateAllNotes():
+   * une étiquette introuvable ne doit jamais faire échouer toute la
+   * génération DSF, juste laisser cette ligne à 0 pour vérification manuelle.
+   *
+   * Certaines lignes n'ont pas de source fiable dans le fichier de référence
+   * (avances sur immobilisations AP, capital non appelé CB) et restent à 0,
+   * volontairement, plutôt que de deviner un numéro de compte non confirmé.
+   */
+  private generateBilanPaysageRows(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    const findLine = (code: string, needle: string) =>
+      getMappingLines(code).find((l) =>
+        l.label.toLowerCase().includes(needle.toLowerCase())
+      );
+    const sum = (rows: any[], code: string, needle: string): number => {
+      const l = findLine(code, needle);
+      return l ? sumMappingLine(rows, l) : 0;
+    };
+    const sumMany = (rows: any[], code: string, needles: string[]): number =>
+      needles.reduce((acc, needle) => acc + sum(rows, code, needle), 0);
+
+    // { brutN, amortN, netN, netN1 } pour une ligne actif avec amortissement.
+    const actifLine = (
+      brutNeedles: { code: string; needles: string[] },
+      amortNeedles: { code: string; needles: string[] } | null
+    ) => {
+      const brutN = sumMany(n, brutNeedles.code, brutNeedles.needles);
+      const brutN1 = sumMany(n1, brutNeedles.code, brutNeedles.needles);
+      const amortN = amortNeedles
+        ? sumMany(n, amortNeedles.code, amortNeedles.needles)
+        : 0;
+      const amortN1 = amortNeedles
+        ? sumMany(n1, amortNeedles.code, amortNeedles.needles)
+        : 0;
+      return {
+        brutN,
+        amortN,
+        netN: brutN - amortN,
+        netN1: brutN1 - amortN1,
+      };
+    };
+
+    // { netN, netN1 } pour une ligne passif (pas de colonne brut/amort).
+    const passifLine = (code: string, needles: string[]) => ({
+      brutN: 0,
+      amortN: 0,
+      netN: sumMany(n, code, needles),
+      netN1: sumMany(n1, code, needles),
+    });
+
+    // ── ACTIF ────────────────────────────────────────────────────────────
+    const ae = actifLine(
+      { code: "3A", needles: ["frais de développement"] },
+      { code: "3C", needles: ["frais de développement"] }
+    );
+    const af = actifLine(
+      { code: "3A", needles: ["brevets, licences"] },
+      { code: "3C", needles: ["brevets, licences"] }
+    );
+    const ag = actifLine(
+      { code: "3A", needles: ["fonds commercial"] },
+      { code: "3C", needles: ["fonds commercial"] }
+    );
+    const ah = actifLine(
+      { code: "3A", needles: ["autres immobilisations incorporelles"] },
+      { code: "3C", needles: ["autres immobilisations incorporelles"] }
+    );
+    const ad = {
+      brutN: ae.brutN + af.brutN + ag.brutN + ah.brutN,
+      amortN: ae.amortN + af.amortN + ag.amortN + ah.amortN,
+      netN: ae.netN + af.netN + ag.netN + ah.netN,
+      netN1: ae.netN1 + af.netN1 + ag.netN1 + ah.netN1,
+    };
+
+    const aj = actifLine(
+      {
+        code: "3A",
+        needles: ["terrains hors immeuble", "terrains - immeuble"],
+      },
+      null // terrains non amortis
+    );
+    const ak = actifLine(
+      {
+        code: "3A",
+        needles: ["bâtiments hors immeuble", "bâtiments - immeuble"],
+      },
+      { code: "3C", needles: ["bâtiments hors immeuble"] }
+    );
+    const al = actifLine(
+      { code: "3A", needles: ["aménagements, agencements"] },
+      { code: "3C", needles: ["aménagements, agencements"] }
+    );
+    const am = actifLine(
+      { code: "3A", needles: ["matériel, mobilier"] },
+      { code: "3C", needles: ["matériel, mobilier"] }
+    );
+    const an = actifLine(
+      { code: "3A", needles: ["matériel de transport"] },
+      { code: "3C", needles: ["matériel de transport"] }
+    );
+    const ai = {
+      brutN: aj.brutN + ak.brutN + al.brutN + am.brutN + an.brutN,
+      amortN: aj.amortN + ak.amortN + al.amortN + am.amortN + an.amortN,
+      netN: aj.netN + ak.netN + al.netN + am.netN + an.netN,
+      netN1: aj.netN1 + ak.netN1 + al.netN1 + am.netN1 + an.netN1,
+    };
+
+    // AP: avances et acomptes versés sur immobilisation — pas de source
+    // fiable dans le fichier de référence, laissé à 0 (saisie manuelle).
+    const ap = { brutN: 0, amortN: 0, netN: 0, netN1: 0 };
+
+    const ar = actifLine(
+      { code: "4", needles: ["titres de participation"] },
+      { code: "4", needles: ["dépréciations titres de participation"] }
+    );
+    const as_ = actifLine(
+      {
+        code: "4",
+        needles: [
+          "prêts et créances",
+          "prêts au personnel",
+          "créances sur l'etat",
+          "titres immobilisés",
+          "dépôts et cautionnements",
+          "intérêts couruss",
+          "immobilisations financières diverses",
+        ],
+      },
+      { code: "4", needles: ["dépréciations autres immobilisations"] }
+    );
+    const aq = {
+      brutN: ar.brutN + as_.brutN,
+      amortN: ar.amortN + as_.amortN,
+      netN: ar.netN + as_.netN,
+      netN1: ar.netN1 + as_.netN1,
+    };
+
+    const az = {
+      brutN: ad.brutN + ai.brutN + ap.brutN + aq.brutN,
+      amortN: ad.amortN + ai.amortN + ap.amortN + aq.amortN,
+      netN: ad.netN + ai.netN + ap.netN + aq.netN,
+      netN1: ad.netN1 + ai.netN1 + ap.netN1 + aq.netN1,
+    };
+
+    const ba = actifLine(
+      {
+        code: "5",
+        needles: [
+          "créances sur cessions d'immobilisations",
+          "autres créances hors activités ordinaires",
+        ],
+      },
+      { code: "5", needles: ["dépréciations des créances h.a.o."] }
+    );
+    const bb = actifLine(
+      {
+        code: "6",
+        needles: [
+          "marchandises",
+          "matières premières et fournitures liées",
+          "autres approvisionnements",
+          "produits en cours",
+          "services en cours",
+          "produits finis",
+          "produits intermédiaires",
+          "stocks en cours de route",
+        ],
+      },
+      { code: "6", needles: ["dépréciations des stocks"] }
+    );
+    const bh = actifLine(
+      {
+        code: "17",
+        needles: [
+          "fournisseurs, avances et acomptes (hors groupe)",
+          "fournisseurs, avances et acomptes groupe",
+          "autres fournisseurs débiteurs",
+        ],
+      },
+      null
+    );
+    const bi = actifLine(
+      {
+        code: "7",
+        needles: [
+          "clients (hors réserve de propriété et groupe)",
+          "clients effets à recevoir (hors réserve de propriété et groupe)",
+          "clients et effets à recevoir avec réserve de propriété",
+          "clients et effets à recevoir groupe",
+          "clients, chèques, effets et autres valeurs impayés",
+          "créances sur cessions courantes d'immobilisations",
+          "clients effets eomptés et non échus",
+          "créances litigeuses ou douteuses",
+          "clients produits à recevoir",
+        ],
+      },
+      { code: "7", needles: ["dépréciations des comptes clients"] }
+    );
+    const bj = actifLine(
+      {
+        code: "8",
+        needles: [
+          "personnel",
+          "organismes sociaux",
+          "etat et collectivités publiques",
+          "organismes internationaux",
+          "apporteurs, associés et groupe",
+          "compte transitoire ajustement",
+          "autres débiteurs divers",
+          "comptes permanents non bloqués",
+          "comptes de liaison charges et produits",
+          "comptes de liaison des sociétés en participation",
+        ],
+      },
+      { code: "8", needles: ["dépréciations des autres créances"] }
+    );
+    const bc = {
+      brutN: bh.brutN + bi.brutN + bj.brutN,
+      amortN: bh.amortN + bi.amortN + bj.amortN,
+      netN: bh.netN + bi.netN + bj.netN,
+      netN1: bh.netN1 + bi.netN1 + bj.netN1,
+    };
+    const bk = {
+      brutN: ba.brutN + bb.brutN + bc.brutN,
+      amortN: ba.amortN + bb.amortN + bc.amortN,
+      netN: ba.netN + bb.netN + bc.netN,
+      netN1: ba.netN1 + bb.netN1 + bc.netN1,
+    };
+
+    const bq = actifLine(
+      {
+        code: "9",
+        needles: [
+          "titres de trésor et bons de caisse à court terme",
+          "actions",
+          "obligations",
+          "bons de souription",
+          "titres négociables hors régions",
+          "intérêts courus",
+          "autres valeurs assimilées",
+        ],
+      },
+      { code: "9", needles: ["dépréciations des titres"] }
+    );
+    const br = actifLine(
+      {
+        code: "10",
+        needles: [
+          "effets à encaisser",
+          "effets à l'encaissement",
+          "chèques à encaisser",
+          "chèques à l'encaissement",
+          "cartes de crédit à encaisser",
+          "autres valeurs à encaisser",
+        ],
+      },
+      { code: "10", needles: ["dépréciations des valeurs à encaisser"] }
+    );
+    const bs = actifLine(
+      {
+        code: "11",
+        needles: [
+          "autres établissements financiers",
+          "etablissements financiers intérêts courus",
+          "instruments de trésorerie",
+          "caisse",
+          "caisse électronique mobile",
+          "régies d'avances et virements accréditifs",
+          "banques locales",
+          "banques autres états région",
+          "banques, dépôt à terme",
+          "autres banques",
+          "banques intérêts courus",
+          "chèques postaux",
+        ],
+      },
+      { code: "11", needles: ["dépréciations"] }
+    );
+    const bt = {
+      brutN: bq.brutN + br.brutN + bs.brutN,
+      amortN: bq.amortN + br.amortN + bs.amortN,
+      netN: bq.netN + br.netN + bs.netN,
+      netN1: bq.netN1 + br.netN1 + bs.netN1,
+    };
+
+    const bu = actifLine(
+      { code: "12", needles: ["ecart de conversion - actifs"] },
+      null
+    );
+
+    const bz = {
+      brutN: az.brutN + bk.brutN + bt.brutN + bu.brutN,
+      amortN: az.amortN + bk.amortN + bt.amortN + bu.amortN,
+      netN: az.netN + bk.netN + bt.netN + bu.netN,
+      netN1: az.netN1 + bk.netN1 + bt.netN1 + bu.netN1,
+    };
+
+    // ── PASSIF (net uniquement) ─────────────────────────────────────────
+    const ca = {
+      brutN: 0,
+      amortN: 0,
+      netN: this.getAccountBalance(n, "101"),
+      netN1: this.getAccountBalance(n1, "101"),
+    };
+    // CB: apporteurs capital non appelé — pas de source fiable, à saisir.
+    const cb = { brutN: 0, amortN: 0, netN: 0, netN1: 0 };
+    const cd = passifLine("14", [
+      "prime d'émission",
+      "primes d'apport",
+      "prime de fusion",
+      "prime de conversion",
+      "autres primes",
+    ]);
+    // CE: écart de réévaluation — compte 106, confirmé par la note 3E.
+    const ce = {
+      brutN: 0,
+      amortN: 0,
+      netN: this.getAccountBalance(n, "106"),
+      netN1: this.getAccountBalance(n1, "106"),
+    };
+    const cf = passifLine("14", [
+      "réserves légales",
+      "réserves statutaires",
+      "réserves de plus-values nettes",
+      "réserves d'attribution gratuite",
+      "autres réserves réglementées",
+    ]);
+    const cg = passifLine("14", ["réserves libres"]);
+    const ch = passifLine("14", ["report à nouveau"]);
+    const cj = {
+      brutN: 0,
+      amortN: 0,
+      netN: this.getAccountBalance(n, "13"),
+      netN1: this.getAccountBalance(n1, "13"),
+    };
+    const cl = passifLine("15A", [
+      "etat",
+      "régions",
+      "départements",
+      "communes et collectivités",
+      "entités publiques ou mixtes",
+      "entités et organismes privés",
+      "organismes internationaux",
+      "autres",
+    ]);
+    const cm = passifLine("15A", [
+      "amortissements dérogatoires",
+      "plue-value de cession à réinvestir",
+      "provision spéciale de réévaluation",
+      "provisions réglementées relatives aux immobilisations",
+      "provisions réglementées relatives aux stocks",
+      "provisions pour investissement",
+      "autres provisions et fonds réglementés",
+    ]);
+    const cp = {
+      brutN: 0,
+      amortN: 0,
+      netN:
+        ca.netN +
+        cb.netN +
+        cd.netN +
+        ce.netN +
+        cf.netN +
+        cg.netN +
+        ch.netN +
+        cj.netN +
+        cl.netN +
+        cm.netN,
+      netN1:
+        ca.netN1 +
+        cb.netN1 +
+        cd.netN1 +
+        ce.netN1 +
+        cf.netN1 +
+        cg.netN1 +
+        ch.netN1 +
+        cj.netN1 +
+        cl.netN1 +
+        cm.netN1,
+    };
+
+    const da = passifLine("16A", [
+      "emprunts obligataires",
+      "emprunts et dettes auprès des établissements crédits",
+      "avances reçues de l'etat",
+      "avances reçues et comptes courants bloqués",
+      "dépôts et cautionnements reçus",
+      "intérêts courus1",
+      "avances assorties de conditions particulières",
+      "autres emprunts et dettes",
+      "dettes liées à des participations",
+      "comptes permanents bloqués",
+    ]);
+    const db = passifLine("16A", [
+      "crédit bail immobilier",
+      "crédit bail mobilier",
+      "location vente",
+      "intérêts courus",
+      "autres dettes de location acquisition",
+    ]);
+    const dc = passifLine("16A", [
+      "provisions pour litiges",
+      "provisions pour garantie donnée aux clients",
+      "provisions pour pertes sur marchés",
+      "provisions pour pertes de change",
+      "provisions pour impôts",
+      "provisions pour pensions",
+      "actif du régime de retraite",
+      "provisions pour restructuration",
+      "provisions pour amendes et pénalités",
+      "provisions de propre assureur",
+      "provisions pour démantèlement",
+      "provisions de droits à déduction",
+      "autres provisions",
+    ]);
+    const dd = {
+      brutN: 0,
+      amortN: 0,
+      netN: da.netN + db.netN + dc.netN,
+      netN1: da.netN1 + db.netN1 + dc.netN1,
+    };
+    const df = {
+      brutN: 0,
+      amortN: 0,
+      netN: cp.netN + dd.netN,
+      netN1: cp.netN1 + dd.netN1,
+    };
+
+    const dh = passifLine("5", [
+      "fournisseurs d'investissements",
+      "fournisseurs d'investissements effets à payer",
+      "versements restant à effectuer sur titres de participation",
+      "autres dettes hors activités ordinaires",
+    ]);
+    const di = passifLine("7", [
+      "clients, avances reçues hors groupe",
+      "clients, avances reçues groupe",
+      "autres clients créditeurs",
+    ]);
+    const dj = passifLine("17", [
+      "fournisseurs dettes en compte (hors groupe)",
+      "fournisseurs effets à payer (hors groupe)",
+      "fournisseurs dettes et effets à payer groupe",
+      "fournisseurs factures non parvenues (hors groupe)",
+      "fournisseurs factures non parvenues groupe",
+    ]);
+    const dk = passifLine("18", [
+      "personnel avances et acomptes",
+      "personnel rémunérations dues",
+      "autres personnel",
+      "caisse de sécurité sociale",
+      "caisse de retraite",
+      "autres organismes sociaux",
+      "etat, impôts sur les bénéfices",
+      "etat, impôts et taxes",
+      "etat, tva",
+      "etat, impôts retenus à la source",
+      "autres dettes etat",
+    ]);
+    const dm = passifLine("19", [
+      "organismes internationaux",
+      "apporteurs, opérations sur le capital",
+      "associés, compte courant",
+      "associés, dividendes à payer",
+      "groupe, comptes courants",
+      "autres dettes associés",
+      "créditeurs divers",
+      "obligataires",
+      "rémunérations d'administrateurs",
+      "compte du factor",
+      "versements restant à effectuer sur titres de placement",
+      "compte transitoire ajustement",
+      "autres créditeurs divers",
+      "comptes permanents non bloqués",
+      "comptes de liaison charges et produits",
+      "comptes de liaison des sociétés en participation",
+    ]);
+    const dn = passifLine("28", [
+      "12. dépréciations et provisions pour risques à court",
+      "13. dépréciations et provisions pour risques à court",
+    ]);
+    const dp = {
+      brutN: 0,
+      amortN: 0,
+      netN: dh.netN + di.netN + dj.netN + dk.netN + dm.netN + dn.netN,
+      netN1: dh.netN1 + di.netN1 + dj.netN1 + dk.netN1 + dm.netN1 + dn.netN1,
+    };
+
+    const dq = passifLine("20", [
+      "escomptes de crédit de campagne",
+      "escomptes de crédit ordinaires",
+    ]);
+    const dr = passifLine("20", [
+      "banques locales",
+      "banques autres états région",
+      "autres banques",
+      "banques intérêts courus",
+      "crédit de trésorerie",
+    ]);
+    const dt = {
+      brutN: 0,
+      amortN: 0,
+      netN: dq.netN + dr.netN,
+      netN1: dq.netN1 + dr.netN1,
+    };
+
+    const dy = passifLine("12", ["ecart de conversion - passifs"]);
+
+    const dz = {
+      brutN: 0,
+      amortN: 0,
+      netN: df.netN + dp.netN + dt.netN + dy.netN,
+      netN1: df.netN1 + dp.netN1 + dt.netN1 + dy.netN1,
+    };
+
+    const withIds = (obj: Record<string, any>) =>
+      Object.entries(obj).map(([id, v]) => ({ id, ...v }));
+
+    return {
+      headerInfo: this.buildEntete(folder),
+      actifRows: withIds({
+        ad,
+        ae,
+        af,
+        ag,
+        ah,
+        ai,
+        aj,
+        ak,
+        al,
+        am,
+        an,
+        ap,
+        aq,
+        ar,
+        as: as_,
+        az,
+        ba,
+        bb,
+        bc,
+        bh,
+        bi,
+        bj,
+        bk,
+        bq,
+        br,
+        bs,
+        bt,
+        bu,
+        bz,
+      }),
+      passifRows: withIds({
+        ca,
+        cb,
+        cd,
+        ce,
+        cf,
+        cg,
+        ch,
+        cj,
+        cl,
+        cm,
+        cp,
+        da,
+        db,
+        dc,
+        dd,
+        df,
+        dh,
+        di,
+        dj,
+        dk,
+        dm,
+        dn,
+        dp,
+        dq,
+        dr,
+        dt,
+        dy,
+        dz,
+      }),
+    };
+  }
+
   private generateIncomeStatement(nData: any, n1Data: any): any {
     const n = nData.rows || [];
     const n1 = n1Data?.rows || [];
@@ -746,7 +1341,8 @@ export class DSFGenerator {
   private async generateAllNotes(
     nData: any,
     n1Data: any,
-    nBalance: Balance,
+    nBalance: any,
+    n1Balance: any,
     folder: FolderWithRelations
   ): Promise<any> {
     const n = nData.rows || [];
@@ -755,115 +1351,246 @@ export class DSFGenerator {
 
     const notes: any = {};
 
-    // Common notes for all client types
-    notes.note1 = await this.generateNote1(folder, n);
-    notes.note2 = this.generateNote2();
-    notes.note3A = await this.generateNote3A(n, folder);
-    notes.note3B = this.generateNote3B(n, n1);
-    notes.note3C = this.generateNote3C(n);
-    notes.c1Note3C = this.generateC1Note3C(n);
-    notes.note3D = this.generateNote3D(n);
-    notes.note3E = this.generateNote3E(n);
-    notes.note3F = this.generateNote3F(n);
-    notes.note4 = await this.generateNote4(n, n1, folder);
-    notes.note5 = this.generateNote5(n);
-    notes.note6 = this.generateNote6(n, n1);
-    notes.note7 = await this.generateNote7(n, n1, folder);
-    notes.note8 = this.generateNote8(n, n1);
-    notes.note9 = this.generateNote9(n);
-    notes.note10 = this.generateNote10(n);
-    notes.note11 = this.generateNote11(n);
-    notes.note12 = this.generateNote12(n);
-    notes.note13 = this.generateNote13(folder);
-    notes.note14 = this.generateNote14(n);
-    notes.note15A = this.generateNote15A(n);
-    notes.note15B = this.generateNote15B(n);
-    notes.note16A = this.generateNote16A(n);
-    notes.note16B = this.generateNote16B(n);
-    notes.note16BBis = this.generateNote16BBis(n);
-    notes.note16C = this.generateNote16C(n);
-    notes.note17 = this.generateNote17(n);
-    notes.c1Note17 = this.generateC1Note17(n);
-    notes.note18 = this.generateNote18(n);
-    notes.note19 = this.generateNote19(n, folder);
-    notes.note20 = this.generateNote20(n);
-    notes.note21 = this.generateNote21(n, n1);
-    notes.note22 = this.generateNote22(n, n1);
-    notes.note23 = this.generateNote23(n, n1);
-    notes.note24 = this.generateNote24(n, n1);
-    notes.note25 = this.generateNote25(n);
-    notes.c1Note25 = this.generateC1Note25(n);
-    notes.c2Note25 = this.generateC2Note25(n);
-    notes.note26 = this.generateNote26(n, n1);
-    notes.note27A = this.generateNote27A(n, n1);
-    notes.c1Note27A = this.generateC1Note27A(n);
-    notes.note27B = this.generateNote27B(n);
-    notes.note28 = this.generateNote28(n);
-    notes.c1Note28 = this.generateC1Note28(n);
-    notes.c2Note28 = this.generateC2Note28(n);
-    notes.note29 = this.generateNote29(n, n1);
-    notes.note30 = this.generateNote30(n, n1);
-    notes.note31 = this.generateNote31(n);
-    notes.note32 = this.generateNote32(n);
-    notes.note33 = this.generateNote33(n);
-    notes.note34 = this.generateNote34(n);
-    notes.note35 = this.generateNote35();
-    notes.cf1 = await this.generateCF1(n, folder);
+    // Chaque note est isolée dans son propre try/catch: avant ce
+    // changement, seul le Bilan Paysage était protégé (voir l'ancien
+    // commentaire "notes 1-35 non affectées" — un aveu que TOUTES les
+    // autres notes ne l'étaient pas). Comme les 63 notes sont assignées
+    // en séquence dans une seule fonction, la moindre exception levée par
+    // UNE SEULE d'entre elles interrompait généreAllNotes() et faisait
+    // disparaître silencieusement toutes les notes suivantes — expliquant
+    // des générations tronquées à un nombre de notes imprévisible selon
+    // la balance importée. Chaque note échouée est maintenant journalisée
+    // et simplement absente du résultat, sans jamais empêcher les
+    // suivantes de se générer, dans le même ordre qu'avant.
+    const safe = (key: string, fn: () => any) => {
+      try {
+        notes[key] = fn();
+      } catch (err) {
+        console.error(
+          `Erreur génération note "${key}" (les autres notes ne sont pas affectées):`,
+          err
+        );
+      }
+    };
+    const safeAsync = async (key: string, fn: () => Promise<any>) => {
+      try {
+        notes[key] = await fn();
+      } catch (err) {
+        console.error(
+          `Erreur génération note "${key}" (les autres notes ne sont pas affectées):`,
+          err
+        );
+      }
+    };
 
-    // Add client type specific notes
+    // Jeu de notes "normal" (DSF complète OHADA) — réservé aux clients qui
+    // ne sont ni SMT ni ASSURANCE. Ces deux régimes ont leur propre liasse
+    // dédiée (voir plus bas) et ne doivent PAS recevoir en plus les ~50
+    // notes normales : avant ce changement, tous les clients recevaient ce
+    // bloc puis, en plus, leurs notes de régime — un client SMT ou
+    // ASSURANCE se retrouvait avec les deux liasses mélangées alors que ce
+    // sont des régimes de déclaration distincts et exclusifs.
+    if (clientType !== "ASSURANCE" && clientType !== "SMT") {
+      await safeAsync("note1", () => this.generateNote1(folder, n));
+      safe("note2", () => this.generateNote2());
+      await safeAsync("note3A", () => this.generateNote3A(n, n1, folder));
+      safe("note3B", () => this.generateNote3B(n, n1, folder));
+      safe("note3C", () => this.generateNote3C(n, n1, folder));
+      safe("c1Note3C", () => this.generateC1Note3C(n));
+      safe("note3D", () => this.generateNote3D(n, folder));
+      safe("note3E", () => this.generateNote3E(n, folder));
+      safe("note3F", () => this.generateNote3F(n1, folder));
+      await safeAsync("note4", () => this.generateNote4(n, n1, folder));
+      safe("note5", () => this.generateNote5(n, n1, folder));
+      safe("note6", () => this.generateNote6(n, n1, folder));
+      await safeAsync("note7", () => this.generateNote7(n, n1, folder));
+      safe("note8", () => this.generateNote8(n, n1, folder));
+      safe("note9", () => this.generateNote9(n, n1, folder));
+      safe("note10", () => this.generateNote10(n, n1, folder));
+      safe("note11", () => this.generateNote11(n, n1, folder));
+      safe("note12", () => this.generateNote12(folder));
+      safe("note13", () => this.generateNote13(folder));
+      safe("note14", () => this.generateNote14(n, n1, folder));
+      safe("note15A", () => this.generateNote15A(n, n1, folder));
+      safe("note15B", () => this.generateNote15B(n, n1, folder));
+      safe("note16A", () => this.generateNote16A(n, n1, folder));
+      safe("note16B", () => this.generateNote16B(n, n1, folder));
+      safe("note16BBis", () => this.generateNote16BBis(n, n1, folder));
+      safe("note16C", () => this.generateNote16C(folder));
+      safe("note17", () => this.generateNote17(n, n1, folder));
+      safe("c1Note17", () => this.generateC1Note17(n, folder));
+      safe("note18", () => this.generateNote18(n, n1, folder));
+      safe("note19", () => this.generateNote19(n, n1, folder));
+      safe("note20", () => this.generateNote20(n, n1, folder));
+      safe("note21", () => this.generateNote21(n, n1, folder));
+      safe("note22", () => this.generateNote22(n, n1, folder));
+      safe("note23", () => this.generateNote23(n, n1, folder));
+      safe("note24", () => this.generateNote24(n, n1, folder));
+      safe("note25", () => this.generateNote25(n, n1, folder));
+      safe("c1Note25", () => this.generateC1Note25(n));
+      safe("c2Note25", () => this.generateC2Note25(n));
+      safe("note26", () => this.generateNote26(n, n1, folder));
+      safe("note27A", () => this.generateNote27A(n, n1, folder));
+      safe("c1Note27A", () => this.generateC1Note27A(n));
+      safe("note27B", () => this.generateNote27B(folder));
+      safe("note28", () => this.generateNote28(n, n1, folder));
+      safe("c1Note28", () => this.generateC1Note28(n));
+      safe("c2Note28", () => this.generateC2Note28(n));
+      safe("note29", () => this.generateNote29(n, n1, folder));
+      safe("note30", () => this.generateNote30(n, n1, folder));
+      safe("note31", () => this.generateNote31(n, n1, folder));
+      safe("note32", () => this.generateNote32(folder));
+      safe("note33", () => this.generateNote33(folder));
+      safe("note34", () => this.generateNote34(n, n1, folder));
+      safe("note35", () => this.generateNote35());
+      await safeAsync("cf1", () => this.generateCF1(n, folder));
+      safe("cf1Bis", () => this.generateCF1Bis(n));
+      safe("cf1Ter", () => this.generateCF1Ter(n));
+      safe("cf1Quater", () => this.generateCF1Quater(n));
+      safe("cf2", () => this.generateCF2(n));
+      safe("cf2Bis", () => this.generateCF2Bis(n));
+      safe("cf2Ter", () => this.generateCF2Ter(n));
+      safe("bilanPaysage", () => this.generateBilanPaysageRows(n, n1, folder));
+      // Lit `notes` déjà rempli (ex. le résultat de note34) — doit rester
+      // après les notes dont elle dépend, ce qui est déjà le cas ici.
+      safe("tft", () => this.generateTFT(n, n1, notes, nBalance, n1Balance));
+      safe("ficheR2", () => this.generateFicheR2(n, folder));
+      safe("ficheR3", () => this.generateFicheR3(folder));
+    }
+
+    // Jeu de notes propre au régime du client — exclusif du bloc "normal"
+    // ci-dessus.
     if (clientType === "ASSURANCE") {
       // Add assurance-specific notes
-      notes.bilanActif = this.generateBilanActif(n);
-      notes.bilanPassif = this.generateBilanPassif(n);
-      notes.charges = this.generateCharges(n);
-      notes.compteGeneral = this.generateCompteGeneral(n);
-      notes.etatC4 = this.generateEtatC4(n);
-      notes.etatC11 = this.generateEtatC11(n);
-      notes.etatC11Vie = this.generateEtatC11Vie(n);
-      notes.produits = this.generateProduits(n);
+      safe("bilanActif", () => this.generateBilanActif(n));
+      safe("bilanPassif", () => this.generateBilanPassif(n));
+      safe("charges", () => this.generateCharges(n));
+      safe("compteGeneral", () => this.generateCompteGeneral(n));
+      safe("etatC4", () => this.generateEtatC4(n));
+      safe("etatC11", () => this.generateEtatC11(n));
+      safe("etatC11Vie", () => this.generateEtatC11Vie(n));
+      safe("produits", () => this.generateProduits(n));
       // Add other assurance notes...
     } else if (clientType === "SMT") {
       // Add SMT-specific notes
-      notes.grilleAnalyseNotesSMT = this.generateGrilleAnalyseNotesSMT(n);
-      notes.modBilan = this.generateModBilan(n);
-      notes.note1Smt = this.generateNote1Smt(n);
-      notes.note2Smt = this.generateNote2Smt(n);
-      notes.note3Smt = this.generateNote3Smt(n);
-      notes.note4Smt = this.generateNote4Smt(n);
-      notes.note5Smt = this.generateNote5Smt(n);
-      notes.note6Smt = this.generateNote6Smt(n);
+      safe("grilleAnalyseNotesSMT", () => this.generateGrilleAnalyseNotesSMT(n));
+      safe("modBilan", () => this.generateModBilan(n));
+      safe("note1Smt", () => this.generateNote1Smt(n));
+      safe("note2Smt", () => this.generateNote2Smt(n));
+      safe("note3Smt", () => this.generateNote3Smt(n));
+      safe("note4Smt", () => this.generateNote4Smt(n));
+      safe("note5Smt", () => this.generateNote5Smt(n));
+      safe("note6Smt", () => this.generateNote6Smt(n));
       // Add other SMT notes...
     }
 
     return notes;
   }
 
+  /**
+   * En-tête commun à tous les composants de notes (ils lisent tous
+   * `noteData.entete`).
+   */
+  private buildEntete(folder: FolderWithRelations): any {
+    return {
+      entityName: folder.client?.name || null,
+      fiscalYear: folder.fiscalYear ? String(folder.fiscalYear) : null,
+      idNumber: folder.client?.taxNumber || null,
+      duration: "12",
+    };
+  }
+
+  /**
+   * Construit les lignes d'une note à partir de la table de correspondance
+   * OHADA. Chaque ligne de la table produit TOUJOURS une ligne de sortie,
+   * même à 0, pour que le tableau s'affiche complet côté frontend.
+   * `indexes` permet de ne retenir qu'un sous-ensemble ordonné de lignes
+   * (ex. séparer charges et produits d'une même note).
+   */
+  private buildNoteRows(
+    noteCode: string,
+    n: any[],
+    n1: any[],
+    options: {
+      indexes?: number[];
+      extra?: (valueN: number, valueN1: number, index: number) => any;
+    } = {}
+  ): any[] {
+    const lines = getMappingLines(noteCode);
+    const picked =
+      options.indexes !== undefined
+        ? options.indexes.map((i) => lines[i]).filter(Boolean)
+        : lines;
+
+    return picked.map((line, i) => {
+      const yearN = sumMappingLine(n, line);
+      const yearN1 = sumMappingLine(n1, line);
+      return {
+        id: String(i + 1),
+        label: line.label,
+        yearN,
+        yearN1,
+        ...(options.extra ? options.extra(yearN, yearN1, i) : {}),
+      };
+    });
+  }
+
+  /** Colonnes d'échéancier (1 an / 1-5 ans / +5 ans). Sans information
+   * d'échéance dans la balance, tout est classé à un an au plus. */
+  private agingLong(yearN: number): any {
+    return { lessThan1Year: yearN, oneToFiveYears: 0, moreThanFiveYears: 0 };
+  }
+
+  /** Colonnes d'échéancier (1 an / 1-2 ans / +2 ans). */
+  private agingShort(yearN: number): any {
+    return { lessThan1Year: yearN, oneToTwoYears: 0, moreThanTwoYears: 0 };
+  }
+
   private async generateNote1(
     folder: FolderWithRelations,
     n: any[]
   ): Promise<any> {
-    // Get Note1 config and account mappings
-    const note1Config = await this.getConfigByCategory("note1", folder);
-    const accountMappings = note1Config?.accountMappings || [];
+    // Table OHADA note "1", 3 groupes: 0-3 = dettes financières,
+    // 4-7 = dettes de location-acquisition, 8-15 = dettes du passif circulant.
+    // Les colonnes garanties (hypothèques/nantissements/autres sûretés) ne
+    // sont pas déductibles de la balance: laissées à 0, à saisir par le
+    // comptable.
+    const toDebtRow = (line: any, i: number) => ({
+      id: String(i + 1),
+      libelle: line.label,
+      note: "",
+      grossAmount: sumMappingLine(n, line),
+      mortgages: 0,
+      pledges: 0,
+      others: 0,
+    });
 
-    const dettesGaranties = accountMappings.map((mapping: any) => ({
-      compte: mapping.accountNumber,
-      montant: this.getBalanceValue(
-        n,
-        folder,
-        mapping.accountNumber,
-        mapping.source
-      ),
-      garantie: mapping.destination || "À préciser",
-    }));
+    const lines = getMappingLines("1");
+    const pick = (indexes: number[]) =>
+      indexes.map((idx, i) => toDebtRow(lines[idx], i));
 
     return {
+      entete: this.buildEntete(folder),
       title: "DETTES GARANTIES PAR DES SURETES REELLES",
-      raisonSociale: folder.client.name,
-      formeJuridique: folder.client.legalForm,
-      activitePrincipale: "À compléter",
-      effectif: 0,
-      dettesGaranties,
+      financialDebts: pick([0, 1, 2, 3]),
+      leasingDebts: pick([4, 5, 6, 7]),
+      currentLiabilities: pick([8, 9, 10, 11, 12, 13, 14, 15]),
+      // Engagements financiers: hors bilan, sans compte comptable dédié —
+      // les 7 libellés standards OHADA sont toujours émis, montants à 0
+      // (saisie manuelle par le comptable).
+      commitments: [
+        "Engagements consentis à des entités liées",
+        "Primes de remboursement non échues",
+        "Avals, cautions, garanties",
+        "Hypothèques, nantissements, gages, autres",
+        "Effets escomptés non échus",
+        "Créances commerciales et professionnelles cédées",
+        "Abandons de créances conditionnels",
+      ].map((libelle) => ({
+        libelle,
+        engagementsGiven: 0,
+        engagementsReceived: 0,
+      })),
     };
   }
 
@@ -878,96 +1605,113 @@ export class DSFGenerator {
 
   private async generateNote3A(
     n: any[],
+    n1: any[],
     folder: FolderWithRelations
   ): Promise<any> {
-    // Get Note3A config and account mappings
-    const note3AConfig = await this.getConfigByCategory("note3A", folder);
-    const accountMappings = note3AConfig?.accountMappings || [];
+    // Table OHADA note "3A" (tableau de mouvements des immobilisations
+    // brutes). Ordre des lignes: 0-3 = incorporelles, 4-10 = corporelles,
+    // 11 = avances sur incorporelles (251), 12 = avances sur corporelles
+    // (252), 13-14 = financières.
+    // Ouverture = solde N-1, clôture = solde N. Les acquisitions et cessions
+    // de la période sont lues sur les mouvements du compte (débit =
+    // acquisition, crédit = cession/sortie). Les virements de poste à poste
+    // et les réévaluations ne sont pas isolables dans la balance: à 0.
+    const lines = getMappingLines("3A");
+    const buildMovementRows = (indexes: number[]) =>
+      indexes.map((idx, i) => {
+        const line = lines[idx];
+        return {
+          id: String(i + 1),
+          libelle: line.label,
+          montantBrutOuverture: sumMappingLine(n1, line),
+          acquisitions: sumMovement(n, line.accounts, "MD", line.excludedAccounts),
+          virementsPosteAPoste: 0,
+          reevaluation: 0,
+          cessions: sumMovement(n, line.accounts, "MC", line.excludedAccounts),
+          virementsSortie: 0,
+          montantBrutCloture: sumMappingLine(n, line),
+        };
+      });
 
-    let immobilisationsIncorporelles = this.sumAccounts(n, ["21"]);
-    let immobilisationsCorporelles = this.sumAccounts(n, [
-      "22",
-      "23",
-      "24",
-      "25",
-    ]);
-    let immobilisationsFinancieres = this.sumAccounts(n, ["26", "27"]);
+    return {
+      entete: this.buildEntete(folder),
+      title: "IMMOBILISATIONS BRUTES",
+      immobilisationsIncorporelles: buildMovementRows([0, 1, 2, 3]),
+      immobilisationsCorporelles: buildMovementRows([4, 5, 6, 7, 8, 9, 10]),
+      avancesAcomptes: buildMovementRows([11, 12]),
+      immobilisationsFinancieres: buildMovementRows([13, 14]),
+    };
+  }
 
-    // Apply account mappings to override default calculations
-    accountMappings.forEach((mapping: any) => {
-      const value = this.getBalanceValue(
-        n,
-        folder,
-        mapping.accountNumber,
-        mapping.source
-      );
-      if (mapping.destination === "immobilisationsIncorporelles") {
-        immobilisationsIncorporelles = value;
-      } else if (mapping.destination === "immobilisationsCorporelles") {
-        immobilisationsCorporelles = value;
-      } else if (mapping.destination === "immobilisationsFinancieres") {
-        immobilisationsFinancieres = value;
-      }
+  private generateNote3B(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Biens pris en location-acquisition (crédit-bail): mêmes rubriques que
+    // la note 3A, mais restreintes aux biens LOUÉS plutôt que possédés. Ce
+    // distingo n'est pas déductible du numéro de compte dans le plan
+    // comptable général — un compte 245 (matériel de transport) ne dit pas
+    // si le véhicule est loué ou possédé — donc ce tableau est
+    // intégralement à saisie manuelle par le comptable (comme les
+    // engagements financiers de la note 1), les lignes étant toujours
+    // émises pour que le tableau s'affiche complet.
+    const toRow = (label: string) => ({
+      libelle: label,
+      natureContrat: "",
+      montantBrutOuverture: 0,
+      acquisitions: 0,
+      virementsPosteAPoste: 0,
+      reevaluation: 0,
+      cessions: 0,
+      virementsSortie: 0,
     });
 
-    const total =
-      immobilisationsIncorporelles +
-      immobilisationsCorporelles +
-      immobilisationsFinancieres;
-
     return {
-      title: "IMMOBILISATIONS BRUTES",
-      immobilisationsIncorporelles,
-      immobilisationsCorporelles,
-      immobilisationsFinancieres,
-      total,
-    };
-  }
-
-  private generateNote3B(n: any[], n1: any[]): any {
-    const debutExercice = this.sumAccounts(n1, [
-      "21",
-      "22",
-      "23",
-      "24",
-      "25",
-      "26",
-      "27",
-    ]);
-    const acquisitions = 0;
-    const cessions = 0;
-    const finExercice = this.sumAccounts(n, [
-      "21",
-      "22",
-      "23",
-      "24",
-      "25",
-      "26",
-      "27",
-    ]);
-
-    return {
+      entete: this.buildEntete(folder),
       title: "BIENS PRIS EN LOCATION ACQUISITION",
-      debutExercice,
-      acquisitions,
-      cessions,
-      finExercice,
-      tableauDetails: [],
+      immobilisationsIncorporelles: [
+        "Brevets, licences, logiciels et droits similaires",
+        "Fonds commercial et droit au bail",
+        "Autres immobilisations incorporelles",
+      ].map(toRow),
+      immobilisationsCorporelles: [
+        "Terrains",
+        "Bâtiments",
+        "Aménagements, agencements et installations",
+        "Matériel, mobilier et actifs biologiques",
+        "Matériel de transport",
+      ].map(toRow),
     };
   }
 
-  private generateNote3C(n: any[]): any {
+  private generateNote3C(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "3C" (amortissements cumulés): 0-3 = incorporelles
+    // (2811-2818), 4-8 = corporelles (282-2845).
+    // Ouverture = cumul N-1, augmentations = dotations (mouvement créditeur),
+    // diminutions = reprises/sorties (mouvement débiteur).
+    const lines = getMappingLines("3C");
+    const buildRows = (indexes: number[]) =>
+      indexes.map((idx, i) => {
+        const line = lines[idx];
+        return {
+          id: String(i + 1),
+          libelle: line.label,
+          openingCumulative: sumMappingLine(n1, line),
+          augmentations: sumMovement(n, line.accounts, "MC", line.excludedAccounts),
+          diminutions: sumMovement(n, line.accounts, "MD", line.excludedAccounts),
+        };
+      });
+
     return {
+      entete: this.buildEntete(folder),
       title: "IMMOBILISATIONS: AMORTISSEMENTS",
-      amortissementsCumules: this.sumAccounts(n, [
-        "281",
-        "282",
-        "283",
-        "284",
-        "285",
-      ]),
-      dotationsExercice: this.sumAccounts(n, ["681"]),
-      reprisesExercice: 0,
+      immobilisationsIncorporelles: buildRows([0, 1, 2, 3]),
+      immobilisationsCorporelles: buildRows([4, 5, 6, 7, 8]),
     };
   }
 
@@ -980,34 +1724,106 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote3D(n: any[]): any {
+  private generateNote3D(n: any[], folder: FolderWithRelations): any {
+    // Table OHADA note "3D" (plus/moins-values de cession): mêmes rubriques
+    // que les notes 3A/3B/3C (incorporelles/corporelles) + 2 rubriques
+    // financières. Comme la note 3B, le montant brut cédé, les
+    // amortissements pratiqués sur CE bien précis et son prix de cession
+    // ne sont pas déductibles rubrique par rubrique depuis le solde agrégé
+    // d'un compte (un compte 245 "Matériel de transport" ne dit pas QUEL
+    // véhicule a été cédé, ni son prix de vente) — saisie manuelle par le
+    // comptable, lignes toujours émises pour que le tableau s'affiche
+    // complet. La valeur nette (C=A-B) et la plus/moins-value (E=D-C) sont
+    // calculées côté frontend, pas stockées ici.
+    const toRow = (label: string) => ({
+      libelle: label,
+      montantBrut: 0,
+      amortissementsPratiques: 0,
+      prixCessions: 0,
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "IMMOBILISATIONS: PLUS ET MOINS VALUE DE CESSION",
-      prixCession: 0,
-      valeurComptableNette: 0,
-      plusValue: 0,
-      moinsValue: 0,
+      immobilisationsIncorporelles: [
+        "Frais de développement et de prospection",
+        "Brevets, licences, logiciels et droits similaires",
+        "Fonds commercial et droit au bail",
+        "Autres immobilisations incorporelles",
+      ].map(toRow),
+      immobilisationsCorporelles: [
+        "Terrains",
+        "Bâtiments",
+        "Aménagements, agencements et installations",
+        "Matériel, mobilier et actifs biologiques",
+        "Matériel de transport",
+      ].map(toRow),
+      immobilisationsFinancieres: [
+        "Titres de participations",
+        "Autres immobilisations financières",
+      ].map(toRow),
+      justification: "",
     };
   }
 
-  private generateNote3E(n: any[]): any {
+  private generateNote3E(n: any[], folder: FolderWithRelations): any {
+    const total = sumMappingLine(n, getMappingLine("3E", "écart incorporé"));
     return {
+      entete: this.buildEntete(folder),
       title: "INFORMATIONS SUR LES REEVALUATIONS EFFECTUEES PAR L'ENTITE",
       reevaluations: [],
-      total: 0,
+      total,
     };
   }
 
-  private generateNote3F(n: any[]): any {
+  private generateNote3F(n1: any[], folder: FolderWithRelations): any {
+    // Table OHADA note "3F": étalement des charges immobilisées (frais
+    // d'établissement 201, charges à répartir sur plusieurs exercices 202,
+    // primes de remboursement des obligations 206). Le "montant global à
+    // étaler au 1er janvier" est directement lisible dans la balance: c'est
+    // le solde débiteur de CLÔTURE de l'exercice précédent (= ouverture de
+    // l'exercice courant), d'où le paramètre `n1` plutôt que `n`. En
+    // revanche la durée d'étalement retenue, le détail par compte de charge
+    // ayant reçu la quote-part amortie cette année, et les totaux des
+    // exercices antérieurs (N-1 à N-4) ne sont pas déductibles de la
+    // balance courante: saisie manuelle, avec les repères d'exemple
+    // (comptes 60 à 63) de l'imprimé DGI toujours pré-remplis.
+    const placeholderRows = () => [
+      { compte: "60...", montant: 0 },
+      { compte: "61...", montant: 0 },
+      { compte: "62...", montant: 0 },
+      { compte: "63...", montant: 0 },
+      { compte: "...", montant: 0 },
+    ];
+
+    const toCategory = (key: string, label: string, account: string) => ({
+      key,
+      label,
+      montantGlobal: sumBySide(n1, [account], "SD"),
+      dureeEtalement: "",
+      exerciceNRows: placeholderRows(),
+      totalExerciceN1: 0,
+      totalExerciceN2: 0,
+      totalExerciceN3: 0,
+      totalExerciceN4: 0,
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "TABLEAU D'ETALEMENT DES CHARGES IMMOBILISEES",
-      chargesImmobilisees: this.sumAccounts(n, ["201", "202", "203"]),
-      amortissements: this.sumAccounts(n, ["2801", "2802", "2803"]),
-      valeurNette: this.calculateNet(
-        n,
-        ["201", "202", "203"],
-        ["2801", "2802", "2803"]
-      ),
+      categories: [
+        toCategory("fraisEtablissement", "Frais d'établissement", "201"),
+        toCategory(
+          "chargesARepartir",
+          "Charges à répartir sur plusieurs exercice",
+          "202"
+        ),
+        toCategory(
+          "primesRemboursement",
+          "Primes de remboursement des obligations",
+          "206"
+        ),
+      ],
     };
   }
 
@@ -1016,95 +1832,88 @@ export class DSFGenerator {
     n1: any[],
     folder: FolderWithRelations
   ): Promise<any> {
-    // Get Note4 config and account mappings
-    const note4Config = await this.getConfigByCategory("note4", folder);
-    const accountMappings = note4Config?.accountMappings || [];
-
-    let titresDeParticipation = this.sumAccounts(n, ["261", "262"]);
-    let autresTitres = this.sumAccounts(n, ["26", "27"]);
-    let pretsEtCreances = this.sumAccounts(n, ["274", "275", "276"]);
-
-    // Apply account mappings
-    accountMappings.forEach((mapping: any) => {
-      const value = this.getBalanceValue(
-        n,
-        folder,
-        mapping.accountNumber,
-        mapping.source
-      );
-      if (mapping.destination === "titresDeParticipation") {
-        titresDeParticipation = value;
-      } else if (mapping.destination === "autresTitres") {
-        autresTitres = value;
-      } else if (mapping.destination === "pretsEtCreances") {
-        pretsEtCreances = value;
-      }
-    });
-
-    const total = titresDeParticipation + autresTitres + pretsEtCreances;
-
+    // Table OHADA note "4", 10 lignes: 0-7 = immobilisations financières
+    // brutes (26, 271-278), 8-9 = dépréciations (296, 297).
     return {
+      entete: this.buildEntete(folder),
       title: "IMMOBILISATIONS FINANCIERES",
-      titresDeParticipation,
-      autresTitres,
-      pretsEtCreances,
-      total,
+      immobilisations: this.buildNoteRows("4", n, n1, {
+        indexes: [0, 1, 2, 3, 4, 5, 6, 7],
+        extra: (yearN, yearN1) => ({
+          variation: yearN - yearN1,
+          oneYearPlus: 0,
+          twoYearsPlus: 0,
+          fourYearsPlus: 0,
+        }),
+      }),
+      depreciations: this.buildNoteRows("4", n, n1, {
+        indexes: [8, 9],
+        extra: (yearN, yearN1) => ({
+          variation: yearN - yearN1,
+          oneYearPlus: 0,
+          twoYearsPlus: 0,
+          fourYearsPlus: 0,
+        }),
+      }),
+      // Détail des filiales/participations: information juridique non
+      // déductible de la balance, à saisir par le comptable.
+      subsidiaries: [],
+      filialesParticipations: [],
     };
   }
 
-  private generateNote5(n: any[]): any {
+  private generateNote5(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "5": 0-1 = créances H.A.O. (485, 488), 2 =
+    // dépréciations (498), 3-6 = dettes H.A.O. (481x, 482, 4813, 484).
     return {
-      title: "ACTIF CIRCULANT HAO",
-      actifCirculantHAO: this.sumAccounts(n, ["485"]),
-      details: [],
+      entete: this.buildEntete(folder),
+      title: "ACTIF ET PASSIF CIRCULANT HAO",
+      assetsData: this.buildNoteRows("5", n, n1, {
+        indexes: [0, 1, 2],
+        extra: () => ({ isTotal: false }),
+      }),
+      liabilitiesData: this.buildNoteRows("5", n, n1, {
+        indexes: [3, 4, 5, 6],
+        extra: () => ({ isTotal: false }),
+      }),
+      actifCirculantHAO: this.buildNoteRows("5", n, n1, { indexes: [0, 1, 2] }),
+      dettesHAO: this.buildNoteRows("5", n, n1, { indexes: [3, 4, 5, 6] }),
     };
   }
 
-  private generateNote6(n: any[], n1: any[]): any {
+  private generateNote6(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "6": 0-7 = stocks et en-cours (31-38),
+    // 8 = dépréciations des stocks (39).
+    const stocks = this.buildNoteRows("6", n, n1, {
+      indexes: [0, 1, 2, 3, 4, 5, 6, 7],
+      extra: () => ({ isTotal: false }),
+    });
+    const depreciations = this.buildNoteRows("6", n, n1, { indexes: [8] });
+    const totalBrutN = stocks.reduce((t, r) => t + r.yearN, 0);
+    const totalBrutN1 = stocks.reduce((t, r) => t + r.yearN1, 0);
+    const depN = depreciations.reduce((t, r) => t + r.yearN, 0);
+    const depN1 = depreciations.reduce((t, r) => t + r.yearN1, 0);
+
     return {
+      entete: this.buildEntete(folder),
       title: "STOCKS ET ENCOURS",
-      marchandises: {
-        n: this.sumAccounts(n, ["31"]),
-        n1: this.sumAccounts(n1, ["31"]),
-      },
-      matieresPremieres: {
-        n: this.sumAccounts(n, ["32"]),
-        n1: this.sumAccounts(n1, ["32"]),
-      },
-      autresApprovisionnements: {
-        n: this.sumAccounts(n, ["33"]),
-        n1: this.sumAccounts(n1, ["33"]),
-      },
-      enCours: {
-        n: this.sumAccounts(n, ["34", "35"]),
-        n1: this.sumAccounts(n1, ["34", "35"]),
-      },
-      produitsFinis: {
-        n: this.sumAccounts(n, ["36"]),
-        n1: this.sumAccounts(n1, ["36"]),
-      },
-      total: {
-        n: this.sumAccounts(n, [
-          "31",
-          "32",
-          "33",
-          "34",
-          "35",
-          "36",
-          "37",
-          "38",
-        ]),
-        n1: this.sumAccounts(n1, [
-          "31",
-          "32",
-          "33",
-          "34",
-          "35",
-          "36",
-          "37",
-          "38",
-        ]),
-      },
+      stocksEnCours: stocks.map((r) => ({
+        libelle: r.label,
+        anneeN: r.yearN,
+        anneeN1: r.yearN1,
+      })),
+      stocks,
+      depreciations,
+      totalBrut: { yearN: totalBrutN, yearN1: totalBrutN1 },
+      totalNet: { yearN: totalBrutN - depN, yearN1: totalBrutN1 - depN1 },
     };
   }
 
@@ -1113,175 +1922,185 @@ export class DSFGenerator {
     n1: any[],
     folder: FolderWithRelations
   ): Promise<any> {
-    // Get Note7 config and account mappings
-    const note7Config = await this.getConfigByCategory("note7", folder);
-    const accountMappings = note7Config?.accountMappings || [];
-
-    let clientsOrdinairesN = this.sumAccounts(n, ["411"]);
-    let clientsOrdinairesN1 = this.sumAccounts(n1, ["411"]);
-    let clientsDouteuxN = this.sumAccounts(n, ["416"]);
-    let clientsDouteuxN1 = this.sumAccounts(n1, ["416"]);
-    let creancesSurCessionsN = this.sumAccounts(n, ["4651", "4652"]);
-    let creancesSurCessionsN1 = this.sumAccounts(n1, ["4651", "4652"]);
-    let provisionsClientsN = this.sumAccounts(n, ["491"]);
-    let provisionsClientsN1 = this.sumAccounts(n1, ["491"]);
-
-    // Apply account mappings
-    accountMappings.forEach((mapping: any) => {
-      const valueN = this.getBalanceValue(
-        n,
-        folder,
-        mapping.accountNumber,
-        mapping.source
-      );
-      const valueN1 = n1
-        ? this.getBalanceValue(
-            n1,
-            folder,
-            mapping.accountNumber,
-            mapping.source
-          )
-        : 0;
-
-      if (mapping.destination === "clientsOrdinaires") {
-        clientsOrdinairesN = valueN;
-        clientsOrdinairesN1 = valueN1;
-      } else if (mapping.destination === "clientsDouteux") {
-        clientsDouteuxN = valueN;
-        clientsDouteuxN1 = valueN1;
-      } else if (mapping.destination === "creancesSurCessions") {
-        creancesSurCessionsN = valueN;
-        creancesSurCessionsN1 = valueN1;
-      } else if (mapping.destination === "provisionsClients") {
-        provisionsClientsN = valueN;
-        provisionsClientsN1 = valueN1;
-      }
+    // Table OHADA note "7": 0-8 = créances clients (4111-418),
+    // 9 = dépréciations (491), 10-12 = clients créditeurs (4191, 4192, 4194/4198).
+    const receivables = this.buildNoteRows("7", n, n1, {
+      indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      extra: (yearN) => ({
+        oneYearOrLess: yearN,
+        oneToTwoYears: 0,
+        moreThanTwoYears: 0,
+      }),
     });
 
-    const totalN =
-      clientsOrdinairesN +
-      clientsDouteuxN +
-      creancesSurCessionsN -
-      provisionsClientsN;
-    const totalN1 =
-      clientsOrdinairesN1 +
-      clientsDouteuxN1 +
-      creancesSurCessionsN1 -
-      provisionsClientsN1;
-
     return {
+      entete: this.buildEntete(folder),
       title: "CLIENTS",
-      clientsOrdinaires: { n: clientsOrdinairesN, n1: clientsOrdinairesN1 },
-      clientsDouteux: { n: clientsDouteuxN, n1: clientsDouteuxN1 },
-      creancesSurCessions: {
-        n: creancesSurCessionsN,
-        n1: creancesSurCessionsN1,
-      },
-      provisionsClients: { n: provisionsClientsN, n1: provisionsClientsN1 },
-      total: { n: totalN, n1: totalN1 },
+      clientReceivables: receivables,
+      creancesClients: receivables,
+      depreciations: this.buildNoteRows("7", n, n1, {
+        indexes: [9],
+        extra: (yearN) => ({
+          oneYearOrLess: yearN,
+          oneToTwoYears: 0,
+          moreThanTwoYears: 0,
+        }),
+      }),
+      clientCreditors: getMappingLines("7")
+        .slice(10, 13)
+        .map((line, i) => ({
+          id: String(i + 1),
+          label: line.label,
+          amount: sumMappingLine(n, line),
+        })),
     };
   }
 
-  private generateNote8(n: any[], n1: any[]): any {
+  private generateNote8(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "8": 0-9 = autres créances (421-188),
+    // 10 = dépréciations (492-497).
+    const withAging = (yearN: number) => ({
+      oneYearOrLess: yearN,
+      oneToTwoYears: 0,
+      moreThanTwoYears: 0,
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "AUTRES CREANCES",
-      fournisseursDebiteurs: {
-        n: this.sumAccounts(n, ["4091", "4092"]),
-        n1: this.sumAccounts(n1, ["4091", "4092"]),
-      },
-      personnel: {
-        n: this.sumAccounts(n, [
-          "421",
-          "422",
-          "423",
-          "424",
-          "425",
-          "426",
-          "427",
-          "428",
-        ]),
-        n1: this.sumAccounts(n1, [
-          "421",
-          "422",
-          "423",
-          "424",
-          "425",
-          "426",
-          "427",
-          "428",
-        ]),
-      },
-      etat: {
-        n: this.sumAccounts(n, [
-          "441",
-          "442",
-          "443",
-          "444",
-          "445",
-          "446",
-          "447",
-        ]),
-        n1: this.sumAccounts(n1, [
-          "441",
-          "442",
-          "443",
-          "444",
-          "445",
-          "446",
-          "447",
-        ]),
-      },
-      comptesDeLiaison: {
-        n: this.sumAccounts(n, ["45"]),
-        n1: this.sumAccounts(n1, ["45"]),
-      },
-      autresCreances: {
-        n: this.sumAccounts(n, ["46", "47", "48"]),
-        n1: this.sumAccounts(n1, ["46", "47", "48"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["42", "43", "44", "45", "46", "47", "48"]),
-        n1: this.sumAccounts(n1, ["42", "43", "44", "45", "46", "47", "48"]),
+      autresCreances: this.buildNoteRows("8", n, n1, {
+        indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        extra: (yearN) => withAging(yearN),
+      }),
+      // Ligne 11 de la table ("Dépréciations des autres créances", 492-497):
+      // une seule valeur (exercice courant), pas un tableau — l'imprimé
+      // n'a qu'une colonne pour cette ligne, contrairement aux créances
+      // elle-mêmes qui ont Année N/N-1/échéancier.
+      depreciations: sumMappingLine(n, getMappingLines("8")[10]),
+      justifications: {
+        variation: "",
+        montant: "",
+        anciennes: "",
+        depreciation: "",
+        compteTransitoire: "",
       },
     };
   }
 
-  private generateNote9(n: any[]): any {
+  private generateNote9(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "9": 0-6 = titres de placement (501-508),
+    // 7 = dépréciations (590).
+    const titres = this.buildNoteRows("9", n, n1, {
+      indexes: [0, 1, 2, 3, 4, 5, 6],
+      extra: () => ({ isTotal: false }),
+    });
+    const depreciations = this.buildNoteRows("9", n, n1, {
+      indexes: [7],
+      extra: () => ({ isTotal: false }),
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "TITRES DE PLACEMENT",
-      titresDePlacement: this.sumAccounts(n, ["50"]),
-      provisions: this.sumAccounts(n, ["590"]),
-      valeurNette: this.calculateNet(n, ["50"], ["590"]),
+      rows: titres,
+      titresPlacement: titres,
+      depreciations,
     };
   }
 
-  private generateNote10(n: any[]): any {
+  private generateNote10(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "10": 0-5 = valeurs à encaisser (511-518),
+    // 6 = dépréciations (591). Les comptes 413/414 utilisés précédemment
+    // appartiennent en réalité à la note "7" (clients).
+    // Pas de champ "variation" stocké ici: la colonne s'intitule "en %" côté
+    // frontend, qui la calcule donc lui-même (comme les notes 8/11) plutôt
+    // que de recevoir un écart absolu sous une étiquette de pourcentage.
+    const valeursAEncaisser = this.buildNoteRows("10", n, n1, {
+      indexes: [0, 1, 2, 3, 4, 5],
+    });
+    const depreciations = this.buildNoteRows("10", n, n1, {
+      indexes: [6],
+    });
+    const brutN = valeursAEncaisser.reduce((t, r) => t + r.yearN, 0);
+    const brutN1 = valeursAEncaisser.reduce((t, r) => t + r.yearN1, 0);
+    const depN = depreciations.reduce((t, r) => t + r.yearN, 0);
+    const depN1 = depreciations.reduce((t, r) => t + r.yearN1, 0);
+
     return {
+      entete: this.buildEntete(folder),
       title: "VALEURS A ENCAISSER",
-      effetsARecevoir: this.sumAccounts(n, ["413", "414"]),
-      chequesAEncaisser: this.sumAccounts(n, ["513"]),
-      couponsAEncaisser: this.sumAccounts(n, ["515"]),
-      total: this.sumAccounts(n, ["413", "414", "513", "515"]),
+      valeursAEncaisser,
+      depreciations,
+      totalBrut: { yearN: brutN, yearN1: brutN1 },
+      totalNet: { yearN: brutN - depN, yearN1: brutN1 - depN1 },
     };
   }
 
-  private generateNote11(n: any[]): any {
+  private generateNote11(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "11", 12 lignes de détail: banques et CCP (521-531),
+    // autres établissements financiers (532-538), instruments de trésorerie
+    // (54), caisse (57), caisse électronique (55), régies d'avances (58).
+    // Ordre d'affichage: banques d'abord. La ligne "Dépréciations"
+    // (592-599, index 6) est à part: l'imprimé DGI ne l'affiche pas dans la
+    // liste de détail mais comme une ligne dédiée après le TOTAL BRUT.
+    const rows = this.buildNoteRows("11", n, n1, {
+      indexes: [7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5],
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "DISPONIBILITES",
-      banques: this.sumAccounts(n, ["521", "522", "523", "524", "526"]),
-      ccp: this.sumAccounts(n, ["531"]),
-      caisse: this.sumAccounts(n, ["57"]),
-      regiesAvances: this.sumAccounts(n, ["58"]),
-      total: this.sumAccounts(n, ["52", "53", "57", "58"]),
+      disponibilites: rows,
+      depreciations: sumMappingLine(n, getMappingLines("11")[6]),
     };
   }
 
-  private generateNote12(n: any[]): any {
+  private generateNote12(folder: FolderWithRelations): any {
+    // Table OHADA note "12": deux tableaux distincts, tous deux
+    // intégralement à saisie manuelle.
+    // - Écarts de conversion (comptes 478/479): la balance ne donne que le
+    //   solde agrégé, pas le détail par devise et par créance/dette
+    //   (montant en devise, cours d'acquisition, cours de clôture) exigé
+    //   par ce tableau.
+    // - Transferts de charges: aucun compte dédié — la nature de la charge
+    //   reclassée est une information qualitative, pas un solde. (Un
+    //   précédent code réutilisait par erreur les comptes 478/479 pour ce
+    //   second tableau, alors que les deux notes n'ont aucun rapport.)
+    // Le frontend fusionne ces valeurs dans ses propres lignes par `id`,
+    // sans écraser ses libellés (avec renvois colorés) déjà en place — ne
+    // renvoyer ici que ce qui est réellement à saisir.
+    const zeroConversionRow = (id: string) => ({
+      id,
+      currency: "",
+      amountInCurrency: 0,
+      acquisitionRate: 0,
+      closingRate: 0,
+    });
+    const zeroTransferRow = (id: string) => ({ id, yearN: 0, yearN1: 0 });
+
     return {
+      entete: this.buildEntete(folder),
       title: "ECARTS DE CONVERSION",
-      diminutionCreances: this.sumAccounts(n, ["476"]),
-      augmentationDettes: this.sumAccounts(n, ["477"]),
-      total: this.sumAccounts(n, ["476", "477"]),
+      conversionRows: [zeroConversionRow("1"), zeroConversionRow("2")],
+      transferRows: [zeroTransferRow("3"), zeroTransferRow("4")],
+      commentConversion: "",
+      commentTransfer: "",
     };
   }
 
@@ -1393,475 +2212,341 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote14(n: any[]): any {
+  private generateNote14(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "14" (12 lignes: primes 1051-1058, réserves 111-118,
+    // report à nouveau 12). Les comptes 1061-1068 utilisés précédemment
+    // n'existent pas dans la nomenclature OHADA; corrigé.
     return {
+      entete: this.buildEntete(folder),
       title: "PRIMES ET RESERVES",
-      primesApport: this.sumAccounts(n, ["1051"]),
-      primesFusion: this.sumAccounts(n, ["1052"]),
-      primesEmission: this.sumAccounts(n, ["1053"]),
-      reserveLegale: this.sumAccounts(n, ["1061"]),
-      reserveStatutaire: this.sumAccounts(n, ["1062"]),
-      reservesReglementees: this.sumAccounts(n, ["1063"]),
-      autresReserves: this.sumAccounts(n, ["1068"]),
-      total: this.sumAccounts(n, ["105", "106"]),
+      rows: this.buildNoteRows("14", n, n1),
     };
   }
 
-  private generateNote15A(n: any[]): any {
+  private generateNote15A(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "15A" (15 lignes: subventions 141x/148 puis
+    // provisions réglementées 151-158).
     return {
+      entete: this.buildEntete(folder),
       title: "SUBVENTIONS ET PROVISIONS REGLEMENTEES",
-      subventionsEquipement: this.sumAccounts(n, [
-        "141",
-        "142",
-        "143",
-        "144",
-        "145",
-        "146",
-        "147",
-        "148",
-      ]),
-      provisionsReglementees: this.sumAccounts(n, [
-        "151",
-        "152",
-        "153",
-        "154",
-        "155",
-        "156",
-        "157",
-        "158",
-      ]),
-      total: this.sumAccounts(n, ["14", "15"]),
+      rows: this.buildNoteRows("15A", n, n1, {
+        extra: () => ({ fiscalAdjustment: 0, echeancier: 0 }),
+      }),
     };
   }
 
-  private generateNote15B(n: any[]): any {
+  private generateNote15B(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Pas de section "15B" dans la table OHADA fournie: les autres fonds
+    // propres (comptes 166/167/168) sont dérivés de la note "16A" qui les
+    // porte. Les lignes sont toujours émises pour que le tableau s'affiche.
+    const lines = getMappingLines("16A");
+    const rows = [
+      { idx: 5, label: "Intérêts courus" }, // 166
+      { idx: 6, label: "Avances assorties de conditions particulières" }, // 167
+      { idx: 7, label: "Autres emprunts et dettes" }, // 168
+      { idx: 8, label: "Dettes liées à des participations" }, // 181/182/183
+      { idx: 9, label: "Comptes permanents bloqués des établissements" }, // 184
+    ].map((r, i) => {
+      const line = lines[r.idx];
+      const yearN = line ? sumMappingLine(n, line) : 0;
+      const yearN1 = line ? sumMappingLine(n1, line) : 0;
+      return {
+        id: String(i + 1),
+        label: r.label,
+        note: "",
+        yearN,
+        yearN1,
+        echeancier: 0,
+      };
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "AUTRES FONDS PROPRES",
-      empruntsParticulaires: this.sumAccounts(n, ["166"]),
-      autresEmprunts: this.sumAccounts(n, ["167", "168"]),
-      total: this.sumAccounts(n, ["16"]),
+      rows,
     };
   }
 
-  private generateNote16A(n: any[]): any {
+  private generateNote16A(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "16A", 28 lignes: emprunts et dettes financières
+    // (161-184), dettes de location-acquisition (172-178), puis provisions
+    // pour risques et charges (191-1988).
     return {
+      entete: this.buildEntete(folder),
       title: "DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
-      empruntsObligataires: this.sumAccounts(n, ["161", "162"]),
-      empruntsEtablissementsCredit: this.sumAccounts(n, ["163", "164", "165"]),
-      depotsCautionnements: this.sumAccounts(n, ["165", "166"]),
-      total: this.sumAccounts(n, ["16", "17"]),
+      rows: this.buildNoteRows("16A", n, n1, {
+        extra: (yearN) => this.agingLong(yearN),
+      }),
     };
   }
 
-  private generateNote16B(n: any[]): any {
+  private generateNote16B(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Engagements de retraite (méthode actuarielle): données actuarielles
+    // non déductibles de la balance. Lignes émises à 0 pour que le tableau
+    // s'affiche; l'obligation de clôture provient des comptes 1961/1962.
+    const provisionRetraite = sumBySide(n, ["1961", "1962"], "SC");
+    const provisionRetraiteN1 = sumBySide(n1, ["1961", "1962"], "SC");
+
     return {
+      entete: this.buildEntete(folder),
       title:
         "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES (METHODE ACTUARIELLE)",
-      valeurActuelleEngagements: 0,
-      justerValeurActifs: 0,
-      ecartsActuariels: 0,
-      total: 0,
+      hypotheses: [
+        "Taux d'actualisation",
+        "Taux d'inflation",
+        "Taux de progression des salaires",
+        "Taux de rotation du personnel",
+        "Age de départ à la retraite",
+        "Table de mortalité",
+      ].map((label, i) => ({ id: String(i + 1), label, yearN: 0, yearN1: 0 })),
+      obligations: [
+        "Obligation au titre des engagements à l'ouverture",
+        "Coût des services rendus",
+        "Coût financier (désactualisation)",
+        "Prestations versées",
+        "Obligation au titre des engagements à la clôture",
+      ].map((label, i) => ({
+        id: String(i + 1),
+        label,
+        yearN: i === 4 ? provisionRetraite : 0,
+        yearN1: i === 4 ? provisionRetraiteN1 : 0,
+      })),
+      sensitivity: [
+        "Variation du taux d'actualisation",
+        "Variation du taux de progression des salaires",
+        "Variation du taux de rotation",
+      ].map((label, i) => ({
+        id: String(i + 1),
+        label,
+        increaseN: 0,
+        decreaseN: 0,
+        increaseN1: 0,
+        decreaseN1: 0,
+      })),
+      comments: "",
     };
   }
 
-  private generateNote16BBis(n: any[]): any {
+  private generateNote16BBis(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    const provisionN = sumBySide(n, ["1961"], "SC");
+    const provisionN1 = sumBySide(n1, ["1961"], "SC");
+    const actifRegimeN = sumBySide(n, ["1962"], "SC");
+    const actifRegimeN1 = sumBySide(n1, ["1962"], "SC");
+
     return {
+      entete: this.buildEntete(folder),
       title: "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES",
-      provisionOuverture: this.sumAccounts(n, ["1951", "1952"]),
-      dotationsExercice: 0,
-      reprisesExercice: 0,
-      provisionCloture: this.sumAccounts(n, ["1951", "1952"]),
+      actifPassif: [
+        {
+          id: "1",
+          label: "Valeur actuelle de l'obligation",
+          yearN: provisionN,
+          yearN1: provisionN1,
+        },
+        {
+          id: "2",
+          label: "Juste valeur des actifs du régime",
+          yearN: actifRegimeN,
+          yearN1: actifRegimeN1,
+        },
+        {
+          id: "3",
+          label: "Position nette (passif) / actif",
+          yearN: provisionN - actifRegimeN,
+          yearN1: provisionN1 - actifRegimeN1,
+        },
+      ],
+      actifRegime: [
+        "Instruments de capitaux propres",
+        "Instruments de dettes",
+        "Autres actifs",
+      ].map((label, i) => ({
+        id: String(i + 1),
+        label,
+        rendementYearN: 0,
+        justeValeurYearN: 0,
+        rendementYearN1: 0,
+        justeValeurYearN1: 0,
+      })),
+      comment1: "",
+      comment2: "",
     };
   }
 
-  private generateNote16C(n: any[]): any {
+  private generateNote16C(folder: FolderWithRelations): any {
+    // Actifs/passifs éventuels: hors bilan, non déductibles de la balance.
+    // Lignes émises à 0 pour que le tableau s'affiche.
     return {
+      entete: this.buildEntete(folder),
       title: "ACTIFS ET PASSIFS EVENTUELS",
-      cautions: 0,
-      avals: 0,
-      garanties: 0,
-      engagementsCredit: 0,
-      total: 0,
+      actifs: [
+        "Cautions reçues",
+        "Avals et garanties reçus",
+        "Autres actifs éventuels",
+      ].map((description, i) => ({
+        id: String(i + 1),
+        description,
+        yearN: 0,
+        yearN1: 0,
+      })),
+      passifs: [
+        "Cautions données",
+        "Avals et garanties donnés",
+        "Litiges en cours",
+        "Autres passifs éventuels",
+      ].map((description, i) => ({
+        id: String(i + 1),
+        description,
+        yearN: 0,
+        yearN1: 0,
+      })),
     };
   }
 
-  private generateNote17(n: any[]): any {
+  private generateNote17(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "17", 8 lignes: fournisseurs créditeurs (dettes en
+    // compte, effets à payer, factures non parvenues) puis fournisseurs
+    // débiteurs (avances et acomptes).
     return {
+      entete: this.buildEntete(folder),
       title: "FOURNISSEURS D'EXPLOITATION",
-      fournisseursOrdinaires: this.sumAccounts(n, ["401", "402"]),
-      fournisseursEffetsAPayer: this.sumAccounts(n, ["403", "404", "405"]),
-      fournisseursRetenues: this.sumAccounts(n, ["408"]),
-      total: this.sumAccounts(n, [
-        "401",
-        "402",
-        "403",
-        "404",
-        "405",
-        "406",
-        "408",
-      ]),
+      rows: this.buildNoteRows("17", n, n1, {
+        extra: (yearN) => this.agingLong(yearN),
+      }),
     };
   }
 
-  private generateC1Note17(n: any[]): any {
+  private generateC1Note17(n: any[], folder: FolderWithRelations): any {
+    // Extrait de la balance générale limité aux comptes fournisseurs
+    // (classe 40). Chaque compte présent dans la balance donne une ligne.
+    const ledgerRows = (n || [])
+      .filter((row: any) => String(row.accountNumber || "").startsWith("40"))
+      .map((row: any, i: number) => ({
+        id: String(i + 1),
+        accountNumber: `${row.accountNumber} - ${row.accountName || ""}`.trim(),
+        openingDebit: parseFloat(row.openingDebit || 0),
+        openingCredit: parseFloat(row.openingCredit || 0),
+        movementsDebit: parseFloat(row.movementDebit || 0),
+        movementsCredit: parseFloat(row.movementCredit || 0),
+        closingDebit: parseFloat(row.closingDebit || 0),
+        closingCredit: parseFloat(row.closingCredit || 0),
+      }));
+
     return {
+      entete: this.buildEntete(folder),
       title: "EXTRAIT DE LA BALANCE GENERALE FOURNISSEURS",
-      fournisseurs: [],
-      totalDebit: 0,
-      totalCredit: 0,
-      solde: 0,
+      ledgerRows,
+      // Détail quantitatif des achats et des transports: non déductible de la
+      // balance (pas de quantités en comptabilité générale).
+      purchaseRows: [],
+      transportRows: [],
     };
   }
 
-  private generateNote18(n: any[]): any {
+  private generateNote18(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "18", 11 lignes: dettes sociales (personnel 421-428,
+    // organismes sociaux 431-438) puis dettes fiscales (441-449).
     return {
+      entete: this.buildEntete(folder),
       title: "DETTES FISCALES ET SOCIALES",
-      dettesFiscales: {
-        tva: this.sumAccounts(n, ["4431", "4432", "4433", "4434", "4435"]),
-        impotsSurSalaires: this.sumAccounts(n, ["4471", "4472", "4473"]),
-        impotsSurResultat: this.sumAccounts(n, ["444"]),
-        autresImpots: this.sumAccounts(n, ["441", "442", "445", "446", "447"]),
-      },
-      dettesSociales: {
-        cnps: this.sumAccounts(n, ["431", "432", "433"]),
-        personnel: this.sumAccounts(n, [
-          "421",
-          "422",
-          "423",
-          "424",
-          "425",
-          "426",
-          "427",
-          "428",
-        ]),
-      },
-      total: this.sumAccounts(n, ["42", "43", "44"]),
+      rows: this.buildNoteRows("18", n, n1, {
+        extra: (yearN) => this.agingShort(yearN),
+      }),
     };
   }
 
-  private generateNote19(n: any[], folder: FolderWithRelations): any {
+  private generateNote19(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
     // Note 19: AUTRES DETTES ET PROVISIONS POUR RISQUES A COURT TERME
-    // This should contain detailed debt and provision data
-    // Return data structure that matches frontend Note19 component expectations
+    // Comptes/sens tirés de la table OHADA (note "19"), 16 lignes + une 17e
+    // ligne "Provisions pour risques à court terme" (voir note 28, non
+    // couverte par cette table — laissée à 0). Pas de donnée d'échéancier
+    // dans la balance: par défaut on classe tout en "moins d'un an" (cohérent
+    // avec le titre "à court terme" de la note).
+    const lines = getMappingLines("19");
+    const toRow = (id: string, label: string, line?: (typeof lines)[number]) => {
+      const yearN = line ? sumMappingLine(n, line) : 0;
+      const yearN1 = line ? sumMappingLine(n1, line) : 0;
+      return {
+        id,
+        label,
+        yearN,
+        yearN1,
+        lessThan1Year: yearN,
+        oneToTwoYears: 0,
+        moreThanTwoYears: 0,
+      };
+    };
 
-    // Try to get real data from balance accounts, fallback to sample data if needed
-    let realDataAvailable = false;
-    const realData = [];
-
-    // Check if we have balance data for note 19 accounts
-    try {
-      // Account ranges for Note 19: Other debts and short-term risk provisions
-      // 46-48: Other debts, 499: Short-term risk provisions
-      const otherDebtsN = this.sumAccounts(n, ["46", "47", "48"]);
-      const provisionsN = this.sumAccounts(n, ["499"]);
-
-      if (otherDebtsN > 0 || provisionsN > 0) {
-        realDataAvailable = true;
-      }
-    } catch (error) {
-      console.log("No real balance data available for Note 19, using sample data");
-    }
-
-    // Use the user's provided database values as sample data
-    // These should match the structure shown in the database example
-    const sampleData = [
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 47807394,
-        anneeN1: 41807394,
-        dettesUnAnAuPlus: 47807394,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 47807394,
-        anneeN1: 41807394,
-        dettesUnAnAuPlus: 47807394,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 30106803,
-        anneeN1: 405548,
-        dettesUnAnAuPlus: 30106803,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 198153,
-        anneeN1: 13832577,
-        dettesUnAnAuPlus: 198153,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 30304956,
-        anneeN1: 14238125,
-        dettesUnAnAuPlus: 30304956,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 0,
-        anneeN1: 0,
-        dettesUnAnAuPlus: 0,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-      {
-        anneeN: 78112350,
-        anneeN1: 56045519,
-        dettesUnAnAuPlus: 78112350,
-        dettesPlusDeuxAns: 0,
-        dettesPlusUnAnDeuxAns: 0,
-      },
-    ];
-
-    // Transform to frontend expected format
     const rows = [
-      {
-        id: "1",
-        label: "Organismes internationaux",
-        yearN: sampleData[0].anneeN,
-        yearN1: sampleData[0].anneeN1,
-        lessThan1Year: sampleData[0].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[0].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[0].dettesPlusDeuxAns,
-      },
-      {
-        id: "2",
-        label: "Apporteurs, opérations sur le capital",
-        yearN: sampleData[1].anneeN,
-        yearN1: sampleData[1].anneeN1,
-        lessThan1Year: sampleData[1].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[1].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[1].dettesPlusDeuxAns,
-      },
-      {
-        id: "3",
-        label: "Associés, compte courant",
-        yearN: sampleData[2].anneeN,
-        yearN1: sampleData[2].anneeN1,
-        lessThan1Year: sampleData[2].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[2].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[2].dettesPlusDeuxAns,
-      },
-      {
-        id: "4",
-        label: "Associés dividendes à payer",
-        yearN: sampleData[3].anneeN,
-        yearN1: sampleData[3].anneeN1,
-        lessThan1Year: sampleData[3].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[3].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[3].dettesPlusDeuxAns,
-      },
-      {
-        id: "5",
-        label: "Groupe, comptes courants",
-        yearN: sampleData[4].anneeN,
-        yearN1: sampleData[4].anneeN1,
-        lessThan1Year: sampleData[4].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[4].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[4].dettesPlusDeuxAns,
-      },
-      {
-        id: "6",
-        label: "Autres dettes associées",
-        yearN: sampleData[5].anneeN,
-        yearN1: sampleData[5].anneeN1,
-        lessThan1Year: sampleData[5].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[5].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[5].dettesPlusDeuxAns,
-      },
-      {
-        id: "7",
-        label: "Crédits divers",
-        yearN: sampleData[6].anneeN,
-        yearN1: sampleData[6].anneeN1,
-        lessThan1Year: sampleData[6].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[6].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[6].dettesPlusDeuxAns,
-      },
-      {
-        id: "8",
-        label: "Obligataires",
-        yearN: sampleData[7].anneeN,
-        yearN1: sampleData[7].anneeN1,
-        lessThan1Year: sampleData[7].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[7].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[7].dettesPlusDeuxAns,
-      },
-      {
-        id: "9",
-        label: "Rémunérations d'administrateurs",
-        yearN: sampleData[8].anneeN,
-        yearN1: sampleData[8].anneeN1,
-        lessThan1Year: sampleData[8].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[8].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[8].dettesPlusDeuxAns,
-      },
-      {
-        id: "10",
-        label: "Compte du facteur",
-        yearN: sampleData[9].anneeN,
-        yearN1: sampleData[9].anneeN1,
-        lessThan1Year: sampleData[9].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[9].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[9].dettesPlusDeuxAns,
-      },
-      {
-        id: "11",
-        label: "Versements restants à effectuer sur titres de placement non libérés",
-        yearN: sampleData[10].anneeN,
-        yearN1: sampleData[10].anneeN1,
-        lessThan1Year: sampleData[10].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[10].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[10].dettesPlusDeuxAns,
-      },
-      {
-        id: "12",
-        label: "Compte transitoire ajustement spécial lié à la révision du SYSCOHADA",
-        yearN: sampleData[11].anneeN,
-        yearN1: sampleData[11].anneeN1,
-        lessThan1Year: sampleData[11].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[11].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[11].dettesPlusDeuxAns,
-      },
-      {
-        id: "13",
-        label: "Autres créditeurs divers",
-        yearN: sampleData[12].anneeN,
-        yearN1: sampleData[12].anneeN1,
-        lessThan1Year: sampleData[12].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[12].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[12].dettesPlusDeuxAns,
-      },
-      {
-        id: "14",
-        label: "Comptes permanents non bloqués des établissements et des succursales",
-        yearN: sampleData[13].anneeN,
-        yearN1: sampleData[13].anneeN1,
-        lessThan1Year: sampleData[13].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[13].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[13].dettesPlusDeuxAns,
-      },
-      {
-        id: "15",
-        label: "Comptes de liaison charges et produits",
-        yearN: sampleData[14].anneeN,
-        yearN1: sampleData[14].anneeN1,
-        lessThan1Year: sampleData[14].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[14].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[14].dettesPlusDeuxAns,
-      },
-      {
-        id: "16",
-        label: "Comptes de liaison des sociétés en participation",
-        yearN: sampleData[15].anneeN,
-        yearN1: sampleData[15].anneeN1,
-        lessThan1Year: sampleData[15].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[15].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[15].dettesPlusDeuxAns,
-      },
-      {
-        id: "17",
-        label: "Provisions pour risques à court terme (voir note 28)",
-        yearN: sampleData[16].anneeN,
-        yearN1: sampleData[16].anneeN1,
-        lessThan1Year: sampleData[16].dettesUnAnAuPlus,
-        oneToTwoYears: sampleData[16].dettesPlusUnAnDeuxAns,
-        moreThanTwoYears: sampleData[16].dettesPlusDeuxAns,
-      },
+      toRow("1", "Organismes internationaux", lines[0]),
+      toRow("2", "Apporteurs, opérations sur le capital", lines[1]),
+      toRow("3", "Associés, compte courant", lines[2]),
+      toRow("4", "Associés dividendes à payer", lines[3]),
+      toRow("5", "Groupe, comptes courants", lines[4]),
+      toRow("6", "Autres dettes associées", lines[5]),
+      toRow("7", "Créditeurs divers", lines[6]),
+      toRow("8", "Obligataires", lines[7]),
+      toRow("9", "Rémunérations d'administrateurs", lines[8]),
+      toRow("10", "Compte du factor", lines[9]),
+      toRow(
+        "11",
+        "Versements restants à effectuer sur titres de placement non libérés",
+        lines[10]
+      ),
+      toRow(
+        "12",
+        "Compte transitoire ajustement spécial lié à la révision du SYSCOHADA",
+        lines[11]
+      ),
+      toRow("13", "Autres créditeurs divers", lines[12]),
+      toRow(
+        "14",
+        "Comptes permanents non bloqués des établissements et des succursales",
+        lines[13]
+      ),
+      toRow("15", "Comptes de liaison charges et produits", lines[14]),
+      toRow(
+        "16",
+        "Comptes de liaison des sociétés en participation",
+        lines[15]
+      ),
+      toRow("17", "Provisions pour risques à court terme (voir note 28)"),
     ];
 
     return {
@@ -1875,154 +2560,92 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote20(n: any[]): any {
+  private generateNote20(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "20", 7 lignes: escomptes de crédit (564/565),
+    // banques en position créditrice (521-526), crédit de trésorerie
+    // (561/566).
     return {
+      entete: this.buildEntete(folder),
       title: "BANQUES, CREDIT D'ESCOMPTE ET DE TRESORERIE",
-      creditsCourtsTermes: this.sumAccounts(n, ["561", "564"]),
-      decouvertsBancaires: this.sumAccounts(n, ["565"]),
-      escompteEffets: this.sumAccounts(n, ["564"]),
-      total: this.sumAccounts(n, ["56"]),
+      rows: this.buildNoteRows("20", n, n1),
     };
   }
 
-  private generateNote21(n: any[], n1: any[]): any {
+  private generateNote21(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "21", 16 lignes: ventes de marchandises (7011-7015),
+    // de produits fabriqués, travaux et services vendus, produits
+    // accessoires (707), production immobilisée (72), subventions
+    // d'exploitation (71), autres produits (75).
     return {
+      entete: this.buildEntete(folder),
       title: "CHIFFRE D'AFFAIRES ET AUTRES PRODUITS",
-      ventesMarchandises: {
-        n: this.sumAccounts(n, ["701"]),
-        n1: this.sumAccounts(n1, ["701"]),
-      },
-      ventesProduits: {
-        n: this.sumAccounts(n, ["702", "703", "704"]),
-        n1: this.sumAccounts(n1, ["702", "703", "704"]),
-      },
-      travaux: {
-        n: this.sumAccounts(n, ["705"]),
-        n1: this.sumAccounts(n1, ["705"]),
-      },
-      services: {
-        n: this.sumAccounts(n, ["706", "707"]),
-        n1: this.sumAccounts(n1, ["706", "707"]),
-      },
-      produitsDivers: {
-        n: this.sumAccounts(n, ["708"]),
-        n1: this.sumAccounts(n1, ["708"]),
-      },
-      rabaisRemises: {
-        n: this.sumAccounts(n, ["709"]),
-        n1: this.sumAccounts(n1, ["709"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["70"]),
-        n1: this.sumAccounts(n1, ["70"]),
-      },
+      rows: this.buildNoteRows("21", n, n1),
     };
   }
 
-  private generateNote22(n: any[], n1: any[]): any {
+  private generateNote22(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "22", 20 lignes: achats de marchandises (601x), de
+    // matières premières (602x), autres achats (604x-608x), frais sur
+    // achats, remises/rabais/ristournes obtenus.
     return {
+      entete: this.buildEntete(folder),
       title: "ACHATS",
-      marchandises: {
-        n: this.sumAccounts(n, ["601"]),
-        n1: this.sumAccounts(n1, ["601"]),
-      },
-      matieresPremieres: {
-        n: this.sumAccounts(n, ["602"]),
-        n1: this.sumAccounts(n1, ["602"]),
-      },
-      autresApprovisionnements: {
-        n: this.sumAccounts(n, ["604", "605", "606", "607", "608"]),
-        n1: this.sumAccounts(n1, ["604", "605", "606", "607", "608"]),
-      },
-      rabaisRemises: {
-        n: this.sumAccounts(n, ["609"]),
-        n1: this.sumAccounts(n1, ["609"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["60"]),
-        n1: this.sumAccounts(n1, ["60"]),
-      },
+      rows: this.buildNoteRows("22", n, n1),
     };
   }
 
-  private generateNote23(n: any[], n1: any[]): any {
+  private generateNote23(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "23", 5 lignes: transports sur ventes (612), pour le
+    // compte de tiers (613), du personnel (614), de plis (616), autres (618).
     return {
+      entete: this.buildEntete(folder),
       title: "TRANSPORTS",
-      transportsAchats: {
-        n: this.sumAccounts(n, ["611", "612"]),
-        n1: this.sumAccounts(n1, ["611", "612"]),
-      },
-      transportsVentes: {
-        n: this.sumAccounts(n, ["613", "614"]),
-        n1: this.sumAccounts(n1, ["613", "614"]),
-      },
-      transportsPersonnel: {
-        n: this.sumAccounts(n, ["615"]),
-        n1: this.sumAccounts(n1, ["615"]),
-      },
-      autresTransports: {
-        n: this.sumAccounts(n, ["616", "617", "618", "619"]),
-        n1: this.sumAccounts(n1, ["616", "617", "618", "619"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["61"]),
-        n1: this.sumAccounts(n1, ["61"]),
-      },
+      rows: this.buildNoteRows("23", n, n1),
     };
   }
 
-  private generateNote24(n: any[], n1: any[]): any {
+  private generateNote24(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "24", 14 lignes: services extérieurs (621-628) et
+    // autres services extérieurs (631-638).
     return {
+      entete: this.buildEntete(folder),
       title: "SERVICES EXTERIEURS",
-      loyers: {
-        n: this.sumAccounts(n, ["622", "623"]),
-        n1: this.sumAccounts(n1, ["622", "623"]),
-      },
-      entretien: {
-        n: this.sumAccounts(n, ["624", "625", "626"]),
-        n1: this.sumAccounts(n1, ["624", "625", "626"]),
-      },
-      primes: {
-        n: this.sumAccounts(n, ["627"]),
-        n1: this.sumAccounts(n1, ["627"]),
-      },
-      documentation: {
-        n: this.sumAccounts(n, ["628"]),
-        n1: this.sumAccounts(n1, ["628"]),
-      },
-      autresServices: {
-        n: this.sumAccounts(n, ["63"]),
-        n1: this.sumAccounts(n1, ["63"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["62", "63"]),
-        n1: this.sumAccounts(n1, ["62", "63"]),
-      },
+      rows: this.buildNoteRows("24", n, n1),
     };
   }
 
-  private generateNote25(n: any[]): any {
-    const impotsTaxes = this.sumAccounts(n, ["64"]);
+  private generateNote25(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "25", 5 lignes: impôts et taxes directs (641),
+    // indirects (645), droits d'enregistrement (646), pénalités et amendes
+    // fiscales (647), autres impôts et taxes (648).
     return {
+      entete: this.buildEntete(folder),
       title: "IMPOTS ET TAXES",
-      impotsSurBenefices: this.sumAccounts(n, ["444"]),
-      autresImpots: this.sumAccounts(n, [
-        "641",
-        "642",
-        "643",
-        "644",
-        "645",
-        "646",
-        "647",
-        "648",
-      ]),
-      total: impotsTaxes,
-      detail: {
-        patente: this.sumAccounts(n, ["642"]),
-        foncier: this.sumAccounts(n, ["643"]),
-        taxesVehicules: this.sumAccounts(n, ["644"]),
-        autresTaxes: this.sumAccounts(n, ["645", "646", "647", "648"]),
-      },
+      rows: this.buildNoteRows("25", n, n1),
     };
   }
 
@@ -2047,51 +2670,35 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote26(n: any[], n1: any[]): any {
+  private generateNote26(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "26", 8 lignes: pertes sur créances (6511/6515),
+    // quote-part opérations en commun (652), valeur comptable des cessions
+    // courantes (654), indemnités administrateurs (6581), dons (6582/6583),
+    // autres charges diverses, charges pour dépréciations CT (659).
     return {
+      entete: this.buildEntete(folder),
       title: "AUTRES CHARGES",
-      chargesDiverses: {
-        n: this.sumAccounts(n, ["65"]),
-        n1: this.sumAccounts(n1, ["65"]),
-      },
-      detail: {
-        pertesSurCreances: this.sumAccounts(n, ["654"]),
-        chargesExceptionnelles: this.sumAccounts(n, ["658"]),
-        autresCharges: this.sumAccounts(n, [
-          "651",
-          "652",
-          "653",
-          "655",
-          "656",
-          "657",
-        ]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["65"]),
-        n1: this.sumAccounts(n1, ["65"]),
-      },
+      rows: this.buildNoteRows("26", n, n1),
     };
   }
 
-  private generateNote27A(n: any[], n1: any[]): any {
+  private generateNote27A(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "27A", 6 lignes: rémunérations directes (661/662),
+    // indemnités forfaitaires (663), charges sociales (664), rémunérations
+    // de l'exploitant individuel (666), personnel extérieur (667), autres
+    // charges sociales (668).
     return {
+      entete: this.buildEntete(folder),
       title: "CHARGES DE PERSONNEL",
-      salairesEtTraitements: {
-        n: this.sumAccounts(n, ["661", "662", "663", "664"]),
-        n1: this.sumAccounts(n1, ["661", "662", "663", "664"]),
-      },
-      chargesSociales: {
-        n: this.sumAccounts(n, ["665", "666", "667"]),
-        n1: this.sumAccounts(n1, ["665", "666", "667"]),
-      },
-      autresCharges: {
-        n: this.sumAccounts(n, ["668"]),
-        n1: this.sumAccounts(n1, ["668"]),
-      },
-      total: {
-        n: this.sumAccounts(n, ["66"]),
-        n1: this.sumAccounts(n1, ["66"]),
-      },
+      rows: this.buildNoteRows("27A", n, n1),
     };
   }
 
@@ -2107,38 +2714,92 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote27B(n: any[]): any {
+  private generateNote27B(folder: FolderWithRelations): any {
+    // Effectifs par catégorie et nationalité: donnée sociale non déductible
+    // de la balance comptable (à saisir par le comptable). Les lignes sont
+    // toujours émises à 0 pour que le tableau s'affiche complet.
+    const categories = [
+      { label: "Cadres", isTotal: false, isSubTotal: false },
+      { label: "Agents de maîtrise", isTotal: false, isSubTotal: false },
+      { label: "Employés / Ouvriers", isTotal: false, isSubTotal: false },
+      { label: "TOTAL PERSONNEL PERMANENT", isTotal: false, isSubTotal: true },
+      { label: "Personnel temporaire", isTotal: false, isSubTotal: false },
+      { label: "TOTAL GENERAL", isTotal: true, isSubTotal: false },
+    ];
+
     return {
+      entete: this.buildEntete(folder),
       title: "EFFECTIFS, MASSE SALARIALE ET PERSONNEL EXTERIEUR",
-      effectif: {
-        cadres: 0,
-        employes: 0,
-        ouvriers: 0,
-        total: 0,
-      },
-      masseSalariale: {
-        salaires: this.sumAccounts(n, ["661", "662", "663", "664"]),
-        chargesSociales: this.sumAccounts(n, ["665", "666", "667"]),
-        total: this.sumAccounts(n, ["66"]),
-      },
-      personnelExterieur: this.sumAccounts(n, ["637"]),
+      rows: categories.map((c, i) => ({
+        id: String(i + 1),
+        category: c.label,
+        isTotal: c.isTotal,
+        isSubTotal: c.isSubTotal,
+        nationalsM: 0,
+        nationalsF: 0,
+        ohadaM: 0,
+        ohadaF: 0,
+        horsOhadaM: 0,
+        horsOhadaF: 0,
+        totalM: 0,
+        totalF: 0,
+      })),
     };
   }
 
-  private generateNote28(n: any[]): any {
+  private generateNote28(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // BUG CORRIGÉ: "provisions" et "depreciations" utilisaient exactement
+    // les mêmes comptes (691/697/857).
+    // Table OHADA note "28", 13 lignes de comptes de provisions/dépréciations
+    // au bilan. Pour chaque ligne: ouverture = solde N-1, clôture = solde N,
+    // dotation = mouvement créditeur de la période, reprise = mouvement
+    // débiteur (un compte de provision est crédité en dotation, débité en
+    // reprise). La ventilation exploitation / financière / H.A.O. est déduite
+    // de la nature de chaque ligne — la balance seule ne permet pas de la
+    // répartir compte par compte.
+    const CATEGORY: Record<number, "exploitation" | "financieres" | "hao"> = {
+      0: "exploitation", // dépréciations des stocks (39)
+      1: "hao", // dépréciations actif circulant H.A.O. (4998)
+      2: "exploitation", // dépréciations fournisseurs (490)
+      3: "exploitation", // dépréciations clients (491)
+      4: "exploitation", // dépréciations autres créances (492-497)
+      5: "financieres", // dépréciations titres de placement (590)
+      6: "financieres", // dépréciations valeurs à encaisser (591)
+      7: "financieres", // dépréciations disponibilités (592-594)
+      8: "exploitation", // risques à court terme exploitation (4991)
+      9: "financieres", // risques à court terme financiers (599/4997)
+      10: "hao", // provisions réglementées (15) — dotations via 851
+      11: "financieres", // provisions financières risques et charges (19x)
+      12: "exploitation", // dépréciation des immobilisations (29)
+    };
+
+    const rows = getMappingLines("28").map((line, i) => {
+      const category = CATEGORY[i] || "exploitation";
+      const dotation = sumMovement(n, line.accounts, "MC", line.excludedAccounts);
+      const reprise = sumMovement(n, line.accounts, "MD", line.excludedAccounts);
+
+      return {
+        id: String(i + 1),
+        nature: line.label,
+        opening: sumMappingLine(n1, line),
+        dotationExploitation: category === "exploitation" ? dotation : 0,
+        dotationFinancieres: category === "financieres" ? dotation : 0,
+        dotationHorsActivites: category === "hao" ? dotation : 0,
+        repriseExploitation: category === "exploitation" ? reprise : 0,
+        repriseFinancieres: category === "financieres" ? reprise : 0,
+        repriseHorsActivites: category === "hao" ? reprise : 0,
+        closing: sumMappingLine(n, line),
+      };
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title: "PROVISIONS ET DEPRECIATIONS INSCRITES AU BILAN",
-      provisions: {
-        exploitation: this.sumAccounts(n, ["691"]),
-        financieres: this.sumAccounts(n, ["697"]),
-        hao: this.sumAccounts(n, ["857"]),
-      },
-      depreciations: {
-        exploitation: this.sumAccounts(n, ["691"]),
-        financieres: this.sumAccounts(n, ["697"]),
-        hao: this.sumAccounts(n, ["857"]),
-      },
-      total: this.sumAccounts(n, ["691", "697", "857"]),
+      rows,
     };
   }
 
@@ -2164,195 +2825,392 @@ export class DSFGenerator {
     };
   }
 
-  private generateNote29(n: any[], n1: any[]): any {
+  private generateNote29(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "29": 0-9 = charges financières (671-676, 6771, 6772,
+    // 6791/6795, 6798), 10-18 = revenus financiers (771-779).
     return {
+      entete: this.buildEntete(folder),
       title: "CHARGES ET REVENUS FINANCIERS",
-      revenus: {
-        revenusFinanciers: {
-          n: this.sumAccounts(n, [
-            "771",
-            "772",
-            "773",
-            "774",
-            "776",
-            "777",
-            "778",
-          ]),
-          n1: this.sumAccounts(n1, [
-            "771",
-            "772",
-            "773",
-            "774",
-            "776",
-            "777",
-            "778",
-          ]),
-        },
-        reprisesProvisions: {
-          n: this.sumAccounts(n, ["797"]),
-          n1: this.sumAccounts(n1, ["797"]),
-        },
-      },
-      charges: {
-        interets: {
-          n: this.sumAccounts(n, ["671", "672", "673"]),
-          n1: this.sumAccounts(n1, ["671", "672", "673"]),
-        },
-        pertesChange: {
-          n: this.sumAccounts(n, ["676"]),
-          n1: this.sumAccounts(n1, ["676"]),
-        },
-        autresCharges: {
-          n: this.sumAccounts(n, ["674", "675", "677", "678"]),
-          n1: this.sumAccounts(n1, ["674", "675", "677", "678"]),
-        },
-        dotationsProvisions: {
-          n: this.sumAccounts(n, ["697"]),
-          n1: this.sumAccounts(n1, ["697"]),
-        },
-      },
-      resultatFinancier: {
-        n: this.sumAccounts(n, ["77"]) - this.sumAccounts(n, ["67"]),
-        n1: this.sumAccounts(n1, ["77"]) - this.sumAccounts(n1, ["67"]),
-      },
+      charges: this.buildNoteRows("29", n, n1, {
+        indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      }),
+      revenus: this.buildNoteRows("29", n, n1, {
+        indexes: [10, 11, 12, 13, 14, 15, 16, 17, 18],
+      }),
     };
   }
 
-  private generateNote30(n: any[], n1: any[]): any {
+  private generateNote30(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Table OHADA note "30": 0-5 = charges H.A.O. (831/833/837, 834, 835,
+    // 836, 839, 85), 6-12 = produits H.A.O. (841/843/844/847, 845, 846, 848,
+    // 849, 86, 88), 13-14 = participation des travailleurs (87) et impôts sur
+    // le résultat (89), rattachés aux charges.
     return {
+      entete: this.buildEntete(folder),
       title: "AUTRES CHARGES ET PRODUITS HAO",
-      produits: {
-        plusValuesCessions: {
-          n: this.sumAccounts(n, [
-            "821",
-            "822",
-            "823",
-            "824",
-            "825",
-            "826",
-            "827",
-          ]),
-          n1: this.sumAccounts(n1, [
-            "821",
-            "822",
-            "823",
-            "824",
-            "825",
-            "826",
-            "827",
-          ]),
-        },
-        produitsExceptionnels: {
-          n: this.sumAccounts(n, ["84", "85", "86", "87", "88"]),
-          n1: this.sumAccounts(n1, ["84", "85", "86", "87", "88"]),
-        },
-      },
-      charges: {
-        moinsValuesCessions: {
-          n: this.sumAccounts(n, [
-            "831",
-            "832",
-            "833",
-            "834",
-            "835",
-            "836",
-            "837",
-          ]),
-          n1: this.sumAccounts(n1, [
-            "831",
-            "832",
-            "833",
-            "834",
-            "835",
-            "836",
-            "837",
-          ]),
-        },
-        chargesExceptionnelles: {
-          n: this.sumAccounts(n, ["838", "839"]),
-          n1: this.sumAccounts(n1, ["838", "839"]),
-        },
-      },
-      resultatHAO: {
-        n:
-          this.sumAccounts(n, ["81", "82", "84", "85", "86", "87", "88"]) -
-          this.sumAccounts(n, ["83"]),
-        n1:
-          this.sumAccounts(n1, ["81", "82", "84", "85", "86", "87", "88"]) -
-          this.sumAccounts(n1, ["83"]),
-      },
+      charges: this.buildNoteRows("30", n, n1, {
+        indexes: [0, 1, 2, 3, 4, 5, 13, 14],
+      }),
+      produits: this.buildNoteRows("30", n, n1, {
+        indexes: [6, 7, 8, 9, 10, 11, 12],
+      }),
     };
   }
 
-  private generateNote31(n: any[]): any {
-    const resultatAvantImpot =
-      this.getAccountBalance(n, "13") + this.sumAccounts(n, ["89"]);
-    const impotSurResultat = this.sumAccounts(n, ["89"]);
+  private generateNote31(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Éléments caractéristiques sur 5 exercices. Seuls N et N-1 sont
+    // calculables (l'application ne conserve que deux balances); N-2 à N-4
+    // restent à 0, à compléter par le comptable.
+    const capitalN = sumBySide(n, ["10"], "SC", ["109"]);
+    const capitalN1 = sumBySide(n1, ["10"], "SC", ["109"]);
+    const lines = getMappingLines("31");
+
+    const rows = [
+      { label: "Capital social", yearN: capitalN, yearN1: capitalN1 },
+      {
+        label: lines[0]?.label || "Chiffre d'affaires hors taxes",
+        yearN: lines[0] ? sumMappingLine(n, lines[0]) : 0,
+        yearN1: lines[0] ? sumMappingLine(n1, lines[0]) : 0,
+      },
+      {
+        label: "Résultat net de l'exercice",
+        yearN: sumBySide(n, ["13"], "SC"),
+        yearN1: sumBySide(n1, ["13"], "SC"),
+      },
+      {
+        label: lines[1]?.label || "Participation des travailleurs aux bénéfices",
+        yearN: lines[1] ? sumMappingLine(n, lines[1]) : 0,
+        yearN1: lines[1] ? sumMappingLine(n1, lines[1]) : 0,
+      },
+      {
+        label: lines[2]?.label || "Impôt sur le résultat",
+        yearN: lines[2] ? sumMappingLine(n, lines[2]) : 0,
+        yearN1: lines[2] ? sumMappingLine(n1, lines[2]) : 0,
+      },
+      {
+        label: "Report à nouveau",
+        yearN: sumBySide(n, ["12"], "SC"),
+        yearN1: sumBySide(n1, ["12"], "SC"),
+      },
+    ].map((r, i) => ({
+      id: String(i + 1),
+      label: r.label,
+      yearN: r.yearN,
+      yearN1: r.yearN1,
+      yearN2: 0,
+      yearN3: 0,
+      yearN4: 0,
+    }));
 
     return {
+      entete: this.buildEntete(folder),
       title:
         "REPARTITION DU RESULTAT ET AUTRES ELEMENTS CARACTERISTIQUES DES CINQ DERNIERS EXERCICES",
-      resultatAvantImpot,
-      impotSurResultat,
-      resultatNet: this.getAccountBalance(n, "13"),
-      dividendes: 0,
-      reportANouveau: this.getAccountBalance(n, "12"),
+      rows,
     };
   }
 
-  private generateNote32(n: any[]): any {
+  private generateNote32(folder: FolderWithRelations): any {
+    // Production de l'exercice détaillée par produit (quantités et valeurs
+    // par destination). Ce détail n'existe pas dans la balance comptable —
+    // une ligne vide est émise pour que le tableau s'affiche et soit
+    // saisissable par le comptable.
     return {
+      entete: this.buildEntete(folder),
       title: "PRODUCTION DE L'EXERCICE",
-      ventesProduction: this.sumAccounts(n, [
-        "702",
-        "703",
-        "704",
-        "705",
-        "706",
-      ]),
-      productionStockee: this.sumAccounts(n, ["73"]),
-      productionImmobilisee: this.sumAccounts(n, ["72"]),
-      total: this.sumAccounts(n, ["70", "71", "72", "73"]),
+      rows: [
+        {
+          id: "1",
+          productDesignation: "",
+          unit: "",
+          soldInCountryQty: 0,
+          soldInCountryVal: 0,
+          soldOtherOHADAQty: 0,
+          soldOtherOHADAVal: 0,
+          soldOutsideOHADAQty: 0,
+          soldOutsideOHADAVal: 0,
+          immobilizedQty: 0,
+          immobilizedVal: 0,
+          openingStockQty: 0,
+          openingStockVal: 0,
+          closingStockQty: 0,
+          closingStockVal: 0,
+        },
+      ],
     };
   }
 
-  private generateNote33(n: any[]): any {
+  private generateNote33(folder: FolderWithRelations): any {
+    // Achats destinés à la production détaillés par nature (quantités
+    // locales/importées). Détail absent de la balance — ligne vide émise
+    // pour affichage et saisie.
     return {
+      entete: this.buildEntete(folder),
       title: "ACHATS DESTINES A LA PRODUCTION",
-      achatsMatieresPremieres: this.sumAccounts(n, ["602"]),
-      autresApprovisionnements: this.sumAccounts(n, ["604", "605", "606"]),
-      variationStocks: this.sumAccounts(n, ["6032", "6033"]),
-      total: this.sumAccounts(n, ["602", "604", "605", "606", "6032", "6033"]),
+      rows: [
+        {
+          id: "1",
+          designation: "",
+          unit: "",
+          localQty: 0,
+          localVal: 0,
+          importedQty: 0,
+          importedVal: 0,
+          stockVariation: 0,
+        },
+      ],
     };
   }
 
-  private generateNote34(n: any[]): any {
-    const ca = this.sumAccounts(n, ["70", "71"]);
-    const valeurAjoutee =
-      ca - this.sumAccounts(n, ["60", "61", "62", "63", "64"]);
-    const ebe = valeurAjoutee - this.sumAccounts(n, ["66"]);
-    const resultatExploitation = ebe - this.sumAccounts(n, ["681"]);
+  private generateNote34(
+    n: any[],
+    n1: any[],
+    folder: FolderWithRelations
+  ): any {
+    // Fiche de synthèse: soldes intermédiaires de gestion, CAFG et éléments
+    // du fonds de roulement. Les lignes calculables le sont depuis la
+    // balance; les lignes issues d'autres états (TFT, bilan) restent à 0.
+    const lines = getMappingLines("34");
+    const line = (i: number, rows: any[]) =>
+      lines[i] ? sumMappingLine(rows, lines[i]) : 0;
+
+    const sig = (rows: any[]) => {
+      const ca = sumBySide(rows, ["70", "71"], "SC");
+      const achats = sumBySide(rows, ["60", "61", "62", "63", "64"], "SD");
+      const valeurAjoutee = ca - achats;
+      const ebe = valeurAjoutee - sumBySide(rows, ["66"], "SD");
+      const resultatExploitation = ebe - sumBySide(rows, ["681"], "SD");
+      const resultatFinancier =
+        sumBySide(rows, ["77"], "SC") - sumBySide(rows, ["67"], "SD");
+      const resultatHAO =
+        sumBySide(rows, ["82", "84", "86", "88"], "SC") -
+        sumBySide(rows, ["83", "85"], "SD");
+      const resultatNet = sumBySide(rows, ["13"], "SC");
+      return {
+        ca,
+        valeurAjoutee,
+        ebe,
+        resultatExploitation,
+        resultatFinancier,
+        resultatHAO,
+        resultatNet,
+      };
+    };
+
+    const sN = sig(n);
+    const sN1 = sig(n1);
+
+    const spec: { label: string; n: number; n1: number; bold?: boolean; gray?: boolean }[] = [
+      { label: "CHIFFRE D'AFFAIRES", n: sN.ca, n1: sN1.ca, bold: true },
+      {
+        label: "MARGE COMMERCIALE",
+        n: sumBySide(n, ["701"], "SC") - sumBySide(n, ["601"], "SD"),
+        n1: sumBySide(n1, ["701"], "SC") - sumBySide(n1, ["601"], "SD"),
+      },
+      { label: "VALEUR AJOUTEE", n: sN.valeurAjoutee, n1: sN1.valeurAjoutee },
+      { label: "EXCEDENT BRUT D'EXPLOITATION (E.B.E)", n: sN.ebe, n1: sN1.ebe },
+      {
+        label: "RESULTAT D'EXPLOITATION",
+        n: sN.resultatExploitation,
+        n1: sN1.resultatExploitation,
+      },
+      {
+        label: "RESULTAT FINANCIER",
+        n: sN.resultatFinancier,
+        n1: sN1.resultatFinancier,
+      },
+      {
+        label: "RESULTAT DES ACTIVITES ORDINAIRES",
+        n: sN.resultatExploitation + sN.resultatFinancier,
+        n1: sN1.resultatExploitation + sN1.resultatFinancier,
+      },
+      {
+        label: "RESULTAT HORS ACTIVITES ORDINAIRES",
+        n: sN.resultatHAO,
+        n1: sN1.resultatHAO,
+      },
+      { label: "RESULTAT NET", n: sN.resultatNet, n1: sN1.resultatNet, bold: true },
+      {
+        label: "DETERMINATION DE LA CAPACITE D'AUTOFINANCEMENT",
+        n: 0,
+        n1: 0,
+        gray: true,
+      },
+      { label: "EBE", n: sN.ebe, n1: sN1.ebe },
+      { label: lines[0]?.label || "+ Valeurs comptables des cessions courantes", n: line(0, n), n1: line(0, n1) },
+      { label: lines[1]?.label || "- Produits des cessions courantes", n: line(1, n), n1: line(1, n1) },
+      { label: lines[2]?.label || "+ Revenus financiers", n: line(2, n), n1: line(2, n1) },
+      { label: lines[3]?.label || "+ Gains de change", n: line(3, n), n1: line(3, n1) },
+      { label: lines[4]?.label || "+ Transferts de charges financières", n: line(4, n), n1: line(4, n1) },
+      { label: lines[5]?.label || "+ Produits H.A.O.", n: line(5, n), n1: line(5, n1) },
+      { label: lines[6]?.label || "+ Transferts de charges H.A.O.", n: line(6, n), n1: line(6, n1) },
+      { label: lines[7]?.label || "- Frais financiers", n: line(7, n), n1: line(7, n1) },
+      { label: lines[8]?.label || "- Pertes de change", n: line(8, n), n1: line(8, n1) },
+      { label: lines[9]?.label || "- Charges H.A.O.", n: line(9, n), n1: line(9, n1) },
+      { label: lines[10]?.label || "- Participation", n: line(10, n), n1: line(10, n1) },
+      { label: lines[11]?.label || "- Impôts sur le résultat", n: line(11, n), n1: line(11, n1) },
+    ];
+
+    // CAFG = EBE + éléments encaissables/décaissables ci-dessus.
+    const cafg = (rows: any[], s: ReturnType<typeof sig>) =>
+      s.ebe +
+      line(0, rows) -
+      line(1, rows) +
+      line(2, rows) +
+      line(3, rows) +
+      line(4, rows) +
+      line(5, rows) +
+      line(6, rows) -
+      line(7, rows) -
+      line(8, rows) -
+      line(9, rows) -
+      line(10, rows) -
+      line(11, rows);
+
+    const cafgN = cafg(n, sN);
+    const cafgN1 = cafg(n1, sN1);
+    spec.push({ label: "CAFG", n: cafgN, n1: cafgN1, bold: true });
+
+    const dividendes = Math.max(
+      sumBySide(n1, ["11", "12", "13"], "SC") - sumBySide(n, ["11", "12", "13"], "SC"),
+      0
+    );
+    spec.push({
+      label: "Distributions de dividendes opérées au cours de l'exercice",
+      n: dividendes,
+      n1: 0,
+    });
+    spec.push({
+      label: "AUTOFINANCEMENT",
+      n: cafgN - dividendes,
+      n1: cafgN1,
+      bold: true,
+    });
+
+    // Éléments de structure financière (fonds de roulement / BFE / trésorerie).
+    const capitauxPropres = (rows: any[]) =>
+      sumBySide(rows, ["10", "11", "12", "13", "14", "15"], "SC") -
+      sumBySide(rows, ["109"], "SD");
+    const actifImmobilise = (rows: any[]) => line(12, rows);
+    const actifCirculantExpl = (rows: any[]) => line(13, rows);
+    const passifCirculantExpl = (rows: any[]) => line(14, rows);
+    const actifCirculantHao = (rows: any[]) => line(15, rows);
+    const passifCirculantHao = (rows: any[]) => line(16, rows);
+    const endettementBrut = (rows: any[]) => line(17, rows);
+    const tresorerieActif = (rows: any[]) => line(18, rows);
+
+    const structure = (rows: any[]) => {
+      const cp = capitauxPropres(rows);
+      const dettesFin = sumBySide(rows, ["16", "17"], "SC");
+      const ressourcesStables = cp + dettesFin;
+      const fdr = ressourcesStables - actifImmobilise(rows);
+      const bfe = actifCirculantExpl(rows) - passifCirculantExpl(rows);
+      const bfhao = actifCirculantHao(rows) - passifCirculantHao(rows);
+      const bfg = bfe + bfhao;
+      return { cp, dettesFin, ressourcesStables, fdr, bfe, bfhao, bfg };
+    };
+
+    const stN = structure(n);
+    const stN1 = structure(n1);
+
+    spec.push(
+      { label: "Capitaux propres et ressources assimilées", n: stN.cp, n1: stN1.cp },
+      {
+        label: "+ Dettes financières et autres ressources assimilées",
+        n: stN.dettesFin,
+        n1: stN1.dettesFin,
+      },
+      {
+        label: "= Ressources stables",
+        n: stN.ressourcesStables,
+        n1: stN1.ressourcesStables,
+      },
+      {
+        label: "- Actif immobilisé",
+        n: actifImmobilise(n),
+        n1: actifImmobilise(n1),
+      },
+      { label: "= FONDS DE ROULEMENT (1)", n: stN.fdr, n1: stN1.fdr, bold: true },
+      {
+        label: "Actif circulant d'exploitation",
+        n: actifCirculantExpl(n),
+        n1: actifCirculantExpl(n1),
+      },
+      {
+        label: "- Passif circulant d'exploitation",
+        n: passifCirculantExpl(n),
+        n1: passifCirculantExpl(n1),
+      },
+      {
+        label: "= BESOIN DE FINANCEMENT D'EXPLOITATION (2)",
+        n: stN.bfe,
+        n1: stN1.bfe,
+        bold: true,
+      },
+      {
+        label: "Actif circulant H.A.O.",
+        n: actifCirculantHao(n),
+        n1: actifCirculantHao(n1),
+      },
+      {
+        label: "- Passif circulant H.A.O.",
+        n: passifCirculantHao(n),
+        n1: passifCirculantHao(n1),
+      },
+      {
+        label: "= BESOIN DE FINANCEMENT H.A.O. (3)",
+        n: stN.bfhao,
+        n1: stN1.bfhao,
+      },
+      {
+        label: "BESOIN DE FINANCEMENT GLOBAL (4) = (2) + (3)",
+        n: stN.bfg,
+        n1: stN1.bfg,
+        bold: true,
+      },
+      {
+        label: "TRESORERIE NETTE (5) = (1) - (4)",
+        n: stN.fdr - stN.bfg,
+        n1: stN1.fdr - stN1.bfg,
+        bold: true,
+      },
+      {
+        label: "Endettement financier brut",
+        n: endettementBrut(n),
+        n1: endettementBrut(n1),
+      },
+      { label: "- Trésorerie Actif", n: tresorerieActif(n), n1: tresorerieActif(n1) },
+      {
+        label: "= ENDETTEMENT FINANCIER NET",
+        n: endettementBrut(n) - tresorerieActif(n),
+        n1: endettementBrut(n1) - tresorerieActif(n1),
+        bold: true,
+      }
+    );
 
     return {
+      entete: this.buildEntete(folder),
       title: "FICHE DE SYNTHESE DES PRINCIPAUX INDICATEURS FINANCIERS",
-      chiffreAffaires: ca,
-      valeurAjoutee,
-      excedentBrutExploitation: ebe,
-      resultatExploitation,
-      resultatFinancier:
-        this.sumAccounts(n, ["77"]) - this.sumAccounts(n, ["67"]),
-      resultatHAO:
-        this.sumAccounts(n, ["81", "82", "84", "85", "86", "87", "88"]) -
-        this.sumAccounts(n, ["83"]),
-      resultatNet: this.getAccountBalance(n, "13"),
-      capaciteAutofinancement:
-        this.getAccountBalance(n, "13") + this.sumAccounts(n, ["681", "691"]),
-      ratiosRentabilite: {
-        margeCommerciale: 0,
-        tauxMarque: 0,
-        rentabiliteCommerciale: 0,
-        rentabiliteEconomique: 0,
-      },
+      rows: spec.map((r, i) => ({
+        id: String(i + 1),
+        label: r.label,
+        yearN: r.n,
+        yearN1: r.n1,
+        bold: r.bold || false,
+        gray: r.gray || false,
+      })),
     };
   }
 
@@ -2364,6 +3222,100 @@ export class DSFGenerator {
       informationsEnvironnementales: [],
       informationsSocietales: [],
     };
+  }
+
+  private sumFixedAssetGross(fixedAssets: any[], prefixes: string[]): number {
+    if (!fixedAssets || fixedAssets.length === 0) return 0;
+    return fixedAssets
+      .filter((fa) =>
+        prefixes.some((p) => String(fa.accountNumber || "").startsWith(p))
+      )
+      .reduce((total, fa) => total + (parseFloat(fa.grossValue) || 0), 0);
+  }
+
+  /**
+   * Tableau des Flux de Trésorerie (TFT). Comptes/formules tirés de la table
+   * OHADA (section "TFT", voir tft-mapping.data.ts). La colonne N-1 n'est
+   * pas calculée: les termes SDA/SCA du calcul de la période N-1 exigeraient
+   * une balance N-2, non disponible dans l'application.
+   */
+  private generateTFT(
+    n: any[],
+    n1: any[],
+    notes: any,
+    nBalance: any,
+    n1Balance: any
+  ): any {
+    const ctx = { currentRows: n, priorRows: n1 };
+    const values = new Map<string, number>();
+
+    // FF/FG/FH: décaissements sur acquisitions d'immobilisations. La table
+    // source référence des cellules d'un autre onglet (note 3A: "N3A;C15",
+    // "ACQUISITION INCORP OUVERTURE(...)") non résolvables depuis cette
+    // table. Approximation: variation de la valeur brute des immobilisations
+    // (données FixedAsset) + mouvement des avances/acomptes fournisseurs
+    // d'investissement (comptes 4041/4046/4811 etc., eux bien couverts par
+    // le moteur de formules).
+    const nFixedAssets = nBalance?.fixedAssets || [];
+    const n1FixedAssets = n1Balance?.fixedAssets || [];
+    const grossDelta = (prefixes: string[]) =>
+      this.sumFixedAssetGross(nFixedAssets, prefixes) -
+      this.sumFixedAssetGross(n1FixedAssets, prefixes);
+
+    values.set(
+      "FF",
+      -(
+        grossDelta(["21"]) +
+        evaluateFormulaSource("SCA(4041;4046;4811)-SC(4041;4046;4811)", ctx)
+      )
+    );
+    values.set(
+      "FG",
+      -(
+        grossDelta(["22", "23", "24", "25"]) +
+        evaluateFormulaSource("SCA(4042;4046;4812)-SC(4042;4046;4812)", ctx)
+      )
+    );
+    values.set(
+      "FH",
+      -(
+        grossDelta(["26", "27"]) +
+        evaluateFormulaSource("SCA(4813)-SC(4813)", ctx)
+      )
+    );
+
+    // FA: reprend la CAFG déjà calculée en note 34 (référence Excel "N34;E41").
+    values.set("FA", notes?.note34?.capaciteAutofinancement || 0);
+
+    const rows = TFT_LINES.map((line) => {
+      let value = 0;
+      if (values.has(line.ref)) {
+        value = values.get(line.ref)!;
+      } else if (line.formula) {
+        try {
+          value = evaluateFormulaSource(line.formula, ctx);
+        } catch (error) {
+          console.error(`[TFT] Erreur de formule pour ${line.ref}:`, error);
+          value = 0;
+        }
+      } else if (line.sumOf) {
+        value = line.sumOf.reduce(
+          (total, ref) => total + (values.get(ref) || 0),
+          0
+        );
+      }
+      values.set(line.ref, value);
+      return {
+        ref: line.ref,
+        label: line.label,
+        valueN: value,
+        valueN1: 0,
+        bold: line.bold || false,
+        highlight: line.highlight || null,
+      };
+    });
+
+    return { rows };
   }
 
   private async getConfigByCategory(
@@ -2758,6 +3710,93 @@ export class DSFGenerator {
     cf1Data.rows[25].amount = perteFiscal; // Line 29
 
     return cf1Data;
+  }
+
+  /**
+   * FICHE R2 — Fiche d'identification et de renseignements divers 2.
+   *
+   * Mise en page relevée sur l'onglet « Fiche R2 » d'une DSF réelle: un bloc
+   * de renseignements repérés par des codes (ZK à ZP), un bloc « Contrôle de
+   * l'entité » (ZQ à ZS) et un tableau des activités de l'entreprise.
+   *
+   * Seul le chiffre d'affaires est déductible de la balance; la forme
+   * juridique et le pays viennent de la fiche client. Le reste
+   * (immatriculation, nomenclature d'activité, répartition du CA) relève d'une
+   * saisie du comptable: les lignes sont émises vides pour être complétées.
+   */
+  private generateFicheR2(n: any[], folder: FolderWithRelations): any {
+    const chiffreAffaires = sumBySide(n, ["70", "71"], "SC");
+
+    return {
+      entete: this.buildEntete(folder),
+      title: "FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 2",
+      renseignements: {
+        // ZK..ZP — les codes sont conservés: ils figurent sur l'imprimé.
+        ZK: { label: "Forme juridique", value: folder.client.legalForm ?? "" },
+        ZL: { label: "Régistre fiscal", value: "" },
+        ZM: { label: "Pays du siège social", value: folder.client.country ?? "" },
+        ZN: { label: "Nombre d'établissement dans le pays", value: "" },
+        ZO: {
+          label:
+            "Nombre d'établissement dans le pays hors du pays pour lesquels une comptabilité distincte est tenue",
+          value: "",
+        },
+        ZP: { label: "Première année d'exercice dans le pays", value: "" },
+      },
+      controleEntite: {
+        // Une seule des trois cases est cochée sur l'imprimé.
+        ZQ: { label: "Entreprise sous contrôle public", checked: false },
+        ZR: { label: "Entreprise sous contrôle privé national", checked: false },
+        ZS: { label: "Entreprise sous contrôle privé étranger", checked: false },
+      },
+      // 6 lignes d'activité comme sur l'imprimé, plus la ligne « Divers ».
+      activites: Array.from({ length: 6 }, (_, i) => ({
+        id: String(i + 1),
+        designation: "",
+        codeNomenclature: "",
+        montant: 0,
+        pourcentage: 0,
+      })),
+      divers: { designation: "Divers", montant: 0, pourcentage: 0 },
+      // Report du CA de la balance: sert de contrôle au comptable qui
+      // ventile ensuite par activité.
+      totalCA: chiffreAffaires,
+      comment: "",
+    };
+  }
+
+  /**
+   * FICHE R3 — Dirigeants et membres du conseil d'administration.
+   *
+   * Mise en page relevée sur l'onglet « Fiche R3 »: 13 lignes de dirigeants
+   * (nom, prénoms, qualité, n° d'identification fiscale, adresse) puis 11
+   * lignes de membres du conseil d'administration (sans n° fiscal).
+   *
+   * Ces informations sont juridiques et n'existent pas dans la balance: les
+   * lignes sont émises vides, prêtes à la saisie, pour que le tableau
+   * s'affiche complet.
+   */
+  private generateFicheR3(folder: FolderWithRelations): any {
+    return {
+      entete: this.buildEntete(folder),
+      title: "FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 3 - DIRIGEANTS",
+      dirigeants: Array.from({ length: 13 }, (_, i) => ({
+        id: String(i + 1),
+        nom: "",
+        prenom: "",
+        qualite: "",
+        nIdFiscale: "",
+        adresse: "",
+      })),
+      conseilAdministration: Array.from({ length: 11 }, (_, i) => ({
+        id: String(i + 1),
+        nom: "",
+        prenom: "",
+        qualite: "",
+        adresse: "",
+      })),
+      comment: "",
+    };
   }
 
   private generateSignaletics(folder: FolderWithRelations): any {

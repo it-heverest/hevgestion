@@ -71,6 +71,10 @@ model User {
   // User notifications
   notifications Notification[]
 
+  // Corbeille: éléments supprimés par cet utilisateur / restaurés par lui
+  deletedRecords  DeletedRecord[] @relation("RecordDeletedBy")
+  restoredRecords DeletedRecord[] @relation("RecordRestoredBy")
+
   // Activity tracking
   lastActivity DateTime?
 
@@ -78,6 +82,57 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+// ========== CORBEILLE (SUPPRESSION RÉVERSIBLE) ==========
+// Rien n'est réellement perdu: toute suppression déplace une copie complète de
+// l'enregistrement (et de ses enfants) ici. L'élément disparaît des vues des
+// utilisateurs, mais reste consultable et restaurable par un administrateur.
+model DeletedRecord {
+  id         String @id @default(uuid())
+  entityType String // "Client" | "Folder" | "Balance" | "DSF" | "RevueFiscalCompany"
+  entityId   String
+  label      String // libellé lisible (nom du client, du dossier, ...)
+
+  // Copie intégrale de l'enregistrement et de ses enfants, telle qu'au moment
+  // de la suppression. C'est la source de vérité pour la restauration.
+  payload Json
+
+  // Contexte, pour filtrer/regrouper dans l'écran d'administration
+  clientId String?
+  folderId String?
+
+  // Traçabilité de la suppression
+  deletedById String
+  deletedBy   User     @relation("RecordDeletedBy", fields: [deletedById], references: [id])
+  deletedAt   DateTime @default(now())
+  reason      String?
+
+  // Traçabilité de la restauration (null tant que l'élément est en corbeille)
+  restoredById String?
+  restoredBy   User?     @relation("RecordRestoredBy", fields: [restoredById], references: [id])
+  restoredAt   DateTime?
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([deletedAt])
+  @@index([restoredAt])
+  @@index([clientId])
+  @@index([folderId])
+  @@map("deleted_records")
+}
+
+// ========== PARAMÈTRES APPLICATIFS ==========
+// Réglages globaux modifiables depuis l'écran Paramètres, sans redémarrage
+// ni changement de variable d'environnement (ex. le modèle IA de l'assistant).
+model AppSetting {
+  key   String @id
+  value Json
+
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
 }
 
 model Client {
@@ -406,6 +461,7 @@ model DSF {
   note25_c2   Json?
   note26      Json?
   note27a     Json?
+  note27a_c1  Json?
   note27b     Json?
   note28      Json?
   note28_c1   Json?
@@ -583,10 +639,12 @@ model DSFConfigImport {
 
 // ========== DGI DECLARATION MANAGEMENT ==========
 model DGIConfig {
-  id       String @id @default(uuid())
-  username String
-  password String
-  userId   String @unique
+  id          String  @id @default(uuid())
+  companyName String?
+  niu         String?
+  username    String
+  password    String
+  userId      String  @unique
 
   user User @relation(fields: [userId], references: [id])
 

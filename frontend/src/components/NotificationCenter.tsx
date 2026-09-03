@@ -109,7 +109,6 @@ export function NotificationCenter() {
       setNotifications(
         notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       );
-      loadUnreadCount(); // Update unread count
     } catch (error) {
       console.error("Error marking as read:", error);
     }
@@ -119,7 +118,6 @@ export function NotificationCenter() {
     try {
       await notificationService.markAllAsRead();
       setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0); // All marked as read
     } catch (error) {
       console.error("Error marking all as read:", error);
     }

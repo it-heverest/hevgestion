@@ -3,17 +3,17 @@ import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText, Check, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces ---
 interface NoteStatus {
   note: string;
   title: string;
-  ecoSocFisc: boolean;
-  ecoSocFiscObli: boolean;
-  ecoSocFiscStat: boolean;
-  ecoSocFiscCial: boolean;
+  eco: boolean;
+  soc: boolean;
+  fisc: boolean;
+  cial: boolean;
 }
 
 interface HeaderData {
@@ -30,33 +30,33 @@ const GrilleAnalyseNotes: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const folderId = folderIdFromUrl || selectedFolder?.id;
   const [isEditing, setIsEditing] = useState(false);
-  const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Load DSF data
   useEffect(() => {
-    if (selectedFolder?.id) {
+    if (folderId) {
       loadDSFData();
     }
-  }, [selectedFolder?.id]);
+  }, [folderId]);
 
   const loadDSFData = async () => {
-    if (!selectedFolder?.id) return;
+    if (!folderId) return;
 
     try {
       setLoading(true);
-      const response = await dsfService.getDSF(selectedFolder.id);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      const data = await notesService.getNoteData(folderId, "grille-analyse-notes") as any;
 
-      if (dsf.grille && dsf.grille.notes) {
-        setNotes(dsf.grille.notes);
-      }
+      if (data) {
+        if (data.notes) {
+          setNotes(data.notes);
+        }
 
-      if (dsf.grille && dsf.grille.headerInfo) {
-        setHeaderInfo(dsf.grille.headerInfo);
+        if (data.headerInfo) {
+          setHeaderInfo(data.headerInfo);
+        }
       }
     } catch (error) {
       console.error("Error loading DSF data:", error);
@@ -66,7 +66,7 @@ const GrilleAnalyseNotes: React.FC = () => {
   };
 
   const saveToBackend = async () => {
-    if (!dsfId) return;
+    if (!folderId) return;
 
     try {
       setSaving(true);
@@ -76,7 +76,10 @@ const GrilleAnalyseNotes: React.FC = () => {
         notes,
       };
 
-      await dsfService.updateDSF(dsfId, { grille: grilleData });
+      const success = await notesService.saveNoteData(folderId, "grille-analyse-notes", grilleData as any);
+      if (!success) {
+        alert("Erreur lors de la sauvegarde");
+      }
     } catch (error) {
       console.error("Error saving to backend:", error);
       alert("Erreur lors de la sauvegarde");
@@ -93,424 +96,81 @@ const GrilleAnalyseNotes: React.FC = () => {
     duration: "12",
   });
 
-  // Liste des notes exactement comme dans l'image
-  const initialNotes: NoteStatus[] = [
-    {
-      note: "NOTE1",
-      title: "DETTES GARANTIES PAR DES SURETES REELLES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE2",
-      title: "IMMOBILISATIONS INCORPORELLES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3",
-      title: "IMMOBILISATIONS CORPORELLES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3B",
-      title: "BIENS PRISE EN LOCATION-ACQUISITION",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3C",
-      title: "IMMOBILISATIONS ACQUISES EN LEASING",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3D",
-      title: "IMMOBILISATIONS FINANCIERES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3E",
-      title: "AMORTISSEMENTS DEROGATOIRES ET PROVISIONS REGLEMENTEES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE3F",
-      title: "DEPRECIATION DES IMMOBILISATIONS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE4",
-      title: "IMMOBILISATIONS FINANCIERES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE5",
-      title: "ACTIF CIRCULANT HAO",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE6",
-      title: "CLIENTS ET COMPTES RATTACHES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE7",
-      title: "CLIENTS DOUTEUX",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE8",
-      title: "AUTRES CREANCES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE9",
-      title: "TITRES DE PLACEMENT",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE10",
-      title: "VALEURS A ENCAISSER",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE11",
-      title: "DISPONIBILITES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE12",
-      title: "CAPITAL SOUSCRIT - APPELE NON VERSE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE13",
-      title: "CAPITAL SOUSCRIT - APPELE NON VERSE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE14",
-      title: "PRIMES ET RESERVES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE15",
-      title: "SUBVENTIONS D'INVESTISSEMENT",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE16",
-      title: "PROVISIONS REGLEMENTEES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE16A",
-      title: "DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE16B",
-      title:
-        "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES (METHODE ACTUARIELLE)",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE16C",
-      title: "ACTIFS ET PASSIFS EVENTUELS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE17",
-      title: "FOURNISSEURS D'EXPLOITATION",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE18",
-      title: "DETTES FISCALES ET SOCIALES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE19",
-      title: "AUTRES DETTES ET PROVISIONS POUR RISQUES A COURT TERME",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE20",
-      title: "BANQUES, CREDIT D'ESCOMPTE ET DE TRESORERIE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE21",
-      title: "CHIFFRE D'AFFAIRES ET AUTRES PRODUITS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE22",
-      title: "ACHATS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE23",
-      title: "TRANSPORTS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE24",
-      title: "SERVICES EXTERIEURS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE25",
-      title: "IMPOTS ET TAXES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE26",
-      title: "AUTRES CHARGES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE27A",
-      title: "CHARGES DE PERSONNEL",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE27B",
-      title: "EFFECTIFS, MASSE SALARIALE ET PERSONNEL EXTERIEUR",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE28",
-      title: "PROVISIONS ET DEPRECIATIONS INSCRITES AU BILAN",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE29",
-      title: "CHARGES ET REVENUS FINANCIERS",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE30",
-      title: "AUTRES CHARGES ET PRODUITS HAO",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE31",
-      title:
-        "REPARTITION DU RESULTAT ET AUTRES ELEMENTS CARACTERISTIQUES DES CINQ DERNIERS EXERCICES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE32",
-      title: "PRODUCTION DE L'EXERCICE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "NOTE33",
-      title: "ACHATS DESTINES A LA PRODUCTION",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF1",
-      title:
-        "TABLEAU DE PASSAGE DU RESULTAT COMPTABLE AVANT IMPOT AU RESULTAT FISCAL",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF1BIS",
-      title:
-        "TABLEAU DE DETERMINATION DE L'IMPOT SUR RESULTAT : IMPOT SUR LE BENEFICE FISCAL",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF1TER",
-      title:
-        "TABLEAU DE DETERMINATION DE L'IMPOT SUR RESULTAT MINIMUM DE PERCEPTION",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF1QUATER",
-      title:
-        "ETAT DES VERSEMENTS EFFECTUES AU TITRE DE L'IMPOT SUR RESULTAT : IMPOT SUR LES BENEFICES ET D'ACOMPTES",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF1QUINQUIES",
-      title:
-        "ETAT DES VERSEMENTS EFFECTUES AU TITRE DE L'IMPOT SUR RESULTAT : MINIMUM DE PERCEPTION",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF2",
-      title: "CALCUL DE LA VALEUR AJOUTEE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF3",
-      title: "DETERMINATION DU BENEFICE FISCAL (SYNTHESE)",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF3BIS",
-      title: "CALCUL DE LA TAXE SUR LES VEHICULES DE SOCIETE",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
-    {
-      note: "CF4TER",
-      title: "SITUATION NETTE DE TVA",
-      ecoSocFisc: false,
-      ecoSocFiscObli: false,
-      ecoSocFiscStat: false,
-      ecoSocFiscCial: false,
-    },
+  // Liste des 59 notes/annexes réellement générées par l'application (codes
+  // + intitulés repris tels quels des `title:` de chaque `generateNoteX()`
+  // dans dsf-generator.service.ts — source faisant foi, plus fiable qu'une
+  // relecture d'imprimé). Exclut le tableau des flux de trésorerie (TFT,
+  // hors grille) et CF1 (config DB, pas de balance à cocher).
+  const NOTE_REFERENCE: [string, string][] = [
+    ["NOTE 1", "DETTES GARANTIES PAR DES SURETES REELLES"],
+    ["NOTE 2", "INFORMATIONS OBLIGATOIRES"],
+    ["NOTE 3A", "IMMOBILISATIONS BRUTES"],
+    ["NOTE 3B", "BIENS PRIS EN LOCATION ACQUISITION"],
+    ["NOTE 3C", "IMMOBILISATIONS: AMORTISSEMENTS"],
+    ["C1/NOTE 3C", "TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN PERIODE DEFICITAIRE"],
+    ["NOTE 3D", "IMMOBILISATIONS: PLUS ET MOINS VALUE DE CESSION"],
+    ["NOTE 3E", "INFORMATIONS SUR LES REEVALUATIONS EFFECTUEES PAR L'ENTITE"],
+    ["NOTE 3F", "TABLEAU D'ETALEMENT DES CHARGES IMMOBILISEES"],
+    ["NOTE 4", "IMMOBILISATIONS FINANCIERES"],
+    ["NOTE 5", "ACTIF ET PASSIF CIRCULANT HAO"],
+    ["NOTE 6", "STOCKS ET ENCOURS"],
+    ["NOTE 7", "CLIENTS"],
+    ["NOTE 8", "AUTRES CREANCES"],
+    ["NOTE 9", "TITRES DE PLACEMENT"],
+    ["NOTE 10", "VALEURS A ENCAISSER"],
+    ["NOTE 11", "DISPONIBILITES"],
+    ["NOTE 12", "ECARTS DE CONVERSION"],
+    ["NOTE 13", "VALEUR NOMINALE DES ACTIONS OU PARTS"],
+    ["NOTE 14", "PRIMES ET RESERVES"],
+    ["NOTE 15A", "SUBVENTIONS ET PROVISIONS REGLEMENTEES"],
+    ["NOTE 15B", "AUTRES FONDS PROPRES"],
+    ["NOTE 16A", "DETTES FINANCIERES ET RESSOURCES ASSIMILEES"],
+    ["NOTE 16B", "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES (METHODE ACTUARIELLE)"],
+    ["NOTE 16 Bis", "ENGAGEMENTS DE RETRAITE ET AVANTAGES ASSIMILES"],
+    ["NOTE 16C", "ACTIFS ET PASSIFS EVENTUELS"],
+    ["NOTE 17", "FOURNISSEURS D'EXPLOITATION"],
+    ["C1/NOTE 17", "EXTRAIT DE LA BALANCE GENERALE FOURNISSEURS"],
+    ["NOTE 18", "DETTES FISCALES ET SOCIALES"],
+    ["NOTE 19", "AUTRES DETTES ET PROVISIONS POUR RISQUES A COURT TERME"],
+    ["NOTE 20", "BANQUES, CREDIT D'ESCOMPTE ET DE TRESORERIE"],
+    ["NOTE 21", "CHIFFRE D'AFFAIRES ET AUTRES PRODUITS"],
+    ["NOTE 22", "ACHATS"],
+    ["NOTE 23", "TRANSPORTS"],
+    ["NOTE 24", "SERVICES EXTERIEURS"],
+    ["NOTE 25", "IMPOTS ET TAXES"],
+    ["C1/NOTE 25", "SYNTHESE DES IMPOTS ET TAXES VERSES"],
+    ["C2/NOTE 25", "TABLEAU DE LA REGULARISATION ANNUELLE DES DROITS D'ACCISES: DETERMINATION DES DROITS D'ACCISES A REVERSER"],
+    ["NOTE 26", "AUTRES CHARGES"],
+    ["NOTE 27A", "CHARGES DE PERSONNEL"],
+    ["C1/NOTE 27A", "TABLEAU DE REGULARISATION ANNUELLE DES IMPOTS ET TAXES SUR SALAIRES"],
+    ["NOTE 27B", "EFFECTIFS, MASSE SALARIALE ET PERSONNEL EXTERIEUR"],
+    ["NOTE 28", "PROVISIONS ET DEPRECIATIONS INSCRITES AU BILAN"],
+    ["C1/NOTE 28", "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE: LES REPRISES"],
+    ["C2/NOTE 28", "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE: LES DOTATIONS"],
+    ["NOTE 29", "CHARGES ET REVENUS FINANCIERS"],
+    ["NOTE 30", "AUTRES CHARGES ET PRODUITS HAO"],
+    ["NOTE 31", "REPARTITION DU RESULTAT ET AUTRES ELEMENTS CARACTERISTIQUES DES CINQ DERNIERS EXERCICES"],
+    ["NOTE 32", "PRODUCTION DE L'EXERCICE"],
+    ["NOTE 33", "ACHATS DESTINES A LA PRODUCTION"],
+    ["NOTE 34", "FICHE DE SYNTHESE DES PRINCIPAUX INDICATEURS FINANCIERS"],
+    ["NOTE 35", "LISTE DES INFORMATIONS SOCIALES, ENVIRONNEMENTALES ET SOCIETALES A FOURNIR"],
+    ["CF1", "TABLEAU DE PASSAGE DU RESULTAT COMPTABLE AVANT IMPOT AU RESULTAT FISCAL"],
+    ["CF1 Bis", "TABLEAU DE DETERMINATION DE L'IMPOT SUR LE RESULTAT: MINIMUM DE PERCEPTION"],
+    ["CF1 Ter", "MINIMUM DE PERCEPTION"],
+    ["CF1 Quater", "RECAPITULATIF DES VERSEMENTS D'ACOMPTES ET DE RETENUES SUBIES D'IMPOT SOCIETE DE L'EXERCICE"],
+    ["CF2", "CALCUL DE REGULARISATION ANNUELLE DE LA TVA"],
+    ["CF2 Bis", "RECAPITULATIF DES VERSEMENTS EFFECTUES ET RETENUS SUBIES"],
+    ["CF2 Ter", "SITUATION NETTE DE TVA"],
   ];
+
+  const initialNotes: NoteStatus[] = NOTE_REFERENCE.map(([note, title]) => ({
+    note,
+    title,
+    eco: false,
+    soc: false,
+    fisc: false,
+    cial: false,
+  }));
 
   const [notes, setNotes] = useState<NoteStatus[]>(initialNotes);
 
@@ -591,7 +251,7 @@ const GrilleAnalyseNotes: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-full max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border border-gray-300"
+        className="w-full max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border border-gray-300"
       >
         {/* Numéro de page */}
         <div className="text-right font-bold mb-6 text-base text-gray-600">Page 4</div>
@@ -709,13 +369,13 @@ const GrilleAnalyseNotes: React.FC = () => {
             </tr>
             <tr className="bg-gray-300">
               <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
-                Eco Soc Fisc
+                Eco
               </th>
               <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
-                Obl
+                Soc
               </th>
               <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
-                Stat
+                Fisc
               </th>
               <th className="border-2 border-gray-500 p-3 text-center font-bold text-xs">
                 Cial
@@ -734,16 +394,16 @@ const GrilleAnalyseNotes: React.FC = () => {
                 <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
-                      onClick={() => toggleStatus(index, "ecoSocFisc")}
+                      onClick={() => toggleStatus(index, "eco")}
                       className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
-                      {note.ecoSocFisc ? (
+                      {note.eco ? (
                         <Check className="text-green-600 font-bold" size={18} />
                       ) : (
                         <X className="text-gray-400" size={18} />
                       )}
                     </button>
-                  ) : note.ecoSocFisc ? (
+                  ) : note.eco ? (
                     <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
                     <span className="text-gray-300">-</span>
@@ -752,16 +412,16 @@ const GrilleAnalyseNotes: React.FC = () => {
                 <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
-                      onClick={() => toggleStatus(index, "ecoSocFiscObli")}
+                      onClick={() => toggleStatus(index, "soc")}
                       className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
-                      {note.ecoSocFiscObli ? (
+                      {note.soc ? (
                         <Check className="text-green-600 font-bold" size={18} />
                       ) : (
                         <X className="text-gray-400" size={18} />
                       )}
                     </button>
-                  ) : note.ecoSocFiscObli ? (
+                  ) : note.soc ? (
                     <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
                     <span className="text-gray-300">-</span>
@@ -770,16 +430,16 @@ const GrilleAnalyseNotes: React.FC = () => {
                 <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
-                      onClick={() => toggleStatus(index, "ecoSocFiscStat")}
+                      onClick={() => toggleStatus(index, "fisc")}
                       className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
-                      {note.ecoSocFiscStat ? (
+                      {note.fisc ? (
                         <Check className="text-green-600 font-bold" size={18} />
                       ) : (
                         <X className="text-gray-400" size={18} />
                       )}
                     </button>
-                  ) : note.ecoSocFiscStat ? (
+                  ) : note.fisc ? (
                     <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
                     <span className="text-gray-300">-</span>
@@ -788,16 +448,16 @@ const GrilleAnalyseNotes: React.FC = () => {
                 <td className="border-2 border-gray-500 p-3 text-center align-middle">
                   {isEditing ? (
                     <button
-                      onClick={() => toggleStatus(index, "ecoSocFiscCial")}
+                      onClick={() => toggleStatus(index, "cial")}
                       className="w-6 h-6 flex justify-center items-center mx-auto rounded hover:bg-gray-100"
                     >
-                      {note.ecoSocFiscCial ? (
+                      {note.cial ? (
                         <Check className="text-green-600 font-bold" size={18} />
                       ) : (
                         <X className="text-gray-400" size={18} />
                       )}
                     </button>
-                  ) : note.ecoSocFiscCial ? (
+                  ) : note.cial ? (
                     <Check className="text-green-600 mx-auto font-bold" size={18} />
                   ) : (
                     <span className="text-gray-300">-</span>
@@ -812,8 +472,7 @@ const GrilleAnalyseNotes: React.FC = () => {
         <div className="mt-6 pt-4 border-t border-gray-300 text-[10px] text-gray-700 leading-relaxed">
           <p className="font-bold mb-2">Légende :</p>
           <p>
-            <strong>Eco</strong> = Statistiques économiques | <strong>Soc</strong> = Statistiques sociales | <strong>Fisc</strong> = Statistiques fiscales |
-            <strong> Obl</strong> = Obligatoire | <strong>Stat</strong> = Statistique | <strong>Cial</strong> = Commercial
+            <strong>Eco</strong> : Statistiques économiques - <strong>Soc</strong> : Statistiques sociales - <strong>Fisc</strong> : Statistiques fiscales - <strong>Cial</strong> : Statistiques commerciales
           </p>
         </div>
       </div>

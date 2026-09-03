@@ -1,6 +1,7 @@
 // services/folderService.ts
 import api from "./api";
 import { API_CONFIG } from "../config/api";
+import { authService } from "./auth.service";
 
 export interface Folder {
   id: string;
@@ -8,11 +9,13 @@ export interface Folder {
   description?: string;
   status:
     | "DRAFT"
+    | "IN_PROGRESS"
     | "PROCESSING_BALANCE"
     | "BALANCE_READY"
     | "DSF_GENERATED"
     | "DSF_VALIDATED"
-    | "COMPLETED";
+    | "COMPLETED"
+    | "ARCHIVED";
   fiscalYear: number;
   startDate: string;
   endDate: string;

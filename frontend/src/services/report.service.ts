@@ -51,7 +51,9 @@ export interface UploadResponse {
 }
 
 class ReportService {
-  private baseURL = "http://localhost:5000/api/reports";
+  // Chemin relatif: passe par le proxy Vite (/api -> backend), fonctionne
+  // aussi en accédant via l'IP réseau de la machine, pas seulement localhost.
+  private baseURL = "/api/reports";
 
   async getReports(): Promise<ReportListResponse> {
     try {

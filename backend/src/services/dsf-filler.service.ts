@@ -1,103 +1,59 @@
 // backend/src/services/dsf-filler.service.ts
-import ExcelJS from "exceljs";
 import * as fs from "fs";
 import * as path from "path";
 import { prisma } from "../lib/prisma";
-import { config } from "../config";
 import { NOTE_EXPORT_MAP } from "./excel/export-map";
-import { createTemplateCopy } from "./dsf-template.service";
+import { createTemplateCopy, resolveTemplatePath } from "./dsf-template.service";
+import { patchXlsx, CellWrite } from "./excel/xlsx-patcher";
+
+/** Résout "a.b.c" dans un objet imbriqué; undefined si un maillon manque. */
+function getByPath(obj: any, dotPath: string): unknown {
+    let current = obj;
+    for (const key of dotPath.split(".")) {
+        if (current === null || current === undefined) return undefined;
+        current = current[key];
+    }
+    return current;
+}
 
 export class DsfFillerService {
     /**
-     * Get the template path for a folder
+     * Rassemble toutes les cellules à écrire, à partir des données DSF et de la
+     * table de correspondance champ -> cellule (`note-configs.ts`).
      */
-    private getTemplatePath(folderId: string): string {
-        return path.join(config.upload.directory, config.upload.subDirectories.templates, folderId, "template.xlsx");
-    }
+    private collectWrites(dsf: any): { writes: CellWrite[]; notesFilled: number } {
+        const writes: CellWrite[] = [];
+        let notesFilled = 0;
 
-    /**
-     * Map note identifier to DSF model field name
-     */
-    private getFieldName(noteId: string): string {
-        // Handle special cases
-        if (noteId === "3C_C01") return "note3c_co1";
-        if (noteId === "16B bis") return "note16b_bis";
-        if (noteId === "C1/17") return "note17_c1";
-        if (noteId === "C1/25") return "note25_c1";
-        if (noteId === "C2/25") return "note25_c2";
-        if (noteId === "C1/28") return "note28_c1";
-        if (noteId === "C2/28") return "note28_c2";
-
-        // Default: "note" + lowercase noteId
-        return `note${noteId.toLowerCase()}`;
-    }
-
-    /**
-     * Fill the template with folder data and return a buffer
-     * Creates a copy of the template first, then fills it
-     */
-    async fillTemplate(folderId: string, clientName: string): Promise<{ buffer: Buffer; filePath: string }> {
-        // First, create a copy of the template with client name
-        const copyPath = createTemplateCopy(folderId, clientName);
-        
-        // Fetch report data
-        const dsf = await prisma.dSF.findUnique({
-            where: { folderId },
-        });
-
-        if (!dsf) {
-            // Clean up the copy if DSF not found
-            if (fs.existsSync(copyPath)) {
-                fs.unlinkSync(copyPath);
-            }
-            throw new Error("Données DSF introuvables pour ce dossier. Veuillez d'abord générer ou importer les rapports.");
-        }
-
-        // Load the COPY (not the original template)
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.readFile(copyPath);
-
-        let filledCount = 0;
-
-        // Fill each note
-        for (const [noteId, { config: mapping, sheetName }] of Object.entries(NOTE_EXPORT_MAP)) {
-            const fieldName = this.getFieldName(noteId);
-            const noteData = (dsf as any)[fieldName];
-
+        for (const [, { config: mapping, sheetName, dsfField }] of Object.entries(NOTE_EXPORT_MAP)) {
+            const noteData = dsf[dsfField];
             if (!noteData) continue;
 
-            // Find sheet (case-insensitive)
-            const worksheet = workbook.worksheets.find(
-                (ws) => ws.name.trim().toLowerCase() === sheetName.trim().toLowerCase()
-            );
+            const before = writes.length;
 
-            if (!worksheet) {
-                // Log but don't fail, maybe the template is missing some sheets
-                console.warn(`Sheet "${sheetName}" (Note ${noteId}) not found in template.`);
-                continue;
-            }
-
-            // Fill Header (Entête) - but NOT the entity/company name
+            // En-tête. Le nom de l'entité n'est jamais écrasé: il est déjà mis
+            // en forme dans le template.
             if (mapping.entete && noteData.entete) {
                 for (const [field, cellRef] of Object.entries(mapping.entete)) {
                     if (typeof cellRef !== "string") continue;
-                    
-                    // Skip entity name fields - don't overwrite them in the template
-                    if (field.toLowerCase().includes("entity") || 
-                        field.toLowerCase().includes("company") ||
-                        field.toLowerCase().includes("nom") && field.toLowerCase().includes("entreprise")) {
+
+                    const lower = field.toLowerCase();
+                    if (
+                        lower.includes("entity") ||
+                        lower.includes("company") ||
+                        (lower.includes("nom") && lower.includes("entreprise"))
+                    ) {
                         continue;
                     }
-                    
+
                     const val = noteData.entete[field];
                     if (val !== undefined && val !== null) {
-                        const cell = worksheet.getCell(cellRef);
-                        cell.value = val;
+                        writes.push({ sheetName, ref: cellRef, value: val });
                     }
                 }
             }
 
-            // Fill Sections
+            // Sections tabulaires
             if (mapping.sections) {
                 for (const [sectionName, sectionConfig] of Object.entries(mapping.sections as any)) {
                     const sectionData = noteData[sectionName];
@@ -109,41 +65,143 @@ export class DsfFillerService {
                     for (let i = 0; i < Math.min(sectionData.length, configLignes.length); i++) {
                         const rowData = sectionData[i];
                         const cellMapping = configLignes[i];
+                        if (!rowData || !cellMapping) continue;
 
-                        for (const [fieldName, cellRef] of Object.entries(cellMapping)) {
-                            if (typeof cellRef !== "string" || fieldName.startsWith("//")) continue;
+                        for (const [rowField, cellRef] of Object.entries(cellMapping)) {
+                            if (typeof cellRef !== "string" || rowField.startsWith("//")) continue;
 
-                            let value = rowData[fieldName];
-                            // Try camelCase if direct match fails (some fields might be inconsistent)
+                            let value = rowData[rowField];
+                            // Certains champs sont déclarés en PascalCase dans la
+                            // config et en camelCase dans les données.
                             if (value === undefined || value === null) {
-                                const camelField = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+                                const camelField = rowField.charAt(0).toLowerCase() + rowField.slice(1);
                                 value = rowData[camelField];
                             }
 
                             if (value !== undefined && value !== null) {
-                                const cell = worksheet.getCell(cellRef);
-                                cell.value = value;
+                                writes.push({ sheetName, ref: cellRef, value });
                             }
                         }
                     }
                 }
             }
-            filledCount++;
+
+            // Champs scalaires imbriqués (ex: Fiche R2/R3), en plus des
+            // sections tabulaires ci-dessus — les deux peuvent coexister dans
+            // une même config.
+            if (mapping.flat) {
+                for (const [dotPath, cellRef] of Object.entries(mapping.flat)) {
+                    if (typeof cellRef !== "string") continue;
+                    const value = getByPath(noteData, dotPath);
+                    // Un chemin qui pointe encore vers un objet/tableau est une
+                    // erreur de config (chemin trop court) — on l'ignore plutôt
+                    // que d'écrire "[object Object]" dans la cellule.
+                    if (
+                        typeof value === "string" ||
+                        typeof value === "number" ||
+                        typeof value === "boolean"
+                    ) {
+                        if (value !== "") writes.push({ sheetName, ref: cellRef, value });
+                    }
+                }
+            }
+
+            // Sections indexées par clé métier (code SYSCOHADA, référence…)
+            // plutôt que par position — voir ConfigurationMapping.byKey.
+            if (mapping.byKey) {
+                for (const sectionConfig of Object.values(mapping.byKey) as any[]) {
+                    const array = getByPath(noteData, sectionConfig.arrayField);
+                    if (!Array.isArray(array)) continue;
+
+                    const byKey = new Map<string, any>();
+                    for (const item of array) {
+                        const key = item?.[sectionConfig.keyField];
+                        if (typeof key === "string") byKey.set(key.toLowerCase(), item);
+                    }
+
+                    for (const [key, cellMapping] of Object.entries(sectionConfig.rows)) {
+                        const rowData = byKey.get(key.toLowerCase());
+                        if (!rowData) continue;
+
+                        for (const [rowField, cellRef] of Object.entries(cellMapping as any)) {
+                            if (typeof cellRef !== "string") continue;
+                            const value = rowData[rowField];
+                            if (value !== undefined && value !== null && value !== "") {
+                                writes.push({ sheetName, ref: cellRef, value });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (writes.length > before) notesFilled++;
         }
 
-        console.log(`📊 Export DSF: Filled ${filledCount} notes into template for folder ${folderId}, client: ${clientName}`);
+        return { writes, notesFilled };
+    }
 
-        // Save the filled workbook to the copy
-        await workbook.xlsx.writeFile(copyPath);
+    /**
+     * Remplit le template avec les données du dossier et renvoie le fichier.
+     *
+     * Le classeur n'est jamais reconstruit: seules les cellules de données sont
+     * réécrites dans l'archive d'origine (voir `xlsx-patcher.ts`). Le format du
+     * template — graphiques, images, mises en forme, validations — est donc
+     * conservé à l'identique.
+     */
+    async fillTemplate(
+        folderId: string,
+        clientName: string,
+        ownerIds: (string | null | undefined)[] = []
+    ): Promise<{ buffer: Buffer; filePath: string; templateSource: "folder" | "settings" }> {
+        const resolved = resolveTemplatePath(folderId, ownerIds);
+        if (!resolved) {
+            throw new Error(
+                "Aucun template DSF trouvé. Importez-en un depuis les Paramètres, ou depuis le dossier."
+            );
+        }
 
-        // Read the filled file and return as buffer
-        const buffer = fs.readFileSync(copyPath);
-        
-        // Clean up the temporary copy after reading
-        // (Optional: keep it if you want to keep history)
-        // fs.unlinkSync(copyPath);
+        // Fetch report data
+        const dsf = await prisma.dSF.findUnique({
+            where: { folderId },
+        });
 
-        return { buffer, filePath: copyPath };
+        if (!dsf) {
+            throw new Error(
+                "Données DSF introuvables pour ce dossier. Veuillez d'abord générer ou importer les rapports."
+            );
+        }
+
+        const { writes, notesFilled } = this.collectWrites(dsf as any);
+
+        const templateBuffer = fs.readFileSync(resolved.path);
+        const { buffer, written, missingSheets } = await patchXlsx(templateBuffer, writes);
+
+        if (missingSheets.length > 0) {
+            console.warn(
+                `Export DSF: onglets absents du template (ignorés): ${missingSheets.join(", ")}`
+            );
+        }
+
+        // Contrôle de non-régression: le fichier produit ne doit pas être plus
+        // petit que le template. Une perte de volume signalerait que le format
+        // d'origine n'a pas été préservé.
+        if (buffer.length < templateBuffer.length * 0.95) {
+            console.warn(
+                `Export DSF: taille suspecte (template ${templateBuffer.length} o -> export ${buffer.length} o).`
+            );
+        }
+
+        // Écriture de la copie horodatée destinée au téléchargement.
+        const copyPath = createTemplateCopy(folderId, clientName, ownerIds);
+        fs.writeFileSync(copyPath, buffer);
+
+        console.log(
+            `📊 Export DSF: ${notesFilled} note(s), ${written} cellule(s) écrite(s) — ` +
+            `template ${resolved.source === "folder" ? "du dossier" : "des Paramètres"} ` +
+            `(${templateBuffer.length} o -> ${buffer.length} o) — dossier ${folderId}, client ${clientName}`
+        );
+
+        return { buffer, filePath: copyPath, templateSource: resolved.source };
     }
 }
 

@@ -5,6 +5,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { FormulaValue } from "./shared/FormulaValue";
 
 // --- Interfaces ---
 interface DebtRow {
@@ -330,6 +331,7 @@ const Note1: React.FC = () => {
   const renderDebtRow = (
     row: DebtRow,
     setter: React.Dispatch<React.SetStateAction<DebtRow[]>>,
+    arrayField: "financialDebts" | "leasingDebts" | "currentLiabilities",
   ) => (
     <tr key={row.id}>
       <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
@@ -357,7 +359,12 @@ const Note1: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.grossAmount.toLocaleString("fr-FR")
+          <FormulaValue
+            formulaKey={`note1.${arrayField}.${row.id}`}
+            label={typeof row.label === "string" ? row.label : String(row.label)}
+          >
+            {row.grossAmount.toLocaleString("fr-FR")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -513,7 +520,7 @@ const Note1: React.FC = () => {
 
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border-2 ${
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border-2 ${
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >
@@ -603,29 +610,29 @@ const Note1: React.FC = () => {
         {/* Tableau Principal */}
         <table className="w-full border-collapse border border-gray-400 text-[11px]">
           <thead>
-            <tr>
+            <tr className="bg-gray-300">
               <th rowSpan={2} className="border border-gray-400 p-1 w-[35%] text-black">
-                DÉSIGNATION
+                LIBELLES
               </th>
               <th rowSpan={2} className="border border-gray-400 p-1 w-[5%] text-black">
-                NOTE
+                Note
               </th>
               <th rowSpan={2} className="border border-gray-400 p-1 w-[15%] text-black">
-                MONTANT BRUT
+                Montant brut
               </th>
               <th colSpan={3} className="border border-gray-400 p-1 text-black">
-                GARANTIES ET SÛRETÉS
+                SURETES REELLES
               </th>
             </tr>
-            <tr>
+            <tr className="bg-gray-300">
               <th className="border border-gray-400 p-1 w-[15%] text-black">
                 Hypothèques
               </th>
               <th className="border border-gray-400 p-1 w-[15%] text-black">
-                Nantissements et gages
+                Nantissements
               </th>
               <th className="border border-gray-400 p-1 w-[15%] text-black">
-                Autres sûretés
+                Gages/autres
               </th>
             </tr>
           </thead>
@@ -635,7 +642,9 @@ const Note1: React.FC = () => {
                 Dettes financières et ressources assimilées:
               </td>
             </tr>
-            {financialDebts.map((row) => renderDebtRow(row, setFinancialDebts))}
+            {financialDebts.map((row) =>
+              renderDebtRow(row, setFinancialDebts, "financialDebts"),
+            )}
             {renderSubTotal("SOUS TOTAL (1)", financialDebts)}
 
             <tr>
@@ -643,7 +652,9 @@ const Note1: React.FC = () => {
                 Dettes de location-acquisition:
               </td>
             </tr>
-            {leasingDebts.map((row) => renderDebtRow(row, setLeasingDebts))}
+            {leasingDebts.map((row) =>
+              renderDebtRow(row, setLeasingDebts, "leasingDebts"),
+            )}
             {renderSubTotal("SOUS TOTAL (2)", leasingDebts)}
 
             <tr>
@@ -652,7 +663,7 @@ const Note1: React.FC = () => {
               </td>
             </tr>
             {currentLiabilities.map((row) =>
-              renderDebtRow(row, setCurrentLiabilities),
+              renderDebtRow(row, setCurrentLiabilities, "currentLiabilities"),
             )}
             {renderSubTotal("SOUS TOTAL (3)", currentLiabilities)}
 
@@ -676,28 +687,28 @@ const Note1: React.FC = () => {
           </tbody>
         </table>
 
-        {/* Engagements */}
+        {/* Engagements financiers */}
+        <div className="bg-gray-300 border border-gray-400 border-t-0 py-1 text-center font-bold">
+          ENGAGEMENTS FINANCIERS
+        </div>
         <table className="w-full border-collapse border border-gray-400 text-[11px] mt-0 border-t-0">
           <thead>
-            <tr>
-              <th
-                rowSpan={2}
-                className="border border-gray-400 p-2 text-center w-[50%] text-black"
-              >
-                ENGAGEMENTS
+            <tr className="bg-gray-300">
+              <th className="border border-gray-400 p-2 text-left pl-2 w-[70%] text-black">
+                &nbsp;
               </th>
               <th className="border border-gray-400 p-2 text-center w-[15%] text-black">
-                DONNÉS
+                Engagements donnés
               </th>
               <th className="border border-gray-400 p-2 text-center w-[15%] text-black">
-                REÇUS
+                Engagements reçus
               </th>
             </tr>
           </thead>
           <tbody>
             {commitments.map((row) => (
               <tr key={row.id}>
-                <td colSpan={4} className="border border-gray-400 p-1 pl-2">
+                <td className="border border-gray-400 p-1 pl-2">
                   {row.label}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -735,10 +746,7 @@ const Note1: React.FC = () => {
               </tr>
             ))}
             <tr className="bg-gray-300 font-bold">
-              <td
-                colSpan={4}
-                className="border border-gray-400 p-1 text-center uppercase"
-              >
+              <td className="border border-gray-400 p-1 text-center uppercase">
                 TOTAL
               </td>
               <td className="border border-gray-400 p-1 text-right">

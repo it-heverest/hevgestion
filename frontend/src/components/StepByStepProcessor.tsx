@@ -1,4 +1,5 @@
 // components/StepByStepProcessor.tsx
+import type { ReactElement } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -90,7 +91,7 @@ export function StepByStepProcessor({
     checkStepConditions,
     isStepCompleted,
     isStepProcessing,
-  } = useBalanceProcessor();
+  } = useBalanceProcessor(currentFolder?.id ?? selectedFolder?.id ?? null);
 
   const convertToExcelEditorData = (data: BalanceRow[]): any[] => {
     return data.map((row) => ({
@@ -189,7 +190,7 @@ export function StepByStepProcessor({
     row: BalanceRow,
     level: number = 0,
     rowIndex: number = 0
-  ) => {
+  ): ReactElement | null => {
     if (!row) return null;
 
     const paddingLeft = level * 20;
@@ -215,7 +216,7 @@ export function StepByStepProcessor({
               editingCell?.field === field ? (
                 <Input
                   autoFocus
-                  value={row[field] || ""}
+                  value={row[field as Exclude<keyof BalanceRow, "sous_comptes">] || ""}
                   onChange={(e) =>
                     handleCellEdit(rowIndex, field, e.target.value)
                   }
@@ -250,12 +251,12 @@ export function StepByStepProcessor({
                   }}
                 >
                   {field.includes("debit") || field.includes("credit")
-                    ? Number(row[field] || 0).toLocaleString("fr-FR")
+                    ? Number(row[field as Exclude<keyof BalanceRow, "sous_comptes">] || 0).toLocaleString("fr-FR")
                     : field === "traitement"
                     ? getStatusBadge(row.traitement || "")
                     : field === "libelle" && level > 0
-                    ? `↳ ${row[field] || ""}`
-                    : row[field] || ""}
+                    ? `↳ ${row[field as Exclude<keyof BalanceRow, "sous_comptes">] || ""}`
+                    : row[field as Exclude<keyof BalanceRow, "sous_comptes">] || ""}
                 </div>
               )}
             </td>

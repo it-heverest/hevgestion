@@ -134,7 +134,7 @@ const NoteSmt: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">6</div>

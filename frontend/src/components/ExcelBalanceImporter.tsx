@@ -189,16 +189,16 @@ export function ExcelBalanceImporter({
         // Convert backend data format to frontend format
         const rawData = balance.originalData?.rows || [];
         const balanceData: BalanceRow[] = rawData.map((row: any) => ({
-          compte: row.accountNumber || row.compte || "",
-          libelle: row.accountName || row.libelle || "",
-          entre_debit: Number(row.openingDebit || row.entre_debit) || 0,
-          entre_credit: Number(row.openingCredit || row.entre_credit) || 0,
-          mouvement_debit:
+          accountNumber: row.accountNumber || row.compte || "",
+          accountName: row.accountName || row.libelle || "",
+          openingDebit: Number(row.openingDebit || row.entre_debit) || 0,
+          openingCredit: Number(row.openingCredit || row.entre_credit) || 0,
+          movementDebit:
             Number(row.movementDebit || row.mouvement_debit) || 0,
-          mouvement_credit:
+          movementCredit:
             Number(row.movementCredit || row.mouvement_credit) || 0,
-          solde_debit: Number(row.closingDebit || row.solde_debit) || 0,
-          solde_credit: Number(row.closingCredit || row.solde_credit) || 0,
+          closingDebit: Number(row.closingDebit || row.solde_debit) || 0,
+          closingCredit: Number(row.closingCredit || row.solde_credit) || 0,
         }));
 
         const storedBalance: StoredBalance = {
@@ -239,8 +239,8 @@ export function ExcelBalanceImporter({
 
   const calculateBalances = (row: BalanceRow) => {
     return {
-      solde_debit: row.entre_debit + row.mouvement_debit,
-      solde_credit: row.entre_credit + row.mouvement_credit,
+      closingDebit: (row.openingDebit || 0) + row.movementDebit,
+      closingCredit: (row.openingCredit || 0) + row.movementCredit,
     };
   };
 
@@ -392,14 +392,14 @@ export function ExcelBalanceImporter({
     const aoa = [
       columns,
       ...balance.data.map((row) => [
-        row.compte,
-        row.libelle,
-        row.entre_debit,
-        row.entre_credit,
-        row.mouvement_debit,
-        row.mouvement_credit,
-        row.solde_debit,
-        row.solde_credit,
+        row.accountNumber,
+        row.accountName,
+        row.openingDebit,
+        row.openingCredit,
+        row.movementDebit,
+        row.movementCredit,
+        row.closingDebit,
+        row.closingCredit,
       ]),
     ];
 
@@ -567,17 +567,17 @@ export function ExcelBalanceImporter({
 
     const templateData: BalanceRow[] = data.slice(1).map((row: any) => {
       const balanceRow: BalanceRow = {
-        compte: row[0]?.toString() || "",
-        libelle: row[1]?.toString() || "",
-        entre_debit: Number(row[2]) || 0,
-        entre_credit: Number(row[3]) || 0,
-        mouvement_debit: Number(row[4]) || 0,
-        mouvement_credit: Number(row[5]) || 0,
+        accountNumber: row[0]?.toString() || "",
+        accountName: row[1]?.toString() || "",
+        openingDebit: Number(row[2]) || 0,
+        openingCredit: Number(row[3]) || 0,
+        movementDebit: Number(row[4]) || 0,
+        movementCredit: Number(row[5]) || 0,
       };
 
       const balances = calculateBalances(balanceRow);
-      balanceRow.solde_debit = balances.solde_debit;
-      balanceRow.solde_credit = balances.solde_credit;
+      balanceRow.closingDebit = balances.closingDebit;
+      balanceRow.closingCredit = balances.closingCredit;
 
       return balanceRow;
     });

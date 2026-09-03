@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo, Fragment } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, memo, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -93,6 +93,16 @@ const ROW_COHERENCE_TOLERANCE = 0.01;
 // A row is only safe to ventilate if its own opening + movement reconciles
 // with its closing; otherwise the inconsistency would silently propagate
 // into the newly created sub-accounts.
+//
+// Reconciliation is done on the NET balance (debit - credit), not on debit
+// and credit independently. Checking the two sides separately produces false
+// positives for any row with a legitimate cross-side movement — e.g. an
+// asset disposal ("cession d'immobilisation") is booked as a movementCredit
+// on a debit-normal account, which nets against the debit balance rather
+// than requiring a matching closingCredit. The net formula also handles
+// brand-new accounts (opening = 0) and single-sided accounts (one family
+// entirely zero) correctly without any special-casing, since those are just
+// degenerate cases of the same net equation.
 const getRowCoherenceIssue = (row: {
   openingDebit?: number;
   openingCredit?: number;
@@ -101,21 +111,14 @@ const getRowCoherenceIssue = (row: {
   closingDebit?: number;
   closingCredit?: number;
 }): string | null => {
-  const openingDebit = row.openingDebit || 0;
-  const openingCredit = row.openingCredit || 0;
-  const movementDebit = row.movementDebit || 0;
-  const movementCredit = row.movementCredit || 0;
-  const closingDebit = row.closingDebit || 0;
-  const closingCredit = row.closingCredit || 0;
+  const netOpening = (row.openingDebit || 0) - (row.openingCredit || 0);
+  const netMovement = (row.movementDebit || 0) - (row.movementCredit || 0);
+  const netClosing = (row.closingDebit || 0) - (row.closingCredit || 0);
 
-  const expectedClosingDebit = openingDebit + movementDebit;
-  const expectedClosingCredit = openingCredit + movementCredit;
+  const expectedNetClosing = netOpening + netMovement;
 
-  if (Math.abs(expectedClosingDebit - closingDebit) > ROW_COHERENCE_TOLERANCE) {
-    return `Débit clôture (${closingDebit.toLocaleString()}) ne correspond pas à ouverture + mouvement (${expectedClosingDebit.toLocaleString()})`;
-  }
-  if (Math.abs(expectedClosingCredit - closingCredit) > ROW_COHERENCE_TOLERANCE) {
-    return `Crédit clôture (${closingCredit.toLocaleString()}) ne correspond pas à ouverture + mouvement (${expectedClosingCredit.toLocaleString()})`;
+  if (Math.abs(expectedNetClosing - netClosing) > ROW_COHERENCE_TOLERANCE) {
+    return `Solde clôture (${netClosing.toLocaleString()}) ne correspond pas à ouverture + mouvement net (${expectedNetClosing.toLocaleString()})`;
   }
   return null;
 };
@@ -301,18 +304,14 @@ export function BalanceImporter() {
       setBalances(balancesList);
 
       // Mettre à jour la balance sélectionnée avec les nouvelles données
-      const updatedBalance = balancesList.find(b => b.id === selectedBalance.id);
+      const updatedBalance = balancesList.find((b: any) => b.id === selectedBalance.id);
       if (updatedBalance) {
         setSelectedBalance(updatedBalance);
       }
 
-      // Recharger aussi la balance précédente si elle existe
-      if (previousYearBalance) {
-        const updatedPrevious = balancesList.find(b => b.id === previousYearBalance.id);
-        if (updatedPrevious) {
-          setPreviousYearBalance(updatedPrevious);
-        }
-      }
+      // Note: previousYearBalance is derived from `balances` (see below), so
+      // it updates automatically on the next render via setBalances() above —
+      // no separate setter needed here.
 
       console.log("Balance refreshed successfully");
     } catch (error) {
@@ -495,7 +494,6 @@ export function BalanceImporter() {
       <Dialog
         open={showMissingPreviousAlert}
         onOpenChange={setShowMissingPreviousAlert}
-        style={{ width: "50%" }}
       >
         <DialogContent className="w-[50vw] max-w-[50vw]">
           <DialogHeader>
@@ -538,7 +536,6 @@ export function BalanceImporter() {
       <Dialog
         open={showImportDialog}
         onOpenChange={setShowImportDialog}
-        style={{ width: "60%" }}
       >
         <DialogContent className="w-[60vw] max-w-[60vw]">
           <DialogHeader>
@@ -720,7 +717,11 @@ function BalanceListItem({
 }
 
 // Editable Cell Component for Inline Editing
-function EditableCell({
+// React.memo: sur une balance de 600+ lignes, évite de re-rendre les ~2400
+// cellules non concernées quand une seule ligne change (édition, ventilation,
+// etc.) — ne sert que si onCellEdit/onStartEdit ont une référence stable
+// (cf. useCallback sur handleCellEdit/handleCellStartEdit).
+const EditableCell = memo(function EditableCell({
   accountNumber,
   value,
   isEditing,
@@ -734,7 +735,7 @@ function EditableCell({
   isEditing: boolean;
   field: keyof Pick<BalanceRow, 'openingDebit' | 'openingCredit' | 'movementDebit' | 'movementCredit'>;
   onCellEdit: (accountNumber: string, field: string, value: number) => void;
-  onStartEdit: () => void;
+  onStartEdit: (accountNumber: string) => void;
   className?: string;
 }) {
   const [inputValue, setInputValue] = useState(value.toString());
@@ -775,7 +776,7 @@ function EditableCell({
   return (
     <TableCell
       className={`font-mono cursor-pointer hover:bg-orange-50 transition-colors ${className}`}
-      onClick={onStartEdit}
+      onClick={() => onStartEdit(accountNumber)}
     >
       {value > 0 ? (
         <span className="font-medium text-gray-900">
@@ -786,7 +787,7 @@ function EditableCell({
       )}
     </TableCell>
   );
-}
+});
 
 // Text input that only accepts numeric characters, shows thousand
 // separators once the user leaves the field, and switches to the raw
@@ -860,7 +861,22 @@ function BalanceDetailView({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showOpeningMismatch, setShowOpeningMismatch] = useState(false);
   const [openingMismatches, setOpeningMismatches] = useState<
-    { account: string; name: string; n1Closing: number; nOpening: number }[]
+    {
+      root: string;
+      n1ClosingDebit: number;
+      n1ClosingCredit: number;
+      n1ClosingNet: number;
+      nOpeningDebit: number;
+      nOpeningCredit: number;
+      nOpeningNet: number;
+      difference: number;
+      accounts: {
+        account: string;
+        name: string;
+        closingN1: number;
+        openingN: number;
+      }[];
+    }[]
   >([]);
   const [expandedRoots, setExpandedRoots] = useState<Set<string>>(new Set());
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
@@ -918,9 +934,12 @@ function BalanceDetailView({
   const [pendingVentilations, setPendingVentilations] = useState<
     { config: VentilationConfig; amount: number }[]
   >([]);
-  // Amounts keyed by [mainAccountNumber][subAccountNumber]
+  // Movement amounts keyed by [mainAccountNumber][subAccountNumber] -> { debit, credit }.
+  // Both sides are independently editable so a movement that legitimately
+  // falls on the opposite side of the main account's net balance (e.g. an
+  // asset disposal booked as a credit movement) can be allocated too.
   const [ventilationAmounts, setVentilationAmounts] = useState<
-    Record<string, Record<string, number>>
+    Record<string, Record<string, { debit: number; credit: number }>>
   >({});
   // User-editable opening balances per sub-account, keyed by
   // [mainAccountNumber][subAccountNumber] -> { debit, credit }
@@ -1015,8 +1034,18 @@ function BalanceDetailView({
     ? getBalanceRows(previousYearBalance)
     : [];
   
-  // Calculate accounts with opening balance issues
+  // Le rapprochement « ouverture N = clôture N-1 » n'a de sens que sur la
+  // balance N. La balance N-1 est elle-même la position de début d'exercice:
+  // elle n'a pas d'exercice antérieur à confronter. L'appliquer à la N-1
+  // revenait à comparer ses ouvertures à ses propres clôtures, donc à
+  // signaler tout compte ayant enregistré des mouvements dans l'année.
+  const isCurrentYearBalance = balance.type?.toUpperCase() === "CURRENT_YEAR";
+
+  // Comptes dont l'ouverture ne correspond pas à la clôture de l'exercice
+  // précédent.
   const accountsWithIssues = useMemo(() => {
+    if (!isCurrentYearBalance) return new Set<string>();
+
     if (!previousYearBalance || previousYearRows.length === 0)
       return new Set<string>();
 
@@ -1057,7 +1086,7 @@ function BalanceDetailView({
     });
 
     return issues;
-  }, [balanceRows, previousYearRows, previousYearBalance]);
+  }, [isCurrentYearBalance, balanceRows, previousYearRows, previousYearBalance]);
 
   const getAllRowsWithModifications = (): BalanceRow[] => {
     return balanceRows.map((row) => {
@@ -1291,7 +1320,7 @@ function BalanceDetailView({
     });
 
     if (mismatches.length > 0) {
-      setOpeningMismatches(mismatches as any);
+      setOpeningMismatches(mismatches);
       setShowOpeningMismatch(true);
     } else {
       alert("Les soldes d'ouverture correspondent aux soldes de clôture N-1 ✓");
@@ -1325,7 +1354,10 @@ function BalanceDetailView({
     return { openingDebit: 0, openingCredit: 0 };
   };
 
-  const handleStartEdit = (row: BalanceRow) => {
+  // useCallback: référence stable, condition pour que React.memo sur
+  // EditableCell (~600 instances sur une grosse balance) serve à quelque
+  // chose — un nouveau handler à chaque rendu annulerait le memo.
+  const handleStartEdit = useCallback((row: BalanceRow) => {
     const modified = modifiedRows[row.accountNumber];
     const cached = editCache[row.accountNumber];
     setEditingAccount(row.accountNumber);
@@ -1351,7 +1383,7 @@ function BalanceDetailView({
       closingDebit,
       closingCredit,
     });
-  };
+  }, [modifiedRows, editCache]);
 
   const handleSaveEdit = () => {
     if (!editingAccount) return;
@@ -1472,8 +1504,10 @@ function BalanceDetailView({
     setHasUnsavedChanges(false);
   };
 
-  // Handle cell edits (cached, not immediately saved)
-  const handleCellEdit = (accountNumber: string, field: string, value: number) => {
+  // Handle cell edits (cached, not immediately saved). useCallback with no
+  // deps: uses only the functional setState form, so the reference never
+  // needs to change — required for React.memo on EditableCell to hold.
+  const handleCellEdit = useCallback((accountNumber: string, field: string, value: number) => {
     setEditCache(prev => ({
       ...prev,
       [accountNumber]: {
@@ -1481,7 +1515,7 @@ function BalanceDetailView({
         [field]: value,
       },
     }));
-  };
+  }, []);
 
   // Bulk edit functions
   const handleBulkEdit = (field: string, value: number) => {
@@ -1541,8 +1575,15 @@ function BalanceDetailView({
     );
   };
 
-  // Prepare filtered and sorted data
-  const sortedRows = balanceRows
+  // Prepare filtered and sorted data.
+  //
+  // Mémoïsé: sans ça, ce .map().filter().sort() (et l'imbrication des
+  // sous-comptes juste après) recalculait sur CHAQUE rendu du composant —
+  // y compris pour des changements d'état sans aucun rapport (ouvrir un
+  // dialogue, cocher une case ailleurs…). Sur une balance de 600+ lignes,
+  // ça se traduisait par un recalcul + une reconciliation React complète du
+  // tableau à chaque interaction, pas par un vrai re-téléchargement.
+  const sortedRows = useMemo(() => balanceRows
     .map((row) => {
       const hasModification = !!modifiedRows[row.accountNumber];
       const cachedEdits = editCache[row.accountNumber];
@@ -1604,56 +1645,85 @@ function BalanceDetailView({
       return sortDirection === "asc"
         ? ((aVal as number) || 0) - ((bVal as number) || 0)
         : ((bVal as number) || 0) - ((aVal as number) || 0);
-    });
+    }), [
+    balanceRows,
+    modifiedRows,
+    editCache,
+    accountsWithIssues,
+    searchTerm,
+    selectedClass,
+    sortField,
+    sortDirection,
+  ]);
 
   // Nest sub-accounts (configured via "Ventilation des comptes") directly
   // under their main account row, indented, regardless of the active sort -
   // mirrors the root grouping already used in the opening-mismatch dialog.
-  const rowsByAccountNumber = new Map(
-    sortedRows.map((row) => [row.accountNumber, row]),
-  );
-  const consumedAccounts = new Set<string>();
-  const processedData: ((typeof sortedRows)[number] & {
-    isSubAccount?: boolean;
-    mainAccountNumber?: string;
-    mainAccountName?: string;
-  })[] = [];
-
-  sortedRows.forEach((row) => {
-    if (consumedAccounts.has(row.accountNumber)) return;
-
-    const subLink = subAccountToMain.get(row.accountNumber);
-    // This row is a sub-account whose main account is also visible in this
-    // view - it gets appended right after its parent below, so skip for now.
-    if (subLink && rowsByAccountNumber.has(subLink.mainAccountNumber)) return;
-
-    processedData.push(row);
-    consumedAccounts.add(row.accountNumber);
-
-    const config = ventilationConfigs.find(
-      (c) => c.mainAccountNumber === row.accountNumber,
+  // Mémoïsé pour la même raison que sortedRows ci-dessus: sans ça, cette
+  // passe d'imbrication (O(n) sur toutes les lignes) tournait à chaque rendu.
+  const processedData = useMemo(() => {
+    const rowsByAccountNumber = new Map(
+      sortedRows.map((row) => [row.accountNumber, row]),
     );
-    config?.subAccounts.forEach((sub) => {
-      const subRow = rowsByAccountNumber.get(sub.accountNumber);
-      if (subRow && !consumedAccounts.has(subRow.accountNumber)) {
-        processedData.push({
-          ...subRow,
-          isSubAccount: true,
-          mainAccountNumber: config.mainAccountNumber,
-          mainAccountName: config.mainAccountName,
-        });
-        consumedAccounts.add(subRow.accountNumber);
-      }
+    const consumedAccounts = new Set<string>();
+    const result: ((typeof sortedRows)[number] & {
+      isSubAccount?: boolean;
+      mainAccountNumber?: string;
+      mainAccountName?: string;
+    })[] = [];
+
+    sortedRows.forEach((row) => {
+      if (consumedAccounts.has(row.accountNumber)) return;
+
+      const subLink = subAccountToMain.get(row.accountNumber);
+      // This row is a sub-account whose main account is also visible in this
+      // view - it gets appended right after its parent below, so skip for now.
+      if (subLink && rowsByAccountNumber.has(subLink.mainAccountNumber)) return;
+
+      result.push(row);
+      consumedAccounts.add(row.accountNumber);
+
+      const config = ventilationConfigs.find(
+        (c) => c.mainAccountNumber === row.accountNumber,
+      );
+      config?.subAccounts.forEach((sub) => {
+        const subRow = rowsByAccountNumber.get(sub.accountNumber);
+        if (subRow && !consumedAccounts.has(subRow.accountNumber)) {
+          result.push({
+            ...subRow,
+            isSubAccount: true,
+            mainAccountNumber: config.mainAccountNumber,
+            mainAccountName: config.mainAccountName,
+          });
+          consumedAccounts.add(subRow.accountNumber);
+        }
+      });
     });
-  });
+
+    return result;
+  }, [sortedRows, subAccountToMain, ventilationConfigs]);
+
+  // Wrapper à référence stable pour EditableCell.onStartEdit: le clic passe
+  // juste le numéro de compte, la ligne est retrouvée ici (coût négligeable,
+  // exécuté au clic, pas à chaque rendu) — évite de recréer une closure par
+  // ligne (~600) à chaque rendu, ce qui casserait le React.memo d'EditableCell.
+  const handleCellStartEdit = useCallback((accountNumber: string) => {
+    if (isClosed) return;
+    const row = processedData.find((r) => r.accountNumber === accountNumber);
+    if (row) handleStartEdit(row);
+  }, [isClosed, processedData, handleStartEdit]);
 
   const totalItems = processedData.length;
 
-  const accountClasses = Array.from(
-    new Set(
-      balanceRows.map((row) => row.accountNumber?.charAt(0)).filter(Boolean),
-    ),
-  ).sort();
+  const accountClasses = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          balanceRows.map((row) => row.accountNumber?.charAt(0)).filter(Boolean),
+        ),
+      ).sort(),
+    [balanceRows],
+  );
 
   const handleSort = (field: keyof BalanceRow) => {
     if (sortField === field) {
@@ -1664,13 +1734,22 @@ function BalanceDetailView({
     }
   };
 
-  const buildEqualSplit = (match: { config: VentilationConfig; amount: number }): Record<string, number> => {
+  // Default pre-fill: split the main account's net balance equally across
+  // its sub-accounts, on whichever side (debit/credit) carries that net
+  // balance. Both sides remain freely editable afterward — this is only a
+  // starting point, not a constraint.
+  const buildEqualSplit = (
+    match: { config: VentilationConfig; amount: number },
+  ): Record<string, { debit: number; credit: number }> => {
     const equalShare = match.config.subAccounts.length
       ? Math.round((Math.abs(match.amount) / match.config.subAccounts.length) * 100) / 100
       : 0;
-    const amounts: Record<string, number> = {};
+    const isDebitSide = match.amount >= 0;
+    const amounts: Record<string, { debit: number; credit: number }> = {};
     match.config.subAccounts.forEach((sub) => {
-      amounts[sub.accountNumber] = equalShare;
+      amounts[sub.accountNumber] = isDebitSide
+        ? { debit: equalShare, credit: 0 }
+        : { debit: 0, credit: equalShare };
     });
     return amounts;
   };
@@ -1801,52 +1880,41 @@ function BalanceDetailView({
   const handleVentilationAmountChange = (
     mainAccountNumber: string,
     subAccountNumber: string,
+    field: "debit" | "credit",
     value: number,
   ) => {
-    setVentilationAmounts((prev) => ({
-      ...prev,
-      [mainAccountNumber]: {
-        ...prev[mainAccountNumber],
-        [subAccountNumber]: value,
-      },
-    }));
+    setVentilationAmounts((prev) => {
+      const current = prev[mainAccountNumber]?.[subAccountNumber] || {
+        debit: 0,
+        credit: 0,
+      };
+      return {
+        ...prev,
+        [mainAccountNumber]: {
+          ...prev[mainAccountNumber],
+          [subAccountNumber]: { ...current, [field]: value },
+        },
+      };
+    });
   };
 
-  // Updates a sub-account's opening amount. The value is clamped to the main
-  // account's opening total for that column; when there are exactly two
-  // sub-accounts, the other one is automatically updated to absorb the
-  // remainder so their sum never exceeds the main account's opening.
+  // Updates a sub-account's opening amount. Freely editable (only floored at
+  // 0) — like the movement fields, correctness is enforced by the "Total
+  // ventilé" indicator and the server-side check when applying, not by a
+  // silent clamp here.
   const handleVentilationOpeningChange = (
     mainAccountNumber: string,
-    subAccounts: VentilationConfig["subAccounts"],
     changedAccountNumber: string,
     field: "debit" | "credit",
     rawValue: number,
-    mainFieldTotal: number,
   ) => {
     setVentilationOpenings((prev) => {
       const group = { ...(prev[mainAccountNumber] || {}) };
-      const clamped = Math.max(0, Math.min(rawValue, mainFieldTotal));
       group[changedAccountNumber] = {
         debit: group[changedAccountNumber]?.debit || 0,
         credit: group[changedAccountNumber]?.credit || 0,
-        [field]: clamped,
+        [field]: Math.max(0, rawValue),
       };
-
-      if (subAccounts.length === 2) {
-        const other = subAccounts.find(
-          (s) => s.accountNumber !== changedAccountNumber,
-        );
-        if (other) {
-          const remaining = Math.max(0, mainFieldTotal - clamped);
-          group[other.accountNumber] = {
-            debit: group[other.accountNumber]?.debit || 0,
-            credit: group[other.accountNumber]?.credit || 0,
-            [field]: remaining,
-          };
-        }
-      }
-
       return { ...prev, [mainAccountNumber]: group };
     });
   };
@@ -1869,13 +1937,21 @@ function BalanceDetailView({
     for (const match of pendingVentilations) {
       const groupAmounts =
         ventilationAmounts[match.config.mainAccountNumber] || {};
-      const total = match.config.subAccounts.reduce(
-        (sum, sub) => sum + (groupAmounts[sub.accountNumber] || 0),
-        0,
-      );
-      if (Math.abs(total - Math.abs(match.amount)) > 0.01) {
+      const groupOpenings =
+        ventilationOpenings[match.config.mainAccountNumber] || {};
+      // Sum of sub-accounts' net closing balances (opening + movement) must
+      // equal the main account's own net closing — see the comment on
+      // groupTotal above for why this can't be movement-only anymore.
+      const total = match.config.subAccounts.reduce((sum, sub) => {
+        const a = groupAmounts[sub.accountNumber];
+        const o = groupOpenings[sub.accountNumber];
+        const closingNet =
+          (o?.debit || 0) - (o?.credit || 0) + ((a?.debit || 0) - (a?.credit || 0));
+        return sum + closingNet;
+      }, 0);
+      if (Math.abs(total - match.amount) > 0.01) {
         setVentilationError(
-          `Le compte ${match.config.mainAccountNumber} doit totaliser ${Math.abs(match.amount).toLocaleString()} (actuellement ${total.toLocaleString()})`,
+          `Le compte ${match.config.mainAccountNumber} doit totaliser ${Math.abs(match.amount).toLocaleString()} (actuellement ${Math.abs(total).toLocaleString()})`,
         );
         return;
       }
@@ -1890,16 +1966,22 @@ function BalanceDetailView({
           ventilationOpenings[match.config.mainAccountNumber] || {};
         const allocations = match.config.subAccounts
           .map((sub) => {
+            const movement = groupAmounts[sub.accountNumber];
             const opening = groupOpenings[sub.accountNumber];
             return {
               accountNumber: sub.accountNumber,
-              amount: groupAmounts[sub.accountNumber] || 0,
+              movementDebit: movement?.debit || 0,
+              movementCredit: movement?.credit || 0,
               openingDebit: opening?.debit || 0,
               openingCredit: opening?.credit || 0,
             };
           })
           .filter(
-            (a) => a.amount > 0 || a.openingDebit > 0 || a.openingCredit > 0,
+            (a) =>
+              a.movementDebit > 0 ||
+              a.movementCredit > 0 ||
+              a.openingDebit > 0 ||
+              a.openingCredit > 0,
           );
 
         await clientService.applyVentilationSplit(
@@ -1991,7 +2073,9 @@ function BalanceDetailView({
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {previousYearBalance && (
+            {/* Même règle que ci-dessus: le rapprochement des ouvertures ne
+                concerne que la balance N. */}
+            {isCurrentYearBalance && previousYearBalance && (
               <Button variant="outline" size="sm" onClick={checkOpeningBalance}>
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 Vérifier ouverture N
@@ -2398,10 +2482,12 @@ function BalanceDetailView({
                         className={`flex items-center gap-2 ${row.isSubAccount ? "pl-6" : ""}`}
                       >
                         {row.isSubAccount && (
-                          <CornerDownRight
-                            className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"
+                          <span
                             title={`Sous-compte de ${row.mainAccountNumber} - ${row.mainAccountName}`}
-                          />
+                            className="inline-flex flex-shrink-0"
+                          >
+                            <CornerDownRight className="h-3.5 w-3.5 text-gray-400" />
+                          </span>
                         )}
                         <span className={row.hasIssue ? "text-red-700 font-bold" : "text-gray-900"}>
                           {row.accountNumber}
@@ -2447,7 +2533,7 @@ function BalanceDetailView({
                       isEditing={!isClosed && isEditing && editingAccount === row.accountNumber}
                       field="openingDebit"
                       onCellEdit={handleCellEdit}
-                      onStartEdit={() => !isClosed && handleStartEdit(row)}
+                      onStartEdit={handleCellStartEdit}
                       className="text-right"
                     />
 
@@ -2458,7 +2544,7 @@ function BalanceDetailView({
                       isEditing={!isClosed && isEditing && editingAccount === row.accountNumber}
                       field="openingCredit"
                       onCellEdit={handleCellEdit}
-                      onStartEdit={() => !isClosed && handleStartEdit(row)}
+                      onStartEdit={handleCellStartEdit}
                       className="text-right"
                     />
 
@@ -2469,7 +2555,7 @@ function BalanceDetailView({
                       isEditing={!isClosed && isEditing && editingAccount === row.accountNumber}
                       field="movementDebit"
                       onCellEdit={handleCellEdit}
-                      onStartEdit={() => !isClosed && handleStartEdit(row)}
+                      onStartEdit={handleCellStartEdit}
                       className="text-right"
                     />
 
@@ -2480,7 +2566,7 @@ function BalanceDetailView({
                       isEditing={!isClosed && isEditing && editingAccount === row.accountNumber}
                       field="movementCredit"
                       onCellEdit={handleCellEdit}
-                      onStartEdit={() => !isClosed && handleStartEdit(row)}
+                      onStartEdit={handleCellStartEdit}
                       className="text-right"
                     />
 
@@ -2586,10 +2672,10 @@ function BalanceDetailView({
 
       {/* Opening Mismatch Dialog - Custom Overlay */}
       {showOpeningMismatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl w-[85vw] max-h-[90vh] overflow-hidden flex flex-col mx-auto" style={{ width: '85vw' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6">
+          <div className="bg-white rounded-xl border border-border shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b bg-gray-50 min-h-[60px]">
+            <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-gray-500 flex-shrink-0" />
                 <div>
@@ -2612,7 +2698,7 @@ function BalanceDetailView({
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-auto p-2 space-y-1">
+            <div className="flex-1 overflow-auto px-4 py-3 space-y-1.5">
               {openingMismatches.map((mismatch: any, idx) => {
                 const isExpanded = expandedRoots.has(mismatch.root);
                 const hasSubAccounts = mismatch.accounts && mismatch.accounts.length > 0;
@@ -2802,7 +2888,7 @@ function BalanceDetailView({
             </div>
 
             {/* Footer */}
-            <div className="p-2 border-t bg-gray-50 flex items-center justify-between">
+            <div className="px-6 py-4 border-t border-border bg-gray-50/60 flex items-center justify-between gap-3">
               <div className="text-xs text-gray-600">
                 <span className="font-semibold text-gray-900">{openingMismatches.length}</span> racine(s) •
                 <span className="font-semibold text-gray-900 ml-1">
@@ -3050,17 +3136,30 @@ function BalanceDetailView({
                     ventilationAmounts[match.config.mainAccountNumber] || {};
                   const groupOpenings =
                     ventilationOpenings[match.config.mainAccountNumber] || {};
+                  // Net total across sub-accounts' CLOSING balances (opening
+                  // + movement, net) — this must equal the main account's own
+                  // net closing, since splitting an account can't change its
+                  // overall ending balance. Movement alone isn't enough to
+                  // check now that opening is freely editable too: a sub can
+                  // legitimately carry its own opening while the movement
+                  // only covers part of the change (e.g. a disposal booked
+                  // entirely as movementCredit on top of a full opening
+                  // carry-forward).
                   const groupTotal = match.config.subAccounts.reduce(
-                    (sum, sub) =>
-                      sum + (groupAmounts[sub.accountNumber] || 0),
+                    (sum, sub) => {
+                      const a = groupAmounts[sub.accountNumber];
+                      const o = groupOpenings[sub.accountNumber];
+                      const closingNet =
+                        (o?.debit || 0) -
+                        (o?.credit || 0) +
+                        ((a?.debit || 0) - (a?.credit || 0));
+                      return sum + closingNet;
+                    },
                     0,
                   );
                   const mainRow = balanceRows.find(
                     (r) => r.accountNumber === match.config.mainAccountNumber,
                   );
-                  // The amount entered per sub-account is a movement on
-                  // whichever side carries the main account's balance.
-                  const isDebitSide = match.amount >= 0;
 
                   return (
                     <Fragment key={match.config.id}>
@@ -3120,7 +3219,10 @@ function BalanceDetailView({
                         </TableCell>
                       </TableRow>
                       {match.config.subAccounts.map((sub) => {
-                        const amount = groupAmounts[sub.accountNumber] || 0;
+                        const movement = groupAmounts[sub.accountNumber] || {
+                          debit: 0,
+                          credit: 0,
+                        };
                         const opening =
                           groupOpenings[sub.accountNumber] || {
                             debit: 0,
@@ -3128,8 +3230,11 @@ function BalanceDetailView({
                           };
                         const openingDebit = opening.debit;
                         const openingCredit = opening.credit;
-                        const movementDebit = isDebitSide ? amount : 0;
-                        const movementCredit = isDebitSide ? 0 : amount;
+                        const movementDebit = movement.debit;
+                        const movementCredit = movement.credit;
+                        // Closing is always computed, never editable — it's
+                        // the one thing that must stay a pure derivation of
+                        // opening + movement so the two can never disagree.
                         const closingDebit = openingDebit + movementDebit;
                         const closingCredit = openingCredit + movementCredit;
 
@@ -3139,84 +3244,66 @@ function BalanceDetailView({
                               {sub.accountNumber} – {sub.accountName}
                             </TableCell>
                             <TableCell className="text-right bg-gray-50">
-                              {(mainRow?.openingDebit || 0) > 0 ? (
-                                <FormattedNumberInput
-                                  value={openingDebit}
-                                  onChange={(value) =>
-                                    handleVentilationOpeningChange(
-                                      match.config.mainAccountNumber,
-                                      match.config.subAccounts,
-                                      sub.accountNumber,
-                                      "debit",
-                                      value,
-                                      mainRow?.openingDebit || 0,
-                                    )
-                                  }
-                                  className="h-8 w-28 text-right"
-                                />
-                              ) : (
-                                <span className="text-gray-400">0</span>
-                              )}
+                              <FormattedNumberInput
+                                value={openingDebit}
+                                onChange={(value) =>
+                                  handleVentilationOpeningChange(
+                                    match.config.mainAccountNumber,
+                                    sub.accountNumber,
+                                    "debit",
+                                    value,
+                                  )
+                                }
+                                className="h-8 w-28 text-right"
+                              />
                             </TableCell>
                             <TableCell className="text-right bg-gray-50">
-                              {(mainRow?.openingCredit || 0) > 0 ? (
-                                <FormattedNumberInput
-                                  value={openingCredit}
-                                  onChange={(value) =>
-                                    handleVentilationOpeningChange(
-                                      match.config.mainAccountNumber,
-                                      match.config.subAccounts,
-                                      sub.accountNumber,
-                                      "credit",
-                                      value,
-                                      mainRow?.openingCredit || 0,
-                                    )
-                                  }
-                                  className="h-8 w-28 text-right"
-                                />
-                              ) : (
-                                <span className="text-gray-400">0</span>
-                              )}
+                              <FormattedNumberInput
+                                value={openingCredit}
+                                onChange={(value) =>
+                                  handleVentilationOpeningChange(
+                                    match.config.mainAccountNumber,
+                                    sub.accountNumber,
+                                    "credit",
+                                    value,
+                                  )
+                                }
+                                className="h-8 w-28 text-right"
+                              />
                             </TableCell>
                             <TableCell className="text-right">
-                              {isDebitSide ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={0.01}
-                                  value={amount}
-                                  onChange={(e) =>
-                                    handleVentilationAmountChange(
-                                      match.config.mainAccountNumber,
-                                      sub.accountNumber,
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="h-8 w-24 text-right"
-                                />
-                              ) : (
-                                <span className="text-gray-400">0</span>
-                              )}
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={movementDebit}
+                                onChange={(e) =>
+                                  handleVentilationAmountChange(
+                                    match.config.mainAccountNumber,
+                                    sub.accountNumber,
+                                    "debit",
+                                    parseFloat(e.target.value) || 0,
+                                  )
+                                }
+                                className="h-8 w-24 text-right"
+                              />
                             </TableCell>
                             <TableCell className="text-right">
-                              {isDebitSide ? (
-                                <span className="text-gray-400">0</span>
-                              ) : (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={0.01}
-                                  value={amount}
-                                  onChange={(e) =>
-                                    handleVentilationAmountChange(
-                                      match.config.mainAccountNumber,
-                                      sub.accountNumber,
-                                      parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  className="h-8 w-24 text-right"
-                                />
-                              )}
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={movementCredit}
+                                onChange={(e) =>
+                                  handleVentilationAmountChange(
+                                    match.config.mainAccountNumber,
+                                    sub.accountNumber,
+                                    "credit",
+                                    parseFloat(e.target.value) || 0,
+                                  )
+                                }
+                                className="h-8 w-24 text-right"
+                              />
                             </TableCell>
                             <TableCell className="text-right text-gray-500 bg-gray-50">
                               {closingDebit.toLocaleString()}
@@ -3236,12 +3323,12 @@ function BalanceDetailView({
                         <TableCell
                           colSpan={2}
                           className={`text-right text-xs ${
-                            Math.abs(groupTotal - Math.abs(match.amount)) < 0.01
+                            Math.abs(groupTotal - match.amount) < 0.01
                               ? "text-green-600"
                               : "text-orange-600"
                           }`}
                         >
-                          {groupTotal.toLocaleString()} /{" "}
+                          {Math.abs(groupTotal).toLocaleString()} /{" "}
                           {Math.abs(match.amount).toLocaleString()}
                         </TableCell>
                         <TableCell colSpan={3} />

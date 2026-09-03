@@ -213,7 +213,7 @@ const T1Bis: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }
@@ -359,7 +359,7 @@ const T1Bis: React.FC = () => {
                   IMMOBILISATIONS INCORPORELLES
                 </td>
               </tr>
-              {incorporelles.map((item) => (
+              {items.filter((i) => i.id <= 4).map((item) => (
                 <tr key={item.id}>
                   <td className="border border-gray-600 p-2 pl-8">
                     {isEditing ? (
@@ -463,7 +463,7 @@ const T1Bis: React.FC = () => {
                   IMMOBILISATIONS CORPORELLES
                 </td>
               </tr>
-              {corporelles.map((item) => (
+              {items.filter((i) => i.id > 4).map((item) => (
                 <tr key={item.id}>
                   <td className="border border-gray-600 p-2 pl-8">
                     {isEditing ? (

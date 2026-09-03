@@ -132,7 +132,7 @@ const CF2: React.FC = () => {
         ref={reportRef}
         className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <style jsx>{`
+        <style>{`
           .light-gray {
             background-color: #d3d3d3;
           }

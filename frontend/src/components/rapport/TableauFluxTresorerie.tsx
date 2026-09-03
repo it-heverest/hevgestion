@@ -26,6 +26,17 @@ const TableauFluxTresorerie: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [comment, setComment] = useState("");
+  // Valeurs calculées par le backend (generateTFT) à partir de la balance,
+  // conservées pour affichage et pour ne pas être écrasées par une
+  // sauvegarde manuelle de l'entête/commentaire (voir saveNoteData).
+  const [computedRows, setComputedRows] = useState<
+    { ref: string; valueN: number; valueN1: number }[]
+  >([]);
+
+  const formatAmount = (value: number | undefined) => {
+    if (value === undefined || value === null || value === 0) return "";
+    return new Intl.NumberFormat("fr-FR").format(Math.round(value));
+  };
 
   // Header
   const [headerInfo, setHeaderInfo] = useState<HeaderData>({
@@ -59,6 +70,10 @@ const TableauFluxTresorerie: React.FC = () => {
         if (noteData.comment !== undefined) {
           setComment(noteData.comment);
         }
+
+        if (Array.isArray(noteData.rows)) {
+          setComputedRows(noteData.rows);
+        }
       }
     } catch (error) {
       console.error("Error loading Flux Trésorerie data:", error);
@@ -76,6 +91,9 @@ const TableauFluxTresorerie: React.FC = () => {
       const noteData = {
         entete: headerInfo,
         comment,
+        // Réinjecter les valeurs calculées par le backend pour ne pas les
+        // écraser: cette sauvegarde ne modifie que l'entête/le commentaire.
+        rows: computedRows,
       };
 
       const success = await notesService.saveNoteData(folderId, "flux-tresorerie", noteData as any);
@@ -111,6 +129,7 @@ const TableauFluxTresorerie: React.FC = () => {
   const rows = [
     {
       ref: "ZA",
+      backendRef: "ZA",
       label:
         "Trésorerie nette au 1er janvier (Trésorerie actif N-1 - Trésorerie passif N-1)",
       note: "",
@@ -125,21 +144,24 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "FA",
+      backendRef: "FA",
       label: "Capacité d'Autofinancement Globale (CFA+FE)",
       note: "",
     },
-    { ref: "FE", label: "- Actif circulant HAO", note: "" },
-    { ref: "FC", label: "- Variation des stocks", note: "" },
-    { ref: "FD", label: "- Variation des créances", note: "" },
-    { ref: "FE", label: "- Variation du passif circulant", note: "" },
+    { ref: "FE", backendRef: "FE1", label: "- Actif circulant HAO", note: "" },
+    { ref: "FC", backendRef: "FC", label: "- Variation des stocks", note: "" },
+    { ref: "FD", backendRef: "FD", label: "- Variation des créances", note: "" },
+    { ref: "FE", backendRef: "FE2", label: "- Variation du passif circulant", note: "" },
     {
       ref: "",
+      backendRef: "BF",
       label:
         "Variation du BF lié aux activités opérationnelles (FB+FC+FD+FE)................",
       note: "",
     },
     {
       ref: "ZE",
+      backendRef: "ZE",
       label:
         "Flux de trésorerie provenant des activités opérationnelles (somme FA à FE)",
       note: "",
@@ -154,35 +176,41 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "FF",
+      backendRef: "FF",
       label:
         "- Décaissements liés aux acquisitions d'immobilisation incorporelles",
       note: "",
     },
     {
       ref: "FG",
+      backendRef: "FG",
       label:
         "- Décaissements liés aux acquisitions d'immobilisation corporelles",
       note: "",
     },
     {
       ref: "FH",
+      backendRef: "FH",
       label:
         "- Décaissements liés aux acquisitions d'immobilisation financières",
       note: "",
     },
     {
       ref: "FI",
+      backendRef: "FI",
       label:
         "+ Encaissement liés aux cessions d'immobilisations incorporelles et corporelles",
       note: "",
     },
     {
       ref: "FJ",
+      backendRef: "FJ",
       label: "+ Encaissement liés aux cessions d'immobilisations financières",
       note: "",
     },
     {
       ref: "ZC",
+      backendRef: "ZC",
       label:
         "Flux de trésorerie provenant des activités d'investissements (somme FF à FJ)",
       note: "",
@@ -198,14 +226,16 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "FK",
+      backendRef: "FK",
       label: "+ Augmentation de capital par rapport au nouveau",
       note: "",
     },
-    { ref: "FL", label: "+ Subventions d'investissement reçues", note: "" },
-    { ref: "FM", label: "+ Prélèvement sur le capital", note: "" },
-    { ref: "FN", label: "- Dividendes versés", note: "" },
+    { ref: "FL", backendRef: "FL", label: "+ Subventions d'investissement reçues", note: "" },
+    { ref: "FM", backendRef: "FM", label: "+ Prélèvement sur le capital", note: "" },
+    { ref: "FN", backendRef: "FN", label: "- Dividendes versés", note: "" },
     {
       ref: "ZD",
+      backendRef: "ZD",
       label:
         "Flux de trésorerie provenant des capitaux propres (somme FK à FN)",
       note: "",
@@ -218,15 +248,17 @@ const TableauFluxTresorerie: React.FC = () => {
       note: "",
       bold: true,
     },
-    { ref: "FO", label: "Emprunts", note: "" },
-    { ref: "FP", label: "- Autres dettes financières", note: "" },
+    { ref: "FO", backendRef: "FO", label: "Emprunts", note: "" },
+    { ref: "FP", backendRef: "FP", label: "- Autres dettes financières", note: "" },
     {
       ref: "FQ",
+      backendRef: "FQ",
       label: "- Remboursement des emprunts et aux dettes financières",
       note: "",
     },
     {
       ref: "ZF",
+      backendRef: "ZF",
       label:
         "Flux de trésorerie provenant des capitaux étrangers (somme FO à FQ)",
       note: "",
@@ -235,6 +267,7 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "ZG",
+      backendRef: "ZG",
       label: "Flux de trésorerie provenant des activités de financement (D+F)",
       note: "",
       highlight: "lightblue",
@@ -242,6 +275,7 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "ZH",
+      backendRef: "ZH",
       label: "VARIATION DE LA TRESORERIE NETTE DE LA PERIODE (B+C+F)",
       note: "",
       highlight: "lightblue",
@@ -249,6 +283,7 @@ const TableauFluxTresorerie: React.FC = () => {
     },
     {
       ref: "ZI",
+      backendRef: "ZI",
       label: "Trésorerie nette au 31 décembre (C+A)",
       note: "",
       highlight: "lightblue",
@@ -426,35 +461,44 @@ const TableauFluxTresorerie: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              <tr
-                key={index}
-                className={`${
-                  row.highlight === "lightblue"
-                    ? "bg-orange-200"
-                    : row.highlight === "brown"
-                    ? "bg-amber-700 text-white"
-                    : ""
-                } ${row.bold ? "font-bold" : ""}`}
-              >
-                <td className="border border-gray-400 p-1 text-center">
-                  {row.ref}
-                </td>
-                <td className="border border-gray-400 p-1 pl-2">
-                  {row.label}{" "}
-                  {row.letter ? (
-                    <span className="font-bold">{row.letter}</span>
-                  ) : (
-                    ""
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-center">
-                  {row.note}
-                </td>
-                <td className="border border-gray-400 p-1 text-right"></td>
-                <td className="border border-gray-400 p-1 text-right"></td>
-              </tr>
-            ))}
+            {rows.map((row, index) => {
+              const computed = row.backendRef
+                ? computedRows.find((r) => r.ref === row.backendRef)
+                : undefined;
+              return (
+                <tr
+                  key={index}
+                  className={`${
+                    row.highlight === "lightblue"
+                      ? "bg-orange-200"
+                      : row.highlight === "brown"
+                      ? "bg-amber-700 text-white"
+                      : ""
+                  } ${row.bold ? "font-bold" : ""}`}
+                >
+                  <td className="border border-gray-400 p-1 text-center">
+                    {row.ref}
+                  </td>
+                  <td className="border border-gray-400 p-1 pl-2">
+                    {row.label}{" "}
+                    {row.letter ? (
+                      <span className="font-bold">{row.letter}</span>
+                    ) : (
+                      ""
+                    )}
+                  </td>
+                  <td className="border border-gray-400 p-1 text-center">
+                    {row.note}
+                  </td>
+                  <td className="border border-gray-400 p-1 text-right">
+                    {formatAmount(computed?.valueN)}
+                  </td>
+                  <td className="border border-gray-400 p-1 text-right">
+                    {formatAmount(computed?.valueN1)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

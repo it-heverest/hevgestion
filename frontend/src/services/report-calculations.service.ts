@@ -33,7 +33,7 @@ export interface DSFConfig {
   category: string;
   createdAt: string;
   updatedAt: string;
-  config: {
+  config?: {
     accountMappings: DSFConfigMapping[];
   };
 }
@@ -85,21 +85,21 @@ export class ReportCalculationsService {
 
     switch (source) {
       case "OD":
-        return account.openingDebit;
+        return account.openingDebit || 0;
       case "OC":
-        return account.openingCredit;
+        return account.openingCredit || 0;
       case "MD":
         return account.movementDebit;
       case "MC":
         return account.movementCredit;
       case "SD":
-        return account.closingDebit;
+        return account.closingDebit || 0;
       case "SC":
-        return account.closingCredit;
+        return account.closingCredit || 0;
       case "MCD":
         return account.movementDebit - account.movementCredit;
       case "SCD":
-        return account.closingDebit - account.closingCredit;
+        return (account.closingDebit || 0) - (account.closingCredit || 0);
       default:
         return 0;
     }

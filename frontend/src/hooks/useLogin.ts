@@ -354,8 +354,8 @@ export function useLogin() {
         const hasNames = !!registerForm.firstName && registerForm.firstName.length >= 2 &&
           !!registerForm.lastName && registerForm.lastName.length >= 2;
         const hasRole = !!registerForm.role;
-        const hasContact = (registerForm.email && isValidEmail(registerForm.email)) ||
-          (registerForm.phoneNumber && registerForm.phoneNumber.length >= 8);
+        const hasContact = !!(registerForm.email && isValidEmail(registerForm.email)) ||
+          !!(registerForm.phoneNumber && registerForm.phoneNumber.length >= 8);
         const hasCountry = !!registerForm.country && registerForm.country.length === 2;
         return hasNames && hasRole && hasContact && hasCountry;
 

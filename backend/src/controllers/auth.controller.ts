@@ -12,7 +12,13 @@ import {
   BadRequestError,
   UnauthorizedError,
   ConflictError,
+  TooManyRequestsError,
 } from "../lib/errors";
+import {
+  getLockState,
+  registerFailedLogin,
+  clearFailedLogins,
+} from "../utils/login-throttle";
 import { Validators } from "../utils/validators";
 import { auditService } from "../services/audit.service";
 import { AuthRequest } from "../middleware/auth.middleware";
@@ -222,21 +228,38 @@ class AuthController {
 
       if (!phone) throw new BadRequestError("Phone number is required");
 
+      // Per-account lockout (complements the per-IP login limiter): block a
+      // targeted account after too many failures, even across rotating IPs.
+      const lock = await getLockState(phone);
+      if (lock.locked) {
+        if (lock.retryAfter > 0) res.setHeader("Retry-After", String(lock.retryAfter));
+        throw new TooManyRequestsError(
+          "Trop de tentatives échouées. Réessayez plus tard.",
+        );
+      }
+
       const user = await prisma.user.findUnique({
         where: { phoneNumber: phone },
       });
 
-      if (!user)
+      if (!user) {
+        await registerFailedLogin(phone);
         throw new UnauthorizedError(
           "Numéro de téléphone ou mot de passe incorrect",
         );
+      }
       if (!user.isActive) throw new UnauthorizedError("Account is inactive");
 
       const isPasswordValid = await comparePassword(password, user.password);
-      if (!isPasswordValid)
+      if (!isPasswordValid) {
+        await registerFailedLogin(phone);
         throw new UnauthorizedError(
           "Numéro de téléphone ou mot de passe incorrect",
         );
+      }
+
+      // Succès : on remet à zéro le compteur d'échecs du compte.
+      await clearFailedLogins(phone);
 
       const accessToken = generateAccessToken({
         userId: user.id,

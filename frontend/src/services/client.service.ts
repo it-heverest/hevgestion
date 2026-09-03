@@ -312,7 +312,8 @@ class ClientService {
     mainAccountNumber: string,
     allocations: Array<{
       accountNumber: string;
-      amount: number;
+      movementDebit?: number;
+      movementCredit?: number;
       openingDebit?: number;
       openingCredit?: number;
     }>

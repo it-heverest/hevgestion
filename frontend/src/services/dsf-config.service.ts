@@ -39,7 +39,9 @@ export interface DSFConfigResponse {
 }
 
 class DSFConfigService {
-  private baseURL = "http://localhost:5000/api/dsf-configs";
+  // Chemin relatif: passe par le proxy Vite (/api -> backend), fonctionne
+  // aussi en accédant via l'IP réseau de la machine, pas seulement localhost.
+  private baseURL = "/api/dsf-configs";
 
   async getConfigs(filters?: DSFConfigFilters): Promise<DSFConfig[]> {
     try {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText, Plus, Trash2 } from "lucide-react";
+import { Pencil, Save, Download, FileText, Plus, Trash2, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -91,6 +91,9 @@ const Note4Smt: React.FC = () => {
     );
   };
 
+  const calculateTotal = (rows: TresoLine[], field: keyof TresoLine): number =>
+    rows.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -157,7 +160,7 @@ const Note4Smt: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }

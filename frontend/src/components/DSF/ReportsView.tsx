@@ -12,14 +12,31 @@ import {
   FileSpreadsheet,
   UploadCloud,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate, useLocation } from "react-router-dom";
 import { dsfTemplateService } from "../../services/dsf-template.service";
-import { useAuth } from "../../contexts/AuthContext";
 import { notesService } from "../../services/notes.service";
-import { REPORT_CATEGORIES, getNoteRoute, ALL_REPORTS } from "./ReportRenderer";
+import {
+  REPORT_CATEGORIES,
+  getNoteRoute,
+  getReportOrderIndex,
+  ALL_REPORTS,
+  AllReportsGrid,
+} from "./ReportRenderer";
 import { ReportNavigation } from "./ReportNavigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { Modal } from "../ui/modal";
 
 interface ReportsViewProps {
   extractionResults: ExtractionResult[];
@@ -40,16 +57,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Extract userId from URL path
-  const userIdMatch = location.pathname.match(/\/reports\/([^/]+)\//);
+  // Extract userId from URL path (no trailing slash required — this page's
+  // own URL is ".../reports/:userId" with nothing after it)
+  const userIdMatch = location.pathname.match(/\/reports\/([^/]+)(?:\/|$)/);
   const userId = userIdMatch ? userIdMatch[1] : "current";
+  const langMatch = location.pathname.match(/^\/(en|fr)\//);
+  const langPrefix = langMatch ? langMatch[1] : "fr";
+
+  // Construit l'URL absolue attendue par les routes enregistrées
+  // (".../reports/:userId/reports/rapport/:noteId?folderId=...") — un simple
+  // navigate(routePath) relatif ne correspond à aucune route et affiche une
+  // page blanche.
+  const buildNoteUrl = (routePath: string) => {
+    const newSearch = folderId ? `?folderId=${folderId}` : "";
+    return `/${langPrefix}/web/user/reports/${userId}/reports/${routePath}${newSearch}`;
+  };
   const [extractionResults, setExtractionResults] =
     useState<ExtractionResult[]>(initialResults);
   const [selectedReport, setSelectedReport] = useState<ExtractionResult | null>(
     null,
   );
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 36; // 6x6 grid
+  const itemsPerPage = 32; // 4 lignes x 8 colonnes sur grand écran
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [isCheckingDSF, setIsCheckingDSF] = useState(false);
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
@@ -60,6 +89,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     fileName?: string;
   } | null>(null);
   const [showAllReportsGrid, setShowAllReportsGrid] = useState(false);
+  const [selectedManualReport, setSelectedManualReport] = useState<{
+    name: string;
+    component: React.ComponentType<any>;
+  } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Check for existing DSF on mount
   useEffect(() => {
@@ -92,7 +126,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Define additional reports to include in the display
   const additionalReports = useMemo(() => {
-    const docsSpeciaux = REPORT_CATEGORIES["Documents Spéciaux"] || [];
+    const docsSpeciaux = REPORT_CATEGORIES["Structure Documentaire"] || [];
     const assuranceBase = REPORT_CATEGORIES["Assurance - Base"] || [];
     const toInclude = [...docsSpeciaux, ...assuranceBase].filter(name =>
       ["FICHE R3", "BILAN PAYSAGE", "BILAN ACTIF", "BILAN PASSIF", "COMPTE RESULTAT", "TABLEAU FLUX TRESORERIE"].includes(name.toUpperCase())
@@ -106,11 +140,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }));
   }, []);
 
-  // Combine extracted results with additional reports
+  // Combine extracted results with additional reports, sorted into the
+  // canonical DSF document order rather than backend/insertion order.
   const allReports = useMemo(() => [
     ...extractionResults,
     ...additionalReports
-  ], [extractionResults, additionalReports]);
+  ].sort(
+    (a, b) => getReportOrderIndex(a.noteName) - getReportOrderIndex(b.noteName)
+  ), [extractionResults, additionalReports]);
 
   const successCount = allReports.filter((r) => r.success).length;
   const totalPages = Math.ceil(allReports.length / itemsPerPage);
@@ -125,8 +162,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     const normalizedNoteName = report.noteName.toUpperCase().trim();
     const routePath = getNoteRoute(normalizedNoteName);
     if (routePath && folderId) {
-      navigate(`${routePath}`);
-      console.log(`${routePath}`);
+      navigate(buildNoteUrl(routePath));
     } else {
       console.warn(`No route found for note: ${report.noteName}`);
     }
@@ -136,8 +172,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     const normalizedNoteName = report.noteName.toUpperCase().trim();
     const routePath = getNoteRoute(normalizedNoteName);
     if (routePath && folderId) {
-      navigate(`${routePath}`);
-      console.log(`${routePath}`);
+      navigate(buildNoteUrl(routePath));
     } else {
       console.warn(`No route found for note: ${report.noteName}`);
     }
@@ -196,21 +231,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     }
   };
 
-  // Handle delete all DSF notes
+  // Handle delete all DSF notes (confirmation happens via the AlertDialog below,
+  // not window.confirm() — that native dialog can be blocked by the browser,
+  // which made deletion silently impossible)
   const handleDeleteDSF = async () => {
     if (!folderId) return;
-
-    const confirmed = window.confirm(
-      "Êtes-vous sûr de vouloir supprimer toutes les données DSF de ce dossier ? Cette action est irréversible.",
-    );
-
-    if (!confirmed) return;
 
     setIsDeleting(true);
     try {
       await notesService.deleteAllNotes(folderId);
       // Clear the local state
       setExtractionResults([]);
+      setShowDeleteConfirm(false);
       alert("Toutes les données DSF ont été supprimées avec succès.");
       // Optionally refresh or navigate away
       onClose();
@@ -236,80 +268,72 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Show choice modal when no DSF exists
   if (showChoiceModal && extractionResults.length === 0) {
     return (
-      <>
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-8">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
-                <FileText className="h-8 w-8 text-orange-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-black mb-2">
-                Aucune DSF trouvée
-              </h2>
-              <p className="text-gray-600">
-                Comment souhaitez-vous créer vos rapports DSF ?
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Import DSF Option */}
-              <button
-                onClick={() => {
-                  setShowChoiceModal(false);
-                  onNewUpload();
-                }}
-                className="group relative overflow-hidden rounded-lg border-2 border-gray-200 p-6 hover:border-orange-500 hover:shadow-lg transition-all"
-              >
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-50 rounded-full mb-4 group-hover:bg-orange-100 transition-colors">
-                    <Upload className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-black mb-2">
-                    Importer DSF
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Importer un fichier DSF existant pour extraire
-                    automatiquement les données
-                  </p>
-                </div>
-              </button>
-
-              {/* Normal Generation Option */}
-              <button
-                onClick={() => {
-                  setShowChoiceModal(false);
-                  setShowAllReportsGrid(true);
-                }}
-                className="group relative overflow-hidden rounded-lg border-2 border-gray-200 p-6 hover:border-green-500 hover:shadow-lg transition-all"
-              >
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded-full mb-4 group-hover:bg-green-100 transition-colors">
-                    <FileEdit className="h-6 w-6 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-black mb-2">
-                    Génération Manuelle
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Créer et remplir manuellement les rapports DSF depuis zéro
-                  </p>
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500">
-              <AlertCircle className="h-4 w-4" />
-              <span>Vous pourrez changer de méthode plus tard</span>
-            </div>
-
-            <button
-              onClick={onClose}
-              className="mt-6 w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Annuler
-            </button>
+      <Modal open onClose={onClose} size="lg" hideHeader bodyClassName="p-8">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-orange-100 rounded-full mb-4">
+            <FileText className="h-7 w-7 text-orange-600" />
           </div>
+          <h2 className="text-xl font-semibold text-foreground mb-1.5">
+            Aucune DSF trouvée
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Comment souhaitez-vous créer vos rapports DSF ?
+          </p>
         </div>
-      </>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Import DSF Option */}
+          <button
+            onClick={() => {
+              setShowChoiceModal(false);
+              onNewUpload();
+            }}
+            className="group rounded-xl border border-border p-6 text-center transition-all hover:border-orange-400 hover:bg-orange-50/40 hover:shadow-sm"
+          >
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-50 rounded-full mb-4 transition-colors group-hover:bg-orange-100">
+              <Upload className="h-6 w-6 text-orange-600" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground mb-1.5">
+              Importer DSF
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Importer un fichier DSF existant pour extraire automatiquement les
+              données
+            </p>
+          </button>
+
+          {/* Normal Generation Option */}
+          <button
+            onClick={() => {
+              setShowChoiceModal(false);
+              setShowAllReportsGrid(true);
+            }}
+            className="group rounded-xl border border-border p-6 text-center transition-all hover:border-green-400 hover:bg-green-50/40 hover:shadow-sm"
+          >
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 rounded-full mb-4 transition-colors group-hover:bg-green-100">
+              <FileEdit className="h-6 w-6 text-green-600" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground mb-1.5">
+              Génération Manuelle
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Créer et remplir manuellement les rapports DSF depuis zéro
+            </p>
+          </button>
+        </div>
+
+        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <AlertCircle className="h-4 w-4" />
+          <span>Vous pourrez changer de méthode plus tard</span>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-6 w-full h-10 border border-border text-foreground rounded-lg hover:bg-muted/50 transition-colors text-sm font-medium"
+        >
+          Annuler
+        </button>
+      </Modal>
     );
   }
 
@@ -317,30 +341,30 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   if (showAllReportsGrid) {
     return (
       <>
-        <div className="space-y-4">
+        <div className="space-y-8">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 Tous les Rapports Disponibles
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-sm text-muted-foreground">
                 Sélectionnez un rapport pour le visualiser ou commencer à le remplir
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={onNewUpload}
-                className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+                className="inline-flex h-9 items-center px-3.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
               >
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                <Upload className="h-4 w-4 mr-2" />
                 Importer DSF
               </button>
               <button
                 onClick={() => setShowAllReportsGrid(false)}
-                className="inline-flex items-center px-3 py-1.5 text-sm border border-border bg-white text-foreground rounded-md hover:bg-muted/50 transition-colors"
+                className="inline-flex h-9 items-center px-3.5 text-sm font-medium border border-border bg-white text-foreground rounded-lg hover:bg-muted/50 transition-colors"
               >
-                <X className="h-3.5 w-3.5 mr-1.5" />
+                <X className="h-4 w-4 mr-2" />
                 Retour
               </button>
             </div>
@@ -368,9 +392,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 "TVA",
               ];
               if (newTabReports.includes(name)) {
-                const userId = user?.id || "current";
+                const langMatch = location.pathname.match(/^\/(en|fr)\//);
+                const langPrefix = langMatch ? langMatch[1] : "fr";
                 window.open(
-                  `/reports/${userId}/reports/rapport/${route}?folderId=${folderId || ""}`,
+                  `/${langPrefix}/web/user/reports/${userId}/reports/rapport/${route}?folderId=${folderId || ""}`,
                   "_blank",
                 );
               } else {
@@ -381,52 +406,40 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
 
         {/* Preview Modal for Manual Reports */}
-        {selectedManualReport && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-md shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
-              <div className="px-5 py-4 border-b flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">
-                    {selectedManualReport.name}
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Prévisualisation du rapport
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedManualReport(null)}
-                  className="p-1.5 hover:bg-muted rounded transition-colors"
-                >
-                  <X className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </div>
-              <div className="overflow-y-auto flex-1 p-5">
-                <selectedManualReport.component folderId={folderId} />
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal
+          open={!!selectedManualReport}
+          onClose={() => setSelectedManualReport(null)}
+          size="2xl"
+          title={selectedManualReport?.name}
+          description="Prévisualisation du rapport"
+        >
+          {selectedManualReport && (
+            <selectedManualReport.component folderId={folderId} />
+          )}
+        </Modal>
       </>
     );
   }
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Notes DSF</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">
+              Notes DSF
+            </h2>
+            <p className="text-sm text-muted-foreground">
               {successCount} sur {allReports.length} rapports disponibles
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <label className="inline-flex items-center px-3 py-1.5 text-sm bg-white border border-border text-foreground rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
+          <div className="flex items-center gap-2">
+            <label className="inline-flex h-9 items-center px-3.5 text-sm font-medium bg-white border border-border text-foreground rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
               {isUploadingTemplate ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <UploadCloud className="h-3.5 w-3.5 mr-1.5" />
+                <UploadCloud className="h-4 w-4 mr-2" />
               )}
               Template
               <input
@@ -446,32 +459,33 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   ? "Importez d'abord un template Excel via le bouton « Template »"
                   : "Exporter les données DSF vers Excel"
               }
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex h-9 items-center px-3.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isExporting ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
               )}
               Exporter
             </button>
 
             <button
-              onClick={handleDeleteDSF}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={isDeleting}
-              className="inline-flex items-center px-3 py-1.5 text-sm bg-white border border-border text-red-600 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+              className="inline-flex h-9 items-center px-3.5 text-sm font-medium bg-white border border-border text-red-600 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50"
             >
               {isDeleting ? (
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                <Trash2 className="h-4 w-4 mr-2" />
               )}
               Supprimer
             </button>
 
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-muted/50 rounded transition-colors border border-border"
+              title="Fermer"
+              className="inline-flex h-9 w-9 items-center justify-center border border-border rounded-lg hover:bg-muted/50 transition-colors"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -479,9 +493,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
 
         {/* Grid */}
-        <div className="bg-white rounded-md border border-border overflow-hidden">
-          <div className="p-4">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-1.5">
+        <div className="bg-white rounded-xl border border-border shadow-sm">
+          <div className="p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
               {paginatedReports.map((report, idx) => (
                 <ReportCard
                   key={idx}
@@ -490,32 +504,36 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 />
               ))}
             </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-border rounded text-sm hover:bg-muted/50 disabled:opacity-40"
-                >
-                  Précédent
-                </button>
-
-                <span className="text-xs text-muted-foreground">
-                  {startIndex + 1}–{Math.min(startIndex + itemsPerPage, allReports.length)} / {allReports.length}
-                </span>
-
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-border rounded text-sm hover:bg-muted/50 disabled:opacity-40"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-4">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="inline-flex h-9 items-center px-3.5 border border-border rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Précédent
+              </button>
+
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {startIndex + 1}–
+                {Math.min(startIndex + itemsPerPage, allReports.length)} sur{" "}
+                {allReports.length}
+              </span>
+
+              <button
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="inline-flex h-9 items-center px-3.5 border border-border rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Suivant
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -524,6 +542,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         onClose={() => setSelectedReport(null)}
         folderId={folderId}
       />
+
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => !isDeleting && setShowDeleteConfirm(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer toutes les données DSF ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer toutes les données DSF de ce
+              dossier ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDSF}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
@@ -541,22 +584,33 @@ const ReportCard: React.FC<ReportCardProps> = ({ report, onView }) => {
     : report.noteName.replace("NOTE ", "").replace("NOTE", "");
 
   return (
-    <div
-      className={`bg-secondary border border-border rounded p-2.5 cursor-pointer hover:bg-orange-50 hover:border-primary/40 transition-all duration-150 ${
+    <button
+      type="button"
+      onClick={onView}
+      title={
+        report.success
+          ? report.noteName
+          : `${report.noteName} — données indisponibles`
+      }
+      className={`group relative flex min-h-[104px] w-full flex-col items-center justify-center gap-2.5 rounded-lg border border-border bg-secondary px-3 py-4 text-center transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-orange-50 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
         !report.success ? "opacity-60" : ""
       }`}
-      onClick={onView}
     >
-      <div className="flex flex-col items-center text-center gap-1.5">
-        <FileText className="h-4 w-4 text-muted-foreground" />
-        <div className="text-[11px] font-medium text-foreground leading-tight">
-          {displayName}
-        </div>
-        <div className="text-[10px] text-muted-foreground">
-          {report.success ? "✓" : "✗"}
-        </div>
-      </div>
-    </div>
+      {/* Pastille de statut */}
+      <span
+        className={`absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full ${
+          report.success ? "bg-emerald-500" : "bg-muted-foreground/40"
+        }`}
+      />
+
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-border/60 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:text-primary">
+        <FileText className="h-4 w-4" />
+      </span>
+
+      <span className="line-clamp-2 text-xs font-semibold leading-snug text-foreground">
+        {displayName}
+      </span>
+    </button>
   );
 };
 

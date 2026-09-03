@@ -394,7 +394,7 @@ const Note17Annex: React.FC = () => {
 
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         <div className="text-center font-bold mb-2 text-lg">32</div>
 
@@ -657,7 +657,7 @@ const Note17Annex: React.FC = () => {
                 <td className="border border-gray-400 p-1 pl-2">
                   {row.object}
                 </td>
-                {["road", "rail", "sea", "air"].map((f) => (
+                {(["road", "rail", "sea", "air"] as const).map((f) => (
                   <td key={f} className="border border-gray-400 p-1 text-right">
                     {isEditing ? (
                       <input
@@ -673,7 +673,7 @@ const Note17Annex: React.FC = () => {
                     )}
                   </td>
                 ))}
-                {["auxiliary", "etran", "ger"].map((f) => (
+                {(["auxiliary", "etran", "ger"] as const).map((f) => (
                   <td
                     key={f}
                     className="border border-gray-400 p-1 text-center"

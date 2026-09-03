@@ -16,6 +16,8 @@ import { config } from "../config";
 import * as XLSX from "xlsx";
 import * as fs from "fs/promises";
 import { auditService } from "../services/audit.service";
+import { trashService } from "../services/trash.service";
+import { FORMULA_CATALOG } from "../services/dsf/formula-catalog";
 
 // Type pour les relations complètes du dossier
 type FolderWithFullRelations = {
@@ -252,6 +254,16 @@ class DSFController {
   };
 
   /**
+   * Catalogue statique des formules affichées au clic sur une case du
+   * rapport DSF (panneau "voir la formule"). Indépendant de tout dossier —
+   * un seul appel par session frontend suffit.
+   * GET /api/dsf/formulas
+   */
+  getFormulaCatalog = (req: AuthRequest, res: Response) => {
+    res.json({ formulas: FORMULA_CATALOG });
+  };
+
+  /**
    * Delete DSF import and all related data
    * DELETE /api/dsf/:id
    */
@@ -291,10 +303,14 @@ class DSFController {
           throw new BadRequestError("You don't have access to delete this DSF");
         }
 
-        // Delete the DSF Import (cascade will delete sheets and entries)
-        await prisma.dSFImport.delete({
-          where: { id },
-        });
+        // Suppression réversible: l'import est archivé en corbeille avant
+        // d'être retiré, comme les autres suppressions de l'application.
+        await trashService.archiveAndDelete(
+          "DSFImport",
+          id,
+          userId,
+          req.body?.reason,
+        );
 
         // Update folder status back to BALANCE_UPLOADED
         await prisma.folder.update({
@@ -337,10 +353,9 @@ class DSFController {
         throw new BadRequestError("You don't have access to delete this DSF");
       }
 
-      // Delete the DSF (cascade will delete related coherenceControl)
-      await prisma.dSF.delete({
-        where: { id },
-      });
+      // Suppression réversible: la DSF et son contrôle de cohérence sont
+      // archivés en corbeille avant retrait des tables vivantes.
+      await trashService.archiveAndDelete("DSF", id, userId, req.body?.reason);
 
       // Update folder status back to BALANCE_UPLOADED
       await prisma.folder.update({
@@ -397,6 +412,10 @@ class DSFController {
       // 3. Guards / Validation
       if (!folder) {
         throw new NotFoundError("Dossier introuvable");
+      }
+
+      if (folder.ownerId !== req.user!.userId) {
+        throw new BadRequestError("You don't have access to this folder");
       }
 
       if (!folder.client) {
@@ -479,7 +498,11 @@ class DSFController {
             // Map report types to database fields
             switch (report.type) {
               case "BALANCE_SHEET":
-                dsfData.bilan_paysage = sanitizeForDB(report.data);
+                // Le Bilan Paysage réel (colonnes REF/ACTIF/PASSIF) est
+                // calculé par generateBilanPaysageRows() et arrive via le
+                // report "NOTES" (notes.bilanPaysage) plus bas — cette forme
+                // brute (assets/liabilities imbriqués) n'est consommée par
+                // aucune page et reste seulement dans le blob "reports".
                 break;
               case "INCOME_STATEMENT":
                 dsfData.compte_de_resultat = sanitizeForDB(report.data);
@@ -503,8 +526,16 @@ class DSFController {
                     note16BBis: "note16b_bis", note16C: "note16c",
                     c1Note17: "note17_c1",
                     note27A: "note27a", note27B: "note27b",
+                    c1Note27A: "note27a_c1",
                     c1Note25: "note25_c1", c2Note25: "note25_c2",
                     c1Note28: "note28_c1", c2Note28: "note28_c2",
+                    tft: "tableau_des_flux_tresorerie",
+                    cf1Bis: "cf1_bis", cf1Ter: "cf1_ter", cf1Quater: "cf1_quater",
+                    cf2Bis: "cf2_bis", cf2Ter: "cf2_ter",
+                    bilanPaysage: "bilan_paysage",
+                    // Fiches d'identification du régime normal (onglets
+                    // « Fiche R1/R2/R3 » de la DSF).
+                    ficheR1: "fiche1", ficheR2: "fiche2", ficheR3: "fiche3",
                   };
                   // Allowed DB field names (all JSON? fields on the DSF model)
                   const VALID_DSF_NOTE_FIELDS = new Set([
@@ -514,9 +545,11 @@ class DSFController {
                     "note15a","note15b","note16a","note16b","note16b_bis","note16c",
                     "note17","note17_c1","note18","note19","note20","note21",
                     "note22","note23","note24","note25","note25_c1","note25_c2",
-                    "note26","note27a","note27b","note28","note28_c1","note28_c2",
+                    "note26","note27a","note27a_c1","note27b","note28","note28_c1","note28_c2",
                     "note29","note30","note31","note32","note33","note34","note35",
                     "cf1","cf1_bis","cf1_ter","cf1_quater","cf2","cf2_bis","cf2_ter",
+                    "tableau_des_flux_tresorerie","bilan_paysage",
+                    "fiche1","fiche2","fiche3",
                   ]);
                   Object.entries(report.data).forEach(([noteKey, noteData]) => {
                     if (!noteData) return;
@@ -596,6 +629,7 @@ class DSFController {
   getDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { folderId } = req.params;
+      const userId = req.user!.userId;
 
       const dsf = await prisma.dSF.findUnique({
         where: { folderId },
@@ -619,6 +653,10 @@ class DSFController {
         throw new NotFoundError("DSF not found for this exercise");
       }
 
+      if (dsf.userId !== userId && dsf.folder.ownerId !== userId) {
+        throw new BadRequestError("You don't have access to this DSF");
+      }
+
       res.json({ dsf });
     } catch (error) {
       next(error);
@@ -628,6 +666,7 @@ class DSFController {
   validateDSF = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const userId = req.user!.userId;
 
       const dsf = await prisma.dSF.findUnique({
         where: { id },
@@ -648,6 +687,10 @@ class DSFController {
 
       if (!dsf) {
         throw new NotFoundError("DSF not found");
+      }
+
+      if (dsf.userId !== userId && dsf.folder.ownerId !== userId) {
+        throw new BadRequestError("You don't have access to this DSF");
       }
 
       // Type assertion pour la cohérence des types
@@ -712,6 +755,7 @@ class DSFController {
     try {
       const { id } = req.params;
       const { format } = req.query;
+      const userId = req.user!.userId;
 
       const dsf = await prisma.dSF.findUnique({
         where: { id },
@@ -732,6 +776,10 @@ class DSFController {
 
       if (!dsf) {
         throw new NotFoundError("DSF not found");
+      }
+
+      if (dsf.userId !== userId && dsf.folder.ownerId !== userId) {
+        throw new BadRequestError("You don't have access to this DSF");
       }
 
       if (dsf.status !== DSFStatus.VALID) {
@@ -877,6 +925,7 @@ class DSFController {
   ) => {
     try {
       const { id } = req.params;
+      const userId = req.user!.userId;
 
       const coherenceControl = await prisma.coherenceControl.findUnique({
         where: { dsfId: id },
@@ -897,6 +946,13 @@ class DSFController {
         throw new NotFoundError(
           "Coherence control not found. Please validate DSF first.",
         );
+      }
+
+      if (
+        coherenceControl.dsf.userId !== userId &&
+        coherenceControl.dsf.folder.ownerId !== userId
+      ) {
+        throw new BadRequestError("You don't have access to this DSF");
       }
 
       res.json({ coherenceControl });
@@ -1078,7 +1134,8 @@ class DSFController {
         if (report.type && report.data) {
           switch (report.type) {
             case "BALANCE_SHEET":
-              dsfData.bilan_paysage = report.data;
+              // Voir le commentaire équivalent dans generateDSF(): le Bilan
+              // Paysage réel arrive via "NOTES" (notes.bilanPaysage).
               break;
             case "INCOME_STATEMENT":
               dsfData.compte_de_resultat = report.data;

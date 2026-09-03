@@ -28,7 +28,9 @@ import {
 } from "./components/ui/sidebar";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AppProvider, useApp } from "./contexts/AppContext";
+import { FormulaPanelProvider } from "./contexts/FormulaPanelContext";
 import { Login } from "./components/Login";
+import { LandingPage } from "./components/LandingPage";
 import { CountrySelector } from "./components/CountrySelector";
 import { CompanySelector } from "./components/CompanySelector";
 import { DashboardGrid } from "./components/DashboardGrid";
@@ -45,10 +47,12 @@ import { OnboardingGuide } from "./components/OnboardingGuide";
 import { ReportNavigation } from "./components/DSF/ReportNavigation";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { NotificationCenter } from "./components/NotificationCenter";
-import { EntityHeader } from "./components/EntityHeader";
 import { AuthLoader } from "./components/AuthLoader";
 import { DSFAssistantChat } from "./components/DSFAssistantChat";
+import { FormulaPanel } from "./components/FormulaPanel";
 import { VentilationConfig } from "./components/VentilationConfig";
+import { InvoiceScanner } from "./components/InvoiceScanner";
+import { TrashManager } from "./components/TrashManager";
 import {
   LayoutDashboard,
   Upload,
@@ -65,6 +69,8 @@ import {
   RefreshCw,
   Wifi,
   Split,
+  ScanLine,
+  Trash2,
   LogOut,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
@@ -83,6 +89,7 @@ import {
   Note3B,
   Note3C,
   Note3D,
+  Note3E,
   Note3F,
   Note4,
   Note5,
@@ -120,6 +127,7 @@ import {
   Note32,
   Note33,
   Note34,
+  FicheR2,
   FicheR3,
   PageDeGarde,
   Sommaire,
@@ -213,9 +221,57 @@ import {
 import RevueFiscal from "./components/RevueFiscal";
 
 /**
+ * Traduit un `noteNumber` backend (clé de `NOTE_NUMBER_TO_FIELD` dans
+ * notes.service.ts, ex. "C1/17", "cf1bis", "bilan-paysage") vers le nom
+ * canonique utilisé par `ALL_REPORTS`/`getReportOrderIndex` dans
+ * ReportRenderer.tsx (ex. "C1 NOTE 17", "CF1 BIS", "BILAN PAYSAGE").
+ *
+ * Sans cette traduction, le gabarit naïf `NOTE ${noteNumber}` produit des
+ * noms qui ne correspondent à AUCUNE entrée canonique pour toutes les
+ * sous-notes et notes spéciales (barre oblique au lieu d'espace, préfixe
+ * "NOTE" mal placé, etc.) — `getReportOrderIndex` retombe alors sur
+ * `Number.MAX_SAFE_INTEGER` et ces rapports se retrouvent systématiquement
+ * regroupés en fin de liste au lieu d'apparaître à leur place dans l'ordre
+ * officiel de la DSF.
+ */
+const NOTE_NUMBER_DISPLAY_OVERRIDES: Record<string, string> = {
+  "3C_C01": "C01 NOTE 3C",
+  "C1/17": "C1 NOTE 17",
+  "C1/25": "C1 NOTE 25",
+  "C2/25": "C2 NOTE 25",
+  "C1/27A": "C1 NOTE 27A",
+  "C1/28": "C1 NOTE 28",
+  "C2/28": "C2 NOTE 28",
+  "flux-tresorerie": "TABLEAU FLUX TRESORERIE",
+  "cf1": "CF1",
+  "cf1bis": "CF1 BIS",
+  "cf1ter": "CF1 TER",
+  "cf1quater": "CF1 QUATER",
+  "cf2": "CF2",
+  "cf2bis": "CF2 BIS",
+  "cf2ter": "CF2 TER",
+  "bilan-paysage": "BILAN PAYSAGE",
+  "grille-analyse-notes": "GRILLE ANALYSE NOTES",
+  R2: "FICHE R2",
+  R3: "FICHE R3",
+  // R1 n'a pas d'entrée canonique (aucune page dédiée) — laissé au
+  // gabarit par défaut ci-dessous, qui ne matchera rien et retombera en
+  // fin de liste, sans conséquence puisqu'il n'y a rien d'autre à
+  // ordonner par rapport à lui.
+};
+
+function noteNumberToDisplayName(noteNumber: string): string {
+  return NOTE_NUMBER_DISPLAY_OVERRIDES[noteNumber] || `NOTE ${noteNumber}`;
+}
+
+/**
  * Get navigation items with translated labels, grouped into logical
  * sections so related pages (workflow / compliance / admin) sit together
  * instead of one long flat list.
+ *
+ * Les entrées marquées `adminOnly` ne sont affichées qu'aux administrateurs:
+ * elles exposent des données transverses à tous les clients et l'API les
+ * refuse aux autres rôles.
  */
 function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
   return [
@@ -250,6 +306,12 @@ function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
           label: t("ventilationConfig"),
           icon: Split,
           path: "/web/user/ventilation-config",
+        },
+        {
+          id: "invoice-scanner",
+          label: t("invoiceScanner"),
+          icon: ScanLine,
+          path: "/web/user/invoice-scanner",
         },
       ],
     },
@@ -290,6 +352,13 @@ function getNavigationItems(t: (key: keyof TranslationKeys) => string) {
           label: t("history"),
           icon: History,
           path: "/web/user/history",
+        },
+        {
+          id: "trash",
+          label: t("trash"),
+          icon: Trash2,
+          path: "/web/user/trash",
+          adminOnly: true,
         },
         {
           id: "settings",
@@ -402,7 +471,19 @@ export function ProtectedLayout({
   const { language } = useApp();
   const { t } = useTranslation();
 
-  const translatedNavItems = useMemo(() => getNavigationItems(t), [t]);
+  // Les entrées `adminOnly` sont retirées du menu pour les autres rôles:
+  // l'API les refuserait de toute façon, autant ne pas les proposer.
+  const translatedNavItems = useMemo(() => {
+    const isAdmin = user?.role === "ADMIN";
+    return getNavigationItems(t)
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(
+          (item) => !(item as { adminOnly?: boolean }).adminOnly || isAdmin,
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [t, user?.role]);
 
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const langPrefix =
@@ -572,11 +653,13 @@ export function ProtectedLayout({
           </header>
 
           {/* Page content */}
-          <div className="flex-1 overflow-auto">
-            <div className="p-5 pb-12 max-w-[1400px]">
+          <div className="flex-1 overflow-auto flex flex-col">
+            <div className="w-full max-w-[1400px] px-8 py-7 pb-16 flex-1">
               <Outlet />
-              <EntityHeader />
             </div>
+            {location.pathname.includes("/rapport/") && (
+              <ReportNavigation key={location.pathname} />
+            )}
           </div>
 
           <footer className="flex-shrink-0 h-7 border-t border-border flex items-center justify-center">
@@ -586,6 +669,7 @@ export function ProtectedLayout({
           </footer>
 
           <DSFAssistantChat />
+          <FormulaPanel />
         </main>
       </div>
     </SidebarProvider>
@@ -631,19 +715,48 @@ function AppRoutes() {
   return (
     <>
       <Routes>
-        {/* Root redirect to default language and login */}
-        <Route index element={<Navigate to="/fr/web/user/login" replace />} />
+        {/* Root redirect to default language landing page */}
+        <Route index element={<Navigate to="/fr" replace />} />
 
         {/* Language-aware routes wrapper */}
         <Route path="/:lang/*" element={<LanguageLayout />}>
+          {/* Public marketing homepage — "Solutions" and "Tableau de bord"
+              in its nav lead into the app itself (/web/user/login, which the
+              existing auth guard carries through to the dashboard once
+              signed in). */}
+          <Route index element={<LandingPage />} />
+
           {/* Public routes with language prefix */}
           <Route path="web/user/login" element={<Login />} />
           <Route path="web/user/verify-otp" element={<OtpVerificationPage />} />
           <Route path="web/user/forgot-password" element={<ForgotPassword />} />
-          <Route path="web/user/select-country" element={<CountrySelector />} />
+
+          {/* Étapes d'onboarding: accessibles uniquement une fois connecté,
+              avant l'affichage du shell principal (ProtectedLayout) — même
+              garde que la route "web/user/*" protégée ci-dessous. */}
+          <Route
+            path="web/user/select-country"
+            element={
+              isInitializing ? (
+                <AuthLoader />
+              ) : isAuthenticated ? (
+                <CountrySelector />
+              ) : (
+                <Navigate to="/fr/web/user/login" replace />
+              )
+            }
+          />
           <Route
             path="web/user/select-company"
-            element={<CompanySelector onSelectCompany={setSelectedCompany} />}
+            element={
+              isInitializing ? (
+                <AuthLoader />
+              ) : isAuthenticated ? (
+                <CompanySelector onSelectCompany={setSelectedCompany} />
+              ) : (
+                <Navigate to="/fr/web/user/login" replace />
+              )
+            }
           />
 
           {/* Protected area routes with language prefix */}
@@ -754,6 +867,10 @@ function AppRoutes() {
             <Route
               path="reports/:userId/reports/rapport/note3d"
               element={<Note3D />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/note3e"
+              element={<Note3E />}
             />
             <Route
               path="reports/:userId/reports/rapport/note3f"
@@ -902,6 +1019,10 @@ function AppRoutes() {
             <Route
               path="reports/:userId/reports/rapport/note34"
               element={<Note34 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ficher2"
+              element={<FicheR2 />}
             />
             <Route
               path="reports/:userId/reports/rapport/ficher3"
@@ -1245,7 +1366,7 @@ function AppRoutes() {
                         await notesService.getNotesForFolder(folderId);
                       if (notes?.length) {
                         return notes.map((note: any) => ({
-                          noteName: `NOTE ${note.noteNumber}`,
+                          noteName: noteNumberToDisplayName(note.noteNumber),
                           success: note.exists,
                           data: note.data,
                         })) as ExtractionResult[];
@@ -1287,6 +1408,10 @@ function AppRoutes() {
               element={<SimpleSettings />}
             />
             <Route
+              path="trash/:userId/:actionId?"
+              element={<TrashManager />}
+            />
+            <Route
               path="televersion/:userId/:actionId?"
               element={
                 <div className="p-6">
@@ -1314,6 +1439,10 @@ function AppRoutes() {
               path="ventilation-config/:userId/:actionId?"
               element={<VentilationConfig />}
             />
+            <Route
+              path="invoice-scanner/:userId/:actionId?"
+              element={<InvoiceScanner />}
+            />
           </Route>
 
           {/* 404 Not Found - outside protected routes to avoid sidebar/navbar */}
@@ -1329,9 +1458,6 @@ function AppRoutes() {
         onClose={completeOnboarding}
         onComplete={completeOnboarding}
       />
-      {location.pathname.includes("/rapport/") && (
-        <ReportNavigation key={location.pathname} />
-      )}
     </>
   );
 }
@@ -1340,9 +1466,11 @@ export default function App() {
   return (
     <AuthProvider>
       <AppProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <FormulaPanelProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </FormulaPanelProvider>
       </AppProvider>
     </AuthProvider>
   );

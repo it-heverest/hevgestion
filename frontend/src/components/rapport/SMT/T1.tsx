@@ -367,7 +367,7 @@ const T1: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }

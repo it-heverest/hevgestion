@@ -3,6 +3,8 @@ import api from "./api";
 
 interface DGIConfig {
   id?: string;
+  companyName?: string;
+  niu?: string;
   username: string;
   password: string;
 }

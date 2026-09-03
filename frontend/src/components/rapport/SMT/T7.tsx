@@ -35,6 +35,7 @@ const T7DeterminationImpots: React.FC = () => {
     reportDeficitaireNmoins3: "0",
     reportDeficitaireNmoins2: "0",
     reportDeficitaireNmoins1: "0", // total ligne 11
+    totalReportsDeficitaires: "0", // total ligne 10+11
 
     beneficeFiscalDefinitif: "0", // 13
 
@@ -134,7 +135,7 @@ const T7DeterminationImpots: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }
@@ -522,13 +523,13 @@ const T7DeterminationImpots: React.FC = () => {
                     <input
                       type="text"
                       className="edit-input"
-                      value={values.impotsSocietes}
+                      value={values.impotsSocietesMontant}
                       onChange={(e) =>
-                        handleValueChange("impotsSocietes", e.target.value)
+                        handleValueChange("impotsSocietesMontant", e.target.value)
                       }
                     />
                   ) : (
-                    Number(values.impotsSocietes).toLocaleString("fr-FR")
+                    Number(values.impotsSocietesMontant).toLocaleString("fr-FR")
                   )}
                 </td>
               </tr>

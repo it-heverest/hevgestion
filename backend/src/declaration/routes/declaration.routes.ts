@@ -7,7 +7,7 @@
 import { Router } from "express";
 import { declarationController } from "../controllers/declaration.controller";
 import { dgiConfigController } from "../controllers/dgi-config.controller";
-import { authenticate } from "../../middleware/auth.middleware";
+import { authenticate, verifySelfUserId } from "../../middleware/auth.middleware";
 
 const router = Router();
 
@@ -23,6 +23,12 @@ router.post(
 
 // All other routes require authentication
 router.use(authenticate);
+
+// Most routes below accept a body/query "userId" to look up that user's DGI
+// (government tax portal) credentials — this guards against submitting a
+// declaration using someone else's credentials. /config/:userId uses a URL
+// param instead and already checks ownership itself (dgi-config.controller.ts).
+router.use(verifySelfUserId);
 
 // ============================================
 // DGI Config (credentials storage)

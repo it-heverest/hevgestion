@@ -294,30 +294,35 @@ const Note3A: React.FC = () => {
     setAssetsData(prev => prev.filter(r => r.id !== id));
   };
 
-  // Calcul du TOTAL GENERAL
-  const grandTotalRow = assetsData.find((row) => row.id === "TOTAL")!;
-
-  // Utiliser useEffect pour mettre à jour la ligne de total général à chaque changement
+  // Recalcule chaque sous-total de section (I_TOTAL, C_TOTAL, ADV_TOTAL,
+  // F_TOTAL) à partir des lignes de données de sa propre section, et le
+  // TOTAL GÉNÉRAL à partir de toutes les lignes de données — les ids réels
+  // ("I_TOTAL", "GRAND_TOTAL", ...) ne valaient jamais l'ancien
+  // `row.id === "TOTAL"`, donc aucun total ne se mettait jamais à jour.
+  const SECTION_PREFIXES = ["I", "C", "ADV", "F"];
   React.useEffect(() => {
-    const totalRow = assetsData.find((row) => row.id === "TOTAL");
-    if (totalRow) {
-      setAssetsData((prev) =>
-        prev.map((row) => {
-          if (row.id === "TOTAL") {
-            return {
-              ...row,
-              openingGross: calculateColumnSum(prev, "openingGross"),
-              acquisitions: calculateColumnSum(prev, "acquisitions"),
-              transfersIn: calculateColumnSum(prev, "transfersIn"),
-              revaluation: calculateColumnSum(prev, "revaluation"),
-              disposals: calculateColumnSum(prev, "disposals"),
-              transfersOut: calculateColumnSum(prev, "transfersOut"),
-            };
-          }
-          return row;
-        }),
-      );
-    }
+    setAssetsData((prev) =>
+      prev.map((row) => {
+        const sectionPrefix = SECTION_PREFIXES.find(
+          (p) => row.id === `${p}_TOTAL`,
+        );
+        const sectionRows = sectionPrefix
+          ? prev.filter((r) => r.id.startsWith(`${sectionPrefix}_`))
+          : row.id === "GRAND_TOTAL"
+            ? prev
+            : null;
+        if (!sectionRows) return row;
+        return {
+          ...row,
+          openingGross: calculateColumnSum(sectionRows, "openingGross"),
+          acquisitions: calculateColumnSum(sectionRows, "acquisitions"),
+          transfersIn: calculateColumnSum(sectionRows, "transfersIn"),
+          revaluation: calculateColumnSum(sectionRows, "revaluation"),
+          disposals: calculateColumnSum(sectionRows, "disposals"),
+          transfersOut: calculateColumnSum(sectionRows, "transfersOut"),
+        };
+      }),
+    );
   }, [
     assetsData.map((r) => r.openingGross).join(),
     assetsData.map((r) => r.acquisitions).join(),
@@ -439,8 +444,8 @@ const Note3A: React.FC = () => {
       return (
         <tr key={row.id}>
           <td
-            colSpan={isEditing ? 10 : 9}
-            className="font-bold p-1 pl-2 bg-gray-200 border border-gray-400 border-t-2"
+            colSpan={isEditing ? 9 : 8}
+            className="font-bold underline p-1 pl-2 border border-gray-400 border-t-2"
           >
             {row.label}
           </td>
@@ -559,7 +564,7 @@ const Note3A: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[297mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
@@ -665,8 +670,11 @@ const Note3A: React.FC = () => {
         </div>
 
         {/* Titre Principal */}
-        <div className="bg-gray-300 border border-gray-400 py-2 text-center font-bold mb-1 text-xs">
-          NOTE 3A <br /> TABLEAU DES IMMOBILISATIONS : IMMOBILISATIONS BRUTES
+        <div className="bg-gray-300 border border-gray-400 py-2 text-center font-bold text-xs">
+          NOTE 3A <br /> TABLEAU DES IMMOBILISATIONS
+        </div>
+        <div className="border border-gray-400 border-t-0 py-1 text-center font-bold mb-1 text-xs uppercase">
+          Immobilisations brutes
         </div>
 
         {/* Tableau Principal */}
@@ -674,35 +682,70 @@ const Note3A: React.FC = () => {
           <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
             <thead>
               <tr className="bg-gray-100">
-                <th rowSpan={2} className={`border border-gray-600 p-1 ${isEditing ? 'w-[24%]' : 'w-[28%]'} font-bold text-black`}>
-                  RUBRIQUES
+                <th
+                  className={`border border-gray-600 p-0 relative h-16 ${isEditing ? "w-[22%]" : "w-[25%]"}`}
+                  style={{
+                    background:
+                      "linear-gradient(to top right, transparent calc(50% - 1px), #4b5563 calc(50% - 1px), #4b5563 calc(50% + 1px), transparent calc(50% + 1px))",
+                  }}
+                >
+                  <span className="absolute top-0.5 right-1 text-[8px] font-bold text-black text-right leading-tight">
+                    SITUATIONS ET MOUVEMENTS
+                  </span>
+                  <span className="absolute bottom-0.5 left-1 text-[9px] font-bold text-black">
+                    RUBRIQUES
+                  </span>
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold text-black">
-                  MONTANT BRUT À L'OUVERTURE DE L'EXERCICE
+                <th className="border border-gray-600 p-1 w-[11%] font-bold text-black align-bottom">
+                  MONTANT BRUT
+                  <br />
+                  À L'OUVERTURE
+                  <br />
+                  DE L'EXERCICE
                 </th>
-                <th colSpan={4} className="border border-gray-600 p-1 font-bold text-black">
-                  SITUATIONS ET MOUVEMENTS
+                <th className="border border-gray-600 p-1 w-[10%] font-bold text-black align-bottom">
+                  ACQUISITIONS,
+                  <br />
+                  APPORTS,
+                  <br />
+                  CRÉATIONS
                 </th>
-                <th colSpan={2} className="border border-gray-600 p-1 font-bold text-black">
-                  DIMINUTIONS
+                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black align-bottom">
+                  VIREMENTS DE
+                  <br />
+                  POSTE À POSTE
+                  <br />
+                  (ENTRÉES)
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[12%] font-bold text-black">
-                  MONTANT BRUT À LA CLÔTURE
+                <th className="border border-gray-600 p-1 w-[13%] font-bold text-black align-bottom">
+                  SUITE À UNE
+                  <br />
+                  RÉÉVALUATION
+                  <br />
+                  PRATIQUÉE AU
+                  <br />
+                  COURS DE
+                  <br />
+                  L'EXERCICE
                 </th>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black">
-                  ACQUISITIONS/APPORTS/CREATIONS
+                <th className="border border-gray-600 p-1 w-[11%] font-bold text-black align-bottom">
+                  CESSIONS,
+                  <br />
+                  SCISSIONS,
+                  <br />
+                  HORS SERVICE
                 </th>
-                <th className="border border-gray-600 p-1 w-[7%] font-bold text-black">
-                  VIREMENTS DE POSTE A POSTE (ENTRÉES)
+                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black align-bottom">
+                  VIREMENTS DE
+                  <br />
+                  POSTE À POSTE
+                  <br />
+                  (SORTIES)
                 </th>
-                <th className="border border-gray-600 p-1 w-[11%] font-bold text-black">
-                  SUITE A UNE REEVALUATION PRATIQUEE AU COURS DE L'EXERCICE
-                </th>
-                <th className="border border-gray-600 p-1 w-[9%] font-bold text-black">CESSIONS</th>
-                <th className="border border-gray-600 p-1 w-[7%] font-bold text-black">
-                  VIREMENTS DE POSTE A POSTE (SORTIES)
+                <th className="border border-gray-600 p-1 w-[11%] font-bold text-black align-bottom">
+                  MONTANT BRUT
+                  <br />
+                  À LA CLÔTURE
                 </th>
               </tr>
             </thead>
@@ -712,7 +755,7 @@ const Note3A: React.FC = () => {
                 assetsData.filter(r => r.id.startsWith("I_")).map(renderRow)}
               {isEditing && (
                 <tr>
-                  <td colSpan={isEditing ? 10 : 9} className="border border-gray-400 p-1">
+                  <td colSpan={isEditing ? 9 : 8} className="border border-gray-400 p-1">
                     <button
                       onClick={() => addRow("I")}
                       className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -726,7 +769,7 @@ const Note3A: React.FC = () => {
               {assetsData.filter(r => r.id.startsWith("C_")).map(renderRow)}
               {isEditing && (
                 <tr>
-                  <td colSpan={isEditing ? 10 : 9} className="border border-gray-400 p-1">
+                  <td colSpan={isEditing ? 9 : 8} className="border border-gray-400 p-1">
                     <button
                       onClick={() => addRow("C")}
                       className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -740,7 +783,7 @@ const Note3A: React.FC = () => {
               {assetsData.filter(r => r.id.startsWith("ADV_")).map(renderRow)}
               {isEditing && (
                 <tr>
-                  <td colSpan={isEditing ? 10 : 9} className="border border-gray-400 p-1">
+                  <td colSpan={isEditing ? 9 : 8} className="border border-gray-400 p-1">
                     <button
                       onClick={() => addRow("ADV")}
                       className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -754,7 +797,7 @@ const Note3A: React.FC = () => {
               {assetsData.filter(r => r.id.startsWith("F_")).map(renderRow)}
               {isEditing && (
                 <tr>
-                  <td colSpan={isEditing ? 10 : 9} className="border border-gray-400 p-1">
+                  <td colSpan={isEditing ? 9 : 8} className="border border-gray-400 p-1">
                     <button
                       onClick={() => addRow("F")}
                       className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -776,12 +819,28 @@ const Note3A: React.FC = () => {
           <ul className="list-disc pl-5 italic text-[9px] text-gray-500 mb-2">
             <li>Toute variation significative doit être commentée.</li>
             <li>
-              Détailler les éléments constitutifs de fonds commercial et
+              Détailler les éléments constructifs du fonds commercial et
               indiquer la date d'acquisition.
             </li>
             <li>
               Pour l'immobilisation incorporelle relative à la concession, faire
               un descriptif de l'accord.
+            </li>
+            <li>
+              Indiquer :
+              <ul className="list-disc pl-5">
+                <li>La nature de la créance</li>
+                <li>La durée de la concession</li>
+                <li>L'échéance</li>
+              </ul>
+            </li>
+            <li>
+              Indiquer les créances du groupe avec la nature et la date
+              d'échéance.
+            </li>
+            <li>
+              Pour les banques DAT, indiquer le nom de la banque, le montant et
+              la date d'échéance.
             </li>
           </ul>
           {isEditing ? (

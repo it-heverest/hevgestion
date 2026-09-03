@@ -3,13 +3,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useTranslation } from "../hooks/useTranslation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
 import { Progress } from "./ui/progress";
 import {
   User,
@@ -92,13 +85,12 @@ export function RegisterPage({
   // Steps: 1=Personal, 2=Assistants (conditional for COMPTABLE), 3=Password, 4=Verification (OTP)
   const totalSteps = registerForm.role === "COMPTABLE" ? 4 : 3;
 
+  // Numéro mobile camerounais: 9 chiffres commençant par 6, quel que soit
+  // l'opérateur (voir la même règle côté backend, utils/validators.ts, où
+  // elle est réellement appliquée à l'inscription).
   const isValidCameroonPhone = (phoneNumber: string): boolean => {
     const cleanNumber = phoneNumber.replace(/\D/g, "");
-    if (cleanNumber.length !== 9) return false;
-    const mtnPrefixes = ["67", "68", "69"];
-    const orangePrefixes = ["65", "66"];
-    const prefix = cleanNumber.substring(0, 2);
-    return mtnPrefixes.includes(prefix) || orangePrefixes.includes(prefix);
+    return /^6\d{8}$/.test(cleanNumber);
   };
 
   const validatePassword = (password: string) => {
@@ -137,62 +129,46 @@ export function RegisterPage({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="firstName">{t("firstName")} *</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              id="firstName"
-              type="text"
-              placeholder={t("firstName")}
-              value={registerForm.firstName}
-              onChange={(e) => onRegisterChange("firstName", e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <Input
+            id="firstName"
+            type="text"
+            placeholder={t("firstName")}
+            value={registerForm.firstName}
+            onChange={(e) => onRegisterChange("firstName", e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="lastName">{t("lastName")} *</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              id="lastName"
-              type="text"
-              placeholder={t("lastName")}
-              value={registerForm.lastName}
-              onChange={(e) => onRegisterChange("lastName", e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <Input
+            id="lastName"
+            type="text"
+            placeholder={t("lastName")}
+            value={registerForm.lastName}
+            onChange={(e) => onRegisterChange("lastName", e.target.value)}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              id="email"
-              type="email"
-              placeholder="exemple@email.com"
-              value={registerForm.email || ""}
-              onChange={(e) => onRegisterChange("email", e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <Input
+            id="email"
+            type="email"
+            placeholder="exemple@email.com"
+            value={registerForm.email || ""}
+            onChange={(e) => onRegisterChange("email", e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="phoneNumber">Numéro de téléphone *</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              id="phoneNumber"
-              type="tel"
-              placeholder="6XX XXX XXX"
-              value={registerForm.phoneNumber || ""}
-              onChange={(e) => onRegisterChange("phoneNumber", e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <Input
+            id="phoneNumber"
+            type="tel"
+            placeholder="6XX XXX XXX"
+            value={registerForm.phoneNumber || ""}
+            onChange={(e) => onRegisterChange("phoneNumber", e.target.value)}
+          />
         </div>
       </div>
 
@@ -259,7 +235,7 @@ export function RegisterPage({
     >
       {registerForm.role === "COMPTABLE" ? (
         <div className="space-y-2">
-          <Label htmlFor="maxAssistants">Number of assistants *</Label>
+          <Label htmlFor="maxAssistants">Nombre d'assistants *</Label>
           <Select
             value={registerForm.maxAssistants?.toString() || "1"}
             onValueChange={(value) => {
@@ -268,19 +244,20 @@ export function RegisterPage({
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select number of assistants" />
+              <SelectValue placeholder="Sélectionner un nombre" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">1 assistant</SelectItem>
               <SelectItem value="3">3 assistants</SelectItem>
               <SelectItem value="5">5 assistants</SelectItem>
-              <SelectItem value="many">Many (unlimited)</SelectItem>
+              <SelectItem value="many">Illimité</SelectItem>
             </SelectContent>
           </Select>
         </div>
       ) : (
-        <div className="p-4 bg-slate-50 rounded">
-          This step is optional for your selected role. Click Next to continue.
+        <div className="p-4 bg-slate-50 rounded text-sm text-slate-600">
+          Cette étape ne concerne pas le rôle sélectionné. Cliquez sur
+          Suivant pour continuer.
         </div>
       )}
     </motion.div>
@@ -298,19 +275,18 @@ export function RegisterPage({
       <div className="space-y-2">
         <Label htmlFor="password">{t("password")} *</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
             placeholder={t("password")}
             value={registerForm.password}
             onChange={(e) => onRegisterChange("password", e.target.value)}
-            className="pl-10 pr-10"
+            className="pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-3 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
             tabIndex={-1}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -320,7 +296,6 @@ export function RegisterPage({
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">{t("confirmPassword")} *</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             id="confirmPassword"
             type={showConfirmPassword ? "text" : "password"}
@@ -329,56 +304,40 @@ export function RegisterPage({
             onChange={(e) =>
               onRegisterChange("confirmPassword", e.target.value)
             }
-            className="pl-10 pr-10"
+            className="pr-10"
           />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-3 top-3 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 hover:text-slate-600 transition-colors"
             tabIndex={-1}
           >
             {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
-      <div className="bg-slate-50 p-4 rounded-lg">
-        <p className="text-sm font-medium text-slate-700 mb-2">Requirements:</p>
-        <ul className="text-xs text-slate-500 space-y-1">
-          <li
-            className={
-              registerForm.password.length >= 8 ? "text-green-600" : ""
-            }
-          >
-            ✓ At least 8 characters
-          </li>
-          <li
-            className={
-              /[A-Z]/.test(registerForm.password) ? "text-green-600" : ""
-            }
-          >
-            ✓ At least one uppercase letter
-          </li>
-          <li
-            className={
-              /[a-z]/.test(registerForm.password) ? "text-green-600" : ""
-            }
-          >
-            ✓ At least one lowercase letter
-          </li>
-          <li
-            className={
-              /[0-9]/.test(registerForm.password) ? "text-green-600" : ""
-            }
-          >
-            ✓ At least one number
-          </li>
-          <li
-            className={
-              /[^A-Za-z0-9]/.test(registerForm.password) ? "text-green-600" : ""
-            }
-          >
-            ✓ At least one special character
-          </li>
+      <div className="rounded-lg bg-slate-50 p-4">
+        <p className="mb-2 text-sm font-medium text-slate-700">Exigences :</p>
+        <ul className="space-y-1.5 text-xs">
+          {[
+            { label: "Au moins 8 caractères", met: registerForm.password.length >= 8 },
+            { label: "Au moins une majuscule", met: /[A-Z]/.test(registerForm.password) },
+            { label: "Au moins une minuscule", met: /[a-z]/.test(registerForm.password) },
+            { label: "Au moins un chiffre", met: /[0-9]/.test(registerForm.password) },
+            { label: "Au moins un caractère spécial", met: /[^A-Za-z0-9]/.test(registerForm.password) },
+          ].map(({ label, met }) => (
+            <li
+              key={label}
+              className={`flex items-center gap-1.5 transition-colors ${
+                met ? "text-green-600" : "text-slate-400"
+              }`}
+            >
+              <CheckCircle2
+                className={`h-3.5 w-3.5 flex-none ${met ? "opacity-100" : "opacity-40"}`}
+              />
+              {label}
+            </li>
+          ))}
         </ul>
       </div>
     </motion.div>
@@ -580,42 +539,25 @@ export function RegisterPage({
               ? "Adresse email *"
               : "Numéro de téléphone *"}
           </Label>
-          <div className="relative">
-            {verificationMethod === "email" ? (
-              <>
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  id="verificationContact"
-                  type="email"
-                  placeholder="exemple@email.com"
-                  value={registerForm.email || ""}
-                  onChange={(e) => onRegisterChange("email", e.target.value)}
-                  className="pl-10"
-                />
-              </>
-            ) : (
-              <>
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  id="verificationContact"
-                  type="tel"
-                  placeholder="6XX XXX XXX"
-                  value={registerForm.phoneNumber || ""}
-                  onChange={(e) =>
-                    onRegisterChange("phoneNumber", e.target.value)
-                  }
-                  className="pl-10"
-                />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input id="allowChangeOtp" type="checkbox" checked={false} readOnly />
-          <label htmlFor="allowChangeOtp" className="text-sm text-slate-500">
-            Allow user to change OTP verification method later
-          </label>
+          {verificationMethod === "email" ? (
+            <Input
+              id="verificationContact"
+              type="email"
+              placeholder="exemple@email.com"
+              value={registerForm.email || ""}
+              onChange={(e) => onRegisterChange("email", e.target.value)}
+            />
+          ) : (
+            <Input
+              id="verificationContact"
+              type="tel"
+              placeholder="6XX XXX XXX"
+              value={registerForm.phoneNumber || ""}
+              onChange={(e) =>
+                onRegisterChange("phoneNumber", e.target.value)
+              }
+            />
+          )}
         </div>
       </div>
     </motion.div>
@@ -641,27 +583,26 @@ export function RegisterPage({
   const progress = ((currentStep - 1) / Math.max(1, totalSteps - 1)) * 100;
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-6">
-      <div className="mb-8">
-        <Progress value={progress} className="h-2" />
-        <div className="flex justify-between mt-2 text-xs text-slate-500">
-          <span>
-            Step {currentStep} of {totalSteps}
-          </span>
-          <span>{Math.round(progress)}% completed</span>
+    <div className="w-full">
+      {totalSteps > 1 && (
+        <div className="mb-6">
+          <Progress value={progress} className="h-1.5" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Étape {currentStep} sur {totalSteps}
+          </p>
         </div>
-      </div>
+      )}
 
       <form onSubmit={onRegisterSubmit} noValidate>
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
             {error}
           </div>
         )}
 
         <AnimatePresence mode="wait">{getStepContent()}</AnimatePresence>
 
-        <div className="flex gap-3 mt-8">
+        <div className="flex gap-3 mt-6">
           {registerStep > 1 && (
             <Button
               type="button"
@@ -669,8 +610,7 @@ export function RegisterPage({
               onClick={onPreviousStep}
               className="flex-1"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Précédent
             </Button>
           )}
 
@@ -683,13 +623,10 @@ export function RegisterPage({
               {isRegistering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
+                  Création du compte...
                 </>
               ) : (
-                <>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Register
-                </>
+                "Créer le compte"
               )}
             </Button>
           ) : registerStep < totalSteps ? (
@@ -699,8 +636,7 @@ export function RegisterPage({
               disabled={!isStepValid(registerStep)}
               className="flex-1"
             >
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
+              Suivant
             </Button>
           ) : (
             <Button
@@ -711,31 +647,26 @@ export function RegisterPage({
               {isRegistering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
+                  Création du compte...
                 </>
               ) : (
-                <>
-                  <Shield className="mr-2 h-4 w-4" />
-                  Create account
-                </>
+                "Créer le compte"
               )}
             </Button>
           )}
         </div>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-sm text-slate-500">
-          Already have an account?{" "}
-          <button
-            type="button"
-            onClick={onSwitchToLogin}
-            className="text-orange-600 hover:underline font-medium"
-          >
-            Login
-          </button>
-        </p>
-      </div>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Déjà un compte ?{" "}
+        <button
+          type="button"
+          onClick={onSwitchToLogin}
+          className="text-primary hover:underline font-medium"
+        >
+          Connectez-vous
+        </button>
+      </p>
     </div>
   );
 }

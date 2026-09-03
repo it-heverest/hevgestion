@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { RevueFiscalEval, RevueFiscalPriority } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { auditService } from '../services/audit.service';
+import { trashService } from '../services/trash.service';
 
 interface CreateCompanyRequest {
   name: string;
@@ -167,13 +168,22 @@ export class RevueFiscalController {
   async deleteCompany(req: Request, res: Response) {
     try {
       const { id } = req.params;
-
-      await prisma.revueFiscalCompany.delete({
-        where: { id },
-      });
-
       const userId = (req as AuthRequest).user?.userId;
-      if (userId) {
+
+      if (!userId) {
+        res.status(401).json({ error: 'Authentification requise' });
+        return;
+      }
+
+      // Suppression réversible: archivage en corbeille avant retrait.
+      await trashService.archiveAndDelete(
+        "RevueFiscalCompany",
+        id,
+        userId,
+        req.body?.reason
+      );
+
+      {
         await auditService.logUserAction(
           userId,
           'REVUE_FISCAL_COMPANY_DELETED',

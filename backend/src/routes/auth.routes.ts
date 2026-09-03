@@ -1,6 +1,5 @@
 // src/routes/auth.routes.ts
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import { authController } from "../controllers/auth.controller";
 import { validate } from "../middleware/validation.middleware";
 import {
@@ -13,34 +12,26 @@ import {
   resetPasswordSchema,
 } from "../validators/auth.validator";
 import { authenticate } from "../middleware/auth.middleware";
+import {
+  loginLimiter,
+  registerLimiter,
+  refreshLimiter,
+  forgotPasswordLimiter,
+  otpLimiter,
+} from "../middleware/rateLimit";
 
 const router = Router();
 
-// Strict limiter: 100 attempts per 15 min — login, register, OTP
-const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many attempts. Please try again in 15 minutes." },
-});
-
-// OTP limiter: 30 attempts per 5 min — verify/resend OTP, password reset OTP
-const otpLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many OTP attempts. Please try again in 5 minutes." },
-});
+// Per-endpoint limiters with INDEPENDENT counters (see middleware/rateLimit.ts).
+// Previously a single shared limiter meant hammering one route exhausted them all.
 
 // ─── Public routes ───────────────────────────────────────────────────────────
-router.post("/register", strictLimiter, validate(registerSchema), authController.register.bind(authController));
+router.post("/register", registerLimiter, validate(registerSchema), authController.register.bind(authController));
 router.post("/verify-otp", otpLimiter, validate(verifyOtpSchema), authController.verifyOtp.bind(authController));
 router.post("/resend-otp", otpLimiter, validate(resendOtpSchema), authController.resendOtp.bind(authController));
-router.post("/login", strictLimiter, validate(loginSchema), authController.login.bind(authController));
-router.post("/refresh", strictLimiter, authController.refreshToken.bind(authController));
-router.post("/forgot-password", strictLimiter, validate(forgotPasswordSchema), authController.forgotPassword.bind(authController));
+router.post("/login", loginLimiter, validate(loginSchema), authController.login.bind(authController));
+router.post("/refresh", refreshLimiter, authController.refreshToken.bind(authController));
+router.post("/forgot-password", forgotPasswordLimiter, validate(forgotPasswordSchema), authController.forgotPassword.bind(authController));
 router.post("/verify-password-reset-otp", otpLimiter, validate(verifyPasswordResetOtpSchema), authController.verifyPasswordResetOtp.bind(authController));
 router.post("/reset-password", otpLimiter, validate(resetPasswordSchema), authController.resetPassword.bind(authController));
 

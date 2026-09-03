@@ -30,6 +30,7 @@ interface CreateClientData {
 
 interface CreateFolderData {
   name: string;
+  description?: string;
   clientId: string;
   fiscalYear: number;
   startDate?: string;

@@ -102,7 +102,10 @@ export function useAppData() {
 
             clientsData = (await clientService.getClients()) as Client[];
           } catch (e) {
-            console.warn("Warning: failed to load clients:", e?.message || e);
+            console.warn(
+              "Warning: failed to load clients:",
+              e instanceof Error ? e.message : e,
+            );
             clientsData = [];
           }
         }

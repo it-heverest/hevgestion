@@ -18,7 +18,6 @@ interface ValeurRow {
   label: string;
   yearN: string;
   yearN1: string;
-  variation: string;
 }
 
 const Note10: React.FC = () => {
@@ -40,20 +39,31 @@ const Note10: React.FC = () => {
   });
 
   const [valeurs, setValeurs] = useState<ValeurRow[]>([
-    { id: "1", label: "Effets à encaisser", yearN: "", yearN1: "", variation: "" },
-    { id: "2", label: "Effets à l'encaissement", yearN: "", yearN1: "", variation: "" },
-    { id: "3", label: "Chèques à encaisser", yearN: "", yearN1: "", variation: "" },
-    { id: "4", label: "Chèques à l'encaissement", yearN: "", yearN1: "", variation: "" },
-    { id: "5", label: "Cartes de crédit à encaisser", yearN: "", yearN1: "", variation: "" },
-    { id: "6", label: "Autres valeurs à encaisser", yearN: "", yearN1: "", variation: "" },
+    { id: "1", label: "Effets à encaisser", yearN: "", yearN1: "" },
+    { id: "2", label: "Effets à l'encaissement", yearN: "", yearN1: "" },
+    { id: "3", label: "Chèques à encaisser", yearN: "", yearN1: "" },
+    { id: "4", label: "Chèques à l'encaissement", yearN: "", yearN1: "" },
+    { id: "5", label: "Cartes de crédit à encaisser", yearN: "", yearN1: "" },
+    { id: "6", label: "Autres valeurs à encaisser", yearN: "", yearN1: "" },
   ]);
 
-  const [totalBrut, setTotalBrut] = useState({ yearN: "", yearN1: "", variation: "" });
+  const [totalBrut, setTotalBrut] = useState({ yearN: "", yearN1: "" });
   const [depreciations, setDepreciations] = useState<ValeurRow[]>([
-    { id: "d1", label: "Dépréciations des valeurs à encaisser", yearN: "", yearN1: "", variation: "" },
+    { id: "d1", label: "Dépréciations des valeurs à encaisser", yearN: "", yearN1: "" },
   ]);
-  const [totalNet, setTotalNet] = useState({ yearN: "", yearN1: "", variation: "" });
+  const [totalNet, setTotalNet] = useState({ yearN: "", yearN1: "" });
   const [comment, setComment] = useState("");
+
+  // Calculée à l'affichage, jamais stockée: "Variation en %" n'a de sens que
+  // comme pourcentage — un écart absolu envoyé par erreur sous cette
+  // étiquette (comme c'était le cas ici) affiche un nombre qui n'est
+  // manifestement pas un pourcentage.
+  const calculateVariation = (yearN: string, yearN1: string) => {
+    const n = parseFloat(yearN) || 0;
+    const n1 = parseFloat(yearN1) || 0;
+    if (n1 === 0) return "-";
+    return (((n - n1) / n1) * 100).toFixed(2) + "%";
+  };
 
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
@@ -71,23 +81,40 @@ const Note10: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "10") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.valeursAEncaisser) {
+        // Le backend (buildNoteRows) renvoie {label, yearN, yearN1} — mêmes
+        // noms de champs que l'état interne.
+        if (Array.isArray(noteData.valeursAEncaisser)) {
           setValeurs(
             noteData.valeursAEncaisser.map((r: any, i: number) => ({
               id: String(i + 1),
-              label: r.libelle || valeurs[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
-              variation: "",
+              label: r.label || valeurs[i]?.label || "",
+              yearN: String(r.yearN ?? ""),
+              yearN1: String(r.yearN1 ?? ""),
             }))
           );
-        } else if (noteData.valeurs) {
-          setValeurs(noteData.valeurs);
         }
-        if (noteData.totalBrut) setTotalBrut(noteData.totalBrut);
-        if (noteData.depreciations) setDepreciations(noteData.depreciations);
-        if (noteData.totalNet) setTotalNet(noteData.totalNet);
+        if (noteData.totalBrut) {
+          setTotalBrut({
+            yearN: String(noteData.totalBrut.yearN ?? ""),
+            yearN1: String(noteData.totalBrut.yearN1 ?? ""),
+          });
+        }
+        if (Array.isArray(noteData.depreciations) && noteData.depreciations[0]) {
+          setDepreciations([
+            {
+              id: "d1",
+              label: noteData.depreciations[0].label || depreciations[0].label,
+              yearN: String(noteData.depreciations[0].yearN ?? ""),
+              yearN1: String(noteData.depreciations[0].yearN1 ?? ""),
+            },
+          ]);
+        }
+        if (noteData.totalNet) {
+          setTotalNet({
+            yearN: String(noteData.totalNet.yearN ?? ""),
+            yearN1: String(noteData.totalNet.yearN1 ?? ""),
+          });
+        }
         setComment(noteData.comment || "");
       }
     } catch (error) {
@@ -101,15 +128,29 @@ const Note10: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Mêmes noms de champs qu'à la génération, pour un rechargement fidèle.
       const noteData = {
         entete,
         valeursAEncaisser: valeurs.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: null,
+          id: r.id,
+          label: r.label,
+          yearN: parseFloat(r.yearN) || 0,
+          yearN1: parseFloat(r.yearN1) || 0,
         })),
+        totalBrut: {
+          yearN: parseFloat(totalBrut.yearN) || 0,
+          yearN1: parseFloat(totalBrut.yearN1) || 0,
+        },
+        depreciations: depreciations.map((r) => ({
+          id: r.id,
+          label: r.label,
+          yearN: parseFloat(r.yearN) || 0,
+          yearN1: parseFloat(r.yearN1) || 0,
+        })),
+        totalNet: {
+          yearN: parseFloat(totalNet.yearN) || 0,
+          yearN1: parseFloat(totalNet.yearN1) || 0,
+        },
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "10", noteData as any);
@@ -250,7 +291,7 @@ const Note10: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
@@ -407,11 +448,7 @@ const Note10: React.FC = () => {
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-center">
-                  {renderEditableCell(
-                    row.variation,
-                    (val) => handleValeurChange(row.id, "variation", val),
-                    ""
-                  )}
+                  {calculateVariation(row.yearN, row.yearN1)}
                 </td>
               </tr>
             ))}
@@ -432,9 +469,7 @@ const Note10: React.FC = () => {
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-center">
-                {renderEditableCell(totalBrut.variation, (val) =>
-                  setTotalBrut({ ...totalBrut, variation: val })
-                )}
+                {calculateVariation(totalBrut.yearN, totalBrut.yearN1)}
               </td>
             </tr>
 
@@ -453,9 +488,7 @@ const Note10: React.FC = () => {
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-center">
-                  {renderEditableCell(row.variation, (val) =>
-                    handleDepreciationChange(row.id, "variation", val)
-                  )}
+                  {calculateVariation(row.yearN, row.yearN1)}
                 </td>
               </tr>
             ))}
@@ -476,9 +509,7 @@ const Note10: React.FC = () => {
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-center">
-                {renderEditableCell(totalNet.variation, (val) =>
-                  setTotalNet({ ...totalNet, variation: val })
-                )}
+                {calculateVariation(totalNet.yearN, totalNet.yearN1)}
               </td>
             </tr>
           </tbody>

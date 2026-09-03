@@ -2,9 +2,10 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { globalApiLimiter } from "./middleware/rateLimit";
 import cookieParser from "cookie-parser";
 import jwtBlacklistMiddleware from "./middleware/jwtBlacklist.middleware";
+import { authenticate } from "./middleware/auth.middleware";
 import * as path from "path";
 import * as fs from "fs";
 import { config } from "./config";
@@ -18,6 +19,7 @@ import dsfImportRoutes from "./routes/dsf-import.routes";
 import declarationRoutes from "./routes/declaration.routes";
 import dsfConfigRoutes from "./routes/dsf-config.routes";
 import assistantRoutes from "./routes/assistant.routes";
+import dsfAssistantRoutes from "./routes/dsf-assistant.routes";
 import auditRoutes from "./routes/audit.routes";
 import notesRoutes from "./routes/notes.routes";
 import dsfTemplateRoutes from "./routes/dsf-template.routes";
@@ -26,6 +28,8 @@ import notificationRoutes from "./routes/notification.routes";
 import redisRoutes from "./routes/redis.routes";
 import revueFiscalRoutes from "./routes/revue-fiscal.routes";
 import ventilationConfigRoutes from "./routes/ventilation-config.routes";
+import trashRoutes from "./routes/trash.routes";
+import invoiceScanRoutes from "./routes/invoice-scan.routes";
 import { SchedulerService } from "./services/scheduler.service";
 
 const app: Express = express();
@@ -39,14 +43,10 @@ app.use(
   }),
 );
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // Increased for development
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api/", limiter);
+// Rate limiting — global guard-rail. Per-endpoint auth limiters live in
+// auth.routes.ts. Default is env-tunable (RATE_LIMIT_GLOBAL_MAX): generous in
+// dev, tighter in prod. Backed by Redis when available (multi-instance safe).
+app.use("/api/", globalApiLimiter);
 
 // Body parsing
 app.use(express.json({ limit: "50mb" }));
@@ -101,9 +101,14 @@ if (!config.isProduction) {
   });
 }
 
-// Serve uploaded files - main uploads directory
+// Serve uploaded files - main uploads directory (auth required: these are
+// per-client balances/DSF exports, not public files)
 console.log(`📁 Serving files from: ${config.upload.directory}`);
-app.use("/api/files/download", express.static(config.upload.directory));
+app.use(
+  "/api/files/download",
+  authenticate,
+  express.static(config.upload.directory),
+);
 
 // Serve guides from assets/uploads/guides
 const guidesPath = path.join(
@@ -169,6 +174,7 @@ app.use("/api/dsf-import", dsfImportRoutes);
 app.use("/api/declarations", declarationRoutes);
 app.use("/api/dsf-configs", dsfConfigRoutes);
 app.use("/api/assistants", assistantRoutes);
+app.use("/api/assistant", dsfAssistantRoutes);
 // app.use("/api/reports", reportRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/notes", notesRoutes);
@@ -180,6 +186,8 @@ if (!config.isProduction) {
 }
 app.use("/api/revue-fiscal", revueFiscalRoutes);
 app.use("/api/ventilation-configs", ventilationConfigRoutes);
+app.use("/api/trash", trashRoutes);
+app.use("/api/invoice-scan", invoiceScanRoutes);
 // app.use("/api/dsf-mapping", dsfMappingRoutes);
 
 // Error handling

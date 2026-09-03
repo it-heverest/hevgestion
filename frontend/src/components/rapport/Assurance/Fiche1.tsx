@@ -63,7 +63,7 @@ const Fiche1: React.FC = () => {
         ref={reportRef}
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <style jsx>{`
+        <style>{`
           .dark-gray {
             background-color: #a9a9a9;
           }

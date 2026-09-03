@@ -2,15 +2,32 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../contexts/AppContext";
 import { clientService } from "../services/client.service";
-import { BalanceRow, normalizeRow } from "../types/balance.types";
+
+// This hook works with its own (French-named) row shape rather than the
+// canonical BalanceRow from types/balance.types — it's kept local and
+// exported under its own name so it doesn't get confused with (or silently
+// mismatched against) that type.
+export interface BalanceRow {
+  comptes: string;
+  libelle: string;
+  ouverture_debit: number;
+  ouverture_credit: number;
+  mouvement_debit: number;
+  mouvement_credit: number;
+  solde_debit: number;
+  solde_credit: number;
+  traitement: string;
+  sous_comptes?: BalanceRow[];
+}
 
 export interface ProcessedBalanceRow extends BalanceRow {
   traitement: string;
   sous_comptes?: ProcessedBalanceRow[];
 }
 
-export function useBalanceProcessor() {
+export function useBalanceProcessor(folderId?: string | null) {
   const { addToHistory } = useApp();
+  const [balanceId, setBalanceId] = useState<string | null>(null);
 
   // États
   const [currentStep, setCurrentStep] = useState(0);
@@ -92,40 +109,52 @@ export function useBalanceProcessor() {
   // Charger la balance depuis le backend
   useEffect(() => {
     loadBalanceFromBackend();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId]);
 
   const loadBalanceFromBackend = async () => {
     try {
-      // Balance ID is now managed by AppContext selections
-      // This will be passed as a prop or from context
-      const balanceId = null; // Will be updated when balance selection is implemented
-      if (balanceId) {
-        const balanceResponse = await clientService.getBalanceById(balanceId);
-        const balance = balanceResponse.balance;
+      if (!folderId) {
+        setBalanceId(null);
+        setBalanceData(getDefaultBalanceData());
+        return;
+      }
+
+      const balancesResponse = await clientService.getBalancesByFolder(folderId);
+      const balances: any[] = balancesResponse?.balances || [];
+      const currentBalance = balances.find(
+        (b) => b.type === "CURRENT_YEAR" && !b.archived,
+      );
+
+      if (currentBalance) {
+        setBalanceId(currentBalance.id);
 
         // Convert backend data to BalanceRow format
-        const balanceRows: BalanceRow[] = (balance.originalData?.rows || []).map(
-          (row: any) => ({
-            comptes: row.accountNumber || row.comptes || "",
-            libelle: row.accountName || row.libelle || "",
-            ouverture_debit: Number(row.openingDebit || row.ouverture_debit) || 0,
-            ouverture_credit: Number(row.openingCredit || row.ouverture_credit) || 0,
-            mouvement_debit: Number(row.movementDebit || row.mouvement_debit) || 0,
-            mouvement_credit: Number(row.movementCredit || row.mouvement_credit) || 0,
-            solde_debit: Number(row.closingDebit || row.solde_debit) || 0,
-            solde_credit: Number(row.closingCredit || row.solde_credit) || 0,
-            traitement: "Aucun",
-          })
-        );
+        const balanceRows: BalanceRow[] = (
+          currentBalance.originalData?.rows || []
+        ).map((row: any) => ({
+          comptes: row.accountNumber || row.comptes || "",
+          libelle: row.accountName || row.libelle || "",
+          ouverture_debit: Number(row.openingDebit || row.ouverture_debit) || 0,
+          ouverture_credit: Number(row.openingCredit || row.ouverture_credit) || 0,
+          mouvement_debit: Number(row.movementDebit || row.mouvement_debit) || 0,
+          mouvement_credit: Number(row.movementCredit || row.mouvement_credit) || 0,
+          solde_debit: Number(row.closingDebit || row.solde_debit) || 0,
+          solde_credit: Number(row.closingCredit || row.solde_credit) || 0,
+          traitement: "Aucun",
+        }));
 
         setBalanceData(balanceRows);
 
         // Load issues if any
-        const issuesResponse = await clientService.getBalanceIssues(balanceId);
-        setBalanceIssues(issuesResponse.issues);
+        const issuesResponse = await clientService.getBalanceIssues(
+          currentBalance.id,
+        );
+        setBalanceIssues(issuesResponse.issues || []);
 
         addToHistory("Chargement", "Balance chargée depuis le backend");
       } else {
+        setBalanceId(null);
         // Load default balance data for demonstration
         setBalanceData(getDefaultBalanceData());
       }
@@ -301,8 +330,6 @@ export function useBalanceProcessor() {
   // Vérifier l'équilibre de la balance
   const checkBalanceEquilibrium = async () => {
     try {
-      // Balance ID will be passed from context or props
-      const balanceId = null; // Will be updated when balance selection is implemented
       if (!balanceId) {
         throw new Error("Aucun ID de balance trouvé");
       }
@@ -334,8 +361,6 @@ export function useBalanceProcessor() {
   // Ventiler les comptes
   const ventilateAccounts = async () => {
     try {
-      // Balance ID will be passed from context or props
-      const balanceId = null; // Will be updated when balance selection is implemented
       if (!balanceId) {
         throw new Error("Aucun ID de balance trouvé");
       }
@@ -362,8 +387,6 @@ export function useBalanceProcessor() {
   // Appliquer les ajustements comptables
   const applyAccountingAdjustments = async () => {
     try {
-      // Balance ID will be passed from context or props
-      const balanceId = null; // Will be updated when balance selection is implemented
       if (!balanceId) {
         throw new Error("Aucun ID de balance trouvé");
       }

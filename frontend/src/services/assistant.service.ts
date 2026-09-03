@@ -47,7 +47,11 @@ export interface FolderAssignment {
 }
 
 class AssistantService {
-  private baseURL = "http://localhost:5000/api/assistants";
+  // Chemin relatif: passe par le proxy Vite (/api -> backend), ce qui
+  // fonctionne aussi bien en localhost qu'en accédant via l'IP réseau de la
+  // machine (http://192.168.x.x:3000) — un hôte codé en dur ne
+  // fonctionnerait que depuis la machine qui héberge le backend elle-même.
+  private baseURL = "/api/assistants";
 
   async getAssistants(): Promise<Assistant[]> {
     try {

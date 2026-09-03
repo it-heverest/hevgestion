@@ -122,27 +122,35 @@ const Note3D: React.FC = () => {
       if (noteData.comment) setComment(noteData.comment);
       if (noteData.justification) setJustification(noteData.justification);
 
-      const data = noteData.immobilisations || [];
-      const rows: AssetRow[] = [];
-      const filterLabels = [
-        "SOUS TOTAL : IMMOBILISATIONS INCORPORELLES",
-        "SOUS TOTAL : IMMOBILISATIONS CORPORELLES",
-        "SOUS TOTAL : IMMOBILISATIONS FINANCIERES"
-      ];
+      // C = A - B et E = D - C sont toujours recalculées ici, jamais lues
+      // telles quelles depuis le backend (qui ne les stocke plus).
+      const toAssetRow = (row: any, id: string): AssetRow => {
+        const grossAmount = Number(row.montantBrut) || 0;
+        const amortizations = Number(row.amortissementsPratiques) || 0;
+        const sellingPrice = Number(row.prixCessions) || 0;
+        const netValue = grossAmount - amortizations;
+        return {
+          id,
+          label: row.libelle || "",
+          grossAmount,
+          amortizations,
+          netValue,
+          sellingPrice,
+          gainsLosses: sellingPrice - netValue,
+        };
+      };
 
-      data.forEach((row: any) => {
-        if (!filterLabels.includes(row.libelle)) {
-          rows.push({
-            id: (rows.length + 1).toString(),
-            label: row.libelle || "",
-            grossAmount: Number(row.montantBrut) || 0,
-            amortizations: Number(row.amortissementsPratiques) || 0,
-            netValue: Number(row.valeurComptableNette) || 0,
-            sellingPrice: Number(row.prixCessions) || 0,
-            gainsLosses: Number(row.plusOuMoinsValues) || 0,
-          });
-        }
-      });
+      const rows: AssetRow[] = [
+        ...(noteData.immobilisationsIncorporelles || []).map((r: any, i: number) =>
+          toAssetRow(r, incorporelIds[i]),
+        ),
+        ...(noteData.immobilisationsCorporelles || []).map((r: any, i: number) =>
+          toAssetRow(r, corporelIds[i]),
+        ),
+        ...(noteData.immobilisationsFinancieres || []).map((r: any, i: number) =>
+          toAssetRow(r, financierIds[i]),
+        ),
+      ];
 
       setAssetData(rows);
     } catch (error) {
@@ -165,23 +173,22 @@ const Note3D: React.FC = () => {
         libelle: row.label,
         montantBrut: row.grossAmount,
         amortissementsPratiques: row.amortizations,
-        valeurComptableNette: row.netValue,
         prixCessions: row.sellingPrice,
-        plusOuMoinsValues: row.gainsLosses,
       });
 
       const noteData = {
         entete: headerInfo,
         comment,
         justification,
-        immobilisations: [
-          ...assetData.filter(r => incorporelIds.includes(r.id)).map(toApiFormat),
-          { libelle: "SOUS TOTAL : IMMOBILISATIONS INCORPORELLES", montantBrut: subTotalIncorporel.grossAmount, amortissementsPratiques: subTotalIncorporel.amortizations, valeurComptableNette: subTotalIncorporel.netValue, prixCessions: subTotalIncorporel.sellingPrice, plusOuMoinsValues: subTotalIncorporel.gainsLosses },
-          ...assetData.filter(r => corporelIds.includes(r.id)).map(toApiFormat),
-          { libelle: "SOUS TOTAL : IMMOBILISATIONS CORPORELLES", montantBrut: subTotalCorporel.grossAmount, amortissementsPratiques: subTotalCorporel.amortizations, valeurComptableNette: subTotalCorporel.netValue, prixCessions: subTotalCorporel.sellingPrice, plusOuMoinsValues: subTotalCorporel.gainsLosses },
-          ...assetData.filter(r => financierIds.includes(r.id)).map(toApiFormat),
-          { libelle: "SOUS TOTAL : IMMOBILISATIONS FINANCIERES", montantBrut: subTotalFinancier.grossAmount, amortissementsPratiques: subTotalFinancier.amortizations, valeurComptableNette: subTotalFinancier.netValue, prixCessions: subTotalFinancier.sellingPrice, plusOuMoinsValues: subTotalFinancier.gainsLosses },
-        ]
+        immobilisationsIncorporelles: assetData
+          .filter((r) => incorporelIds.includes(r.id))
+          .map(toApiFormat),
+        immobilisationsCorporelles: assetData
+          .filter((r) => corporelIds.includes(r.id))
+          .map(toApiFormat),
+        immobilisationsFinancieres: assetData
+          .filter((r) => financierIds.includes(r.id))
+          .map(toApiFormat),
       };
 
       console.log("📤 Sending Note 3D data:", noteData);
@@ -337,9 +344,6 @@ const Note3D: React.FC = () => {
 
   const renderAssetRow = (row: AssetRow) => (
     <tr key={row.id}>
-      <td className="border border-gray-400 p-1 pl-2 font-bold text-xs text-center bg-gray-50">
-        {row.id}
-      </td>
       <td className="border border-gray-400 p-1 pl-2 text-xs">{row.label}</td>
       {/* Montant Brut (A) */}
       <td className="border border-gray-400 p-1 text-right">
@@ -409,7 +413,7 @@ const Note3D: React.FC = () => {
     data: { [key in keyof AssetRow]?: number }
   ) => (
     <tr className="bg-gray-300 font-bold h-7 border-t border-black">
-      <td colSpan={2} className="border border-gray-400 p-1 pl-2 text-[10px] uppercase">
+      <td className="border border-gray-400 p-1 pl-2 text-[10px] uppercase">
         {title}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -609,38 +613,26 @@ const Note3D: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
             <thead>
-              <tr className="bg-gray-700 text-white">
-                <th
-                  rowSpan={2}
-                  className="border border-gray-600 p-1 w-[5%]"
-                ></th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[25%] font-bold">
-                  Désignation
-                </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[14%] font-bold">
+              <tr className="bg-gray-300">
+                <th className="border border-gray-400 p-1 w-[30%] font-bold"></th>
+                <th className="border border-gray-400 p-1 w-[14%] font-bold">
                   MONTANT BRUT <br /> A
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[14%] font-bold">
-                  AMORTISSEMENTS PRATIQUES <br /> B
+                <th className="border border-gray-400 p-1 w-[14%] font-bold">
+                  AMORTISSEMENTS <br /> PRATIQUES
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[14%] font-bold">
-                  VALEUR COMPTABLE NETTE <br /> C = A - B
+                <th className="border border-gray-400 p-1 w-[14%] font-bold">
+                  VALEUR COMPTABLE <br /> NETTE C = A - B
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[14%] font-bold">
-                  PRIX DE CESSION <br /> D
+                <th className="border border-gray-400 p-1 w-[14%] font-bold">
+                  PRIX DE <br /> CESSIONS D
                 </th>
-                <th rowSpan={2} className="border border-gray-600 p-1 w-[14%] font-bold">
-                  PLUS-VALUES OU MOINS-VALUES <br /> E = D - C
+                <th className="border border-gray-400 p-1 w-[14%] font-bold">
+                  PLUS-VALUES OU <br /> MOINS-VALUES E= D-C
                 </th>
               </tr>
             </thead>
             <tbody>
-              {/* 1. IMMOBILISATIONS INCORPORELLES */}
-              <tr className="bg-gray-100 font-bold border-t border-black">
-                <td colSpan={7} className="border border-gray-400 p-1 pl-2 uppercase">
-                  IMMOBILISATIONS INCORPORELLES
-                </td>
-              </tr>
               {assetData
                 .filter((row) => incorporelIds.includes(row.id))
                 .map(renderAssetRow)}
@@ -649,17 +641,6 @@ const Note3D: React.FC = () => {
                 subTotalIncorporel
               )}
 
-              {/* Ligne vide de séparation */}
-              <tr>
-                <td colSpan={7} className="h-2 border-x border-gray-400"></td>
-              </tr>
-
-              {/* 2. IMMOBILISATIONS CORPORELLES */}
-              <tr className="bg-gray-100 font-bold border-t border-gray-400">
-                <td colSpan={7} className="border border-gray-400 p-1 pl-2 uppercase">
-                  IMMOBILISATIONS CORPORELLES
-                </td>
-              </tr>
               {assetData
                 .filter((row) => corporelIds.includes(row.id))
                 .map(renderAssetRow)}
@@ -668,51 +649,32 @@ const Note3D: React.FC = () => {
                 subTotalCorporel
               )}
 
-              {/* Ligne vide de séparation */}
-              <tr>
-                <td colSpan={7} className="h-2 border-x border-gray-400"></td>
-              </tr>
-
-              {/* 3. IMMOBILISATIONS FINANCIÈRES */}
-              <tr className="bg-gray-100 font-bold border-t border-gray-400">
-                <td colSpan={7} className="border border-gray-400 p-1 pl-2 uppercase">
-                  IMMOBILISATIONS FINANCIÈRES
-                </td>
-              </tr>
               {assetData
                 .filter((row) => financierIds.includes(row.id))
                 .map(renderAssetRow)}
               {renderSubTotalRow(
-                "SOUS TOTAL : IMMOBILISATIONS FINANCIÈRES",
+                "SOUS TOTAL : IMMOBILISATIONS FINANCIERES",
                 subTotalFinancier
               )}
 
               {/* TOTAL GÉNÉRAL */}
-              <tr className="bg-gray-700 text-white font-extrabold text-[11px] h-8 border-t-2 border-black">
-                <td
-                  colSpan={2}
-                  className="border border-gray-600 p-2 text-center uppercase"
-                >
+              <tr className="bg-gray-500 text-black font-bold h-8 border-t-2 border-black">
+                <td className="border border-gray-400 p-2 text-center uppercase">
                   TOTAL GENERAL
                 </td>
-                <td className="border border-gray-600 p-2 text-right">
+                <td className="border border-gray-400 p-2 text-right">
                   {totalGeneral.grossAmount.toLocaleString("fr-FR")}
                 </td>
-                <td className="border border-gray-600 p-2 text-right">
+                <td className="border border-gray-400 p-2 text-right">
                   {totalGeneral.amortizations.toLocaleString("fr-FR")}
                 </td>
-                <td className="border border-gray-600 p-2 text-right bg-gray-600">
+                <td className="border border-gray-400 p-2 text-right">
                   {totalGeneral.netValue.toLocaleString("fr-FR")}
                 </td>
-                <td className="border border-gray-600 p-2 text-right">
+                <td className="border border-gray-400 p-2 text-right">
                   {totalGeneral.sellingPrice.toLocaleString("fr-FR")}
                 </td>
-                <td
-                  className={`border border-gray-600 p-2 text-right ${totalGeneral.gainsLosses > 0
-                    ? "text-green-400"
-                    : "text-red-400"
-                    }`}
-                >
+                <td className="border border-gray-400 p-2 text-right">
                   {totalGeneral.gainsLosses.toLocaleString("fr-FR")}
                 </td>
               </tr>

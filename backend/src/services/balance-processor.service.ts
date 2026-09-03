@@ -310,10 +310,25 @@ export class BalanceProcessor {
 
     const tolerance = 0.01;
 
+    // Toute balance doit être équilibrée: la seule dispense concerne la
+    // balance N-1 dont les colonnes d'ouverture n'ont pas été renseignées.
+    // Elle sert alors de position de début d'exercice et n'a pas d'exercice
+    // antérieur à reprendre; exiger l'équilibre d'un bloc vide produirait une
+    // anomalie sans objet. Dès que des ouvertures sont fournies, ce sont des
+    // données comptables comme les autres et elles doivent s'équilibrer.
+    const hasOpeningData =
+      openingDebit15 !== 0 ||
+      openingCredit15 !== 0 ||
+      openingDebit68 !== 0 ||
+      openingCredit68 !== 0;
+    const skipOpeningCheck =
+      balance.type === BalanceType.PREVIOUS_YEAR && !hasOpeningData;
+
     // Opening equilibrium
     const openingX = openingDebit15 - openingCredit15;
     const openingY = openingCredit68 - openingDebit68;
-    const openingBalanced = Math.abs(openingX - openingY) < tolerance;
+    const openingBalanced =
+      skipOpeningCheck || Math.abs(openingX - openingY) < tolerance;
 
     // Movement equilibrium
     const movementX = movementDebit15 - movementCredit15;

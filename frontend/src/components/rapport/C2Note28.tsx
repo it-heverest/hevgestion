@@ -234,7 +234,7 @@ const C2Note28: React.FC = () => {
   ]);
 
   // Calculs des totaux
-  const calcColumn = (field: keyof DotationRow) =>
+  const calcColumn = (field: Exclude<keyof DotationRow, "id" | "label">) =>
     rows.reduce((acc, r) => acc + r[field], 0);
 
   const exploitationDeductibleTotal = calcColumn("exploitationDeductible");
@@ -478,7 +478,7 @@ const C2Note28: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">43</div>

@@ -1,7 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { notesService } from "../../services/notes.service";
+import { useApp } from "../../contexts/AppContext";
 
 // --- Interfaces pour la FICHE R3 (Basé sur l'image) ---
 
@@ -31,52 +34,178 @@ interface ConseilRow {
 
 // --- Composant Principal (FICHE R3) ---
 
+// Nombre de lignes de l'imprimé officiel: dirigeants en lignes 11 à 23,
+// membres du conseil d'administration en lignes 33 à 43.
+const DIRIGEANT_ROWS = 13;
+const CONSEIL_ROWS = 11;
+
+const emptyDirigeants = (): DirigeantRow[] =>
+  Array.from({ length: DIRIGEANT_ROWS }, (_, i) => ({
+    id: i + 1,
+    nom: "",
+    prenom: "",
+    qualite: "",
+    nIdFiscale: "",
+    adresse: "",
+  }));
+
+const emptyConseil = (): ConseilRow[] =>
+  Array.from({ length: CONSEIL_ROWS }, (_, i) => ({
+    id: i + 1,
+    nom: "",
+    prenom: "",
+    qualite: "",
+    adresse: "",
+  }));
+
 const FicheR3: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get("folderId");
+
+  const { selectedFolder, selectedClient } = useApp();
+  const folderId = folderIdFromUrl || selectedFolder?.id;
+
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // En-tête
   const [headerInfo, setHeaderInfo] = useState<HeaderDataR3>({
-    entityName: "NASHSOFT SYSTEMS",
-    fiscalYearEnd: "2024",
-    idNumber: "RC/DLA/2024/B/123",
+    entityName: "",
+    fiscalYearEnd: "",
+    idNumber: "",
     duration: "12",
   });
 
-  // Données Dirigeants (Pré-remplissage pour l'exemple, et ajout de 8 lignes vides)
-  const [dirigeants, setDirigeants] = useState<DirigeantRow[]>([
-    {
-      id: 1,
-      nom: "DOE",
-      prenom: "John",
-      qualite: "Président Directeur Général",
-      nIdFiscale: "123456789",
-      adresse: "BP 100, Yaoundé, Cameroun",
-    },
-    ...Array(7)
-      .fill(null)
-      .map((_, i) => ({
-        id: i + 2,
-        nom: "",
-        prenom: "",
-        qualite: "",
-        nIdFiscale: "",
-        adresse: "",
-      })),
-  ]);
+  const [dirigeants, setDirigeants] = useState<DirigeantRow[]>(emptyDirigeants());
+  const [conseil, setConseil] = useState<ConseilRow[]>(emptyConseil());
 
-  // Données Conseil d'Administration (Ajout de 10 lignes vides)
-  const [conseil, setConseil] = useState<ConseilRow[]>([
-    ...Array(10)
-      .fill(null)
-      .map((_, i) => ({
-        id: i + 1,
-        nom: "",
-        prenom: "",
-        qualite: "",
-        adresse: "",
-      })),
-  ]);
+  // 🔥 Chargement depuis le backend (colonne fiche3 du modèle DSF)
+  const loadNoteData = useCallback(async () => {
+    if (!folderId) return;
+    try {
+      setIsLoading(true);
+      const data = (await notesService.getNoteData(folderId, "R3")) as any;
+      if (!data) return;
+
+      if (data.entete) {
+        setHeaderInfo({
+          entityName: data.entete.entityName || "",
+          fiscalYearEnd: data.entete.fiscalYear || "",
+          idNumber: data.entete.idNumber || "",
+          duration: data.entete.duration || "12",
+        });
+      }
+
+      // Le nombre de lignes de l'imprimé est toujours respecté, quel que soit
+      // le nombre de lignes renseignées.
+      if (Array.isArray(data.dirigeants)) {
+        const rows = emptyDirigeants();
+        data.dirigeants.slice(0, DIRIGEANT_ROWS).forEach((r: any, i: number) => {
+          rows[i] = {
+            id: i + 1,
+            nom: r.nom ?? "",
+            prenom: r.prenom ?? "",
+            qualite: r.qualite ?? "",
+            nIdFiscale: r.nIdFiscale ?? "",
+            adresse: r.adresse ?? "",
+          };
+        });
+        setDirigeants(rows);
+      }
+
+      if (Array.isArray(data.conseilAdministration)) {
+        const rows = emptyConseil();
+        data.conseilAdministration
+          .slice(0, CONSEIL_ROWS)
+          .forEach((r: any, i: number) => {
+            rows[i] = {
+              id: i + 1,
+              nom: r.nom ?? "",
+              prenom: r.prenom ?? "",
+              qualite: r.qualite ?? "",
+              adresse: r.adresse ?? "",
+            };
+          });
+        setConseil(rows);
+      }
+    } catch (error) {
+      console.error("Erreur chargement Fiche R3:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [folderId]);
+
+  useEffect(() => {
+    loadNoteData();
+  }, [loadNoteData]);
+
+  // Pré-remplissage de l'en-tête depuis le dossier courant si la fiche est vierge.
+  useEffect(() => {
+    if (selectedClient && selectedFolder && !headerInfo.entityName) {
+      setHeaderInfo((prev) => ({
+        ...prev,
+        entityName: selectedClient.name || "",
+        fiscalYearEnd: selectedFolder.fiscalYear?.toString() || "",
+        idNumber: selectedClient.taxNumber || "",
+        duration: prev.duration || "12",
+      }));
+    }
+  }, [selectedClient, selectedFolder, headerInfo.entityName]);
+
+  // 🔥 Sauvegarde
+  const saveNoteData = async () => {
+    if (!folderId) {
+      alert("Veuillez sélectionner un dossier");
+      return;
+    }
+    try {
+      setIsSaving(true);
+      const payload = {
+        entete: {
+          entityName: headerInfo.entityName,
+          fiscalYear: headerInfo.fiscalYearEnd,
+          idNumber: headerInfo.idNumber,
+          duration: headerInfo.duration,
+        },
+        title:
+          "FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 3 - DIRIGEANTS",
+        dirigeants: dirigeants.map((r) => ({
+          id: String(r.id),
+          nom: r.nom,
+          prenom: r.prenom,
+          qualite: r.qualite,
+          nIdFiscale: r.nIdFiscale,
+          adresse: r.adresse,
+        })),
+        conseilAdministration: conseil.map((r) => ({
+          id: String(r.id),
+          nom: r.nom,
+          prenom: r.prenom,
+          qualite: r.qualite,
+          adresse: r.adresse,
+        })),
+      };
+
+      const saved = await notesService.saveNoteData(
+        folderId,
+        "R3",
+        payload as any,
+      );
+      if (saved) {
+        alert("✅ Fiche R3 sauvegardée");
+        setIsEditing(false);
+      } else {
+        throw new Error("Échec de la sauvegarde");
+      }
+    } catch (error) {
+      console.error("Erreur sauvegarde Fiche R3:", error);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // --- Handlers de changement ---
 
@@ -254,6 +383,17 @@ const FicheR3: React.FC = () => {
     </tr>
   );
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4" />
+          <p className="text-gray-600">Chargement des données...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
@@ -264,14 +404,15 @@ const FicheR3: React.FC = () => {
         </h1>
         <div className="flex gap-3">
           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
+            onClick={isEditing ? saveNoteData : () => setIsEditing(true)}
+            disabled={isSaving}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition disabled:opacity-60 ${
               isEditing ? "bg-green-600" : "bg-orange-600"
             }`}
           >
             {isEditing ? (
               <>
-                <Save size={18} /> Sauvegarder
+                <Save size={18} /> {isSaving ? "Sauvegarde..." : "Sauvegarder"}
               </>
             ) : (
               <>
@@ -279,6 +420,14 @@ const FicheR3: React.FC = () => {
               </>
             )}
           </button>
+          {isEditing && (
+            <button
+              onClick={() => setIsEditing(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+            >
+              Annuler
+            </button>
+          )}
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
@@ -291,8 +440,11 @@ const FicheR3: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 text-[10px] border border-black"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 text-[10px] border border-black"
       >
+        {/* Numéro de page */}
+        <div className="text-center font-bold text-lg mb-1">3</div>
+
         {/* En-tête (Lignes 1-7) */}
         <div className="text-center font-bold text-lg mb-4">FICHE R3</div>
 
@@ -395,22 +547,14 @@ const FicheR3: React.FC = () => {
                 Qualité
               </th>
               <th className="border border-black p-1 w-[20%] text-center">
-                N° d'identification fiscale
+                N° d'identification
               </th>
               <th className="border border-black p-1 w-[25%] text-center">
                 Adresse (BP, ville, pays)
               </th>
             </tr>
           </thead>
-          <tbody>
-            {dirigeants.map(renderDirigeantRow)}
-            {/* Ligne vide finale (pour simuler la ligne 23) */}
-            <tr>
-              <td colSpan={5} className="p-1 border-x border-black h-4">
-                &nbsp;
-              </td>
-            </tr>
-          </tbody>
+          <tbody>{dirigeants.map(renderDirigeantRow)}</tbody>
         </table>
 
         {/* Légende Dirigeants (Ligne 24-25) */}
@@ -442,25 +586,7 @@ const FicheR3: React.FC = () => {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {conseil.map(renderConseilRow)}
-            {/* Remplir les lignes restantes pour atteindre la hauteur visuelle du modèle */}
-            <tr>
-              <td colSpan={4} className="p-1 border-x border-black h-4">
-                &nbsp;
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={4} className="p-1 border-x border-black h-4">
-                &nbsp;
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={4} className="p-1 border-x border-black h-4">
-                &nbsp;
-              </td>
-            </tr>
-          </tbody>
+          <tbody>{conseil.map(renderConseilRow)}</tbody>
         </table>
 
         {/* Espace pour remplir la page (simulation de mise en page) */}

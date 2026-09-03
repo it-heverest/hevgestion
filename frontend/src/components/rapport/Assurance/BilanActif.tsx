@@ -63,7 +63,7 @@ const BilanActif: React.FC = () => {
         ref={reportRef}
         className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <style jsx>{`
+        <style>{`
           .dark-gray {
             background-color: #404040;
             color: white;

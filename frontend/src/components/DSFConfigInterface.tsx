@@ -1126,10 +1126,10 @@ export default function DSFConfigInterface() {
         }));
 
       const updateData = {
-        accountMappings: configMappings,
+        config: { accountMappings: configMappings },
       };
 
-        await dsfConfigService.updateConfig(mapping.configId, updateData);
+      await dsfConfigService.updateConfig(mapping.configId, updateData);
       await loadMappings();
       stopEditing();
     } catch (err: any) {
@@ -1150,16 +1150,18 @@ export default function DSFConfigInterface() {
       try {
         // Remove from accountMappings array
         const updateData = {
-          accountMappings: mappings
-            .filter((_, i) => i !== rowIndex)
-            .map((m) => ({
-              accountNumber: m.accountNumber,
-              source: m.source,
-              destination: m.destination,
-            })),
+          config: {
+            accountMappings: mappings
+              .filter((_, i) => i !== rowIndex)
+              .map((m) => ({
+                accountNumber: m.accountNumber,
+                source: m.source,
+                destination: m.destination,
+              })),
+          },
         };
 
-      await dsfConfigService.updateConfig(mapping.configId, updateData);
+        await dsfConfigService.updateConfig(mapping.configId, updateData);
         await loadMappings();
       } catch (err: any) {
         console.error("Error deleting mapping:", err);
@@ -1293,7 +1295,7 @@ export default function DSFConfigInterface() {
             if (existingConfigs.length > 0) {
               // Update existing config
               await dsfConfigService.updateConfig(existingConfigs[0].id, {
-                accountMappings: mappings,
+                config: { accountMappings: mappings },
               });
             } else {
               // Create new config
@@ -1301,7 +1303,7 @@ export default function DSFConfigInterface() {
                 category: reportType,
                 codeDsf: `${reportType}_001`,
                 libelle: `Configuration ${reportType}`,
-                accountMappings: mappings,
+                config: { accountMappings: mappings },
                 clientId: selectedFolder?.clientId,
                 exerciseId: selectedFolder?.id,
               });
@@ -1361,7 +1363,7 @@ export default function DSFConfigInterface() {
             if (existingConfigs.length > 0) {
               // Update existing config
               await dsfConfigService.updateConfig(existingConfigs[0].id, {
-                accountMappings: mappings,
+                config: { accountMappings: mappings },
               });
             } else {
               // Create new config
@@ -1369,7 +1371,7 @@ export default function DSFConfigInterface() {
                 category: reportType,
                 codeDsf: `${reportType}_template`,
                 libelle: `Configuration ${reportType} - Modèle`,
-                accountMappings: mappings,
+                config: { accountMappings: mappings },
                 clientId: selectedFolder?.clientId,
                 exerciseId: selectedFolder?.id,
               });

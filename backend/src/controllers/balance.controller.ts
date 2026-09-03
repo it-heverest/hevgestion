@@ -10,6 +10,7 @@ import { planComptableService } from "../services/plan-comptable.service";
 import * as path from "path";
 import { config } from "../config";
 import { auditService } from "../services/audit.service";
+import { trashService } from "../services/trash.service";
 
 class BalanceController {
   private balanceProcessor: BalanceProcessor;
@@ -144,22 +145,16 @@ class BalanceController {
       console.log("Existing balance:", existingBalance);
 
       if (existingBalance) {
-        // Allow replacement of existing balance
+        // Remplacement d'une balance existante: l'ancienne version part en
+        // corbeille au lieu d'être perdue, elle reste restaurable par un
+        // administrateur si le nouvel import s'avère erroné.
         console.log("Replacing existing balance:", existingBalance.id);
-        // Delete related records first to avoid foreign key constraint violations
-        await prisma.accountIssue.deleteMany({
-          where: { balanceId: existingBalance.id },
-        });
-        await prisma.fixedAsset.deleteMany({
-          where: { balanceId: existingBalance.id },
-        });
-        await prisma.balanceEquilibrium.deleteMany({
-          where: { balanceId: existingBalance.id },
-        });
-        // Now delete the existing balance
-        await prisma.balance.delete({
-          where: { id: existingBalance.id },
-        });
+        await trashService.archiveAndDelete(
+          "Balance",
+          existingBalance.id,
+          req.user!.userId,
+          "Remplacée par un nouvel import"
+        );
       }
 
       // Read and parse Excel file (skipped when syncing N-1 from previous year)
@@ -509,7 +504,8 @@ class BalanceController {
         mainAccountNumber: string;
         allocations: Array<{
           accountNumber: string;
-          amount: number;
+          movementDebit?: number;
+          movementCredit?: number;
           openingDebit?: number;
           openingCredit?: number;
         }>;
@@ -596,37 +592,50 @@ class BalanceController {
       // The main account's own opening + movement must reconcile with its
       // closing before it can be split; otherwise the inconsistency would
       // silently propagate into the newly created sub-accounts.
+      //
+      // Reconciled on the NET balance (debit - credit), not on debit and
+      // credit independently — checking the two sides separately produces
+      // false positives for any row with a legitimate cross-side movement,
+      // e.g. an asset disposal booked as a movementCredit on a debit-normal
+      // account, which nets against the debit balance rather than requiring
+      // a matching closingCredit. Mirrors the same fix in BalanceImporter.tsx
+      // (getRowCoherenceIssue).
       const mainOpeningDebit = Number(mainRow.openingDebit) || 0;
       const mainOpeningCredit = Number(mainRow.openingCredit) || 0;
       const mainMovementDebit = Number(mainRow.movementDebit) || 0;
       const mainMovementCredit = Number(mainRow.movementCredit) || 0;
       const mainClosingDebit = Number(mainRow.closingDebit) || 0;
       const mainClosingCredit = Number(mainRow.closingCredit) || 0;
-      if (
-        Math.abs(mainOpeningDebit + mainMovementDebit - mainClosingDebit) > 0.01 ||
-        Math.abs(mainOpeningCredit + mainMovementCredit - mainClosingCredit) > 0.01
-      ) {
+      const mainNetOpening = mainOpeningDebit - mainOpeningCredit;
+      const mainNetMovement = mainMovementDebit - mainMovementCredit;
+      const mainNetClosing = mainClosingDebit - mainClosingCredit;
+      if (Math.abs(mainNetOpening + mainNetMovement - mainNetClosing) > 0.01) {
         throw new BadRequestError(
           `Le compte ${mainAccountNumber} n'est pas cohérent (ouverture + mouvement ≠ clôture) ; corrigez la balance avant de ventiler`,
         );
       }
 
-      // Calculate total balance amount to validate
-      const totalBalance =
-        (Number(mainRow.closingDebit) || 0) - (Number(mainRow.closingCredit) || 0);
-      const allocatedSum = allocations.reduce(
-        (sum, a) => sum + (Number(a.amount) || 0),
-        0,
-      );
-      if (Math.abs(allocatedSum - Math.abs(totalBalance)) > 0.01) {
+      // The sum of the sub-accounts' resulting CLOSING balances (opening +
+      // movement, net) must equal the main account's own net closing —
+      // splitting an account can't change its overall ending balance.
+      // Movement alone isn't enough to check: opening is independently
+      // editable per sub-account now, so a sub can legitimately carry its
+      // own full opening while its movement only covers part of the change
+      // (e.g. a disposal booked entirely as movementCredit on top of a full
+      // opening carry-forward).
+      const totalBalance = mainNetClosing;
+      const allocatedSum = allocations.reduce((sum, a) => {
+        const openingNet = (Number(a.openingDebit) || 0) - (Number(a.openingCredit) || 0);
+        const movementNet =
+          (Number(a.movementDebit) || 0) - (Number(a.movementCredit) || 0);
+        return sum + openingNet + movementNet;
+      }, 0);
+      if (Math.abs(allocatedSum - totalBalance) > 0.01) {
         throw new BadRequestError(
-          `Les montants alloués doivent totaliser ${Math.abs(totalBalance).toLocaleString()}`,
+          `Les soldes de clôture des sous-comptes doivent totaliser ${Math.abs(totalBalance).toLocaleString()}`,
         );
       }
 
-      // The main account's balance sits on whichever side carries its net
-      // total; allocated amounts are booked as movement on that same side.
-      const isDebitSide = totalBalance >= 0;
       const allocatedAccountNumbers = new Set(
         allocations.map((a) => a.accountNumber),
       );
@@ -676,10 +685,10 @@ class BalanceController {
           allocation.openingCredit ?? Number(existing?.openingCredit) ?? 0;
         const movementDebit =
           (Number(existing?.movementDebit) || 0) +
-          (isDebitSide ? allocation.amount : 0);
+          (Number(allocation.movementDebit) || 0);
         const movementCredit =
           (Number(existing?.movementCredit) || 0) +
-          (isDebitSide ? 0 : allocation.amount);
+          (Number(allocation.movementCredit) || 0);
 
         return {
           accountNumber: sub.accountNumber,
@@ -773,10 +782,15 @@ class BalanceController {
 
       const balance = await prisma.balance.findUnique({
         where: { id },
+        include: { folder: true },
       });
 
       if (!balance) {
         throw new NotFoundError("Balance not found");
+      }
+
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
       }
 
       // Perform ventilation (breakdown of accounts)
@@ -794,6 +808,20 @@ class BalanceController {
   async getVentilationLogs(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
+
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
+
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
+
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
       const logs = await prisma.ventilationLog.findMany({
         where: { balanceId: id },
         orderBy: { appliedAt: 'desc' },
@@ -876,6 +904,19 @@ class BalanceController {
     try {
       const { id } = req.params;
 
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
+
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
+
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
       const issues = await prisma.accountIssue.findMany({
         where: { balanceId: id },
         orderBy: [{ severity: "desc" }, { isResolved: "asc" }],
@@ -894,6 +935,27 @@ class BalanceController {
 
       if (!issueId) {
         throw new BadRequestError("Issue ID is required");
+      }
+
+      const balance = await prisma.balance.findUnique({
+        where: { id },
+        include: { folder: true },
+      });
+
+      if (!balance) {
+        throw new NotFoundError("Balance not found");
+      }
+
+      if (balance.folder.ownerId !== req.user?.userId) {
+        throw new ForbiddenError("You don't have access to this balance");
+      }
+
+      const existingIssue = await prisma.accountIssue.findUnique({
+        where: { id: issueId },
+      });
+
+      if (!existingIssue || existingIssue.balanceId !== id) {
+        throw new NotFoundError("Issue not found for this balance");
       }
 
       const issue = await prisma.accountIssue.update({
@@ -946,21 +1008,15 @@ class BalanceController {
         throw new ForbiddenError("You don't have access to this balance");
       }
 
-      // Delete related records first to avoid foreign key constraint violations
-      await prisma.accountIssue.deleteMany({
-        where: { balanceId: id },
-      });
-      await prisma.fixedAsset.deleteMany({
-        where: { balanceId: id },
-      });
-      await prisma.balanceEquilibrium.deleteMany({
-        where: { balanceId: id },
-      });
-
-      // Hard delete
-      await prisma.balance.delete({
-        where: { id },
-      });
+      // Suppression réversible: la balance et ses données dérivées (équilibre,
+      // anomalies, immobilisations, ventilations) sont archivées en corbeille
+      // avant d'être retirées des tables vivantes.
+      await trashService.archiveAndDelete(
+        "Balance",
+        id,
+        req.user!.userId,
+        req.body?.reason
+      );
 
       await auditService.logUserAction(
         req.user!.userId,
@@ -970,7 +1026,8 @@ class BalanceController {
       );
 
       res.json({
-        message: "Balance deleted successfully",
+        message:
+          "Balance placée dans la corbeille. Un administrateur peut la restaurer.",
       });
     } catch (error) {
       next(error);

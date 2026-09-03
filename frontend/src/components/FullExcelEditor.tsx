@@ -60,6 +60,17 @@ const formatNumber = (num: number): string => {
   return num.toLocaleString("fr-FR", { maximumFractionDigits: 0 });
 };
 
+// Escapes untrusted content (spreadsheet cell values, ultimately from a
+// parsed .xlsx upload) before it's interpolated into an HTML string that
+// gets injected into the DOM via document.write() in handleExportPDF.
+const escapeHtml = (value: unknown): string =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 export function FullExcelEditor({
   reportName,
   reportId,
@@ -339,7 +350,9 @@ export function FullExcelEditor({
       const worksheet = workbook.Sheets[firstSheetName];
 
       // Convertir en données JSON
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+        header: 1,
+      });
 
       // Convertir en format de grille
       const gridData = convertExcelToGridData(jsonData);
@@ -798,7 +811,9 @@ export function FullExcelEditor({
 
   const handleExportPDF = () => {
     try {
-      const printWindow = window.open("", "_blank");
+      // "noopener" prevents the popup from reaching back into this tab via
+      // window.opener (reverse tabnabbing).
+      const printWindow = window.open("", "_blank", "noopener");
       if (!printWindow) {
         alert("Veuillez autoriser les pop-ups pour l'export PDF");
         return;
@@ -810,7 +825,7 @@ export function FullExcelEditor({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>${reportName}</title>
+            <title>${escapeHtml(reportName)}</title>
             <style>
               body { 
                 font-family: Arial, sans-serif; 
@@ -867,10 +882,10 @@ export function FullExcelEditor({
           </head>
           <body>
             <div class="header">
-              <h1>${reportName}</h1>
-              <div class="subtitle">${reportId} - ${getReportTypeDisplayName(
+              <h1>${escapeHtml(reportName)}</h1>
+              <div class="subtitle">${escapeHtml(reportId)} - ${escapeHtml(getReportTypeDisplayName(
         reportCategory
-      )} - Généré le ${new Date().toLocaleDateString("fr-FR")}</div>
+      ))} - Généré le ${new Date().toLocaleDateString("fr-FR")}</div>
             </div>
             ${tableHTML}
             <div class="footer">
@@ -898,13 +913,19 @@ export function FullExcelEditor({
   const generateTableHTML = (): string => {
     const aoa = convertToAOA(sheetData);
 
+    // bgColor is only ever a CSS color (hex/name) set via the app's own
+    // color picker; still validate it strictly since it's interpolated
+    // unquoted-adjacent into a style attribute.
+    const isSafeCssColor = (value: unknown): value is string =>
+      typeof value === "string" && /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$/.test(value);
+
     let tableHTML = "<table>";
 
     // En-têtes de colonnes
     tableHTML += "<thead><tr>";
     tableHTML += "<th></th>";
     columns.forEach((col) => {
-      tableHTML += `<th>${col}</th>`;
+      tableHTML += `<th>${escapeHtml(col)}</th>`;
     });
     tableHTML += "</tr></thead>";
 
@@ -931,10 +952,10 @@ export function FullExcelEditor({
             .filter(Boolean)
             .join(" ");
 
-          const style = cellData?.bgColor
+          const style = isSafeCssColor(cellData?.bgColor)
             ? `style="background-color: ${cellData.bgColor};"`
             : "";
-          tableHTML += `<td ${style} class="${cellClass}">${cell}</td>`;
+          tableHTML += `<td ${style} class="${cellClass}">${escapeHtml(cell)}</td>`;
         } else {
           tableHTML += "<td></td>";
         }
@@ -1048,7 +1069,7 @@ export function FullExcelEditor({
     onBack();
   };
 
-  const selectedCellData = selectedCell ? sheetData[selectedCell] : null;
+  const selectedCellData = selectedCell ? sheetData[selectedCell] : undefined;
   const dependentCells = selectedCell ? findDependentCells(selectedCell) : [];
 
   // Afficher un indicateur de chargement pour les fichiers DSF
@@ -1118,12 +1139,12 @@ export function FullExcelEditor({
           </div>
 
           <Badge variant="outline">
-            {user?.role === "admin" ? (
+            {user?.role === "ADMIN" ? (
               <Unlock className="h-3 w-3 mr-1" />
             ) : (
               <Lock className="h-3 w-3 mr-1" />
             )}
-            {user?.role === "admin" ? "Modifiable" : "Lecture seule"}
+            {user?.role === "ADMIN" ? "Modifiable" : "Lecture seule"}
           </Badge>
 
           {/* Menu déroulant pour les exports */}

@@ -28,6 +28,7 @@ interface Section {
   id: string;
   number: string;
   title: string;
+  info?: string;
   subsections: SubSection[];
 }
 
@@ -2283,7 +2284,7 @@ const defQS = (): QuestionState => ({
   eval: null,
   note: "",
   renvoi: "",
-  priority: "normale",
+  priority: "NORMALE",
 });
 
 function getStats(
@@ -2686,6 +2687,11 @@ export default function RevueFiscal() {
       onPlan={() => setView("plan")}
       questionnaireSections={questionnaireSections}
       isEditingQuestionnaire={isEditingQuestionnaire}
+      setIsEditingQuestionnaire={setIsEditingQuestionnaire}
+      setQuestionnaireConfig={setQuestionnaireConfig}
+      setQuestionnaireSections={setQuestionnaireSections}
+      saveQuestionnaire={saveQuestionnaire}
+      saving={saving}
     />
   );
 }
@@ -2998,7 +3004,7 @@ function CompaniesView({
                 gap: 20,
               }}
             >
-              {companies.map((c: Company) => (
+              {companies.map((c: RevueFiscalCompanyWithStates) => (
                 <CompanyCard
                   key={c.id}
                   c={c}
@@ -3171,7 +3177,7 @@ function CompanyCard({
   onOpen,
   onPlan,
 }: {
-  c: Company;
+  c: RevueFiscalCompanyWithStates;
   s: ReturnType<typeof getStats>;
   onOpen: () => void;
   onPlan: () => void;
@@ -3803,11 +3809,10 @@ function QuestionnaireEditView({
                   onClick={() => {
                     const nextQuestionNumber = subsection.questions.length + 1;
                     const newQuestionId = `${subsection.id}.${String(nextQuestionNumber).padStart(2, '0')}`;
-                    const newQuestion = {
+                    const newQuestion: Question = {
                       id: newQuestionId,
                       text: "Nouvelle question",
                       isNew2026: false,
-                      ref: null,
                     };
                     setQuestionnaireSections(
                       questionnaireSections.map((sec, secIdx) =>
@@ -3858,11 +3863,9 @@ function QuestionnaireEditView({
               <button
                 onClick={() => {
                   const newSubsectionId = `s${section.id}-${section.subsections.length + 1}`;
-                  const newSubsection = {
+                  const newSubsection: SubSection = {
                     id: newSubsectionId,
                     title: "Nouvelle sous-section",
-                    badge: null,
-                    info: null,
                     questions: [],
                   };
                   setQuestionnaireSections(
@@ -3916,7 +3919,29 @@ function ReviewView({
   onPlan,
   questionnaireSections,
   isEditingQuestionnaire,
-}: any) {
+  setIsEditingQuestionnaire,
+  setQuestionnaireConfig,
+  setQuestionnaireSections,
+  saveQuestionnaire,
+  saving,
+}: {
+  company: any;
+  activeSec: any;
+  setActiveSec: any;
+  getQS: any;
+  setQS: any;
+  stats: any;
+  cs: any;
+  onBack: any;
+  onPlan: any;
+  questionnaireSections: Section[];
+  isEditingQuestionnaire?: boolean;
+  setIsEditingQuestionnaire: (v: boolean) => void;
+  setQuestionnaireConfig: (v: QuestionnaireConfig | null) => void;
+  setQuestionnaireSections: (value: Section[] | ((prev: Section[]) => Section[])) => void;
+  saveQuestionnaire: () => void;
+  saving: boolean;
+}) {
   const sec = questionnaireSections.find((s) => s.id === activeSec) ?? questionnaireSections[0];
   const secStats = useMemo(() => {
     const ids: string[] = [];
@@ -4102,14 +4127,11 @@ function ReviewView({
 
         {/* Sections */}
         <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
-          {console.log('Rendering sections:', questionnaireSections.length, questionnaireSections.map(s => ({id: s.id, title: s.title, subsectionsCount: s.subsections?.length})))}
-          {questionnaireSections.map((s, index) => {
-            console.log(`Rendering section ${index}: ${s.id} - ${s.title}`);
+          {questionnaireSections.map((s) => {
             try {
               const isActive = s.id === activeSec;
               const pct = secPct(s);
               const alert = secAlert(s);
-              console.log(`Section ${s.id} - pct: ${pct}, alert: ${alert}`);
               return (
               <button
                 key={s.id}
@@ -4139,7 +4161,7 @@ function ReviewView({
                       minWidth: 32,
                     }}
                   >
-                    {section.number}
+                    {s.number}
                   </span>
                 </div>
                 {isEditingQuestionnaire ? (
@@ -4366,6 +4388,7 @@ function ReviewView({
               setQS={setQS}
               cs={cs}
               isEditingQuestionnaire={isEditingQuestionnaire}
+              setQuestionnaireSections={setQuestionnaireSections}
               onUpdateSubsection={(sectionId, subsectionId, updates) => {
                 setQuestionnaireSections(prev =>
                   prev.map(sec =>
@@ -4398,6 +4421,7 @@ function SubBlock({
   isEditingQuestionnaire,
   onUpdateSubsection,
   sectionId,
+  setQuestionnaireSections,
 }: {
   sub: SubSection;
   getQS: any;
@@ -4406,6 +4430,7 @@ function SubBlock({
   isEditingQuestionnaire?: boolean;
   onUpdateSubsection?: (sectionId: string, subsectionId: string, updates: Partial<SubSection>) => void;
   sectionId?: string;
+  setQuestionnaireSections: (value: Section[] | ((prev: Section[]) => Section[])) => void;
 }) {
   const [open, setOpen] = useState(true);
   const alerts = sub.questions.filter((q) => {
@@ -4729,7 +4754,7 @@ function QRow({
                 <button
                   key={code}
                   onClick={() =>
-                    onChange({ eval: active ? null : (code as EvalCode) })
+                    onChange({ eval: active ? null : (code as RevueFiscalEval) })
                   }
                   title={cfg.label}
                   style={{
@@ -4801,9 +4826,9 @@ function QRow({
                 cursor: "pointer",
               }}
             >
-              <option value="haute">🔴 Priorité haute</option>
-              <option value="normale">🟡 Normale</option>
-              <option value="basse">🟢 Basse</option>
+              <option value="HAUTE">🔴 Priorité haute</option>
+              <option value="NORMALE">🟡 Normale</option>
+              <option value="BASSE">🟢 Basse</option>
             </select>
           </div>
         </div>
@@ -4874,7 +4899,7 @@ function PlanView({
         : toAction;
   const priority = all.filter(
     (i) =>
-      i.s.priority === "haute" &&
+      i.s.priority === "HAUTE" &&
       (i.s.eval === "ANOMALIE" || i.s.eval === "ERR_MAT"),
   );
   const risk: RiskLevel =
@@ -5391,9 +5416,9 @@ function PlanView({
                   {(items as any[]).map((item: any, idx: number) => {
                     const cfg = EC[item.s.eval as keyof typeof EC];
                     const pc =
-                      item.s.priority === "haute"
+                      item.s.priority === "HAUTE"
                         ? "#b91c1c"
-                        : item.s.priority === "normale"
+                        : item.s.priority === "NORMALE"
                           ? "#d97706"
                           : "#6b7280";
                     return (
@@ -5544,9 +5569,9 @@ function PlanView({
                                   fontFamily: "'DM Mono',monospace",
                                 }}
                               >
-                                {item.s.priority === "haute"
+                                {item.s.priority === "HAUTE"
                                   ? "🔴 Haute"
-                                  : item.s.priority === "normale"
+                                  : item.s.priority === "NORMALE"
                                     ? "🟡 Normale"
                                     : "🟢 Basse"}
                               </span>

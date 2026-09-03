@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText, X } from "lucide-react";
+import { Pencil, Save, Download, FileText, X, Trash2, Plus } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -109,6 +109,12 @@ const T3: React.FC = () => {
       creancesPlus2ans: "0",
     },
   ]);
+
+  const updateItem = (id: number, field: keyof T3Row, value: string) => {
+    setRows(
+      rows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  };
 
   // Liste des filiales et participations
   const [filiales, setFiliales] = useState<FilialeRow[]>([
@@ -223,7 +229,7 @@ const T3: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }
@@ -360,7 +366,7 @@ const T3: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {rows.map((item) => (
                 <tr key={item.id}>
                   <td className="border border-gray-600 p-2 pl-4">
                     {item.libelle}

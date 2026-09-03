@@ -31,6 +31,29 @@ interface HeaderData {
   duration: string;
 }
 
+// Le backend (CONFIG_NOTE7) stocke tout dans UN SEUL tableau `creancesClients`
+// de 15 lignes, dans cet ordre exact : 8 créances clients, TOTAL BRUT
+// CLIENTS, Dépréciations, TOTAL NET DE DEPRECIATION, 3 créditeurs, TOTAL
+// CLIENTS CREDITEURS. Les index ci-dessous servent à découper/reconstituer
+// ce tableau au chargement/à la sauvegarde.
+const CLIENT_LABELS = [
+  "Clients (hors réserves de propriété Groupe)",
+  "Clients effets à recevoir (hors réserves de propriété Groupe)",
+  "Clients et effets à recevoir avec réserves de propriété",
+  "Clients et effets à recevoir Groupe",
+  "Créances sur cession d'immobilisations",
+  "Clients effets escomptés et non échus",
+  "Créances litigieuses ou douteuses",
+  "Clients produits à recevoir",
+];
+const CREDITOR_LABELS = [
+  "Clients, avances reçues hors groupe",
+  "Clients, avances reçues groupe",
+  "Autres clients créditeurs",
+];
+const DEPRECIATION_INDEX = CLIENT_LABELS.length + 1; // après TOTAL BRUT CLIENTS
+const CREDITORS_START_INDEX = DEPRECIATION_INDEX + 2; // après TOTAL NET DE DEPRECIATION
+
 // --- Composant Principal ---
 
 const Note7: React.FC = () => {
@@ -55,26 +78,25 @@ const Note7: React.FC = () => {
   const [comment, setComment] = useState("");
 
   // État pour les Créances Clients
-  const [clientReceivables, setClientReceivables] = useState<ClientRow[]>([
-    { id: "14", label: "Clients (hors réserves de propriété Groupe)", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "15", label: "Clients effets à recevoir (hors réserves de propriété Groupe)", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "16", label: "Clients et effets à recevoir avec réserves de propriété", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "17", label: "Clients et effets à recevoir Groupe", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "18", label: "Créances sur cession d'immobilisations", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "19", label: "Clients effets escomptés et non échus", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "20", label: "Créances litigieuses ou douteuses", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-    { id: "21", label: "Clients produits à recevoir", yearN: "", yearN1: "", oneYearOrLess: "", oneToTwoYears: "", moreThanTwoYears: "" },
-  ]);
+  const [clientReceivables, setClientReceivables] = useState<ClientRow[]>(
+    CLIENT_LABELS.map((label, i) => ({
+      id: String(14 + i),
+      label,
+      yearN: "",
+      yearN1: "",
+      oneYearOrLess: "",
+      oneToTwoYears: "",
+      moreThanTwoYears: "",
+    })),
+  );
 
   // Dépréciations
   const [depreciations, setDepreciations] = useState("");
 
   // Clients Créditeurs
-  const [clientCreditors, setClientCreditors] = useState<CreditorRow[]>([
-    { id: "28", label: "Clients, avances reçues hors groupe", amount: "" },
-    { id: "29", label: "Clients, avances reçues groupe", amount: "" },
-    { id: "30", label: "Autres clients créditeurs", amount: "" },
-  ]);
+  const [clientCreditors, setClientCreditors] = useState<CreditorRow[]>(
+    CREDITOR_LABELS.map((label, i) => ({ id: `c${i + 1}`, label, amount: "" })),
+  );
 
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
@@ -92,24 +114,39 @@ const Note7: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "7") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.creancesClients) {
+        // Le backend stocke les 15 lignes (8 créances + TOTAL BRUT +
+        // Dépréciations + TOTAL NET + 3 créditeurs + TOTAL CREDITEURS) dans
+        // un seul tableau, dans cet ordre exact (cf. CONFIG_NOTE7) — les
+        // lignes TOTAL sont ignorées ici car recalculées côté client.
+        const rows = noteData.creancesClients;
+        if (Array.isArray(rows) && rows.length > 0) {
           setClientReceivables(
-            noteData.creancesClients.map((r: any, i: number) => ({
-              id: clientReceivables[i]?.id || String(14 + i),
-              label: r.libelle || clientReceivables[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
-              oneYearOrLess: String(r.creancesUnAnAuPlus ?? ""),
-              oneToTwoYears: String(r.creancesPlusUnAnDeuxAns ?? ""),
-              moreThanTwoYears: String(r.creancesPlusDeuxAns ?? ""),
-            }))
+            CLIENT_LABELS.map((label, i) => {
+              const r = rows[i];
+              return {
+                id: String(14 + i),
+                label,
+                yearN: String(r?.anneeN ?? ""),
+                yearN1: String(r?.anneeN1 ?? ""),
+                oneYearOrLess: String(r?.creancesUnAnAuPlus ?? ""),
+                oneToTwoYears: String(r?.creancesPlusUnAnDeuxAns ?? ""),
+                moreThanTwoYears: String(r?.creancesPlusDeuxAns ?? ""),
+              };
+            }),
           );
-        } else if (noteData.clientReceivables) {
-          setClientReceivables(noteData.clientReceivables);
+          const depRow = rows[DEPRECIATION_INDEX];
+          setDepreciations(depRow?.anneeN != null ? String(depRow.anneeN) : "");
+          setClientCreditors(
+            CREDITOR_LABELS.map((label, i) => {
+              const r = rows[CREDITORS_START_INDEX + i];
+              return {
+                id: `c${i + 1}`,
+                label,
+                amount: r?.anneeN != null ? String(r.anneeN) : "",
+              };
+            }),
+          );
         }
-        setDepreciations(noteData.depreciations || "");
-        setClientCreditors(noteData.clientCreditors || clientCreditors);
         setComment(noteData.comment || "");
       }
     } catch (error) {
@@ -123,20 +160,38 @@ const Note7: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Le backend attend un seul tableau de 15 lignes, dans l'ordre exact
+      // du template (8 créances + TOTAL BRUT + Dépréciations + TOTAL NET +
+      // 3 créditeurs + TOTAL CREDITEURS), cf. CONFIG_NOTE7 côté backend.
+      const toApiRow = (
+        label: string,
+        r: {
+          yearN?: string | number;
+          yearN1?: string | number;
+          oneYearOrLess?: string | number;
+          oneToTwoYears?: string | number;
+          moreThanTwoYears?: string | number;
+        },
+      ) => ({
+        libelle: label,
+        anneeN: parseFloat(String(r.yearN ?? "")) || null,
+        anneeN1: parseFloat(String(r.yearN1 ?? "")) || null,
+        variationPourcentage: calculateVariationNumber(r.yearN ?? "", r.yearN1 ?? ""),
+        creancesUnAnAuPlus: parseFloat(String(r.oneYearOrLess ?? "")) || null,
+        creancesPlusUnAnDeuxAns: parseFloat(String(r.oneToTwoYears ?? "")) || null,
+        creancesPlusDeuxAns: parseFloat(String(r.moreThanTwoYears ?? "")) || null,
+      });
+
       const noteData = {
         entete,
-        creancesClients: clientReceivables.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: null,
-          creancesUnAnAuPlus: parseFloat(r.oneYearOrLess) || null,
-          creancesPlusUnAnDeuxAns: parseFloat(r.oneToTwoYears) || null,
-          creancesPlusDeuxAns: parseFloat(r.moreThanTwoYears) || null,
-        })),
-        depreciations,
-        clientCreditors,
+        creancesClients: [
+          ...clientReceivables.map((r) => toApiRow(r.label, r)),
+          toApiRow("TOTAL BRUT CLIENTS", { yearN: totalBrut, yearN1: totalN1, oneYearOrLess: totalOneYear, oneToTwoYears: totalOneTwoYears, moreThanTwoYears: totalMoreTwoYears }),
+          toApiRow("Dépréciations des comptes clients", { yearN: depreciations }),
+          toApiRow("TOTAL NET DE DEPRECIATION", { yearN: totalNet }),
+          ...clientCreditors.map((r) => toApiRow(r.label, { yearN: r.amount })),
+          toApiRow("TOTAL CLIENTS CREDITEURS", { yearN: totalCreditors }),
+        ],
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "7", noteData as any);
@@ -214,13 +269,23 @@ const Note7: React.FC = () => {
     return variation.toFixed(2) + "%";
   };
 
+  const calculateVariationNumber = (
+    n: string | number,
+    n1: string | number,
+  ): number | null => {
+    const valN = typeof n === "string" ? parseFloat(n.replace(/\s/g, "")) || 0 : n;
+    const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
+    if (!valN1) return null;
+    return Number((((valN - valN1) / valN1) * 100).toFixed(2));
+  };
+
   const totalBrut = useMemo(() => calculateTotal(clientReceivables, "yearN"), [clientReceivables]);
   const totalN1 = useMemo(() => calculateTotal(clientReceivables, "yearN1"), [clientReceivables]);
   const totalOneYear = useMemo(() => calculateTotal(clientReceivables, "oneYearOrLess"), [clientReceivables]);
   const totalOneTwoYears = useMemo(() => calculateTotal(clientReceivables, "oneToTwoYears"), [clientReceivables]);
   const totalMoreTwoYears = useMemo(() => calculateTotal(clientReceivables, "moreThanTwoYears"), [clientReceivables]);
   const totalCreditors = useMemo(() => calculateTotal(clientCreditors, "amount"), [clientCreditors]);
-  const totalNet = useMemo(() => totalBrut - (parseFloat(depreciations.replace(/\s/g, "")) || 0), [totalBrut, depreciations]);
+  const totalNet = useMemo(() => totalBrut - (parseFloat(String(depreciations ?? "").replace(/\s/g, "")) || 0), [totalBrut, depreciations]);
 
   const isHeaderIncomplete =
     !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
@@ -292,7 +357,7 @@ const Note7: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isHeaderIncomplete && (
@@ -370,26 +435,25 @@ const Note7: React.FC = () => {
           NOTE 7 <br /> CLIENTS
         </div>
 
-        {/* Tableau Principal */}
+        {/* Tableau Principal — une seule table continue, comme dans le vrai
+            template (Créances Clients + Dépréciations + Clients Créditeurs
+            partagent la même grille de colonnes) */}
         <table className="w-full border-collapse border border-gray-600 text-[10px] mb-4">
           <thead>
             <tr className="bg-[#d9d9d9]">
-              <th rowSpan={2} className="border border-gray-600 p-2 w-[25%]">Libellés</th>
-              <th rowSpan={2} className="border border-gray-600 p-2 w-[12%]">Année N</th>
-              <th rowSpan={2} className="border border-gray-600 p-2 w-[12%]">Année N-1</th>
-              <th rowSpan={2} className="border border-gray-600 p-2 w-[8%]">Variation en %</th>
-              <th colSpan={3} className="border border-gray-600 p-2 text-center bg-[#bfbfbf]">ÉCHÉANCIER (Année N)</th>
-            </tr>
-            <tr className="bg-[#d9d9d9]">
-              <th className="border border-gray-600 p-2">À 1 an au plus</th>
-              <th className="border border-gray-600 p-2">De 1 à 2 ans</th>
-              <th className="border border-gray-600 p-2">Plus de 2 ans</th>
+              <th className="border border-gray-600 p-2 w-[25%]">Libellés</th>
+              <th className="border border-gray-600 p-2 w-[12%]">Année N</th>
+              <th className="border border-gray-600 p-2 w-[12%]">Année N-1</th>
+              <th className="border border-gray-600 p-2 w-[8%]">Variation en %</th>
+              <th className="border border-gray-600 p-2 w-[14%]">Créances à un an au plus</th>
+              <th className="border border-gray-600 p-2 w-[15%]">Créances à plus d'un an et à deux ans au plus</th>
+              <th className="border border-gray-600 p-2 w-[14%]">Créances à plus de deux ans</th>
             </tr>
           </thead>
           <tbody>
             {clientReceivables.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
-                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN, (val) => handleClientChange(row.id, "yearN", val))}
                 </td>
@@ -412,11 +476,11 @@ const Note7: React.FC = () => {
             ))}
 
             {/* TOTAL BRUT */}
-            <tr className="bg-[#e6e6e6] font-bold text-[11px]">
+            <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL BRUT CLIENTS</td>
               <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString()}</td>
               <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+              <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalBrut, totalN1)}
               </td>
               <td className="border border-gray-600 p-1 text-right">{totalOneYear.toLocaleString()}</td>
@@ -426,43 +490,34 @@ const Note7: React.FC = () => {
 
             {/* DEPRECIATIONS */}
             <tr>
-              <td className="border border-gray-600 p-2 italic">Dépréciations des comptes clients</td>
-              <td className="border border-gray-600 p-1 text-right bg-red-50">
+              <td className="border border-gray-600 p-2 text-blue-700 italic">Dépréciations des comptes clients</td>
+              <td className="border border-gray-600 p-1 text-right">
                 {renderEditableCell(depreciations, (val) => setDepreciations(val))}
               </td>
-              <td colSpan={5} className="border border-gray-600 bg-gray-100"></td>
+              <td colSpan={5} className="border border-gray-600"></td>
             </tr>
 
             {/* TOTAL NET */}
-            <tr className="bg-[#bfbfbf] font-bold text-[11px]">
+            <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
               <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
-              <td colSpan={5} className="border border-gray-600 bg-gray-200"></td>
+              <td colSpan={5} className="border border-gray-600"></td>
             </tr>
-          </tbody>
-        </table>
 
-        {/* Clients Créditeurs */}
-        <div className="font-bold underline mb-2 mt-6">CLIENTS CRÉDITEURS :</div>
-        <table className="w-full border-collapse border border-gray-600 text-[10px] mb-4">
-          <thead>
-            <tr className="bg-[#d9d9d9]">
-              <th className="border border-gray-600 p-2 text-left w-[60%]">Libellés</th>
-              <th className="border border-gray-600 p-2 text-center w-[40%]">Montant</th>
-            </tr>
-          </thead>
-          <tbody>
+            {/* CLIENTS CRÉDITEURS — continuent dans la même table/grille */}
             {clientCreditors.map((row) => (
-              <tr key={row.id}>
-                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.amount, (val) => handleCreditorChange(row.id, "amount", val))}
                 </td>
+                <td colSpan={5} className="border border-gray-600"></td>
               </tr>
             ))}
-            <tr className="bg-[#e6e6e6] font-bold">
-              <td className="border border-gray-600 p-2">TOTAL CLIENTS CRÉDITEURS</td>
-              <td className="border border-gray-600 p-2 text-right">{totalCreditors.toLocaleString()}</td>
+            <tr className="bg-gray-300 font-bold text-[11px]">
+              <td className="border border-gray-600 p-2">TOTAL CLIENTS CREDITEURS</td>
+              <td className="border border-gray-600 p-1 text-right">{totalCreditors.toLocaleString()}</td>
+              <td colSpan={5} className="border border-gray-600"></td>
             </tr>
           </tbody>
         </table>

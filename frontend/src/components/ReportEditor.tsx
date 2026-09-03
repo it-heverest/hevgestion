@@ -223,12 +223,13 @@ export function ReportEditor() {
       
       // Vérifier si cette ligne a des comptes associés
       const rowNumber = spreadsheetData[selectedCell.row][0];
-      if (accountsData[rowNumber]) {
+      const rowAccounts = accountsData[rowNumber as keyof typeof accountsData];
+      if (rowAccounts) {
         setAccountDetails({
           rowNumber,
           label: spreadsheetData[selectedCell.row][1],
           value: spreadsheetData[selectedCell.row][selectedCell.col],
-          ...accountsData[rowNumber]
+          ...rowAccounts
         });
       } else {
         setAccountDetails(null);

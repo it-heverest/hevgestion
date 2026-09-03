@@ -7,14 +7,14 @@ export function NotFound() {
   const styles = {
     container: {
       display: "flex",
-      flexDirection: "column", // Pour que le contenu s'empile verticalement
+      flexDirection: "column" as const, // Pour que le contenu s'empile verticalement
       justifyContent: "center", // Centre verticalement
       alignItems: "center", // Centre horizontalement
       minHeight: "100vh",
       backgroundColor: "#ffffff",
       fontFamily: "system-ui, -apple-system, sans-serif",
       color: "#1a1a1a",
-      textAlign: "center",
+      textAlign: "center" as const,
     },
     accentBar: {
       width: "6px",
@@ -105,7 +105,7 @@ export function NotFound() {
               fontSize: "12px",
               fontWeight: 600,
               textTransform: "uppercase",
-              tracking: "0.1em",
+              letterSpacing: "0.1em",
               color: "#94a3b8",
             }}
           >

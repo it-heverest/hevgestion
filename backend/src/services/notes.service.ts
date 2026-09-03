@@ -1,5 +1,6 @@
 // backend/src/services/notes.service.ts
 import { PrismaClient } from "@prisma/client";
+import { trashService } from "./trash.service";
 
 const prisma = new PrismaClient();
 
@@ -45,6 +46,7 @@ const NOTE_NUMBER_TO_FIELD: Record<string, string> = {
   "C2/25": "note25_c2",
   "26": "note26",
   "27A": "note27a",
+  "C1/27A": "note27a_c1",
   "27B": "note27b",
   "28": "note28",
   "C1/28": "note28_c1",
@@ -55,6 +57,24 @@ const NOTE_NUMBER_TO_FIELD: Record<string, string> = {
   "32": "note32",
   "33": "note33",
   "34": "note34",
+  "35": "note35",
+  "flux-tresorerie": "tableau_des_flux_tresorerie",
+  "cf1": "cf1",
+  "cf1bis": "cf1_bis",
+  "cf1ter": "cf1_ter",
+  "cf1quater": "cf1_quater",
+  "cf2": "cf2",
+  "cf2bis": "cf2_bis",
+  "cf2ter": "cf2_ter",
+  "bilan-paysage": "bilan_paysage",
+  "grille-analyse-notes": "grille_analyse_des_notes",
+  // Fiches d'identification du régime normal. La DSF officielle en compte
+  // exactement trois (onglets « Fiche R1 », « Fiche R2 », « Fiche R3 »): les
+  // colonnes fiche1/fiche2/fiche3 du modèle DSF, jusque-là jamais écrites,
+  // les portent. À ne pas confondre avec les fiches 1 à 5 du régime Assurance.
+  R1: "fiche1",
+  R2: "fiche2",
+  R3: "fiche3",
 };
 
 // Valid note numbers
@@ -176,9 +196,15 @@ export class NotesService {
   }
 
   /**
-   * Delete note from database (set to null)
+   * Efface le contenu d'une note. Le contenu précédent est d'abord archivé en
+   * corbeille (rien n'est réellement perdu): un administrateur peut le
+   * consulter et le réinjecter si l'effacement était une erreur.
    */
-  async deleteNoteData(folderId: string, noteNumber: string): Promise<boolean> {
+  async deleteNoteData(
+    folderId: string,
+    noteNumber: string,
+    deletedById?: string,
+  ): Promise<boolean> {
     // Validate note number
     if (!VALID_NOTE_NUMBERS.includes(noteNumber)) {
       throw new Error(`Invalid note number: ${noteNumber}`);
@@ -195,6 +221,28 @@ export class NotesService {
 
     if (!dsf) {
       return false;
+    }
+
+    const previousContent = (dsf as any)[fieldName];
+
+    // On n'archive que s'il y avait effectivement quelque chose à perdre.
+    if (previousContent && deletedById) {
+      const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+        select: { clientId: true, name: true, fiscalYear: true },
+      });
+
+      await prisma.deletedRecord.create({
+        data: {
+          entityType: "DSFNote",
+          entityId: `${dsf.id}:${fieldName}`,
+          label: `Note ${noteNumber} — ${folder?.name ?? folderId} (exercice ${folder?.fiscalYear ?? "?"})`,
+          payload: { dsfId: dsf.id, fieldName, noteNumber, content: previousContent },
+          clientId: folder?.clientId ?? null,
+          folderId,
+          deletedById,
+        },
+      });
     }
 
     // Set the note field to null
@@ -301,7 +349,18 @@ export class NotesService {
   /**
    * Delete DSF data for a folder
    */
-  async deleteDSFForFolder(folderId: string): Promise<boolean> {
+  /**
+   * Supprime l'intégralité de la DSF d'un dossier.
+   *
+   * C'est le chemin emprunté par le bouton « Supprimer la DSF » de l'écran
+   * Rapports. La DSF est archivée en corbeille avant retrait: rien n'est
+   * réellement perdu, un administrateur peut la restaurer.
+   */
+  async deleteDSFForFolder(
+    folderId: string,
+    deletedById?: string,
+    reason?: string,
+  ): Promise<boolean> {
     const dsf = await prisma.dSF.findUnique({
       where: { folderId },
     });
@@ -310,10 +369,13 @@ export class NotesService {
       return false;
     }
 
-    // Delete the DSF record entirely
-    await prisma.dSF.delete({
-      where: { id: dsf.id },
-    });
+    if (deletedById) {
+      await trashService.archiveAndDelete("DSF", dsf.id, deletedById, reason);
+    } else {
+      // Appel hors contexte utilisateur (script, tâche planifiée): sans
+      // auteur identifiable, la corbeille ne peut pas être renseignée.
+      await prisma.dSF.delete({ where: { id: dsf.id } });
+    }
 
     return true;
   }

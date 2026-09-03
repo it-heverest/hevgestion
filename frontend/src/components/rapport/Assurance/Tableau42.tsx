@@ -16,7 +16,7 @@ const Tableau42: React.FC = () => {
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF("l", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.canvas.width;
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
         pdf.save("tableau_42_charges_personnel.pdf");
         setIsEditing(wasEditing);
@@ -63,7 +63,7 @@ const Tableau42: React.FC = () => {
         ref={reportRef}
         className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <style jsx>{`
+        <style>{`
           .medium-gray {
             background-color: #c0c0c0;
           }

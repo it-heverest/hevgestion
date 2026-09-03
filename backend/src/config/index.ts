@@ -37,8 +37,12 @@ const getCorsOrigin = (): string[] => {
   }
   return [
     "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
     "http://127.0.0.1:5173",
   ];
 };
@@ -86,6 +90,34 @@ export const config = {
   dgi: {
     apiUrl: process.env.DGI_API_URL || "http://tasserver.dgi.cm/api/v1",
     timeout: parseInt(process.env.DGI_TIMEOUT || "60000", 10),
+  },
+
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || "",
+    model: process.env.GEMINI_MODEL || "gemini-flash-latest",
+  },
+
+  groq: {
+    apiKey: process.env.GROQ_API_KEY || "",
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  },
+
+  // OpenRouter: passerelle multi-fournisseurs, API compatible OpenAI.
+  // Le modèle défini ici n'est que la valeur par défaut au premier
+  // démarrage: le modèle réellement utilisé se règle depuis Paramètres et
+  // est stocké en base (voir assistant-settings.service.ts).
+  openrouter: {
+    apiKey: process.env.OPENROUTER_API_KEY || "",
+    model: process.env.OPENROUTER_MODEL || "dots-studio/dots-3-note-preview:free",
+    baseUrl: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+    // Renseignés dans les en-têtes pour l'attribution côté OpenRouter.
+    appUrl: process.env.OPENROUTER_APP_URL || "https://hevgestion.local",
+    appName: process.env.OPENROUTER_APP_NAME || "HevGestion DSF",
+    // Modèle dédié au scanner de factures (image → JSON). Volontairement
+    // distinct de `model` ci-dessus, qui est celui de l'assistant de
+    // discussion et se change librement depuis Paramètres — un changement
+    // là-bas ne doit pas casser le scanner.
+    visionModel: process.env.OPENROUTER_VISION_MODEL || "stealth/ox-alpha",
   },
 
   encryption: {

@@ -15,6 +15,8 @@ export interface TranslationKeys {
   other: string;
   revueFiscal: string;
   ventilationConfig: string;
+  invoiceScanner: string;
+  trash: string;
   navGroupWorkflow: string;
   navGroupCompliance: string;
   navGroupAdmin: string;
@@ -67,6 +69,9 @@ export interface TranslationKeys {
   otpCode: string;
   signIn: string;
   createAccount: string;
+  registerAs: string;
+  selectRole: string;
+  companyName: string;
 
   // Client management
   clientManagement: string;
@@ -158,17 +163,13 @@ export interface TranslationKeys {
 
   // Workflow
   balanceImport: string;
-  dsfImport: string;
   selectWorkflow: string;
   workflowDescription: string;
   chooseWorkflow: string;
 
   // General UI
   actions: string;
-  dashboard: string;
   view: string;
-  edit: string;
-  delete: string;
   refresh: string;
   reset: string;
   validateParameters: string;
@@ -176,8 +177,6 @@ export interface TranslationKeys {
   systemStatusCompliant: string;
   poweredBy: string;
   accountMappings: string;
-  dsf: string;
-  dsfNotes: string;
   dsfConfig: string;
 }
 
@@ -198,6 +197,8 @@ export const translations: Record<string, TranslationKeys> = {
     other: "Account Mapping",
     revueFiscal: "Fiscal Review",
     ventilationConfig: "Account Ventilation",
+    invoiceScanner: "Invoice Scanner",
+    trash: "Trash",
     navGroupWorkflow: "Accounting Workflow",
     navGroupCompliance: "Compliance & Filings",
     navGroupAdmin: "Administration",
@@ -250,6 +251,9 @@ export const translations: Record<string, TranslationKeys> = {
     otpCode: "OTP Code",
     signIn: "Sign In",
     createAccount: "Create Account",
+    registerAs: "Register as",
+    selectRole: "Select a role",
+    companyName: "Company Name",
 
     // Client management
     clientManagement: "Client Management",
@@ -341,7 +345,6 @@ export const translations: Record<string, TranslationKeys> = {
 
     // Workflow
     balanceImport: "Import Balances",
-    dsfImport: "Import DSF",
     selectWorkflow: "Select Workflow",
     workflowDescription: "Choose how you want to start this exercise",
     chooseWorkflow: "Choose workflow",
@@ -374,6 +377,8 @@ export const translations: Record<string, TranslationKeys> = {
     other: "Mapping comptable",
     revueFiscal: "Revue Fiscale",
     ventilationConfig: "Ventilation des comptes",
+    invoiceScanner: "Scanner de factures",
+    trash: "Corbeille",
     navGroupWorkflow: "Workflow comptable",
     navGroupCompliance: "Déclarations & Conformité",
     navGroupAdmin: "Administration",
@@ -408,7 +413,7 @@ export const translations: Record<string, TranslationKeys> = {
     // Authentication
     login: "Connexion",
     logout: "Déconnexion",
-    register: "S'enregistrer",
+    register: "S'inscrire",
     email: "E-mail",
     password: "Mot de passe",
     confirmPassword: "Confirmer le mot de passe",
@@ -426,6 +431,9 @@ export const translations: Record<string, TranslationKeys> = {
     otpCode: "Code OTP",
     signIn: "Se connecter",
     createAccount: "Créer un compte",
+    registerAs: "S'inscrire en tant que",
+    selectRole: "Sélectionner un rôle",
+    companyName: "Nom de l'entreprise",
 
     // Client management
     clientManagement: "Gestion des Clients",
@@ -518,7 +526,6 @@ export const translations: Record<string, TranslationKeys> = {
 
     // Workflow
     balanceImport: "Importer les Balances",
-    dsfImport: "Importer DSF",
     selectWorkflow: "Sélectionner le Workflow",
     workflowDescription:
       "Choisissez comment vous souhaitez commencer cet exercice",

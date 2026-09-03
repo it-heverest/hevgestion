@@ -224,7 +224,7 @@ const C01Note3C: React.FC = () => {
 
     return (
       <tr key={row.id}>
-        <td className="border border-gray-400 p-1 pl-2 font-bold w-[25%]">
+        <td className="border border-gray-400 p-1 pl-2 w-[25%]">
           {row.label}
         </td>
         {fields.map((field) => renderDataCell(row, field))}
@@ -293,7 +293,7 @@ const C01Note3C: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* En-tête */}
         <div className="text-center font-bold text-lg mb-2">13</div>
@@ -301,42 +301,88 @@ const C01Note3C: React.FC = () => {
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Désignation entité :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.entityName}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.entityName}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, entityName: e.target.value })
+                }
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.entityName}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Exercice clos le 31-12-
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.fiscalYear}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.fiscalYear}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })
+                }
+                className="border-b border-orange-500 bg-orange-50 w-20 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.fiscalYear}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Numéro d'identification :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.idNumber}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.idNumber}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, idNumber: e.target.value })
+                }
+                className="border-b border-orange-500 bg-orange-50 w-full focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.idNumber}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
               Durée (en mois) :
-            </span>{" "}
-            <span className="border-b border-dotted border-gray-400 w-full px-1">
-              {headerInfo.duration}
             </span>
+            {isEditing ? (
+              <input
+                value={headerInfo.duration}
+                onChange={(e) =>
+                  setHeaderInfo({ ...headerInfo, duration: e.target.value })
+                }
+                className="border-b border-orange-500 bg-orange-50 w-16 focus:outline-none px-1 text-center"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-full px-1">
+                {headerInfo.duration}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Titre et Sous-titre */}
-        <div className="bg-gray-200 border border-gray-400 py-1 text-center font-bold mb-0 text-sm">
-          C01/NOTE 3C
+        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-4 text-sm">
+          <div>C01/NOTE 3C</div>
+          <div>
+            TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN
+            PERIODE DEFICITAIRE
+          </div>
         </div>
-        <div className="bg-gray-300 border border-gray-400 border-t-0 py-1 text-center font-bold mb-4 text-sm">
+
+        {/* Titre répété, en clair (comme dans le vrai template) */}
+        <div className="text-center font-bold text-sm mb-3">
           TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN
           PERIODE DEFICITAIRE
         </div>

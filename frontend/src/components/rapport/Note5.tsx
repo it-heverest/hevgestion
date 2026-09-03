@@ -112,6 +112,17 @@ const Note5: React.FC = () => {
     }));
   };
 
+  // Legacy save format (pre-mapping): rows saved as-is, possibly with numeric
+  // yearN/yearN1 — coerce so calculateVariation's .replace() never crashes.
+  const coerceRows = (rows: any[] | undefined, defaultRows: RowData[]): RowData[] =>
+    !rows || rows.length === 0
+      ? defaultRows
+      : rows.map((r) => ({
+          ...r,
+          yearN: r.yearN != null ? String(r.yearN) : "",
+          yearN1: r.yearN1 != null ? String(r.yearN1) : "",
+        }));
+
   const toBackendRows = (rows: RowData[]) =>
     rows.map((r) => ({
       libelle: r.label,
@@ -130,12 +141,12 @@ const Note5: React.FC = () => {
         setAssetsData(
           noteData.actifCirculantHAO
             ? fromBackendRows(noteData.actifCirculantHAO, assetsData)
-            : noteData.assetsData || assetsData,
+            : coerceRows(noteData.assetsData, assetsData),
         );
         setLiabilitiesData(
           noteData.dettesHAO
             ? fromBackendRows(noteData.dettesHAO, liabilitiesData)
-            : noteData.liabilitiesData || liabilitiesData,
+            : coerceRows(noteData.liabilitiesData, liabilitiesData),
         );
         setComment(noteData.comment || "");
       }
@@ -223,9 +234,11 @@ const Note5: React.FC = () => {
     );
   };
 
-  const calculateVariation = (n: string, n1: string) => {
-    const valN = parseFloat(n.replace(/\s/g, "")) || 0;
-    const valN1 = parseFloat(n1.replace(/\s/g, "")) || 0;
+  const calculateVariation = (n: string | number, n1: string | number) => {
+    const valN =
+      typeof n === "string" ? parseFloat(n.replace(/\s/g, "")) || 0 : n;
+    const valN1 =
+      typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
     return variation.toFixed(2) + "%";
@@ -309,7 +322,7 @@ const Note5: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >

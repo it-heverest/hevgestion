@@ -114,6 +114,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    // Écoute sur toutes les interfaces réseau (0.0.0.0), pas seulement
+    // localhost — permet d'accéder à l'app depuis un autre appareil du
+    // même réseau via l'IP de la machine (ex: http://192.168.1.241:3000).
+    host: true,
     open: true,
     proxy: {
       "/api": {

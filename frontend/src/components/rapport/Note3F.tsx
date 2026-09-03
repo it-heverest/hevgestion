@@ -13,25 +13,36 @@ interface HeaderData {
   duration: string;
 }
 
-interface ExerciseRow {
-  id: string;
-  account: string;
-  amount: string;
+interface ExerciceNRow {
+  compte: string;
+  montant: number;
 }
 
-interface ExerciseData {
-  rows: ExerciseRow[];
-  total: string;
+interface ChargeCategory {
+  key: string;
+  label: string;
+  montantGlobal: number;
+  dureeEtalement: string;
+  exerciceNRows: ExerciceNRow[];
+  totalExerciceN1: number;
+  totalExerciceN2: number;
+  totalExerciceN3: number;
+  totalExerciceN4: number;
 }
+
+const EMPTY_CATEGORIES: ChargeCategory[] = [
+  { key: "fraisEtablissement", label: "Frais d'établissement", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+  { key: "chargesARepartir", label: "Charges à répartir sur plusieurs exercice", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+  { key: "primesRemboursement", label: "Primes de remboursement des obligations", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+];
 
 const Note3F: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-    const [searchParams] = useSearchParams();
-  const folderIdFromUrl = searchParams.get('folderId');
+  const [searchParams] = useSearchParams();
+  const folderIdFromUrl = searchParams.get("folderId");
 
   const { selectedFolder, selectedClient } = useApp();
-  // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -44,50 +55,7 @@ const Note3F: React.FC = () => {
     duration: "",
   });
 
-  const [globalAmount, setGlobalAmount] = useState<string>("");
-  const [retainedDuration, setRetainedDuration] = useState<string>("");
-
-  // Exercice N data
-  const [exerciseN, setExerciseN] = useState<ExerciseData>({
-    rows: [
-      { id: "n1", account: "", amount: "" },
-      { id: "n2", account: "", amount: "" },
-      { id: "n3", account: "", amount: "" },
-      { id: "n4", account: "", amount: "" },
-      { id: "n5", account: "", amount: "" },
-    ],
-    total: "",
-  });
-
-  // Charges à répartir data
-  const [chargesToSpread, setChargesToSpread] = useState<ExerciseData>({
-    rows: [
-      { id: "c1", account: "", amount: "" },
-      { id: "c2", account: "", amount: "" },
-      { id: "c3", account: "", amount: "" },
-      { id: "c4", account: "", amount: "" },
-      { id: "c5", account: "", amount: "" },
-    ],
-    total: "",
-  });
-
-  // Primes de remboursement data
-  const [primes, setPrimes] = useState<ExerciseData>({
-    rows: [
-      { id: "p1", account: "", amount: "" },
-      { id: "p2", account: "", amount: "" },
-      { id: "p3", account: "", amount: "" },
-      { id: "p4", account: "", amount: "" },
-      { id: "p5", account: "", amount: "" },
-    ],
-    total: "",
-  });
-
-  const [totalExerciseN1, setTotalExerciseN1] = useState<string>("");
-  const [totalExerciseN2, setTotalExerciseN2] = useState<string>("");
-  const [totalExerciseN3, setTotalExerciseN3] = useState<string>("");
-  const [totalExerciseN4, setTotalExerciseN4] = useState<string>("");
-  const [totalGeneral, setTotalGeneral] = useState<string>("");
+  const [categories, setCategories] = useState<ChargeCategory[]>(EMPTY_CATEGORIES);
 
   useEffect(() => {
     if (folderId) {
@@ -122,44 +90,25 @@ const Note3F: React.FC = () => {
         });
       }
 
-      if (noteData.montantGlobalEtDuree && noteData.montantGlobalEtDuree.length > 0) {
-        setGlobalAmount(noteData.montantGlobalEtDuree[0]?.fraisEtablissement?.toString() || "");
-        setRetainedDuration(noteData.montantGlobalEtDuree[1]?.fraisEtablissement?.toString() || "");
-      }
-
-      if (noteData.exerciceN) {
-        const rowsN = noteData.exerciceN.map((row: any, i: number) => ({
-          id: `n${i + 1}`,
-          account: row.fraisEtablissementCompte || "",
-          amount: row.fraisEtablissementMontant?.toString() || "",
-        }));
-        setExerciseN(prev => ({ ...prev, rows: rowsN.slice(0, 5) }));
-
-        const rowsC = noteData.exerciceN.map((row: any, i: number) => ({
-          id: `c${i + 1}`,
-          account: row.chargesARepartirCompte || "",
-          amount: row.chargesARepartirMontant?.toString() || "",
-        }));
-        setChargesToSpread(prev => ({ ...prev, rows: rowsC.slice(0, 5) }));
-
-        const rowsP = noteData.exerciceN.map((row: any, i: number) => ({
-          id: `p${i + 1}`,
-          account: row.primesRemboursementCompte || "",
-          amount: row.primesRemboursementMontant?.toString() || "",
-        }));
-        setPrimes(prev => ({ ...prev, rows: rowsP.slice(0, 5) }));
-      }
-
-      if (noteData.totaux && noteData.totaux.length > 0) {
-        setExerciseN(prev => ({ ...prev, total: noteData.totaux[0]?.fraisEtablissementMontant?.toString() || "" }));
-        setChargesToSpread(prev => ({ ...prev, total: noteData.totaux[0]?.chargesARepartirMontant?.toString() || "" }));
-        setPrimes(prev => ({ ...prev, total: noteData.totaux[0]?.primesRemboursementMontant?.toString() || "" }));
-
-        setTotalExerciseN1(noteData.totaux[1]?.fraisEtablissementMontant?.toString() || "");
-        setTotalExerciseN2(noteData.totaux[2]?.fraisEtablissementMontant?.toString() || "");
-        setTotalExerciseN3(noteData.totaux[3]?.fraisEtablissementMontant?.toString() || "");
-        setTotalExerciseN4(noteData.totaux[4]?.fraisEtablissementMontant?.toString() || "");
-        setTotalGeneral(noteData.totaux[5]?.fraisEtablissementMontant?.toString() || "");
+      if (Array.isArray(noteData.categories)) {
+        setCategories(
+          noteData.categories.map((c: any, i: number) => ({
+            key: c.key || EMPTY_CATEGORIES[i]?.key || `cat${i}`,
+            label: c.label || EMPTY_CATEGORIES[i]?.label || "",
+            montantGlobal: Number(c.montantGlobal) || 0,
+            dureeEtalement: c.dureeEtalement || "",
+            exerciceNRows: Array.isArray(c.exerciceNRows)
+              ? c.exerciceNRows.map((r: any) => ({
+                  compte: r.compte || "",
+                  montant: Number(r.montant) || 0,
+                }))
+              : [],
+            totalExerciceN1: Number(c.totalExerciceN1) || 0,
+            totalExerciceN2: Number(c.totalExerciceN2) || 0,
+            totalExerciceN3: Number(c.totalExerciceN3) || 0,
+            totalExerciceN4: Number(c.totalExerciceN4) || 0,
+          })),
+        );
       }
     } catch (error) {
       console.error("Error loading Note 3F:", error);
@@ -174,30 +123,7 @@ const Note3F: React.FC = () => {
       setIsSaving(true);
       const noteData = {
         entete: headerInfo,
-        montantGlobalEtDuree: [
-          { fraisEtablissement: parseFloat(globalAmount) || 0, chargesARepartir: 0, primesRemboursement: 0 },
-          { fraisEtablissement: parseFloat(retainedDuration) || 0, chargesARepartir: 0, primesRemboursement: 0 },
-        ],
-        exerciceN: exerciseN.rows.map((row, i) => ({
-          fraisEtablissementCompte: row.account,
-          fraisEtablissementMontant: parseFloat(row.amount) || 0,
-          chargesARepartirCompte: chargesToSpread.rows[i].account,
-          chargesARepartirMontant: parseFloat(chargesToSpread.rows[i].amount) || 0,
-          primesRemboursementCompte: primes.rows[i].account,
-          primesRemboursementMontant: parseFloat(primes.rows[i].amount) || 0,
-        })),
-        totaux: [
-          {
-            fraisEtablissementMontant: parseFloat(exerciseN.total) || 0,
-            chargesARepartirMontant: parseFloat(chargesToSpread.total) || 0,
-            primesRemboursementMontant: parseFloat(primes.total) || 0
-          },
-          { fraisEtablissementMontant: parseFloat(totalExerciseN1) || 0 },
-          { fraisEtablissementMontant: parseFloat(totalExerciseN2) || 0 },
-          { fraisEtablissementMontant: parseFloat(totalExerciseN3) || 0 },
-          { fraisEtablissementMontant: parseFloat(totalExerciseN4) || 0 },
-          { fraisEtablissementMontant: parseFloat(totalGeneral) || 0 },
-        ]
+        categories,
       };
 
       await notesService.saveNoteData(folderId, "3F", noteData as any);
@@ -211,33 +137,44 @@ const Note3F: React.FC = () => {
     }
   };
 
-  const handleExerciseRowChange = (
-    setter: React.Dispatch<React.SetStateAction<ExerciseData>>,
-    id: string,
-    field: "account" | "amount",
-    value: string
-  ) => {
-    setter((prev) => ({
-      ...prev,
-      rows: prev.rows.map((row) =>
-        row.id === id ? { ...row, [field]: value } : row
-      ),
-    }));
+  // --- Calculs ---
+
+  const rowCount = Math.max(0, ...categories.map((c) => c.exerciceNRows.length));
+
+  const totalExerciceN = (c: ChargeCategory) =>
+    c.exerciceNRows.reduce((sum, r) => sum + (Number(r.montant) || 0), 0);
+
+  const totalGeneral = (c: ChargeCategory) =>
+    totalExerciceN(c) +
+    c.totalExerciceN1 +
+    c.totalExerciceN2 +
+    c.totalExerciceN3 +
+    c.totalExerciceN4;
+
+  // --- Handlers ---
+
+  const updateCategory = (key: string, patch: Partial<ChargeCategory>) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.key === key ? { ...c, ...patch } : c)),
+    );
   };
 
-  const renderEditableCell = (
+  const updateExerciceNRow = (
+    key: string,
+    index: number,
+    field: keyof ExerciceNRow,
     value: string,
-    onChange: (val: string) => void,
-    className: string = ""
   ) => {
-    return isEditing ? (
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
-      />
-    ) : (
-      <span>{value}</span>
+    setCategories((prev) =>
+      prev.map((c) => {
+        if (c.key !== key) return c;
+        const rows = [...c.exerciceNRows];
+        rows[index] = {
+          ...rows[index],
+          [field]: field === "montant" ? Number(value) || 0 : value,
+        };
+        return { ...c, exerciceNRows: rows };
+      }),
     );
   };
 
@@ -303,6 +240,31 @@ const Note3F: React.FC = () => {
     );
   }
 
+  // Champ texte simple (compte, durée...)
+  const editableText = (value: string, onChange: (v: string) => void, className = "") =>
+    isEditing ? (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
+      />
+    ) : (
+      <span>{value}</span>
+    );
+
+  // Champ montant
+  const editableAmount = (value: number, onChange: (v: string) => void) =>
+    isEditing ? (
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-full px-1 text-right bg-orange-50 border-none focus:outline-none"
+      />
+    ) : (
+      <span>{value.toLocaleString("fr-FR")}</span>
+    );
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
@@ -361,18 +323,12 @@ const Note3F: React.FC = () => {
         </div>
       </div>
 
-      {isLoading && (
-        <div className="max-w-[210mm] mx-auto mb-6 bg-orange-50 p-4 rounded border border-orange-200 text-orange-700 flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 animate-spin" />
-          Chargement des données...
-        </div>
-      )}
-
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
-          }`}
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${
+          isEditing ? "border-orange-500" : "border-gray-200"
+        }`}
       >
         {isEditing && (
           <div className="mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3">
@@ -401,6 +357,7 @@ const Note3F: React.FC = () => {
         )}
 
         {/* En-tête du document */}
+        <div className="text-center font-bold mb-2 text-lg">16</div>
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
@@ -482,378 +439,123 @@ const Note3F: React.FC = () => {
           <div>TABLEAU D'ETALEMENT DES CHARGES IMMOBILISEES</div>
         </div>
 
-        {/* Tableau Principal */}
-        <table className="w-full border-collapse border border-gray-400 text-[10px]">
+        {/*
+          7 colonnes de contenu au total sur chaque ligne (Libellés + 3
+          catégories × [Comptes, Montants]) — vérifié explicitement pour
+          chaque ligne afin d'éviter la colonne fantôme déjà rencontrée sur
+          les notes 3B/3D quand les colSpan d'un tableau HTML ne totalisent
+          pas la même largeur sur chaque ligne.
+        */}
+        <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
           <thead>
-            <tr className="bg-white">
-              <th
-                rowSpan={3}
-                className="border border-gray-400 p-2 text-left font-bold w-[20%]"
-              >
+            <tr className="bg-gray-300">
+              <th rowSpan={2} className="border border-gray-400 p-2 text-left font-bold w-[22%]">
                 Libellés
               </th>
-              <th colSpan={2} className="border border-gray-400 p-2 font-bold">
-                Frais
-                <br />
-                d'établissement
-              </th>
-              <th colSpan={2} className="border border-gray-400 p-2 font-bold">
-                Charges à répartir
-                <br />
-                sur plusieurs
-                <br />
-                exercice
-              </th>
-              <th colSpan={2} className="border border-gray-400 p-2 font-bold">
-                Primes de
-                <br />
-                remboursement
-                <br />
-                des obligations
-              </th>
+              {categories.map((c) => (
+                <th key={c.key} colSpan={2} className="border border-gray-400 p-2 font-bold w-[26%]">
+                  {c.label}
+                </th>
+              ))}
             </tr>
-            <tr className="bg-gray-200">
-              <th className="border border-gray-400 p-1 font-normal">
-                Comptes
-              </th>
-              <th className="border border-gray-400 p-1 font-normal">
-                Montants
-              </th>
-              <th className="border border-gray-400 p-1 font-normal">
-                Comptes
-              </th>
-              <th className="border border-gray-400 p-1 font-normal">
-                Montants
-              </th>
-              <th className="border border-gray-400 p-1 font-normal">
-                Comptes
-              </th>
-              <th className="border border-gray-400 p-1 font-normal">
-                Montants
-              </th>
+            <tr className="bg-gray-300">
+              {categories.map((c) => (
+                <React.Fragment key={c.key}>
+                  <th className="border border-gray-400 p-1 font-normal">Comptes</th>
+                  <th className="border border-gray-400 p-1 font-normal">Montants</th>
+                </React.Fragment>
+              ))}
             </tr>
           </thead>
           <tbody>
             {/* Montant global à étaler */}
-            <tr className="bg-white">
+            <tr>
               <td className="border border-gray-400 p-1 font-bold">
-                Montant global à étaler au 1er
-                <br />
-                janvier
+                Montant global à étaler au 1er janvier
               </td>
-              <td
-                colSpan={2}
-                className="border border-gray-400 p-1 text-center"
-              >
-                {renderEditableCell(
-                  globalAmount,
-                  setGlobalAmount,
-                  "text-center"
-                )}
-              </td>
-              <td colSpan={2} className="border border-gray-400 p-1"></td>
-              <td colSpan={2} className="border border-gray-400 p-1"></td>
+              {categories.map((c) => (
+                <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-center">
+                  {editableAmount(c.montantGlobal, (v) =>
+                    updateCategory(c.key, { montantGlobal: Number(v) || 0 }),
+                  )}
+                </td>
+              ))}
             </tr>
 
             {/* Durée d'étalement retenue */}
-            <tr className="bg-gray-200">
+            <tr className="bg-gray-100">
               <td className="border border-gray-400 p-1 font-bold">
                 Durée d'étalement retenue
               </td>
-              <td
-                colSpan={6}
-                className="border border-gray-400 p-1 text-center"
-              >
-                {renderEditableCell(
-                  retainedDuration,
-                  setRetainedDuration,
-                  "text-center"
-                )}
-              </td>
-            </tr>
-
-            {/* Sous-en-tête */}
-            <tr className="bg-gray-200">
-              <td className="border border-gray-400 p-1"></td>
-              <td className="border border-gray-400 p-1 text-center font-normal">
-                60…
-              </td>
-              <td className="border border-gray-400 p-1"></td>
-              <td className="border border-gray-400 p-1 text-center font-normal">
-                60…
-              </td>
-              <td className="border border-gray-400 p-1"></td>
-              <td className="border border-gray-400 p-1"></td>
-              <td className="border border-gray-400 p-1"></td>
-            </tr>
-
-            {/* Exercice N */}
-            <tr className="bg-white">
-              <td
-                rowSpan={6}
-                className="border border-gray-400 p-1 font-bold align-top"
-              >
-                Exercice N
-              </td>
-              {exerciseN.rows.slice(0, 1).map((row) => (
-                <React.Fragment key={row.id}>
-                  <td className="border border-gray-400 p-1 text-center">
-                    {renderEditableCell(
-                      row.account,
-                      (val) =>
-                        handleExerciseRowChange(
-                          setExerciseN,
-                          row.id,
-                          "account",
-                          val
-                        ),
-                      "text-center"
-                    )}
-                  </td>
-                  <td className="border border-gray-400 p-1 text-right">
-                    {renderEditableCell(
-                      row.amount,
-                      (val) =>
-                        handleExerciseRowChange(
-                          setExerciseN,
-                          row.id,
-                          "amount",
-                          val
-                        ),
-                      "text-right"
-                    )}
-                  </td>
-                  {chargesToSpread.rows.slice(0, 1).map((cRow) => (
-                    <React.Fragment key={cRow.id}>
-                      <td className="border border-gray-400 p-1 text-center">
-                        {renderEditableCell(
-                          cRow.account,
-                          (val) =>
-                            handleExerciseRowChange(
-                              setChargesToSpread,
-                              cRow.id,
-                              "account",
-                              val
-                            ),
-                          "text-center"
-                        )}
-                      </td>
-                      <td className="border border-gray-400 p-1 text-right">
-                        {renderEditableCell(
-                          cRow.amount,
-                          (val) =>
-                            handleExerciseRowChange(
-                              setChargesToSpread,
-                              cRow.id,
-                              "amount",
-                              val
-                            ),
-                          "text-right"
-                        )}
-                      </td>
-                    </React.Fragment>
-                  ))}
-                  {primes.rows.slice(0, 1).map((pRow) => (
-                    <React.Fragment key={pRow.id}>
-                      <td className="border border-gray-400 p-1 text-center">
-                        {renderEditableCell(
-                          pRow.account,
-                          (val) =>
-                            handleExerciseRowChange(
-                              setPrimes,
-                              pRow.id,
-                              "account",
-                              val
-                            ),
-                          "text-center"
-                        )}
-                      </td>
-                      <td className="border border-gray-400 p-1 text-right">
-                        {renderEditableCell(
-                          pRow.amount,
-                          (val) =>
-                            handleExerciseRowChange(
-                              setPrimes,
-                              pRow.id,
-                              "amount",
-                              val
-                            ),
-                          "text-right"
-                        )}
-                      </td>
-                    </React.Fragment>
-                  ))}
-                </React.Fragment>
+              {categories.map((c) => (
+                <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-center">
+                  {editableText(c.dureeEtalement, (v) =>
+                    updateCategory(c.key, { dureeEtalement: v }),
+                    "text-center",
+                  )}
+                </td>
               ))}
             </tr>
-            {[1, 2, 3, 4].map((idx) => (
-              <tr key={`ex-n-${idx}`} className="bg-white">
-                <td className="border border-gray-400 p-1 text-center">
-                  {renderEditableCell(
-                    exerciseN.rows[idx].account,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setExerciseN,
-                        exerciseN.rows[idx].id,
-                        "account",
-                        val
-                      ),
-                    "text-center"
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-right">
-                  {renderEditableCell(
-                    exerciseN.rows[idx].amount,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setExerciseN,
-                        exerciseN.rows[idx].id,
-                        "amount",
-                        val
-                      ),
-                    "text-right"
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-center">
-                  {renderEditableCell(
-                    chargesToSpread.rows[idx].account,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setChargesToSpread,
-                        chargesToSpread.rows[idx].id,
-                        "account",
-                        val
-                      ),
-                    "text-center"
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-right">
-                  {renderEditableCell(
-                    chargesToSpread.rows[idx].amount,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setChargesToSpread,
-                        chargesToSpread.rows[idx].id,
-                        "amount",
-                        val
-                      ),
-                    "text-right"
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-center">
-                  {renderEditableCell(
-                    primes.rows[idx].account,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setPrimes,
-                        primes.rows[idx].id,
-                        "account",
-                        val
-                      ),
-                    "text-center"
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-right">
-                  {renderEditableCell(
-                    primes.rows[idx].amount,
-                    (val) =>
-                      handleExerciseRowChange(
-                        setPrimes,
-                        primes.rows[idx].id,
-                        "amount",
-                        val
-                      ),
-                    "text-right"
-                  )}
-                </td>
+
+            {/* Exercice N: détail par compte, une ligne par catégorie */}
+            {Array.from({ length: rowCount }).map((_, i) => (
+              <tr key={`ex-n-${i}`}>
+                {i === 0 && (
+                  <td rowSpan={rowCount} className="border border-gray-400 p-1 font-bold align-top">
+                    Exercice N
+                  </td>
+                )}
+                {categories.map((c) => {
+                  const row = c.exerciceNRows[i];
+                  if (!row) return <React.Fragment key={c.key}><td className="border border-gray-400 p-1" /><td className="border border-gray-400 p-1" /></React.Fragment>;
+                  return (
+                    <React.Fragment key={c.key}>
+                      <td className="border border-gray-400 p-1 text-center">
+                        {editableText(row.compte, (v) => updateExerciceNRow(c.key, i, "compte", v), "text-center")}
+                      </td>
+                      <td className="border border-gray-400 p-1 text-right">
+                        {editableAmount(row.montant, (v) => updateExerciceNRow(c.key, i, "montant", v))}
+                      </td>
+                    </React.Fragment>
+                  );
+                })}
               </tr>
             ))}
 
-            {/* Total exercice N */}
+            {/* Total exercice N (calculé, non éditable) */}
             <tr className="bg-gray-300 font-bold">
               <td className="border border-gray-400 p-1">Total exercice N</td>
-              <td colSpan={2} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  exerciseN.total,
-                  (val) => setExerciseN({ ...exerciseN, total: val }),
-                  "text-right"
-                )}
-              </td>
-              <td colSpan={2} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  chargesToSpread.total,
-                  (val) =>
-                    setChargesToSpread({ ...chargesToSpread, total: val }),
-                  "text-right"
-                )}
-              </td>
-              <td colSpan={2} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  primes.total,
-                  (val) => setPrimes({ ...primes, total: val }),
-                  "text-right"
-                )}
-              </td>
+              {categories.map((c) => (
+                <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-right">
+                  {totalExerciceN(c).toLocaleString("fr-FR")}
+                </td>
+              ))}
             </tr>
 
-            {/* Total exercice N-1 */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border border-gray-400 p-1">Total exercice N-1</td>
-              <td colSpan={6} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  totalExerciseN1,
-                  setTotalExerciseN1,
-                  "text-right"
-                )}
-              </td>
-            </tr>
+            {/* Total exercice N-1 à N-4 */}
+            {(["totalExerciceN1", "totalExerciceN2", "totalExerciceN3", "totalExerciceN4"] as const).map(
+              (field, idx) => (
+                <tr key={field} className="bg-gray-300 font-bold">
+                  <td className="border border-gray-400 p-1">Total exercice N-{idx + 1}</td>
+                  {categories.map((c) => (
+                    <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-right">
+                      {editableAmount(c[field], (v) =>
+                        updateCategory(c.key, { [field]: Number(v) || 0 } as Partial<ChargeCategory>),
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ),
+            )}
 
-            {/* Total exercice N-2 */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border border-gray-400 p-1">Total exercice N-2</td>
-              <td colSpan={6} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  totalExerciseN2,
-                  setTotalExerciseN2,
-                  "text-right"
-                )}
-              </td>
-            </tr>
-
-            {/* Total exercice N-3 */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border border-gray-400 p-1">Total exercice N-3</td>
-              <td colSpan={6} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  totalExerciseN3,
-                  setTotalExerciseN3,
-                  "text-right"
-                )}
-              </td>
-            </tr>
-
-            {/* Total exercice N-4 */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border border-gray-400 p-1">Total exercice N-4</td>
-              <td colSpan={6} className="border border-gray-400 p-1 text-right">
-                {renderEditableCell(
-                  totalExerciseN4,
-                  setTotalExerciseN4,
-                  "text-right"
-                )}
-              </td>
-            </tr>
-
-            {/* TOTAL GENERAL */}
-            <tr className="bg-gray-400 font-bold">
+            {/* TOTAL GENERAL (calculé, non éditable) */}
+            <tr className="bg-gray-500 font-bold">
               <td className="border border-gray-400 p-2">TOTAL GENERAL</td>
-              <td colSpan={6} className="border border-gray-400 p-2 text-right">
-                {renderEditableCell(
-                  totalGeneral,
-                  setTotalGeneral,
-                  "text-right"
-                )}
-              </td>
+              {categories.map((c) => (
+                <td key={c.key} colSpan={2} className="border border-gray-400 p-2 text-right">
+                  {totalGeneral(c).toLocaleString("fr-FR")}
+                </td>
+              ))}
             </tr>
           </tbody>
         </table>
@@ -863,6 +565,3 @@ const Note3F: React.FC = () => {
 };
 
 export default Note3F;
-
-
-

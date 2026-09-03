@@ -59,7 +59,7 @@ const GrilleAnalyseNotes: React.FC = () => {
         ref={reportRef}
         className="w-full max-w-[210mm] mx-auto bg-white shadow-xl border border-gray-300"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e6e6e6;
           }

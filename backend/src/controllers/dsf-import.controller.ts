@@ -263,10 +263,14 @@ class DSFImportController {
       const { folderId, noteNumber } = req.params;
 
       await this.verifyFolderAccess(folderId, req.user?.userId);
-      await this.noteDataService.deleteNoteData(folderId, noteNumber);
+      await this.noteDataService.deleteNoteData(
+        folderId,
+        noteNumber,
+        req.user?.userId,
+      );
 
       res.json({
-        message: `Note ${noteNumber} deleted successfully`,
+        message: `Note ${noteNumber} effacée. Son contenu reste restaurable depuis la corbeille.`,
       });
     } catch (error) {
       next(error);

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText, Plus, Trash2 } from "lucide-react";
+import { Pencil, Save, Download, FileText, Plus, Trash2, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -135,7 +135,7 @@ const Note5Smt: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300 rounded-lg overflow-hidden"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e0e0e0;
           }
@@ -362,7 +362,7 @@ const Note5Smt: React.FC = () => {
                   TOTAL
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal(items, "montant").toLocaleString("fr-FR")}
+                  {calculateTotal().toLocaleString("fr-FR")}
                 </td>
                 <td className="border border-gray-600 p-2 text-center"></td>
                 {isEditing && <td className="border border-gray-600 p-2"></td>}

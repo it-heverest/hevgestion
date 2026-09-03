@@ -95,7 +95,7 @@ const Ass11: React.FC = () => {
         ref={reportRef}
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <style jsx>{`
+        <style>{`
           .medium-gray {
             background-color: #c0c0c0;
           }

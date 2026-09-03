@@ -84,18 +84,9 @@ const Note3B: React.FC = () => {
         });
       }
 
-      const buildSection = (data: any[], prefix: string, headerLabel: string): LeaseAssetRow[] => {
+      const buildSection = (data: any[], prefix: string): LeaseAssetRow[] => {
         if (!data || data.length === 0) return [];
         const rows: LeaseAssetRow[] = [];
-        if (headerLabel) {
-          rows.push({
-            id: `${prefix}_HEADER`,
-            label: headerLabel,
-            isSubHeader: true,
-            contractType: "",
-            openingGross: 0, acquisitions: 0, transfersIn: 0, revaluation: 0, disposals: 0, transfersOut: 0
-          });
-        }
         data.forEach((row: any, i: number) => {
           rows.push({
             id: `${prefix}_${i + 1}`,
@@ -113,8 +104,8 @@ const Note3B: React.FC = () => {
       };
 
       const newData = [
-        ...buildSection(noteData.immobilisationsIncorporelles, "I", "IMMOBILISATIONS INCORPORELLES"),
-        ...buildSection(noteData.immobilisationsCorporelles, "C", "IMMOBILISATIONS CORPORELLES"),
+        ...buildSection(noteData.immobilisationsIncorporelles, "I"),
+        ...buildSection(noteData.immobilisationsCorporelles, "C"),
       ];
 
       setAssetsData(newData);
@@ -375,7 +366,7 @@ const Note3B: React.FC = () => {
       return (
         <tr key={row.id}>
           <td
-            colSpan={isEditing ? 11 : 10}
+            colSpan={isEditing ? 10 : 9}
             className="font-bold p-1 pl-2 bg-gray-100 border-x border-gray-400"
           >
             {row.label}
@@ -438,7 +429,7 @@ const Note3B: React.FC = () => {
   ) => {
     return (
       <tr className="bg-gray-300 font-bold border-t-2 border-black">
-        <td colSpan={3} className="border border-gray-400 p-1 pl-2 uppercase">
+        <td colSpan={2} className="border border-gray-400 p-1 pl-2 uppercase">
           {title}
         </td>
         <td className="border border-gray-400 p-1 text-right">
@@ -565,7 +556,7 @@ const Note3B: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[297mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
@@ -679,41 +670,48 @@ const Note3B: React.FC = () => {
         {/* Tableau Principal */}
         <table className="w-full border-collapse border border-gray-400 text-[9px] table-fixed">
           <thead>
+            {/*
+              Exactement 2 lignes d'en-tête, dont la somme des colSpan doit
+              être identique sur chaque ligne (9 colonnes de contenu: coin +
+              nature + A + 3 augmentations + 2 diminutions + D) — un tableau
+              HTML dont les lignes ne totalisent pas la même largeur force le
+              navigateur à insérer une colonne fantôme pour compenser, ce qui
+              causait la colonne vide observée entre "Virement de poste à
+              poste" et "D = A+B-C".
+            */}
             <tr className="bg-gray-300">
-              <th rowSpan={4} className="border border-gray-400 p-1 w-[15%]">
-                SITUATIONS ET MOUVEMENTS
+              <th
+                rowSpan={2}
+                className="relative border border-gray-400 p-1 w-[14%] h-16 align-top"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to top right, transparent calc(50% - 0.5px), #9ca3af calc(50% - 0.5px), #9ca3af calc(50% + 0.5px), transparent calc(50% + 0.5px))",
+                }}
+              >
+                <span className="absolute top-1 right-1 text-right">
+                  SITUATIONS ET MOUVEMENTS
+                </span>
+                <span className="absolute bottom-1 left-1">RUBRIQUES</span>
               </th>
-              <th colSpan={3} className="border border-gray-400 p-1"></th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-[6%]">
+                NATURE DU CONTRAT (I; M; A) (*)
+              </th>
+              <th className="border border-gray-400 p-1 w-[9%]">A</th>
               <th colSpan={3} className="border border-gray-400 p-1">
                 AUGMENTATIONS B
               </th>
-              <th colSpan={2} className="border border-gray-400 p-1">
+              <th colSpan={2} className="border border-gray-400 p-1 border-l-4 border-l-black">
                 DIMINUTIONS C
               </th>
-              <th rowSpan={4} className="border border-gray-400 p-1 w-[10%]">
+              <th rowSpan={2} className="border border-gray-400 p-1 w-[10%] border-l-4 border-l-black">
                 D = A + B - C<br />
                 MONTANT BRUT À LA CLÔTURE DE L'EXERCICE
               </th>
             </tr>
             <tr className="bg-gray-300">
-              <th rowSpan={3} className="border border-gray-400 p-1 w-[5%]">
-                NATURE DU CONTRAT (L, M, A) (*)
-              </th>
-              <th rowSpan={3} className="border border-gray-400 p-1 w-[10%]">
+              <th className="border border-gray-400 p-1">
                 MONTANT BRUT A L'OUVERTURE DE L'EXERCICE
               </th>
-              <th colSpan={3} className="border border-gray-400 p-1"></th>
-              <th rowSpan={3} className="border border-gray-400 p-1 w-[8%]">
-                CESSIONS ET MIS HORS SERVICES
-              </th>
-              <th rowSpan={3} className="border border-gray-400 p-1 w-[6%]">
-                VIREMENT DE POSTE A POSTE
-              </th>
-            </tr>
-            <tr className="bg-gray-300">
-              <th colSpan={3} className="border border-gray-400 p-1"></th>
-            </tr>
-            <tr className="bg-gray-300">
               <th className="border border-gray-400 p-1 w-[8%]">
                 ACQUISITIONS, APPORTS, CREATIONS
               </th>
@@ -723,13 +721,19 @@ const Note3B: React.FC = () => {
               <th className="border border-gray-400 p-1 w-[10%]">
                 SUITE A UNE REEVALUATION PRATIQUEE AU COURS DE L'EXERCICE
               </th>
+              <th className="border border-gray-400 p-1 w-[8%] border-l-4 border-l-black">
+                CESSIONS SCISSIONS HORS SERVICES
+              </th>
+              <th className="border border-gray-400 p-1 w-[6%]">
+                VIREMENT DE POSTE A POSTE
+              </th>
             </tr>
           </thead>
           <tbody>
             {assetsData.filter((row) => row.id.startsWith("I")).map(renderRow)}
             {isEditing && (
               <tr>
-                <td colSpan={11} className="border border-gray-400 p-1">
+                <td colSpan={10} className="border border-gray-400 p-1">
                   <button
                     onClick={() => addRow("I")}
                     className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -756,7 +760,7 @@ const Note3B: React.FC = () => {
             {assetsData.filter((row) => row.id.startsWith("C")).map(renderRow)}
             {isEditing && (
               <tr>
-                <td colSpan={11} className="border border-gray-400 p-1">
+                <td colSpan={10} className="border border-gray-400 p-1">
                   <button
                     onClick={() => addRow("C")}
                     className="text-orange-600 hover:text-orange-800 text-[10px] font-medium"
@@ -783,7 +787,7 @@ const Note3B: React.FC = () => {
             {/* TOTAL GENERAL */}
             <tr className="bg-gray-500 text-black font-bold border-t-2 border-black">
               <td
-                colSpan={3}
+                colSpan={2}
                 className="border border-gray-400 p-1 pl-2 uppercase text-center"
               >
                 TOTAL GENERAL
@@ -826,8 +830,8 @@ const Note3B: React.FC = () => {
         {/* Légende et Commentaires */}
         <div className="p-2 pt-4 flex flex-col gap-1 border-t-0 border border-gray-400">
           <div className="text-[10px] italic">
-            (*) L : Crédit-bail immobilier; M : Crédit-bail mobilier; A : Autres
-            contrats (détailler le poste si montants significatifs).
+            [*] I : Crédit-bail immobilier ; M : Crédit-bail mobilier; A : Autres
+            contrats (dédoubler le poste si montants significatifs)
           </div>
           <div className="font-bold underline text-sm mt-2">Commentaires:</div>
           <ul className="list-disc pl-5 italic text-[10px] text-gray-600 mb-2">

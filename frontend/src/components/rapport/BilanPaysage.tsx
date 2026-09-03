@@ -3,8 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { FormulaValue } from "./shared/FormulaValue";
 
 // --- Interfaces ---
 interface BalanceRow {
@@ -16,9 +17,6 @@ interface BalanceRow {
   amortN: number;
   netN: number;
   netN1: number;
-  // Passif side
-  isPassif?: boolean;
-  passifBrutN?: number; // Not used, but for structure
 }
 
 interface HeaderData {
@@ -39,7 +37,6 @@ const BilanPaysage: React.FC = () => {
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -55,16 +52,38 @@ const BilanPaysage: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await dsfService.getDSF(folderId);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      const data = await notesService.getNoteData(folderId, "bilan-paysage") as any;
 
-      if (dsf.bilan && dsf.bilan.rows) {
-        setRows(dsf.bilan.rows);
-      }
+      if (data) {
+        // Merge saved numeric values into the built-in row templates by id,
+        // rather than replacing the arrays outright — ref/label/note are
+        // defined locally (some labels are JSX, e.g. the Terrains/Bâtiments
+        // footnotes) and must survive a load.
+        const mergeValues = (prev: BalanceRow[], saved: any[]) =>
+          prev.map((row) => {
+            const match = saved.find((r: any) => r.id === row.id);
+            return match
+              ? {
+                  ...row,
+                  brutN: match.brutN ?? row.brutN,
+                  amortN: match.amortN ?? row.amortN,
+                  netN: match.netN ?? row.netN,
+                  netN1: match.netN1 ?? row.netN1,
+                }
+              : row;
+          });
 
-      if (dsf.bilan && dsf.bilan.headerInfo) {
-        setHeaderInfo(dsf.bilan.headerInfo);
+        if (Array.isArray(data.actifRows)) {
+          setActifRows((prev) => mergeValues(prev, data.actifRows));
+        }
+
+        if (Array.isArray(data.passifRows)) {
+          setPassifRows((prev) => mergeValues(prev, data.passifRows));
+        }
+
+        if (data.headerInfo) {
+          setHeaderInfo(data.headerInfo);
+        }
       }
     } catch (error) {
       console.error("Error loading DSF data:", error);
@@ -74,19 +93,24 @@ const BilanPaysage: React.FC = () => {
   };
 
   const saveToBackend = async () => {
-    if (!dsfId) return;
+    if (!folderId) return;
 
     try {
       setSaving(true);
 
       const bilanData = {
         headerInfo,
-        rows,
+        actifRows,
+        passifRows,
       };
 
-      await dsfService.updateDSF(dsfId, { bilan: bilanData });
-      alert("Données Bilan sauvegardées avec succès");
-      setIsEditing(false);
+      const success = await notesService.saveNoteData(folderId, "bilan-paysage", bilanData as any);
+      if (success) {
+        alert("Données Bilan sauvegardées avec succès");
+        setIsEditing(false);
+      } else {
+        alert("Erreur lors de la sauvegarde");
+      }
     } catch (error) {
       console.error("Error saving to backend:", error);
       alert("Erreur lors de la sauvegarde");
@@ -103,621 +127,119 @@ const BilanPaysage: React.FC = () => {
     duration: "12",
   });
 
-  // All rows - Actif and Passif combined for simplicity
-  const [rows, setRows] = useState<BalanceRow[]>([
-    // ACTIF
-    {
-      id: "ad",
-      label: "IMMOBILISATIONS INCORPORELLES",
-      note: "3",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AD",
-    },
-    {
-      id: "ae",
-      label: "Frais de développement et de prospection",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AE",
-    },
-    {
-      id: "af",
-      label: "Brevet, licences, logiciels et droits similaires",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AF",
-    },
-    {
-      id: "ag",
-      label: "Fond commercial et droit au bail",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AG",
-    },
-    {
-      id: "ah",
-      label: "Autres immobilisations incorporelles",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AH",
-    },
-    {
-      id: "ai",
-      label: "IMMOBILISATIONS CORPORELLES",
-      note: "3",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AI",
-    },
+  // ACTIF — colonne gauche du bilan paysage
+  const [actifRows, setActifRows] = useState<BalanceRow[]>([
+    { id: "ad", ref: "AD", label: "IMMOBILISATIONS INCORPORELLES", note: "3", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ae", ref: "AE", label: "Frais de développement et de prospection", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "af", ref: "AF", label: "Brevet, licences, logiciels et droits similaires", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ag", ref: "AG", label: "Fond commercial et droit au bail", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ah", ref: "AH", label: "Autres immobilisations incorporelles", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ai", ref: "AI", label: "IMMOBILISATIONS CORPORELLES", note: "3", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
     {
       id: "aj",
-      label: "Terrains (1)",
+      ref: "AJ",
+      label: (
+        <>
+          Terrains (1)
+          <br />
+          <span className="text-[9px] italic">
+            (1) dont placement en net ................ / ............
+          </span>
+        </>
+      ),
       note: null,
       brutN: 0,
       amortN: 0,
       netN: 0,
       netN1: 0,
-      ref: "AJ",
     },
     {
       id: "ak",
-      label: "(1) dont placement en net ................ / ............",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
       ref: "AK",
-    },
-    {
-      id: "al",
-      label: "Aménagements, agencements et installations",
+      label: (
+        <>
+          Bâtiments
+          <br />
+          <span className="text-[9px] italic">
+            (1) dont placement net ................ / ............
+          </span>
+        </>
+      ),
       note: null,
       brutN: 0,
       amortN: 0,
       netN: 0,
       netN1: 0,
-      ref: "AL",
     },
-    {
-      id: "am",
-      label: "Matériel, mobilier et actifs biologiques",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AM",
-    },
-    {
-      id: "an",
-      label: "Matériel de transport",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AN",
-    },
-    {
-      id: "ao",
-      label: "AVANCES ET ACOMPTES VERSES SUR IMMOBILISATION",
-      note: "3",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AO",
-    },
-    {
-      id: "ap",
-      label: "IMMOBILISATION FINANCIERES",
-      note: "4",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AP",
-    },
-    {
-      id: "aq",
-      label: "Titres de participation",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AQ",
-    },
-    {
-      id: "ar",
-      label: "Autres immobilisations financières",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AR",
-    },
-    {
-      id: "as",
-      label: "TOTAL ACTIF IMMOBILISE",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "AS",
-    },
-    {
-      id: "ba",
-      label: "Actif circulant HAO",
-      note: "5",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BA",
-    },
-    {
-      id: "bb",
-      label: "Stocks et encours",
-      note: "6",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BB",
-    },
-    {
-      id: "bc",
-      label: "Créances et emplois assimilés",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BC",
-    },
-    {
-      id: "bd",
-      label: "Fournisseurs avances versées",
-      note: "17",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BD",
-    },
-    {
-      id: "be",
-      label: "Clients",
-      note: "7",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BE",
-    },
-    {
-      id: "bf",
-      label: "Autres créances",
-      note: "8",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BF",
-    },
-    {
-      id: "bg",
-      label: "TOTAL ACTIF CIRCULANT",
-      note: "9",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BG",
-    },
-    {
-      id: "bh",
-      label: "Titres de placement",
-      note: "9",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BH",
-    },
-    {
-      id: "bi",
-      label: "Valeurs à encaisser",
-      note: "10",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BI",
-    },
-    {
-      id: "bj",
-      label: "Banques, chèques postaux, caisse et assimilés",
-      note: "11",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BJ",
-    },
-    {
-      id: "bk",
-      label: "TOTAL TRESORERIE - ACTIF",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BK",
-    },
-    {
-      id: "bl",
-      label: "Ecart de conversion - Actif",
-      note: "12",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BL",
-    },
-    {
-      id: "bm",
-      label: "TOTAL GENERAL",
-      note: "12",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "BM",
-    },
+    { id: "al", ref: "AL", label: "Aménagements, agencements et installations", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "am", ref: "AM", label: "Matériel, mobilier et actifs biologiques", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "an", ref: "AN", label: "Matériel de transport", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ap", ref: "AP", label: "AVANCES ET ACOMPTES VERSES SUR IMMOBILISATION", note: "3", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "aq", ref: "AQ", label: "IMMOBILISATIONS FINANCIERES", note: "4", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ar", ref: "AR", label: "Titres de participation", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "as", ref: "AS", label: "Autres immobilisations financières", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "az", ref: "AZ", label: "TOTAL ACTIF IMMOBILISE", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ba", ref: "BA", label: "Actif circulant HAO", note: "5", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bb", ref: "BB", label: "Stocks et encours", note: "6", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bc", ref: "BC", label: "Créances et emplois assimilés", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bh", ref: "BH", label: "Fournisseurs avances versées", note: "17", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bi", ref: "BI", label: "Clients", note: "7", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bj", ref: "BJ", label: "Autres créances", note: "8", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bk", ref: "BK", label: "TOTAL ACTIF CIRCULANT", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bq", ref: "BQ", label: "Titres de placement", note: "9", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "br", ref: "BR", label: "Valeurs à encaisser", note: "10", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bs", ref: "BS", label: "Banques, chèques postaux, caisse et assimilés", note: "11", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bt", ref: "BT", label: "TOTAL TRESORERIE - ACTIF", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bu", ref: "BU", label: "Ecart de conversion - Actif", note: "12", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "bz", ref: "BZ", label: "TOTAL GENERAL", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+  ]);
 
-    // PASSIF
-    {
-      id: "ca",
-      label: "Capital",
-      note: "13",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CA",
-      isPassif: true,
-    },
-    {
-      id: "cb",
-      label: "Apporteurs capital non appelé (-)",
-      note: "13",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CB",
-      isPassif: true,
-    },
-    {
-      id: "cc",
-      label: "Primes liées au capital social",
-      note: "14",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CC",
-      isPassif: true,
-    },
-    {
-      id: "cd",
-      label: "Ecart de réévaluation",
-      note: "3a",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CD",
-      isPassif: true,
-    },
-    {
-      id: "ce",
-      label: "Réserves indisponibles",
-      note: "14",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CE",
-      isPassif: true,
-    },
-    {
-      id: "cf",
-      label: "Réserves libres",
-      note: "14",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CF",
-      isPassif: true,
-    },
-    {
-      id: "cg",
-      label: "Report à nouveau (+ ou -)",
-      note: "14",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CG",
-      isPassif: true,
-    },
-    {
-      id: "ch",
-      label: "Résultat net de l'exercice (bénéfice + ou perte -)",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CH",
-      isPassif: true,
-    },
-    {
-      id: "ci",
-      label: "Subventions d'investissement",
-      note: "15",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CI",
-      isPassif: true,
-    },
-    {
-      id: "cj",
-      label: "Provisions réglementées",
-      note: "15",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CJ",
-      isPassif: true,
-    },
-    {
-      id: "ck",
-      label: "TOTAL CAPITAUX PROPRES ET RESSOURCES ASSIMILEES",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "CK",
-      isPassif: true,
-    },
-    {
-      id: "da",
-      label: "Emprunts et dettes financières diverses",
-      note: "16",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DA",
-      isPassif: true,
-    },
-    {
-      id: "db",
-      label: "Dettes de location acquisition",
-      note: "16",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DB",
-      isPassif: true,
-    },
-    {
-      id: "dc",
-      label: "Provisions pour risques et charges",
-      note: "16",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DC",
-      isPassif: true,
-    },
-    {
-      id: "dd",
-      label: "TOTAL DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DD",
-      isPassif: true,
-    },
-    {
-      id: "de",
-      label: "TOTAL RESSOURCES STABLES",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DE",
-      isPassif: true,
-    },
-    {
-      id: "df",
-      label: "Dettes circulantes HAO",
-      note: "5",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DF",
-      isPassif: true,
-    },
-    {
-      id: "dg",
-      label: "Clients, avances reçues",
-      note: "7",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DG",
-      isPassif: true,
-    },
-    {
-      id: "dh",
-      label: "Fournisseurs d'exploitation",
-      note: "17",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DH",
-      isPassif: true,
-    },
-    {
-      id: "di",
-      label: "Dettes fiscales et sociales",
-      note: "18",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DI",
-      isPassif: true,
-    },
-    {
-      id: "dj",
-      label: "Autres dettes",
-      note: "19",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DJ",
-      isPassif: true,
-    },
-    {
-      id: "dk",
-      label: "Provisions pour risques à court terme",
-      note: "19",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DK",
-      isPassif: true,
-    },
-    {
-      id: "dl",
-      label: "TOTAL PASSIF CIRCULANT",
-      note: "20",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DL",
-      isPassif: true,
-    },
-    {
-      id: "dm",
-      label: "Banques, crédits d'escompte",
-      note: "20",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DM",
-      isPassif: true,
-    },
-    {
-      id: "dn",
-      label: "Banques, établissements financiers et crédits de trésorerie",
-      note: "20",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DN",
-      isPassif: true,
-    },
-    {
-      id: "do",
-      label: "TOTAL TRESORERIE - PASSIF",
-      note: null,
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DO",
-      isPassif: true,
-    },
-    {
-      id: "dp",
-      label: "Ecart de conversion - Passif",
-      note: "12",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DP",
-      isPassif: true,
-    },
-    {
-      id: "dq",
-      label: "TOTAL GENERAL",
-      note: "12",
-      brutN: 0,
-      amortN: 0,
-      netN: 0,
-      netN1: 0,
-      ref: "DQ",
-      isPassif: true,
-    },
+  // PASSIF — colonne droite du bilan paysage
+  const [passifRows, setPassifRows] = useState<BalanceRow[]>([
+    { id: "ca", ref: "CA", label: "Capital", note: "13", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cb", ref: "CB", label: "Apporteurs capital non appelé (-)", note: "13", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cd", ref: "CD", label: "Primes liées au capital social", note: "14", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ce", ref: "CE", label: "Ecarts de réévaluations", note: "3e", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cf", ref: "CF", label: "Réserves indisponibles", note: "14", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cg", ref: "CG", label: "Réserves libres", note: "14", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "ch", ref: "CH", label: "Report à nouveau (+ ou -)", note: "14", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cj", ref: "CJ", label: "Résultat net de l'exercice (entrées + ou perte -)", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cl", ref: "CL", label: "Subventions d'investissement", note: "15", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cm", ref: "CM", label: "Provisions réglementées", note: "15", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "cp", ref: "CP", label: "TOTAL CAPITAUX PROPRES ET RESSOURCES ASSIMILEES", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "da", ref: "DA", label: "Emprunts et dettes financières diverses", note: "16", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "db", ref: "DB", label: "Dettes de location acquisition", note: "16", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dc", ref: "DC", label: "Provisions pour risques et charges", note: "16", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dd", ref: "DD", label: "TOTAL DETTES FINANCIERES ET RESSOURCES ASSIMILEES", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "df", ref: "DF", label: "TOTAL RESSOURCES STABLES", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dh", ref: "DH", label: "Dettes circulantes HAO", note: "5", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "di", ref: "DI", label: "Clients, avances reçues", note: "7", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dj", ref: "DJ", label: "Fournisseurs d'exploitation", note: "17", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dk", ref: "DK", label: "Dettes fiscales et sociales", note: "18", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dm", ref: "DM", label: "Autres dettes", note: "19", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dn", ref: "DN", label: "Provisions pour risques à court terme", note: "19", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dp", ref: "DP", label: "TOTAL PASSIF CIRCULANT", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dq", ref: "DQ", label: "Banques, crédits d'escompte", note: "20", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dr", ref: "DR", label: "Banques, établissements financiers et crédits de trésorerie", note: "20", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dt", ref: "DT", label: "TOTAL TRESORERIE - PASSIF", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dy", ref: "DY", label: "Ecart de conversion - Passif", note: "12", brutN: 0, amortN: 0, netN: 0, netN1: 0 },
+    { id: "dz", ref: "DZ", label: "TOTAL GENERAL", note: null, brutN: 0, amortN: 0, netN: 0, netN1: 0 },
   ]);
 
   const handleChange = (
+    side: "actif" | "passif",
     id: string,
     field: "brutN" | "amortN" | "netN" | "netN1",
     value: string
   ) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.id === id ? { ...row, [field]: Number(value) || 0 } : row
-      )
-    );
+    const updater = (prev: BalanceRow[]) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: Number(value) || 0 } : row));
+
+    if (side === "actif") {
+      setActifRows(updater);
+    } else {
+      setPassifRows(updater);
+    }
   };
 
   const downloadPDF = async () => {
@@ -737,102 +259,40 @@ const BilanPaysage: React.FC = () => {
     }
   };
 
-  const renderActifRow = (row: BalanceRow) => (
-    <tr key={row.id}>
-      <td className="border border-gray-400 p-1 text-center font-bold">
-        {row.ref}
-      </td>
-      <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
-      <td className="border border-gray-400 p-1 text-center">
-        {row.note || ""}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.brutN}
-            onChange={(e) => handleChange(row.id, "brutN", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.brutN.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.amortN}
-            onChange={(e) => handleChange(row.id, "amortN", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.amortN.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right font-bold">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.netN}
-            onChange={(e) => handleChange(row.id, "netN", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.netN.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right font-bold">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.netN1}
-            onChange={(e) => handleChange(row.id, "netN1", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.netN1.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td colSpan={5}></td>
-    </tr>
-  );
+  const rowCount = Math.max(actifRows.length, passifRows.length);
 
-  const renderPassifRow = (row: BalanceRow) => (
-    <tr key={row.id}>
-      <td colSpan={7}></td>
-      <td className="border border-gray-400 p-1 text-center font-bold">
-        {row.ref}
-      </td>
-      <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
-      <td className="border border-gray-400 p-1 text-center">
-        {row.note || ""}
-      </td>
-      <td className="border border-gray-400 p-1 text-right font-bold">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.netN}
-            onChange={(e) => handleChange(row.id, "netN", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.netN.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right font-bold">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.netN1}
-            onChange={(e) => handleChange(row.id, "netN1", e.target.value)}
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.netN1.toLocaleString("fr-FR")
-        )}
-      </td>
-    </tr>
+  // Les libellés de rubriques (ex: "IMMOBILISATIONS INCORPORELLES") sont en
+  // MAJUSCULES dans les données — sert à distinguer visuellement les
+  // en-têtes de section (gras) et les totaux (gras + fond gris) des lignes
+  // de détail normales (bleu), comme dans le vrai template.
+  const isCaption = (label: BalanceRow["label"]): boolean =>
+    typeof label === "string" && label === label.toUpperCase() && /[A-ZÀ-Ü]/.test(label);
+  const isTotal = (label: BalanceRow["label"]): boolean =>
+    isCaption(label) && (label as string).includes("TOTAL");
+
+  const renderNumberCell = (
+    side: "actif" | "passif",
+    row: BalanceRow,
+    field: "brutN" | "amortN" | "netN" | "netN1",
+    extraClassName = ""
+  ) => (
+    <td className={`border border-gray-400 p-1 text-right ${extraClassName}`}>
+      {isEditing ? (
+        <input
+          type="number"
+          value={row[field]}
+          onChange={(e) => handleChange(side, row.id, field, e.target.value)}
+          className="w-full text-right bg-orange-50"
+        />
+      ) : (
+        <FormulaValue
+          formulaKey={`bilan_paysage.${side}Rows.${row.id}`}
+          label={typeof row.label === "string" ? row.label : row.ref}
+        >
+          {row[field].toLocaleString("fr-FR")}
+        </FormulaValue>
+      )}
+    </td>
   );
 
   return (
@@ -879,36 +339,70 @@ const BilanPaysage: React.FC = () => {
       >
         <div className="text-center font-bold mb-2 text-lg">5</div>
 
+        <div className="bg-gray-300 border border-gray-400 py-2 text-center font-bold mb-4 text-xl">
+          BILAN PAYSAGE
+        </div>
+
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1">
           <div className="flex gap-2">
-            <span className="font-bold">Désignation entité :</span>
-            <span className="border-b border-dotted border-gray-400 flex-1">
-              {headerInfo.entityName}
-            </span>
+            <span className="font-bold whitespace-nowrap">Désignation entité :</span>
+            {isEditing ? (
+              <input
+                value={headerInfo.entityName}
+                onChange={(e) => setHeaderInfo({ ...headerInfo, entityName: e.target.value })}
+                className="border-b border-orange-500 bg-orange-50 flex-1 focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 flex-1">
+                {headerInfo.entityName}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
-            <span className="font-bold">Exercice clos le 31-12-</span>
-            <span className="border-b border-dotted border-gray-400 w-32 text-center">
-              {headerInfo.fiscalYear}
-            </span>
+            <span className="font-bold whitespace-nowrap">Exercice clos le 31-12-</span>
+            {isEditing ? (
+              <input
+                value={headerInfo.fiscalYear}
+                onChange={(e) => setHeaderInfo({ ...headerInfo, fiscalYear: e.target.value })}
+                className="border-b border-orange-500 bg-orange-50 w-32 text-center focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-32 text-center">
+                {headerInfo.fiscalYear}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
-            <span className="font-bold">Numéro d'identification :</span>
-            <span className="border-b border-dotted border-gray-400 flex-1">
-              {headerInfo.idNumber}
-            </span>
+            <span className="font-bold whitespace-nowrap">Numéro d'identification :</span>
+            {isEditing ? (
+              <input
+                value={headerInfo.idNumber}
+                onChange={(e) => setHeaderInfo({ ...headerInfo, idNumber: e.target.value })}
+                className="border-b border-orange-500 bg-orange-50 flex-1 focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 flex-1">
+                {headerInfo.idNumber}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 justify-end">
-            <span className="font-bold">Durée (en mois) :</span>
-            <span className="border-b border-dotted border-gray-400 w-16 text-center">
-              {headerInfo.duration}
-            </span>
+            <span className="font-bold whitespace-nowrap">Durée (en mois) :</span>
+            {isEditing ? (
+              <input
+                value={headerInfo.duration}
+                onChange={(e) => setHeaderInfo({ ...headerInfo, duration: e.target.value })}
+                className="border-b border-orange-500 bg-orange-50 w-16 text-center focus:outline-none px-1"
+              />
+            ) : (
+              <span className="border-b border-dotted border-gray-400 w-16 text-center">
+                {headerInfo.duration}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-4">
-          BILAN PAYSAGE
-          <br />
+        <div className="text-center font-bold mb-4">
           BILAN AU 31 DECEMBRE N
         </div>
 
@@ -974,9 +468,58 @@ const BilanPaysage: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) =>
-              row.isPassif ? renderPassifRow(row) : renderActifRow(row)
-            )}
+            {Array.from({ length: rowCount }).map((_, i) => {
+              const a = actifRows[i];
+              const p = passifRows[i];
+              const aTotal = a ? isTotal(a.label) : false;
+              const aCaption = a ? isCaption(a.label) : false;
+              const aBg = aTotal ? "bg-gray-300" : "";
+              const aLabelCls = aCaption ? "font-bold" : "text-blue-700";
+              const pTotal = p ? isTotal(p.label) : false;
+              const pCaption = p ? isCaption(p.label) : false;
+              const pBg = pTotal ? "bg-gray-300" : "";
+              const pLabelCls = pCaption ? "font-bold" : "text-blue-700";
+              return (
+                <tr key={a?.id || p?.id || i}>
+                  {a ? (
+                    <>
+                      <td className={`border border-gray-400 p-1 text-center font-bold ${aBg}`}>
+                        {a.ref}
+                      </td>
+                      <td className={`border border-gray-400 p-1 pl-2 ${aLabelCls} ${aBg}`}>
+                        {a.label}
+                      </td>
+                      <td className={`border border-gray-400 p-1 text-center ${aBg}`}>
+                        {a.note || ""}
+                      </td>
+                      {renderNumberCell("actif", a, "brutN", `${aCaption ? "font-bold" : ""} ${aBg}`)}
+                      {renderNumberCell("actif", a, "amortN", `${aCaption ? "font-bold" : ""} ${aBg}`)}
+                      {renderNumberCell("actif", a, "netN", `font-bold ${aBg}`)}
+                      {renderNumberCell("actif", a, "netN1", `font-bold ${aBg}`)}
+                    </>
+                  ) : (
+                    <td colSpan={7}></td>
+                  )}
+                  {p ? (
+                    <>
+                      <td className={`border border-gray-400 p-1 text-center font-bold ${pBg}`}>
+                        {p.ref}
+                      </td>
+                      <td className={`border border-gray-400 p-1 pl-2 ${pLabelCls} ${pBg}`}>
+                        {p.label}
+                      </td>
+                      <td className={`border border-gray-400 p-1 text-center ${pBg}`}>
+                        {p.note || ""}
+                      </td>
+                      {renderNumberCell("passif", p, "netN", `font-bold ${pBg}`)}
+                      {renderNumberCell("passif", p, "netN1", `font-bold ${pBg}`)}
+                    </>
+                  ) : (
+                    <td colSpan={5}></td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -985,7 +528,3 @@ const BilanPaysage: React.FC = () => {
 };
 
 export default BilanPaysage;
- 
-
-
-

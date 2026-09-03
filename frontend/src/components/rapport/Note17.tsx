@@ -5,6 +5,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { FormulaValue } from "./shared/FormulaValue";
 
 // --- Interfaces ---
 interface SupplierRow {
@@ -256,7 +257,9 @@ const Note17: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note17.rows.${row.id}`} label={row.label}>
+            {row.yearN.toLocaleString("fr-FR")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -268,7 +271,9 @@ const Note17: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN1.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note17.rows.${row.id}`} label={row.label}>
+            {row.yearN1.toLocaleString("fr-FR")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -406,7 +411,7 @@ const Note17: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">31</div>

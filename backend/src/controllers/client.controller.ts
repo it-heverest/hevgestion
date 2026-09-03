@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../lib/errors";
 import { CountrySelection, FolderStatus, ClientType } from "@prisma/client";
 import { auditService } from "../services/audit.service";
+import { trashService } from "../services/trash.service";
 
 class ClientController {
   async getClients(req: AuthRequest, res: Response, next: NextFunction) {
@@ -381,15 +382,15 @@ class ClientController {
         throw new BadRequestError("Cannot delete client with existing folders");
       }
 
-      await prisma.client.delete({
-        where: { id },
-      });
+      // Suppression réversible: le client est archivé en corbeille.
+      await trashService.archiveAndDelete("Client", id, userId, req.body?.reason);
 
       // Log audit event
       await auditService.logClientDeleted(userId, id, client);
 
       res.json({
-        message: "Client deleted successfully",
+        message:
+          "Client placé dans la corbeille. Un administrateur peut le restaurer.",
       });
     } catch (error) {
       next(error);

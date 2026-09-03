@@ -318,7 +318,7 @@ const Note2: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border-2 ${
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border-2 ${
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >

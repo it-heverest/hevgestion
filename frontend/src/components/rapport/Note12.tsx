@@ -66,12 +66,46 @@ const Note12: React.FC = () => {
           setHeaderInfo(noteData.entete);
         }
 
-        if (noteData.conversionRows) {
-          setConversionRows(noteData.conversionRows);
+        // Fusionne les valeurs saisies dans les lignes existantes par
+        // `id`, sans remplacer le tableau entier: les libellés (avec
+        // renvois colorés (1)/(2)) sont définis localement en JSX, pas
+        // par le backend, et un remplacement complet les effacerait —
+        // en particulier au tout premier chargement, où le backend
+        // renvoie des lignes à zéro (tableau non vide mais "truthy").
+        if (Array.isArray(noteData.conversionRows)) {
+          setConversionRows((prev) =>
+            prev.map((row) => {
+              const saved = noteData.conversionRows.find(
+                (r: any) => r.id === row.id,
+              );
+              return saved
+                ? {
+                    ...row,
+                    currency: saved.currency ?? row.currency,
+                    amountInCurrency: Number(saved.amountInCurrency) || 0,
+                    acquisitionRate: Number(saved.acquisitionRate) || 0,
+                    closingRate: Number(saved.closingRate) || 0,
+                  }
+                : row;
+            }),
+          );
         }
 
-        if (noteData.transferRows) {
-          setTransferRows(noteData.transferRows);
+        if (Array.isArray(noteData.transferRows)) {
+          setTransferRows((prev) =>
+            prev.map((row) => {
+              const saved = noteData.transferRows.find(
+                (r: any) => r.id === row.id,
+              );
+              return saved
+                ? {
+                    ...row,
+                    yearN: Number(saved.yearN) || 0,
+                    yearN1: Number(saved.yearN1) || 0,
+                  }
+                : row;
+            }),
+          );
         }
 
         if (noteData.commentConversion !== undefined) {
@@ -95,10 +129,23 @@ const Note12: React.FC = () => {
     try {
       setIsSaving(true);
 
+      // Les libellés sont du JSX défini localement (renvois colorés
+      // (1)/(2)) — seuls id + valeurs numériques sont envoyés, dans le
+      // même format que celui relu par loadNoteData.
       const noteData = {
         entete: headerInfo,
-        conversionRows,
-        transferRows,
+        conversionRows: conversionRows.map((r) => ({
+          id: r.id,
+          currency: r.currency,
+          amountInCurrency: r.amountInCurrency,
+          acquisitionRate: r.acquisitionRate,
+          closingRate: r.closingRate,
+        })),
+        transferRows: transferRows.map((r) => ({
+          id: r.id,
+          yearN: r.yearN,
+          yearN1: r.yearN1,
+        })),
         commentConversion,
         commentTransfer,
       };
@@ -305,7 +352,7 @@ const Note12: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">25</div>

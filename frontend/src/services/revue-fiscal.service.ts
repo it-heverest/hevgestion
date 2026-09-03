@@ -1,6 +1,7 @@
 // services/revue-fiscal.service.ts
 import api from "./api";
 import { API_CONFIG } from "../config/api";
+import { authService } from "./auth.service";
 
 export type RevueFiscalEval = "NA" | "OK" | "ERR_MAT" | "ANOMALIE";
 export type RevueFiscalPriority = "HAUTE" | "NORMALE" | "BASSE";

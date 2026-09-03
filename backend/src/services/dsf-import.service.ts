@@ -356,12 +356,45 @@ export class NoteDataService {
   }
 
   /**
-   * Delete specific note data
+   * Efface le contenu d'une note. Le contenu précédent est archivé en
+   * corbeille avant l'effacement: rien n'est réellement perdu, un
+   * administrateur peut le restaurer.
    */
-  async deleteNoteData(folderId: string, noteNumber: string): Promise<void> {
+  async deleteNoteData(
+    folderId: string,
+    noteNumber: string,
+    deletedById?: string,
+  ): Promise<void> {
     const noteField = this.mapNoteNumberToField(noteNumber);
     if (!noteField) {
       throw new Error(`Invalid note number: ${noteNumber}`);
+    }
+
+    const dsf = await prisma.dSF.findUnique({ where: { folderId } });
+    const previousContent = dsf ? (dsf as any)[noteField] : null;
+
+    if (dsf && previousContent && deletedById) {
+      const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+        select: { clientId: true, name: true, fiscalYear: true },
+      });
+
+      await prisma.deletedRecord.create({
+        data: {
+          entityType: "DSFNote",
+          entityId: `${dsf.id}:${noteField}`,
+          label: `Note ${noteNumber} — ${folder?.name ?? folderId} (exercice ${folder?.fiscalYear ?? "?"})`,
+          payload: {
+            dsfId: dsf.id,
+            fieldName: noteField,
+            noteNumber,
+            content: previousContent,
+          },
+          clientId: folder?.clientId ?? null,
+          folderId,
+          deletedById,
+        },
+      });
     }
 
     await prisma.dSF.update({

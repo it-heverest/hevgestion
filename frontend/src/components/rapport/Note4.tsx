@@ -34,6 +34,45 @@ interface SubsidiaryRow {
   lastResult: string;
 }
 
+// Rubriques fixes du template (dans l'ordre exact de CONFIG_NOTE4 côté backend)
+const IMMOBILISATION_LABELS = [
+  "Titres de participation",
+  "Prêts et créances",
+  "Prêt au personnel",
+  "Créances sur l'Etat",
+  "Titres immobilisés",
+  "Dépôts et cautionnements",
+  "Intérêts courus",
+];
+const DEPRECIATION_LABELS = [
+  "Dépréciations titres de participation",
+  "Dépréciations autres immobilisations",
+];
+
+const emptyRow = (id: string, label: string): ImmobilisationRow => ({
+  id,
+  label,
+  yearN: "",
+  yearN1: "",
+  variation: "",
+  oneYearPlus: "",
+  twoYearsPlus: "",
+  fourYearsPlus: "",
+});
+
+// Variation en % recalculée depuis Année N / Année N-1 (jamais saisie à la main)
+const calcVariation = (yearN: string, yearN1: string): string => {
+  const n = parseFloat(yearN) || 0;
+  const n1 = parseFloat(yearN1) || 0;
+  if (!n1) return "";
+  return (((n - n1) / Math.abs(n1)) * 100).toFixed(2);
+};
+
+const sumField = (
+  rows: ImmobilisationRow[],
+  field: "yearN" | "yearN1" | "oneYearPlus" | "twoYearsPlus" | "fourYearsPlus",
+): number => rows.reduce((acc, r) => acc + (parseFloat(r[field]) || 0), 0);
+
 const Note4: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,24 +91,38 @@ const Note4: React.FC = () => {
     duration: "12",
   });
 
-  const [immobilisations, setImmobilisations] = useState<ImmobilisationRow[]>([
-    { id: "1", label: "Titres de participation", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "2", label: "Prêts et créances", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "3", label: "Prêt au personnel", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "4", label: "Créances sur l'Etat", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "5", label: "Titres immobilisés", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "6", label: "Dépôts et cautionnements", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "7", label: "Intérêts courus", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-  ]);
+  const [immobilisations, setImmobilisations] = useState<ImmobilisationRow[]>(
+    IMMOBILISATION_LABELS.map((label, i) => emptyRow(String(i + 1), label)),
+  );
 
-  const [totalBrut, setTotalBrut] = useState({ yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" });
+  const [depreciations, setDepreciations] = useState<ImmobilisationRow[]>(
+    DEPRECIATION_LABELS.map((label, i) => emptyRow(`d${i + 1}`, label)),
+  );
 
-  const [depreciations, setDepreciations] = useState<ImmobilisationRow[]>([
-    { id: "d1", label: "Dépréciations titres de participation", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-    { id: "d2", label: "Dépréciations autres immobilisations", yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" },
-  ]);
+  // TOTAL BRUT et TOTAL NET DE DEPRECIATION sont toujours calculés à partir
+  // des lignes ci-dessus — jamais saisis directement, pour rester cohérents
+  // avec les montants édités.
+  const totalBrutYearN = sumField(immobilisations, "yearN");
+  const totalBrutYearN1 = sumField(immobilisations, "yearN1");
+  const totalBrut = {
+    yearN: totalBrutYearN,
+    yearN1: totalBrutYearN1,
+    variation: calcVariation(String(totalBrutYearN), String(totalBrutYearN1)),
+    oneYearPlus: sumField(immobilisations, "oneYearPlus"),
+    twoYearsPlus: sumField(immobilisations, "twoYearsPlus"),
+    fourYearsPlus: sumField(immobilisations, "fourYearsPlus"),
+  };
 
-  const [totalNet, setTotalNet] = useState({ yearN: "", yearN1: "", variation: "", oneYearPlus: "", twoYearsPlus: "", fourYearsPlus: "" });
+  const totalNetYearN = totalBrutYearN - sumField(depreciations, "yearN");
+  const totalNetYearN1 = totalBrutYearN1 - sumField(depreciations, "yearN1");
+  const totalNet = {
+    yearN: totalNetYearN,
+    yearN1: totalNetYearN1,
+    variation: calcVariation(String(totalNetYearN), String(totalNetYearN1)),
+    oneYearPlus: totalBrut.oneYearPlus - sumField(depreciations, "oneYearPlus"),
+    twoYearsPlus: totalBrut.twoYearsPlus - sumField(depreciations, "twoYearsPlus"),
+    fourYearsPlus: totalBrut.fourYearsPlus - sumField(depreciations, "fourYearsPlus"),
+  };
 
   const [subsidiaries, setSubsidiaries] = useState<SubsidiaryRow[]>([
     { id: "s1", denomination: "", location: "", acquisitionValue: "", percentageHeld: "", capitalAmount: "", lastResult: "" },
@@ -96,22 +149,32 @@ const Note4: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "4") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.immobilisationsFinancieres) {
+        // Le backend stocke les 11 lignes (7 immobilisations + TOTAL BRUT +
+        // 2 dépréciations + TOTAL NET) dans un seul tableau, dans cet ordre
+        // exact (cf. CONFIG_NOTE4.sections.immobilisationsFinancieres) —
+        // les lignes TOTAL sont ignorées ici car recalculées côté client.
+        const rows = noteData.immobilisationsFinancieres;
+        if (Array.isArray(rows) && rows.length > 0) {
+          const toRow = (id: string, label: string, r: any): ImmobilisationRow => ({
+            id,
+            label,
+            yearN: String(r?.anneeN ?? ""),
+            yearN1: String(r?.anneeN1 ?? ""),
+            variation: "",
+            oneYearPlus: String(r?.creancesUnAnAuPlus ?? ""),
+            twoYearsPlus: String(r?.creancesPlusUnAnDeuxAns ?? ""),
+            fourYearsPlus: String(r?.creancesPlusDeuxAns ?? ""),
+          });
           setImmobilisations(
-            noteData.immobilisationsFinancieres.map((r: any, i: number) => ({
-              id: String(i + 1),
-              label: r.libelle || immobilisations[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
-              variation: String(r.variationPourcentage ?? ""),
-              oneYearPlus: String(r.creancesUnAnAuPlus ?? ""),
-              twoYearsPlus: String(r.creancesPlusUnAnDeuxAns ?? ""),
-              fourYearsPlus: String(r.creancesPlusDeuxAns ?? ""),
-            }))
+            IMMOBILISATION_LABELS.map((label, i) =>
+              toRow(String(i + 1), label, rows[i]),
+            ),
           );
-        } else if (noteData.immobilisations) {
-          setImmobilisations(noteData.immobilisations);
+          setDepreciations(
+            DEPRECIATION_LABELS.map((label, i) =>
+              toRow(`d${i + 1}`, label, rows[8 + i]),
+            ),
+          );
         }
         if (noteData.filialesParticipations) {
           setSubsidiaries(
@@ -128,9 +191,6 @@ const Note4: React.FC = () => {
         } else if (noteData.subsidiaries) {
           setSubsidiaries(noteData.subsidiaries);
         }
-        if (noteData.totalBrut) setTotalBrut(noteData.totalBrut);
-        if (noteData.depreciations) setDepreciations(noteData.depreciations);
-        if (noteData.totalNet) setTotalNet(noteData.totalNet);
       }
     } catch (error) {
       console.error("Error loading Note 4 data:", error);
@@ -143,18 +203,37 @@ const Note4: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Le backend attend un seul tableau de 11 lignes, dans l'ordre exact
+      // du template (7 immobilisations + TOTAL BRUT + 2 dépréciations +
+      // TOTAL NET), cf. CONFIG_NOTE4 côté backend.
+      const toApiRow = (
+        label: string,
+        r: {
+          yearN: string | number;
+          yearN1: string | number;
+          variation: string;
+          oneYearPlus: string | number;
+          twoYearsPlus: string | number;
+          fourYearsPlus: string | number;
+        },
+      ) => ({
+        libelle: label,
+        anneeN: parseFloat(String(r.yearN)) || null,
+        anneeN1: parseFloat(String(r.yearN1)) || null,
+        variationPourcentage: parseFloat(r.variation) || null,
+        creancesUnAnAuPlus: parseFloat(String(r.oneYearPlus)) || null,
+        creancesPlusUnAnDeuxAns: parseFloat(String(r.twoYearsPlus)) || null,
+        creancesPlusDeuxAns: parseFloat(String(r.fourYearsPlus)) || null,
+      });
+
       const noteData = {
         entete,
-        immobilisationsFinancieres: immobilisations.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: parseFloat(r.variation) || null,
-          creancesUnAnAuPlus: parseFloat(r.oneYearPlus) || null,
-          creancesPlusUnAnDeuxAns: parseFloat(r.twoYearsPlus) || null,
-          creancesPlusDeuxAns: parseFloat(r.fourYearsPlus) || null,
-        })),
+        immobilisationsFinancieres: [
+          ...immobilisations.map((r) => toApiRow(r.label, r)),
+          toApiRow("TOTAL BRUT", totalBrut),
+          ...depreciations.map((r) => toApiRow(r.label, r)),
+          toApiRow("TOTAL NET DE DEPRECIATION", totalNet),
+        ],
         filialesParticipations: subsidiaries.map((r) => ({
           denominationSociale: r.denomination || null,
           localisation: r.location || null,
@@ -193,6 +272,25 @@ const Note4: React.FC = () => {
     setSubsidiaries((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+  };
+
+  const addSubsidiaryRow = () => {
+    setSubsidiaries((prev) => [
+      ...prev,
+      {
+        id: `s${Date.now()}`,
+        denomination: "",
+        location: "",
+        acquisitionValue: "",
+        percentageHeld: "",
+        capitalAmount: "",
+        lastResult: "",
+      },
+    ]);
+  };
+
+  const deleteSubsidiaryRow = (id: string) => {
+    setSubsidiaries((prev) => prev.filter((row) => row.id !== id));
   };
 
   const downloadPDF = async () => {
@@ -308,7 +406,7 @@ const Note4: React.FC = () => {
       {/* Feuille A4 Landscape */}
       <div
         ref={reportRef}
-        className={`max-w-[297mm] mx-auto min-h-[210mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[297mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
@@ -417,10 +515,12 @@ const Note4: React.FC = () => {
           <tbody>
             {immobilisations.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
-                <td className="border border-gray-600 p-1 pl-2 font-medium">{row.label}</td>
+                <td className="border border-gray-600 p-1 pl-2 font-medium text-orange-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN, (val) => handleImmobilisationChange(row.id, "yearN", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN1, (val) => handleImmobilisationChange(row.id, "yearN1", val))}</td>
-                <td className="border border-gray-600 p-1 text-center">{renderEditableCell(row.variation, (val) => handleImmobilisationChange(row.id, "variation", val))}</td>
+                <td className="border border-gray-600 p-1 text-center text-gray-500">
+                  {calcVariation(row.yearN, row.yearN1) && `${calcVariation(row.yearN, row.yearN1)}%`}
+                </td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.oneYearPlus, (val) => handleImmobilisationChange(row.id, "oneYearPlus", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.twoYearsPlus, (val) => handleImmobilisationChange(row.id, "twoYearsPlus", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.fourYearsPlus, (val) => handleImmobilisationChange(row.id, "fourYearsPlus", val))}</td>
@@ -428,19 +528,21 @@ const Note4: React.FC = () => {
             ))}
             <tr className="bg-[#e6e6e6] font-bold text-center">
               <td className="border border-gray-600 p-1 pl-2 text-left">TOTAL BRUT</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalBrut.yearN, (val) => setTotalBrut({ ...totalBrut, yearN: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalBrut.yearN1, (val) => setTotalBrut({ ...totalBrut, yearN1: val }))}</td>
-              <td className="border border-gray-600 p-1">{renderEditableCell(totalBrut.variation, (val) => setTotalBrut({ ...totalBrut, variation: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalBrut.oneYearPlus, (val) => setTotalBrut({ ...totalBrut, oneYearPlus: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalBrut.twoYearsPlus, (val) => setTotalBrut({ ...totalBrut, twoYearsPlus: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalBrut.fourYearsPlus, (val) => setTotalBrut({ ...totalBrut, fourYearsPlus: val }))}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.yearN.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.yearN1.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1">{totalBrut.variation && `${totalBrut.variation}%`}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.oneYearPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.twoYearsPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.fourYearsPlus.toLocaleString("fr-FR")}</td>
             </tr>
             {depreciations.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50 italic">
-                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 pl-2 text-orange-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN, (val) => handleDepreciationChange(row.id, "yearN", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN1, (val) => handleDepreciationChange(row.id, "yearN1", val))}</td>
-                <td className="border border-gray-600 p-1 text-center">{renderEditableCell(row.variation, (val) => handleDepreciationChange(row.id, "variation", val))}</td>
+                <td className="border border-gray-600 p-1 text-center text-gray-500">
+                  {calcVariation(row.yearN, row.yearN1) && `${calcVariation(row.yearN, row.yearN1)}%`}
+                </td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.oneYearPlus, (val) => handleDepreciationChange(row.id, "oneYearPlus", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.twoYearsPlus, (val) => handleDepreciationChange(row.id, "twoYearsPlus", val))}</td>
                 <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.fourYearsPlus, (val) => handleDepreciationChange(row.id, "fourYearsPlus", val))}</td>
@@ -448,30 +550,31 @@ const Note4: React.FC = () => {
             ))}
             <tr className="bg-[#e6e6e6] font-bold text-center">
               <td className="border border-gray-600 p-1 pl-2 text-left">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalNet.yearN, (val) => setTotalNet({ ...totalNet, yearN: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalNet.yearN1, (val) => setTotalNet({ ...totalNet, yearN1: val }))}</td>
-              <td className="border border-gray-600 p-1">{renderEditableCell(totalNet.variation, (val) => setTotalNet({ ...totalNet, variation: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalNet.oneYearPlus, (val) => setTotalNet({ ...totalNet, oneYearPlus: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalNet.twoYearsPlus, (val) => setTotalNet({ ...totalNet, twoYearsPlus: val }))}</td>
-              <td className="border border-gray-600 p-1 text-right">{renderEditableCell(totalNet.fourYearsPlus, (val) => setTotalNet({ ...totalNet, fourYearsPlus: val }))}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.yearN.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.yearN1.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1">{totalNet.variation && `${totalNet.variation}%`}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.oneYearPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.twoYearsPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.fourYearsPlus.toLocaleString("fr-FR")}</td>
             </tr>
           </tbody>
         </table>
 
         {/* Section Liste des filiales */}
-        <div className="mt-8 mb-4 text-center font-bold text-[12px] bg-[#d9d9d9] py-2 border border-gray-600">
-          LISTE DES FILIALES ET PARTICIPATIONS:
+        <div className="mt-8 mb-4 text-center font-bold text-[12px]">
+          Liste des filiales et participations:
         </div>
 
-        <table className="w-full border-collapse border border-gray-600 text-[10px] mb-8">
+        <table className="w-full border-collapse border border-gray-600 text-[10px]">
           <thead>
             <tr className="bg-[#d9d9d9]">
               <th className="border border-gray-600 p-2 w-[20%] text-left">Dénomination sociale</th>
               <th className="border border-gray-600 p-2 w-[15%]">Localisation (ville / Pays)</th>
               <th className="border border-gray-600 p-2 w-[15%]">Valeur d'acquisition</th>
               <th className="border border-gray-600 p-2 w-[10%]">% Détenu</th>
-              <th className="border border-gray-600 p-2 w-[20%]">Montant des capitaux propres filiale</th>
-              <th className="border border-gray-600 p-2 w-[20%]">Résultat dernier exercice filiale</th>
+              <th className="border border-gray-600 p-2 w-[18%]">Montant des capitaux propres filiale</th>
+              <th className="border border-gray-600 p-2 w-[18%]">Résultat dernier exercice filiale</th>
+              {isEditing && <th className="border border-gray-600 p-2 w-[4%]"></th>}
             </tr>
           </thead>
           <tbody>
@@ -483,10 +586,31 @@ const Note4: React.FC = () => {
                 <td className="border border-gray-600 p-1 text-center font-bold">{renderEditableCell(row.percentageHeld, (val) => handleSubsidiaryChange(row.id, "percentageHeld", val))}</td>
                 <td className="border border-gray-600 p-1 text-right pr-2 font-medium">{renderEditableCell(row.capitalAmount, (val) => handleSubsidiaryChange(row.id, "capitalAmount", val))}</td>
                 <td className="border border-gray-600 p-1 text-right pr-2 font-medium">{renderEditableCell(row.lastResult, (val) => handleSubsidiaryChange(row.id, "lastResult", val))}</td>
+                {isEditing && (
+                  <td className="border border-gray-600 p-1 text-center">
+                    <button
+                      onClick={() => deleteSubsidiaryRow(row.id)}
+                      className="text-red-500 hover:text-red-700 font-bold leading-none"
+                      title="Supprimer cette ligne"
+                    >
+                      ×
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+        <div className="mb-8">
+          {isEditing && (
+            <button
+              onClick={addSubsidiaryRow}
+              className="mt-1 text-orange-600 hover:text-orange-800 text-[10px] font-medium"
+            >
+              + Ajouter une ligne
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

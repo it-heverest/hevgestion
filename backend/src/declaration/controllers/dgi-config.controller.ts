@@ -24,6 +24,8 @@ class DGIConfigController {
       where: { userId },
       select: {
         id: true,
+        companyName: true,
+        niu: true,
         username: true,
         // password is never returned
         createdAt: true,
@@ -44,7 +46,7 @@ class DGIConfigController {
    * Creates a DGI config. Password is encrypted before storage.
    */
   async saveConfig(req: AuthRequest, res: Response): Promise<void> {
-    const { username, password } = req.body;
+    const { username, password, companyName, niu } = req.body;
     const userId = req.user!.userId;
 
     if (!username || !password) {
@@ -52,6 +54,14 @@ class DGIConfigController {
     }
 
     const encryptedPassword = encryption.encrypt(password);
+    const select = {
+      id: true,
+      companyName: true,
+      niu: true,
+      username: true,
+      createdAt: true,
+      updatedAt: true,
+    };
 
     const existing = await prisma.dGIConfig.findUnique({ where: { userId } });
 
@@ -59,13 +69,13 @@ class DGIConfigController {
     if (existing) {
       dgiConfig = await prisma.dGIConfig.update({
         where: { userId },
-        data: { username, password: encryptedPassword },
-        select: { id: true, username: true, createdAt: true, updatedAt: true },
+        data: { username, password: encryptedPassword, companyName, niu },
+        select,
       });
     } else {
       dgiConfig = await prisma.dGIConfig.create({
-        data: { username, password: encryptedPassword, userId },
-        select: { id: true, username: true, createdAt: true, updatedAt: true },
+        data: { username, password: encryptedPassword, companyName, niu, userId },
+        select,
       });
     }
 
@@ -79,7 +89,7 @@ class DGIConfigController {
   async updateConfig(req: AuthRequest, res: Response): Promise<void> {
     const { id } = req.params;
     const userId = req.user!.userId;
-    const { username, password } = req.body;
+    const { username, password, companyName, niu } = req.body;
 
     const existing = await prisma.dGIConfig.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError("Configuration DGI non trouvée");
@@ -88,11 +98,20 @@ class DGIConfigController {
     const data: Record<string, string> = {};
     if (username) data.username = username;
     if (password) data.password = encryption.encrypt(password);
+    if (companyName !== undefined) data.companyName = companyName;
+    if (niu !== undefined) data.niu = niu;
 
     const dgiConfig = await prisma.dGIConfig.update({
       where: { id },
       data,
-      select: { id: true, username: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        companyName: true,
+        niu: true,
+        username: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     res.json({ success: true, data: dgiConfig });

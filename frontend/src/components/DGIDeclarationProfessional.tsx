@@ -20,6 +20,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { Modal } from "./ui/modal";
 
 export default function DGIDeclarationProfessional() {
   const { user } = useAuth();
@@ -54,7 +55,6 @@ export default function DGIDeclarationProfessional() {
   const [declarationHistory, setDeclarationHistory] = useState<any[]>([]);
 
   // Vérifier si un modal est ouvert
-  const isModalOpen = showConfig || showHistory;
 
   useEffect(() => {
     if (user?.id) {
@@ -70,8 +70,8 @@ export default function DGIDeclarationProfessional() {
       const dgiConfig = await dgiDeclarationService.getConfig(user.id);
       if (dgiConfig) {
         setConfig({
-          companyName: dgiConfig.companyName,
-          niu: dgiConfig.niu,
+          companyName: dgiConfig.companyName || "",
+          niu: dgiConfig.niu || "",
           username: dgiConfig.username,
           password: dgiConfig.password,
         });
@@ -186,10 +186,7 @@ export default function DGIDeclarationProfessional() {
 
     try {
       setConfigLoading(true);
-      await dgiDeclarationService.saveConfig({
-        ...config,
-        userId: user.id,
-      });
+      await dgiDeclarationService.saveConfig(config);
       setShowConfig(false);
       alert("✅ Configuration sauvegardée avec succès");
     } catch (error: any) {
@@ -298,12 +295,6 @@ export default function DGIDeclarationProfessional() {
 
   return (
     <div className={`min-h-screen p-6 transition-all duration-300`}>
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-40 transition-opacity duration-300 z-40"
-          style={{ backdropFilter: "blur(2px)" }}
-        />
-      )}
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -476,186 +467,172 @@ export default function DGIDeclarationProfessional() {
       </div>
 
       {/* Configuration Modal */}
-      {showConfig && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full mx-auto shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Configuration DGI
-              </h2>
-              <button
-                onClick={() => setShowConfig(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Modal
+        open={showConfig}
+        onClose={() => setShowConfig(false)}
+        size="sm"
+        title="Configuration DGI"
+        bodyClassName="p-6 space-y-4"
+        footer={
+          <>
+            <button
+              onClick={() => setShowConfig(false)}
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSaveConfig}
+              disabled={configLoading}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {configLoading ? "Sauvegarde..." : "Enregistrer"}
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Nom de l'entreprise
+          </label>
+          <input
+            type="text"
+            value={config.companyName}
+            onChange={(e) =>
+              setConfig({ ...config, companyName: e.target.value })
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            placeholder="Nom de l'entreprise"
+          />
+        </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom de l'entreprise
-                </label>
-                <input
-                  type="text"
-                  value={config.companyName}
-                  onChange={(e) =>
-                    setConfig({ ...config, companyName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="Nom de l'entreprise"
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Numéro NIU
+          </label>
+          <input
+            type="text"
+            value={config.niu}
+            onChange={(e) => setConfig({ ...config, niu: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+            placeholder="M000000000000"
+          />
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Numéro NIU
-                </label>
-                <input
-                  type="text"
-                  value={config.niu}
-                  onChange={(e) =>
-                    setConfig({ ...config, niu: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
-                  placeholder="M000000000000"
-                />
-              </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Nom d'utilisateur DGI
+          </label>
+          <input
+            type="text"
+            value={config.username}
+            onChange={(e) =>
+              setConfig({ ...config, username: e.target.value })
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            placeholder="utilisateur@entreprise.cm"
+          />
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom d'utilisateur DGI
-                </label>
-                <input
-                  type="text"
-                  value={config.username}
-                  onChange={(e) =>
-                    setConfig({ ...config, username: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="utilisateur@entreprise.cm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe API
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={config.password}
-                    onChange={(e) =>
-                      setConfig({ ...config, password: e.target.value })
-                    }
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Mot de passe DGI"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Test DGI Login Button */}
-              <div className="pt-4 border-t border-gray-200">
-                <button
-                  onClick={handleTestDGILogin}
-                  disabled={dgiLoginLoading}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {dgiLoginLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Test de connexion...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-4 h-4 mr-2" />
-                      Tester la connexion DGI
-                    </>
-                  )}
-                </button>
-                {dgiLoginStatus && (
-                  <p
-                    className={`text-sm mt-2 ${
-                      dgiLoginStatus.success ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {dgiLoginStatus.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowConfig(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSaveConfig}
-                disabled={configLoading}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {configLoading ? "Sauvegarde..." : "Enregistrer"}
-              </button>
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Mot de passe API
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={config.password}
+              onChange={(e) =>
+                setConfig({ ...config, password: e.target.value })
+              }
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              placeholder="Mot de passe DGI"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Test DGI Login Button */}
+        <div className="pt-4 border-t border-gray-200">
+          <button
+            onClick={handleTestDGILogin}
+            disabled={dgiLoginLoading}
+            className="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {dgiLoginLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Test de connexion...
+              </>
+            ) : (
+              <>
+                <Shield className="w-4 h-4 mr-2" />
+                Tester la connexion DGI
+              </>
+            )}
+          </button>
+          {dgiLoginStatus && (
+            <p
+              className={`text-sm mt-2 ${
+                dgiLoginStatus.success ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {dgiLoginStatus.message}
+            </p>
+          )}
+        </div>
+      </Modal>
 
       {/* History Modal */}
-      {showHistory && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full mx-auto max-h-[80vh] overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Historique des déclarations
-              </h2>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    placeholder="Année (ex: 2024)"
-                    className="px-2 py-1 text-sm border border-gray-300 rounded w-24"
-                  />
-                  <button
-                    onClick={handleLoadDGIProcesses}
-                    disabled={loadingProcesses}
-                    className="inline-flex items-center gap-2 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loadingProcesses ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Download className="w-3 h-3" />
-                    )}
-                    Charger DGI
-                  </button>
-                </div>
-                <button
-                  onClick={() => setShowHistory(false)}
-                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+      <Modal
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        size="lg"
+        title="Historique des déclarations"
+        footer={
+          <button
+            onClick={() => setShowHistory(false)}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            Fermer
+          </button>
+        }
+      >
+        <div className="space-y-5">
+          {/* Toolbar : chargement DGI par année */}
+          <div className="flex items-center justify-end gap-2">
+            <input
+              type="text"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              placeholder="Année (ex: 2024)"
+              className="px-2 py-1 text-sm border border-gray-300 rounded w-28"
+            />
+            <button
+              onClick={handleLoadDGIProcesses}
+              disabled={loadingProcesses}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingProcesses ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+              Charger DGI
+            </button>
+          </div>
 
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {/* Local Declarations */}
+          {/* Local Declarations */}
               {declarationHistory.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-md font-semibold text-gray-900 mb-3">
@@ -747,18 +724,7 @@ export default function DGIDeclarationProfessional() {
                 </div>
               )}
             </div>
-
-            <div className="flex justify-end p-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowHistory(false)}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

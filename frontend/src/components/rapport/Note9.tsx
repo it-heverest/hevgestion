@@ -88,7 +88,17 @@ const Note9: React.FC = () => {
         } else if (noteData.rows) {
           setRows(noteData.rows);
         }
-        if (noteData.depreciations) setDepreciations(noteData.depreciations);
+        if (noteData.depreciations)
+          setDepreciations({
+            yearN:
+              noteData.depreciations.yearN != null
+                ? String(noteData.depreciations.yearN)
+                : "",
+            yearN1:
+              noteData.depreciations.yearN1 != null
+                ? String(noteData.depreciations.yearN1)
+                : "",
+          });
         setComment(noteData.comment || "");
       }
     } catch (error) {
@@ -184,8 +194,8 @@ const Note9: React.FC = () => {
 
   const totalBrut = useMemo(() => calculateTotal(rows, "yearN"), [rows]);
   const totalN1 = useMemo(() => calculateTotal(rows, "yearN1"), [rows]);
-  const totalNet = useMemo(() => totalBrut - (parseFloat(depreciations.yearN.replace(/\s/g, "")) || 0), [totalBrut, depreciations.yearN]);
-  const totalNetN1 = useMemo(() => totalN1 - (parseFloat(depreciations.yearN1.replace(/\s/g, "")) || 0), [totalN1, depreciations.yearN1]);
+  const totalNet = useMemo(() => totalBrut - (parseFloat(String(depreciations.yearN ?? "").replace(/\s/g, "")) || 0), [totalBrut, depreciations.yearN]);
+  const totalNetN1 = useMemo(() => totalN1 - (parseFloat(String(depreciations.yearN1 ?? "").replace(/\s/g, "")) || 0), [totalN1, depreciations.yearN1]);
 
   const isHeaderIncomplete =
     !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
@@ -253,7 +263,7 @@ const Note9: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isHeaderIncomplete && (
@@ -344,7 +354,7 @@ const Note9: React.FC = () => {
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
-                <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
+                <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN, (val) => handleRowChange(row.id, "yearN", val))}
                 </td>
@@ -358,33 +368,38 @@ const Note9: React.FC = () => {
             ))}
 
             {/* TOTAL BRUT */}
-            <tr className="bg-[#e6e6e6] font-bold text-[11px]">
+            <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL BRUT TITRES</td>
               <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString()}</td>
               <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+              <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalBrut, totalN1)}
               </td>
             </tr>
 
             {/* DEPRECIATIONS */}
             <tr>
-              <td className="border border-gray-600 p-2 italic">Dépréciations des titres</td>
-              <td className="border border-gray-600 p-1 text-right bg-red-50">
+              <td className="border border-gray-600 p-2 text-blue-700 italic">Dépréciations des titres</td>
+              <td className="border border-gray-600 p-1 text-right">
                 {renderEditableCell(depreciations.yearN, (val) => setDepreciations({ ...depreciations, yearN: val }))}
               </td>
-              <td className="border border-gray-600 p-1 text-right bg-red-50">
+              <td className="border border-gray-600 p-1 text-right">
                 {renderEditableCell(depreciations.yearN1, (val) => setDepreciations({ ...depreciations, yearN1: val }))}
               </td>
-              <td className="border border-gray-600 bg-gray-100"></td>
+              <td className="border border-gray-600"></td>
+            </tr>
+
+            {/* Ligne vide de séparation */}
+            <tr>
+              <td colSpan={4} className="border border-gray-600 h-4"></td>
             </tr>
 
             {/* TOTAL NET */}
-            <tr className="bg-[#bfbfbf] font-bold text-[11px]">
+            <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
               <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
               <td className="border border-gray-600 p-1 text-right">{totalNetN1.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-center bg-gray-200">
+              <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalNet, totalNetN1)}
               </td>
             </tr>
@@ -393,13 +408,7 @@ const Note9: React.FC = () => {
 
         {/* Section Commentaire */}
         <div className="border border-gray-600 p-3 bg-white min-h-[150px]">
-          <div className="font-bold underline mb-3 text-[11px]">Commentaire :</div>
-          <div className="text-[9px] text-gray-600 mb-4 space-y-1">
-            <p>• Justifier toute variation significative.</p>
-            <p>• Pour les titres cotés à une bourse de valeur : indiquer le nombre, le prix unitaire d'acquisition et le cours de la bourse au 31 décembre.</p>
-            <p>• Faire ressortir les actions ou parts propres et indiquer la date d'acquisition et le nombre de titres détenus.</p>
-            <p>• Indiquer les événements et circonstances qui ont conduit à la dépréciation et à la reprise.</p>
-          </div>
+          <div className="font-bold mb-2 text-[11px]">Commentaire :</div>
           {isEditing ? (
             <textarea
               className="w-full h-32 p-2 border border-orange-300 bg-orange-50 text-[11px] focus:outline-none resize-none"
@@ -408,10 +417,16 @@ const Note9: React.FC = () => {
               onChange={(e) => setComment(e.target.value)}
             />
           ) : (
-            <div className="whitespace-pre-wrap text-[11px] min-h-[2rem]">
-              {comment || "Aucun commentaire."}
+            <div className="whitespace-pre-wrap text-[11px] min-h-[6rem]">
+              {comment || ""}
             </div>
           )}
+        </div>
+        <div className="text-[9px] text-gray-600 mt-2 space-y-1">
+          <p>- Justifier toute variation significative.</p>
+          <p>- Pour les titres cotés à une bourse de valeur : indiquer le nombre, le prix unitaire d'acquisition et le cours de la bourse au 31 décembre.</p>
+          <p>- Faire ressortir les actions ou parts propres et indiquer la date d'acquisition et le nombre de titres détenus.</p>
+          <p>- Indiquer les événements et circonstances qui ont conduit à la dépréciation et à la reprise.</p>
         </div>
       </div>
     </div>

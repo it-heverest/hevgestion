@@ -71,7 +71,7 @@ const Note8: React.FC = () => {
     },
     {
       id: "11",
-      label: "État et Collectivités publiques",
+      label: "Etat et Collectivités publiques",
       yearN: "",
       yearN1: "",
       oneYearOrLess: "",
@@ -118,7 +118,7 @@ const Note8: React.FC = () => {
     {
       id: "16",
       label:
-        "Comptes permanents non bloqués des établissements et des succursales",
+        "Comptes permanents non bloqués des établissements et succursales",
       yearN: "",
       yearN1: "",
       oneYearOrLess: "",
@@ -172,23 +172,27 @@ const Note8: React.FC = () => {
       const noteData = (await notesService.getNoteData(folderId, "8")) as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.autresCreances) {
+        // Le backend (buildNoteRows) renvoie {label, yearN, yearN1,
+        // oneYearOrLess, oneToTwoYears, moreThanTwoYears} — mêmes noms de
+        // champs que l'état interne, un id est juste ajouté côté client.
+        if (Array.isArray(noteData.autresCreances)) {
           setOtherReceivables(
             noteData.autresCreances.map((r: any, i: number) => ({
               id: otherReceivables[i]?.id || String(9 + i),
-              label: r.libelle || otherReceivables[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
-              oneYearOrLess: String(r.creancesUnAnAuPlus ?? ""),
-              oneToTwoYears: String(r.creancesPlusUnAnDeuxAns ?? ""),
-              moreThanTwoYears: String(r.creancesPlusDeuxAns ?? ""),
+              label: r.label || otherReceivables[i]?.label || "",
+              yearN: String(r.yearN ?? ""),
+              yearN1: String(r.yearN1 ?? ""),
+              oneYearOrLess: String(r.oneYearOrLess ?? ""),
+              oneToTwoYears: String(r.oneToTwoYears ?? ""),
+              moreThanTwoYears: String(r.moreThanTwoYears ?? ""),
             })),
           );
-        } else if (noteData.otherReceivables) {
-          setOtherReceivables(noteData.otherReceivables);
         }
-        setDepreciations(noteData.depreciations || "");
+        // `depreciations` est un nombre simple à la génération, mais peut
+        // aussi être la chaîne déjà sauvegardée par ce composant.
+        setDepreciations(
+          noteData.depreciations != null ? String(noteData.depreciations) : "",
+        );
         setJustifications(noteData.justifications || justifications);
       }
     } catch (error) {
@@ -202,19 +206,20 @@ const Note8: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Mêmes noms de champs qu'à la génération (buildNoteRows), pour que
+      // loadNoteData relise correctement ce qui vient d'être sauvegardé.
       const noteData = {
         entete,
         autresCreances: otherReceivables.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: null,
-          creancesUnAnAuPlus: parseFloat(r.oneYearOrLess) || null,
-          creancesPlusUnAnDeuxAns: parseFloat(r.oneToTwoYears) || null,
-          creancesPlusDeuxAns: parseFloat(r.moreThanTwoYears) || null,
+          id: r.id,
+          label: r.label,
+          yearN: parseFloat(r.yearN) || 0,
+          yearN1: parseFloat(r.yearN1) || 0,
+          oneYearOrLess: parseFloat(r.oneYearOrLess) || 0,
+          oneToTwoYears: parseFloat(r.oneToTwoYears) || 0,
+          moreThanTwoYears: parseFloat(r.moreThanTwoYears) || 0,
         })),
-        depreciations,
+        depreciations: parseFloat(depreciations) || 0,
         justifications,
       };
       const success = await notesService.saveNoteData(
@@ -328,7 +333,9 @@ const Note8: React.FC = () => {
     [otherReceivables],
   );
   const totalNet = useMemo(
-    () => totalBrut - (parseFloat(depreciations.replace(/\s/g, "")) || 0),
+    () =>
+      totalBrut -
+      (parseFloat(String(depreciations ?? "").replace(/\s/g, "")) || 0),
     [totalBrut, depreciations],
   );
 
@@ -407,7 +414,7 @@ const Note8: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >

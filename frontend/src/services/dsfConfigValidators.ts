@@ -107,8 +107,15 @@ export const CATEGORIES = [
   "calculsAutomatiques",
 ];
 
+interface ValidationRule {
+  required: boolean;
+  pattern?: RegExp;
+  maxLength?: number;
+  message: string;
+}
+
 // Validation rules - UPDATED WITH NEW FIELDS
-export const VALIDATION_RULES = {
+export const VALIDATION_RULES: Record<string, ValidationRule> = {
   codeDsf: {
     required: true,
     pattern: /^[A-Z0-9_]+$/,

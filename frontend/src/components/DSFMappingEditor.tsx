@@ -20,7 +20,6 @@ import {
   TableRow,
 } from "./ui/table";
 import { Plus, Trash2, Save } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
 
 interface MappingField {
   fieldId: string;
@@ -49,7 +48,6 @@ const DSFMappingEditor: React.FC<DSFMappingEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const { user } = useAuth();
   const [config, setConfig] = useState<MappingConfig>({
     sheetType,
     sheetNamePatterns: [sheetType],
@@ -67,9 +65,7 @@ const DSFMappingEditor: React.FC<DSFMappingEditorProps> = ({
     try {
       setLoading(true);
       const response = await fetch(`/api/dsf-mapping/configs/${sheetType}`, {
-        headers: {
-          Authorization: `Bearer ${user?.token}`,
-        },
+        credentials: "include",
       });
 
       if (response.ok) {
@@ -129,9 +125,9 @@ const DSFMappingEditor: React.FC<DSFMappingEditorProps> = ({
       setSaving(true);
       const response = await fetch("/api/dsf-mapping/configs", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user?.token}`,
         },
         body: JSON.stringify(config),
       });

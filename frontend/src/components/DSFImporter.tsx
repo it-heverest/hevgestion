@@ -34,7 +34,7 @@ import {
 export function DSFImporter() {
   const { folderId } = useParams<{ folderId: string }>();
   const navigate = useNavigate();
-  const { selectedFolder, getCountryName, getCountryFlag } = useApp();
+  const { selectedFolder, selectedClient, getCountryName, getCountryFlag } = useApp();
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -223,7 +223,7 @@ export function DSFImporter() {
                 <div>
                   <p className="text-sm text-gray-600">Client</p>
                   <p className="font-semibold">
-                    {selectedFolder.client?.name || "N/A"}
+                    {selectedClient?.name || "N/A"}
                   </p>
                 </div>
                 <div>

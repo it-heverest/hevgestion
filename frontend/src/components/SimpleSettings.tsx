@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
+import { Modal } from "./ui/modal";
 import { Badge } from "./ui/badge";
 import {
   Select,
@@ -19,6 +20,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { AssistantModelSettings } from "./AssistantModelSettings";
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription } from "./ui/alert";
 import {
@@ -775,6 +777,9 @@ export function SimpleSettings() {
               </CardContent>
             </Card>
 
+            {/* Modèle IA de l'assistant */}
+            <AssistantModelSettings />
+
             {/* Préférences */}
             <Card>
               <CardHeader>
@@ -1265,82 +1270,83 @@ export function SimpleSettings() {
       </Tabs>
 
       {/* Modal d'assignation des dossiers */}
-      {showAssignFolders && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full max-h-[80vh] overflow-hidden">
-            <CardHeader>
-              <CardTitle>Assigner des dossiers</CardTitle>
-              <CardDescription>
-                Sélectionnez les dossiers à assigner à cet assistant
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="max-h-96 overflow-y-auto">
-              {loadingFolders ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                  <span>Chargement des dossiers...</span>
-                </div>
-              ) : folders.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Aucun dossier disponible
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {folders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        id={`folder-${folder.id}`}
-                        checked={selectedFolders.includes(folder.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedFolders([...selectedFolders, folder.id]);
-                          } else {
-                            setSelectedFolders(
-                              selectedFolders.filter((id) => id !== folder.id),
-                            );
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <label
-                        htmlFor={`folder-${folder.id}`}
-                        className="flex-1 cursor-pointer"
-                      >
-                        <div className="font-medium">{folder.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Client: {folder.client?.name || "Non spécifié"} •
-                          Exercice: {folder.fiscalYear}
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAssignFolders(null);
-                  setSelectedFolders([]);
-                }}
+      <Modal
+        open={!!showAssignFolders}
+        onClose={() => {
+          setShowAssignFolders(null);
+          setSelectedFolders([]);
+        }}
+        size="md"
+        title="Assigner des dossiers"
+        description="Sélectionnez les dossiers à assigner à cet assistant"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAssignFolders(null);
+                setSelectedFolders([]);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={() =>
+                showAssignFolders && handleAssignFolders(showAssignFolders)
+              }
+              disabled={selectedFolders.length === 0}
+            >
+              Assigner ({selectedFolders.length})
+            </Button>
+          </>
+        }
+      >
+        {loadingFolders ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Chargement des dossiers...</span>
+          </div>
+        ) : folders.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            Aucun dossier disponible
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {folders.map((folder) => (
+              <div
+                key={folder.id}
+                className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded"
               >
-                Annuler
-              </Button>
-              <Button
-                onClick={() => handleAssignFolders(showAssignFolders)}
-                disabled={selectedFolders.length === 0}
-              >
-                Assigner ({selectedFolders.length})
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+                <input
+                  type="checkbox"
+                  id={`folder-${folder.id}`}
+                  checked={selectedFolders.includes(folder.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedFolders([...selectedFolders, folder.id]);
+                    } else {
+                      setSelectedFolders(
+                        selectedFolders.filter((id) => id !== folder.id),
+                      );
+                    }
+                  }}
+                  className="rounded"
+                />
+                <label
+                  htmlFor={`folder-${folder.id}`}
+                  className="flex-1 cursor-pointer"
+                >
+                  <div className="font-medium">{folder.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Client: {folder.client?.name || "Non spécifié"} • Exercice:{" "}
+                    {folder.fiscalYear}
+                  </div>
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

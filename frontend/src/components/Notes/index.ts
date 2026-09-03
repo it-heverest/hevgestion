@@ -13,6 +13,7 @@ export { default as Note3A } from "../rapport/Note3A";
 export { default as Note3B } from "../rapport/Note3B";
 export { default as Note3C } from "../rapport/Note3C";
 export { default as Note3D } from "../rapport/Note3D";
+export { default as Note3E } from "../rapport/Note3E";
 export { default as Note3F } from "../rapport/Note3F";
 export { default as Note4 } from "../rapport/Note4";
 export { default as Note5 } from "../rapport/Note5";
@@ -53,6 +54,7 @@ export { default as Note34 } from "../rapport/Note34";
 
 // ─── Documents Spéciaux ────────────────────────────────────────────────────
 
+export { default as FicheR2 } from "../rapport/FicheR2";
 export { default as FicheR3 } from "../rapport/FicheR3";
 export { default as PageDeGarde } from "../rapport/PageDeGarde";
 export { default as Sommaire } from "../rapport/Sommaire";

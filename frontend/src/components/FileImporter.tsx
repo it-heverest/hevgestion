@@ -38,15 +38,15 @@ const reportTypes = [
 ];
 
 export function FileImporter() {
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [parsedData, setParsedData] = useState(null);
-  const [generatedReports, setGeneratedReports] = useState([]);
+  const [parsedData, setParsedData] = useState<any>(null);
+  const [generatedReports, setGeneratedReports] = useState<any[]>([]);
   const [selectedReports, setSelectedReports] = useState(['bilan', 'resultat']);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (files) => {
+  const handleFileUpload = (files: FileList | File[]) => {
     const newFiles = Array.from(files).map(file => ({
       id: Date.now() + Math.random(),
       name: file.name,
@@ -59,17 +59,17 @@ export function FileImporter() {
     setUploadedFiles(prev => [...prev, ...newFiles]);
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const files = e.dataTransfer.files;
     handleFileUpload(files);
   };
 
-  const removeFile = (fileId) => {
+  const removeFile = (fileId: number) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
@@ -101,18 +101,21 @@ export function FileImporter() {
           });
           
           // Génération automatique des rapports sélectionnés
-          const reports = selectedReports.map(reportId => {
-            const reportType = reportTypes.find(r => r.id === reportId);
-            return {
-              id: Date.now() + Math.random(),
-              type: reportType.name,
-              name: `${reportType.name}_${Date.now()}`,
-              format: 'PDF',
-              size: `${(Math.random() * 3 + 1).toFixed(1)} MB`,
-              generatedAt: new Date().toLocaleString('fr-FR'),
-              status: 'completed'
-            };
-          });
+          const reports = selectedReports
+            .map(reportId => {
+              const reportType = reportTypes.find(r => r.id === reportId);
+              if (!reportType) return null;
+              return {
+                id: Date.now() + Math.random(),
+                type: reportType.name,
+                name: `${reportType.name}_${Date.now()}`,
+                format: 'PDF',
+                size: `${(Math.random() * 3 + 1).toFixed(1)} MB`,
+                generatedAt: new Date().toLocaleString('fr-FR'),
+                status: 'completed'
+              };
+            })
+            .filter((r): r is NonNullable<typeof r> => r !== null);
           
           setGeneratedReports(reports);
           return 100;
@@ -122,7 +125,7 @@ export function FileImporter() {
     }, 300);
   };
 
-  const formatFileSize = (bytes) => {
+  const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -130,7 +133,7 @@ export function FileImporter() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleReportSelection = (reportId) => {
+  const handleReportSelection = (reportId: string) => {
     setSelectedReports(prev => 
       prev.includes(reportId) 
         ? prev.filter(id => id !== reportId)
@@ -179,7 +182,7 @@ export function FileImporter() {
                   type="file"
                   multiple
                   accept=".xlsx,.xls,.csv,.xml,.json,.txt"
-                  onChange={(e) => handleFileUpload(e.target.files)}
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
                   className="hidden"
                 />
                 <div className="flex flex-wrap justify-center gap-2">

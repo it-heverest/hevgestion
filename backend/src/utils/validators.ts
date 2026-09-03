@@ -26,18 +26,16 @@ export class Validators {
     // Remove any spaces, dashes, or other non-digit characters
     const cleanNumber = phoneNumber.replace(/\D/g, "");
 
-    // Cameroon phone numbers should be 9 digits (without country code)
-    if (cleanNumber.length !== 9) {
-      return false;
-    }
-
-    // Check if it starts with valid prefixes for MTN and Orange
-    const mtnPrefixes = ["67", "68", "69"]; // MTN Cameroon
-    const orangePrefixes = ["65", "66"]; // Orange Cameroon
-
-    const prefix = cleanNumber.substring(0, 2);
-
-    return mtnPrefixes.includes(prefix) || orangePrefixes.includes(prefix);
+    // Numérotation nationale camerounaise (ANTIC): tout numéro mobile
+    // compte 9 chiffres et commence par 6, quel que soit l'opérateur.
+    //
+    // Une précédente version limitait la validation à une liste figée de
+    // préfixes MTN/Orange (65-69) — devenue obsolète et rejetant à tort des
+    // numéros valides d'autres opérateurs (Camtel, Nexttel, Yoomee...) ou de
+    // blocs plus récemment attribués. Les préfixes par opérateur changent au
+    // fil des attributions de l'ANTIC ; le seul invariant fiable est le
+    // format structurel (9 chiffres, premier chiffre 6).
+    return /^6\d{8}$/.test(cleanNumber);
   }
 
   static isValidAccountNumber(accountNumber: string): boolean {

@@ -5,20 +5,13 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useTranslation } from "../hooks/useTranslation";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Phone, Lock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -53,124 +46,105 @@ export function LoginPage({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
     >
-      <Card className="shadow-lg border-0">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl text-center">Connexion</CardTitle>
-          <CardDescription>
-            Accédez à votre espace professionnel
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onLoginSubmit} className="space-y-4">
-            <div className="space-y-2 pb-2">
-              {t("phoneNumber")}
-              {/* <Label htmlFor="login-phone">Numéro de téléphone</Label> */}
-              <div className="flex gap-2 mt-2">
-                <Select
-                  value={loginForm.phoneCountryCode || "+237"}
-                  onValueChange={(value: string) =>
-                    onLoginChange("phoneCountryCode", value)
-                  }
-                >
-                  <SelectTrigger className="w-25 transition-all duration-200 focus:ring-2 focus:ring-orange-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="+237">🇨🇲 +237</SelectItem>
-                    <SelectItem value="+229">🇧🇯 +229</SelectItem>
-                    <SelectItem value="+225">🇨🇮 +225</SelectItem>
-                    <SelectItem value="+221">🇸🇳 +221</SelectItem>
-                    <SelectItem value="+228">🇹🇬 +228</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative flex-1">
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="login-phone"
-                    type="tel"
-                    value={loginForm.phoneNumber || ""}
-                    onChange={(e) =>
-                      onLoginChange("phoneNumber", e.target.value)
-                    }
-                    placeholder="6 67 12 34 56"
-                    className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
-                    autoComplete="off"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
+      <form onSubmit={onLoginSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="login-phone">{t("phoneNumber")}</Label>
+          <div className="flex gap-2">
+            <Select
+              value={loginForm.phoneCountryCode || "+237"}
+              onValueChange={(value: string) =>
+                onLoginChange("phoneCountryCode", value)
+              }
+            >
+              <SelectTrigger className="h-12 w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="+237">🇨🇲 +237</SelectItem>
+                <SelectItem value="+229">🇧🇯 +229</SelectItem>
+                <SelectItem value="+225">🇨🇮 +225</SelectItem>
+                <SelectItem value="+221">🇸🇳 +221</SelectItem>
+                <SelectItem value="+228">🇹🇬 +228</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              id="login-phone"
+              type="tel"
+              value={loginForm.phoneNumber || ""}
+              onChange={(e) => onLoginChange("phoneNumber", e.target.value)}
+              placeholder="6XX XXX XXX"
+              className="h-12 flex-1"
+              autoComplete="off"
+              required
+            />
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="login-password">{t("password")}</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="login-password"
-                  type={showPassword ? "text" : "password"}
-                  value={loginForm.password}
-                  onChange={(e) => onLoginChange("password", e.target.value)}
-                  placeholder={t("password")}
-                  className="pl-10 pr-10 transition-all duration-200 focus:ring-2 focus:ring-orange-500"
-                  autoComplete="new-password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2 text-right">
-              <button
-                type="button"
-                className=" text-sm mb-4 text-orange-600 hover:underline font-medium transition-all duration-200"
-                onClick={() => {
-                  navigate("/fr/web/user/forgot-password");
-                }}
-              >
-                {t("forgotPassword")} ?
-              </button>
-            </div>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Button
-                type="submit"
-                className="w-full transition-all duration-200"
-                disabled={isLoggingIn}
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connexion...
-                  </>
-                ) : (
-                  t("signIn")
-                )}
-              </Button>
-            </motion.div>
+        <div className="space-y-2">
+          <Label htmlFor="login-password">{t("password")}</Label>
+          <div className="relative">
+            <Input
+              id="login-password"
+              type={showPassword ? "text" : "password"}
+              value={loginForm.password}
+              onChange={(e) => onLoginChange("password", e.target.value)}
+              placeholder={t("password")}
+              className="h-12 pr-10"
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+          <div className="text-right">
+            <button
+              type="button"
+              className="text-sm text-primary hover:underline font-medium"
+              onClick={() => navigate("/fr/web/user/forgot-password")}
+            >
+              {t("forgotPassword")} ?
+            </button>
+          </div>
+        </div>
 
-            <p className="text-center text-sm text-muted-foreground">
-              Pas encore de compte ?{" "}
-              <button
-                type="button"
-                className="text-orange-600 hover:underline font-medium transition-all duration-200"
-                onClick={onSwitchToRegister}
-              >
-                S'inscrire
-              </button>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+            {error}
+          </div>
+        )}
+
+        <Button type="submit" className="h-12 w-full" disabled={isLoggingIn}>
+          {isLoggingIn ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Connexion...
+            </>
+          ) : (
+            t("signIn")
+          )}
+        </Button>
+
+        <p className="text-sm text-muted-foreground">
+          Pas encore de compte ?{" "}
+          <button
+            type="button"
+            className="text-primary hover:underline font-medium"
+            onClick={onSwitchToRegister}
+          >
+            S'inscrire
+          </button>
+        </p>
+      </form>
     </motion.div>
   );
 }

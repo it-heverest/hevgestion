@@ -4,6 +4,7 @@ import { AuthRequest } from "../middleware/auth.middleware";
 import { ResponseBuilder } from "../utils/response-builder";
 import { notesService } from "../services/notes.service";
 import { auditService } from "../services/audit.service";
+import { userHasFolderAccess } from "../utils/folder-access";
 
 const VALID_NOTE_NUMBERS = [
   "1", "2", "3A", "3B", "3C", "3D", "3E", "3F",
@@ -39,6 +40,16 @@ export class NotesController {
           `Invalid note number. Valid values: ${VALID_NOTE_NUMBERS.join(", ")}`,
           400,
         );
+      }
+
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
       }
 
       const dataSize = JSON.stringify(data).length;
@@ -116,6 +127,16 @@ export class NotesController {
         );
       }
 
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
+      }
+
       console.log(`📥 Loading NOTE ${noteNumber} for folder ${folderId}`);
 
       const noteData = await notesService.getNoteData(folderId, noteNumber);
@@ -165,6 +186,16 @@ export class NotesController {
         );
       }
 
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
+      }
+
       console.log(`🗑️ Deleting NOTE ${noteNumber} for folder ${folderId}`);
 
       // TODO: Implement delete logic in notesService
@@ -198,6 +229,16 @@ export class NotesController {
 
       if (!folderId) {
         return ResponseBuilder.error(res, "folderId is required", 400);
+      }
+
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
       }
 
       console.log(`📋 Loading all notes for folder ${folderId}`);
@@ -247,6 +288,16 @@ export class NotesController {
           `Invalid note number. Valid values: ${VALID_NOTE_NUMBERS.join(", ")}`,
           400,
         );
+      }
+
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
       }
 
       const noteData = await notesService.getNoteData(folderId, noteNumber);
@@ -312,7 +363,21 @@ export class NotesController {
         return ResponseBuilder.error(res, "folderId is required", 400);
       }
 
-      const success = await notesService.deleteDSFForFolder(folderId);
+      if (
+        !(await userHasFolderAccess(
+          req.user!.userId,
+          folderId,
+          req.user!.role,
+        ))
+      ) {
+        return ResponseBuilder.error(res, "Accès refusé à ce dossier", 403);
+      }
+
+      const success = await notesService.deleteDSFForFolder(
+        folderId,
+        req.user!.userId,
+        req.body?.reason,
+      );
 
       if (!success) {
         return ResponseBuilder.error(res, "No DSF data found for this folder", 404);

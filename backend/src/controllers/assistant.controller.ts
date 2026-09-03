@@ -200,10 +200,14 @@ export class AssistantController {
       // Verify the assistant exists and belongs to this accountant
       const assistant = await prisma.user.findUnique({
         where: { id: assistantId },
-        select: { role: true, isActive: true },
+        select: { role: true, isActive: true, createdById: true },
       });
 
-      if (!assistant || assistant.role !== "ASSISTANT") {
+      if (
+        !assistant ||
+        assistant.role !== "ASSISTANT" ||
+        assistant.createdById !== userId
+      ) {
         return ResponseBuilder.error(res, "Assistant non trouvé", 404);
       }
 
@@ -272,10 +276,14 @@ export class AssistantController {
       // Verify the assistant exists and belongs to this accountant
       const assistant = await prisma.user.findUnique({
         where: { id: assistantId },
-        select: { role: true },
+        select: { role: true, createdById: true },
       });
 
-      if (!assistant || assistant.role !== "ASSISTANT") {
+      if (
+        !assistant ||
+        assistant.role !== "ASSISTANT" ||
+        assistant.createdById !== userId
+      ) {
         return ResponseBuilder.error(res, "Assistant non trouvé", 404);
       }
 
@@ -329,13 +337,18 @@ export class AssistantController {
         );
       }
 
-      // Verify the assistant exists
+      // Verify the assistant exists and belongs to this accountant
       const assistant = await prisma.user.findUnique({
         where: { id: assistantId },
-        select: { role: true, isActive: true },
+        select: { role: true, isActive: true, createdById: true },
       });
 
-      if (!assistant || assistant.role !== "ASSISTANT" || !assistant.isActive) {
+      if (
+        !assistant ||
+        assistant.role !== "ASSISTANT" ||
+        !assistant.isActive ||
+        assistant.createdById !== userId
+      ) {
         return ResponseBuilder.error(
           res,
           "Assistant non trouvé ou inactif",

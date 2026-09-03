@@ -95,6 +95,29 @@ export const errorHandler = (
     return sendSecureErrorResponse(err.statusCode, err.message, err.message);
   }
 
+  // Errors carrying an explicit HTTP status < 500 are client errors we can
+  // surface safely — chiefly body-parser failures (malformed JSON → 400,
+  // payload too large → 413). Without this they fell through to a generic 500.
+  // We send a CANONICAL message per status and never echo err.name/err.message,
+  // which would leak internals ("SyntaxError") or a snippet of the payload.
+  const statusFromError = (err as any).status ?? (err as any).statusCode;
+  if (
+    typeof statusFromError === "number" &&
+    statusFromError >= 400 &&
+    statusFromError < 500
+  ) {
+    const canonical: Record<number, [string, string]> = {
+      400: ["Bad Request", "The request is malformed or contains invalid data"],
+      413: ["Payload Too Large", "The request body exceeds the allowed size"],
+      415: ["Unsupported Media Type", "The request content type is not supported"],
+    };
+    const [error, message] = canonical[statusFromError] ?? [
+      "Request Error",
+      "The request could not be processed",
+    ];
+    return sendSecureErrorResponse(statusFromError, error, message);
+  }
+
   // Unknown errors - generic response to prevent information leakage
   return sendSecureErrorResponse(500, "Internal Server Error", securityConfig.errorHandling.genericErrorMessage);
 };

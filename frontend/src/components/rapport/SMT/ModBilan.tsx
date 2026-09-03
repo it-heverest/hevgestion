@@ -20,6 +20,7 @@ const ModeBilan: React.FC = () => {
     stocks: { n: "0", n1: "0" },
     clientsDebiteurs: { n: "0", n1: "0" },
     caisseBanque: { n: "0", n1: "0" },
+    banque: { n: "0", n1: "0" },
     totalActif: { n: "0", n1: "0" },
 
     compteExplo: { n: "0", n1: "0" },
@@ -52,14 +53,22 @@ const ModeBilan: React.FC = () => {
     setHeader((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleBilanChange = (key: string, year: "n" | "n1", value: string) => {
+  const handleBilanChange = (
+    key: keyof typeof bilan,
+    year: "n" | "n1",
+    value: string
+  ) => {
     setBilan((prev) => ({
       ...prev,
       [key]: { ...prev[key], [year]: value },
     }));
   };
 
-  const handleCRChange = (key: string, year: "n" | "n1", value: string) => {
+  const handleCRChange = (
+    key: keyof typeof compteResultat,
+    year: "n" | "n1",
+    value: string
+  ) => {
     setCompteResultat((prev) => ({
       ...prev,
       [key]: { ...prev[key], [year]: value },
@@ -120,7 +129,7 @@ const ModeBilan: React.FC = () => {
         ref={reportRef}
         className="max-w-[297mm] mx-auto bg-white shadow-2xl border border-gray-300"
       >
-        <style jsx>{`
+        <style>{`
           .header-gray {
             background-color: #e6e6e6;
           }
@@ -271,6 +280,7 @@ const ModeBilan: React.FC = () => {
                   n: bilan.immobilisations.n,
                   n1: bilan.immobilisations.n1,
                   passif: "Compte exploitant",
+                  key: "immobilisations" as const,
                 },
                 {
                   label: "Stocks",
@@ -278,6 +288,7 @@ const ModeBilan: React.FC = () => {
                   n: bilan.stocks.n,
                   n1: bilan.stocks.n1,
                   passif: "Résultat exercice",
+                  key: "stocks" as const,
                 },
                 {
                   label: "Clients et débiteurs divers",
@@ -285,6 +296,7 @@ const ModeBilan: React.FC = () => {
                   n: bilan.clientsDebiteurs.n,
                   n1: bilan.clientsDebiteurs.n1,
                   passif: "Emprunt",
+                  key: "clientsDebiteurs" as const,
                 },
                 {
                   label: "Caisse (en + ou en -)",
@@ -292,13 +304,15 @@ const ModeBilan: React.FC = () => {
                   n: bilan.caisseBanque.n,
                   n1: bilan.caisseBanque.n1,
                   passif: "Fournisseurs et créditeurs divers",
+                  key: "caisseBanque" as const,
                 },
                 {
                   label: "Banque (en + ou en -)",
                   note: "",
-                  n: "",
-                  n1: "",
+                  n: bilan.banque.n,
+                  n1: bilan.banque.n1,
                   passif: "",
+                  key: "banque" as const,
                 },
               ].map((row, idx) => (
                 <tr
@@ -318,11 +332,7 @@ const ModeBilan: React.FC = () => {
                         className="edit-input"
                         value={row.n}
                         onChange={(e) =>
-                          handleBilanChange(
-                            row.label.toLowerCase().replace(/\s/g, ""),
-                            "n",
-                            e.target.value
-                          )
+                          handleBilanChange(row.key, "n", e.target.value)
                         }
                       />
                     ) : (

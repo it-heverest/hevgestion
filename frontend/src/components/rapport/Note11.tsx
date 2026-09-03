@@ -53,12 +53,23 @@ const Note11: React.FC = () => {
 
   // État pour les Disponibilités
   const [availabilities, setAvailabilities] = useState<AvailabilityRow[]>([
-    { id: "1", label: "Banques, chèques postaux et caisse / Siège", yearN: "", yearN1: "" },
-    { id: "2", label: "Banques, chèques postaux et caisse / Succursales", yearN: "", yearN1: "" },
-    { id: "3", label: "Caisse", yearN: "", yearN1: "" },
-    { id: "4", label: "Instruments de monnaie électronique", yearN: "", yearN1: "" },
-    { id: "5", label: "Autres disponibilités", yearN: "", yearN1: "" },
+    { id: "1", label: "Banques locales", yearN: "", yearN1: "" },
+    { id: "2", label: "Banques autres états région", yearN: "", yearN1: "" },
+    { id: "3", label: "Banques, dépôt à terme", yearN: "", yearN1: "" },
+    { id: "4", label: "Autres Banques", yearN: "", yearN1: "" },
+    { id: "5", label: "Banques intérêts courus", yearN: "", yearN1: "" },
+    { id: "6", label: "Chèques postaux", yearN: "", yearN1: "" },
+    { id: "7", label: "Autres établissement financiers", yearN: "", yearN1: "" },
+    { id: "8", label: "Etablissement financiers intérêts courus", yearN: "", yearN1: "" },
+    { id: "9", label: "Instrument de trésorerie", yearN: "", yearN1: "" },
+    { id: "10", label: "Caisse", yearN: "", yearN1: "" },
+    { id: "11", label: "Caisse électronique mobile", yearN: "", yearN1: "" },
+    { id: "12", label: "Régies d'avances et virements accréditifs", yearN: "", yearN1: "" },
   ]);
+
+  // Dépréciations: ligne à part, affichée après TOTAL BRUT (pas dans la
+  // liste de détail) — même convention que la note 8.
+  const [depreciations, setDepreciations] = useState("");
 
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
@@ -76,19 +87,21 @@ const Note11: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "11") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.disponibilites) {
+        // Le backend (buildNoteRows) renvoie {label, yearN, yearN1} — mêmes
+        // noms de champs que l'état interne.
+        if (Array.isArray(noteData.disponibilites)) {
           setAvailabilities(
             noteData.disponibilites.map((r: any, i: number) => ({
               id: String(i + 1),
-              label: r.libelle || availabilities[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
+              label: r.label || availabilities[i]?.label || "",
+              yearN: String(r.yearN ?? ""),
+              yearN1: String(r.yearN1 ?? ""),
             }))
           );
-        } else if (noteData.availabilities) {
-          setAvailabilities(noteData.availabilities);
         }
+        setDepreciations(
+          noteData.depreciations != null ? String(noteData.depreciations) : "",
+        );
         setComment(noteData.comment || "");
       } else {
         // Fallback or Initial calculation if no saved data
@@ -145,15 +158,16 @@ const Note11: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Mêmes noms de champs qu'à la génération, pour un rechargement fidèle.
       const noteData = {
         entete,
         disponibilites: availabilities.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: null,
+          id: r.id,
+          label: r.label,
+          yearN: parseFloat(r.yearN) || 0,
+          yearN1: parseFloat(r.yearN1) || 0,
         })),
+        depreciations: parseFloat(depreciations) || 0,
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "11", noteData as any);
@@ -227,6 +241,10 @@ const Note11: React.FC = () => {
 
   const totalN = useMemo(() => calculateTotal(availabilities, "yearN"), [availabilities]);
   const totalN1 = useMemo(() => calculateTotal(availabilities, "yearN1"), [availabilities]);
+  const totalNet = useMemo(
+    () => totalN - (parseFloat(depreciations.replace(/\s/g, "")) || 0),
+    [totalN, depreciations],
+  );
 
   const isHeaderIncomplete =
     !entete.entityName || !entete.fiscalYear || !entete.idNumber || !entete.duration;
@@ -302,7 +320,7 @@ const Note11: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[210mm] mx-auto bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isHeaderIncomplete && (
@@ -416,14 +434,20 @@ const Note11: React.FC = () => {
               </td>
             </tr>
 
+            {/* Dépréciations: ligne à part, avant le total net */}
+            <tr>
+              <td className="border border-gray-600 p-2 italic">Dépréciations</td>
+              <td className="border border-gray-600 p-1 text-right bg-red-50">
+                {renderEditableCell(depreciations, setDepreciations)}
+              </td>
+              <td colSpan={2} className="border border-gray-600 bg-gray-100"></td>
+            </tr>
+
             {/* TOTAL NET */}
             <tr className="bg-[#bfbfbf] font-bold text-[11px]">
               <td className="border border-gray-600 p-2 font-bold">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-center bg-gray-200">
-                {calculateVariation(totalN, totalN1)}
-              </td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
+              <td colSpan={2} className="border border-gray-600 bg-gray-200"></td>
             </tr>
           </tbody>
         </table>

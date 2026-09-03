@@ -3,8 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { dsfService } from "../../services/dsf.service";
+import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { FormulaValue } from "./shared/FormulaValue";
 
 // --- Interfaces ---
 interface CF1Row {
@@ -42,7 +43,6 @@ const CF1: React.FC = () => {
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [dsfId, setDsfId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -58,13 +58,9 @@ const CF1: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await dsfService.getDSF(folderId);
-      const dsf = response.dsf;
-      setDsfId(dsf.id);
+      const data = await notesService.getNoteData(folderId, "cf1") as any;
 
-      if (dsf.notes && dsf.notes.cf1) {
-        const data = dsf.notes.cf1;
-
+      if (data) {
         if (data.headerInfo) {
           setHeaderInfo(data.headerInfo);
         }
@@ -77,54 +73,18 @@ const CF1: React.FC = () => {
           setRubriques(data.rubriques);
         }
       }
-    } catch (error: any) {
-      console.error("Error loading DSF data:", error);
-      // If DSF doesn't exist, try to generate it
-      if (error.response?.status === 404) {
-        try {
-          console.log("DSF not found, attempting to generate...");
-          await dsfService.generateDSF(selectedFolder.id);
-          // Retry loading after generation
-          const response = await dsfService.getDSF(selectedFolder.id);
-          const dsf = response.dsf;
-          setDsfId(dsf.id);
-
-          if (dsf.notes && dsf.notes.cf1) {
-            const data = dsf.notes.cf1;
-            if (data.headerInfo) setHeaderInfo(data.headerInfo);
-            if (data.rows) setRows(data.rows);
-            if (data.rubriques) setRubriques(data.rubriques);
-          }
-        } catch (genError) {
-          console.error("Error generating DSF:", genError);
-          alert("Erreur: Impossible de charger ou générer le DSF. Veuillez vérifier que des bilans sont disponibles pour ce dossier.");
-        }
-      }
+    } catch (error) {
+      console.error("Error loading CF1 data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const saveToBackend = async () => {
-    if (!selectedFolder?.id) return;
+    if (!folderId) return;
 
     try {
       setSaving(true);
-
-      // If no DSF exists, try to generate it first
-      let currentDsfId = dsfId;
-      if (!currentDsfId) {
-        try {
-          await dsfService.generateDSF(selectedFolder.id);
-          const response = await dsfService.getDSF(selectedFolder.id);
-          currentDsfId = response.dsf.id;
-          setDsfId(currentDsfId);
-        } catch (genError) {
-          console.error("Error generating DSF for save:", genError);
-          alert("Erreur: Impossible de sauvegarder. Veuillez vérifier que des bilans sont disponibles.");
-          return;
-        }
-      }
 
       const cf1Data = {
         headerInfo,
@@ -132,9 +92,10 @@ const CF1: React.FC = () => {
         rubriques,
       };
 
-      const notes = { cf1: cf1Data };
-
-      await dsfService.updateDSF(currentDsfId, { notes });
+      const success = await notesService.saveNoteData(folderId, "cf1", cf1Data as any);
+      if (!success) {
+        alert("Erreur lors de la sauvegarde");
+      }
     } catch (error) {
       console.error("Error saving to backend:", error);
       alert("Erreur lors de la sauvegarde");
@@ -429,7 +390,12 @@ const CF1: React.FC = () => {
               className="w-full text-right bg-orange-50"
             />
           ) : (
-            row.amount.toLocaleString("fr-FR")
+            <FormulaValue
+              formulaKey={`cf1.rows.${row.id}`}
+              label={typeof row.label === "string" ? row.label : String(row.id)}
+            >
+              {row.amount.toLocaleString("fr-FR")}
+            </FormulaValue>
           )}
         </td>
       </tr>
@@ -487,7 +453,7 @@ const CF1: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[210mm] mx-auto min-h-[297mm] bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
         <div className="text-center font-bold mb-2 text-lg">60</div>
