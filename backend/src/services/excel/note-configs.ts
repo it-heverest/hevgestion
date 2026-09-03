@@ -20,13 +20,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
       ],
       lignes: [
         {
-          note: "B10",
-          grossAmount: "C10",
-          mortgages: "D10",
-          pledges: "E10",
-          others: "F10",
-        },
-        {
           note: "B11",
           grossAmount: "C11",
           mortgages: "D11",
@@ -54,13 +47,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
           pledges: "E14",
           others: "F14",
         },
-        {
-          note: "B15",
-          grossAmount: "C15",
-          mortgages: "D15",
-          pledges: "E15",
-          others: "F15",
-        },
       ],
     },
     leasingDebts: {
@@ -73,13 +59,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
         "SOUS TOTAL(2)",
       ],
       lignes: [
-        {
-          note: "B17",
-          grossAmount: "C17",
-          mortgages: "D17",
-          pledges: "E17",
-          others: "F17",
-        },
         {
           note: "B18",
           grossAmount: "C18",
@@ -108,13 +87,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
           pledges: "E21",
           others: "F21",
         },
-        {
-          note: "B22",
-          grossAmount: "C22",
-          mortgages: "D22",
-          pledges: "E22",
-          others: "F22",
-        },
       ],
     },
     currentLiabilities: {
@@ -132,13 +104,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
         "TOTAL (1)+(2)+(3)",
       ],
       lignes: [
-        {
-          note: "B24",
-          grossAmount: "C24",
-          mortgages: "D24",
-          pledges: "E24",
-          others: "F24",
-        },
         {
           note: "B25",
           grossAmount: "C25",
@@ -195,20 +160,6 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
           pledges: "E32",
           others: "F32",
         },
-        {
-          note: "B33",
-          grossAmount: "C33",
-          mortgages: "D33",
-          pledges: "E33",
-          others: "F33",
-        },
-        {
-          note: "B34",
-          grossAmount: "C34",
-          mortgages: "D34",
-          pledges: "E34",
-          others: "F34",
-        },
       ],
     },
     commitments: {
@@ -234,6 +185,58 @@ export const CONFIG_NOTE1: ConfigurationMapping = {
       ],
     },
   },
+  totals: [
+    { cell: "C15", sumOf: [{ section: "financialDebts", field: "grossAmount" }] },
+    { cell: "D15", sumOf: [{ section: "financialDebts", field: "mortgages" }] },
+    { cell: "E15", sumOf: [{ section: "financialDebts", field: "pledges" }] },
+    { cell: "F15", sumOf: [{ section: "financialDebts", field: "others" }] },
+
+    { cell: "C22", sumOf: [{ section: "leasingDebts", field: "grossAmount" }] },
+    { cell: "D22", sumOf: [{ section: "leasingDebts", field: "mortgages" }] },
+    { cell: "E22", sumOf: [{ section: "leasingDebts", field: "pledges" }] },
+    { cell: "F22", sumOf: [{ section: "leasingDebts", field: "others" }] },
+
+    { cell: "C33", sumOf: [{ section: "currentLiabilities", field: "grossAmount" }] },
+    { cell: "D33", sumOf: [{ section: "currentLiabilities", field: "mortgages" }] },
+    { cell: "E33", sumOf: [{ section: "currentLiabilities", field: "pledges" }] },
+    { cell: "F33", sumOf: [{ section: "currentLiabilities", field: "others" }] },
+
+    {
+      cell: "C34",
+      sumOf: [
+        { section: "financialDebts", field: "grossAmount" },
+        { section: "leasingDebts", field: "grossAmount" },
+        { section: "currentLiabilities", field: "grossAmount" },
+      ],
+    },
+    {
+      cell: "D34",
+      sumOf: [
+        { section: "financialDebts", field: "mortgages" },
+        { section: "leasingDebts", field: "mortgages" },
+        { section: "currentLiabilities", field: "mortgages" },
+      ],
+    },
+    {
+      cell: "E34",
+      sumOf: [
+        { section: "financialDebts", field: "pledges" },
+        { section: "leasingDebts", field: "pledges" },
+        { section: "currentLiabilities", field: "pledges" },
+      ],
+    },
+    {
+      cell: "F34",
+      sumOf: [
+        { section: "financialDebts", field: "others" },
+        { section: "leasingDebts", field: "others" },
+        { section: "currentLiabilities", field: "others" },
+      ],
+    },
+
+    { cell: "E43", sumOf: [{ section: "commitments", field: "Engagaments_donnes" }] },
+    { cell: "F43", sumOf: [{ section: "commitments", field: "Engagaments_recus" }] },
+  ],
 };
 
 // ==================== NOTE 2 ====================

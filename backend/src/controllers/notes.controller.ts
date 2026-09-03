@@ -7,13 +7,22 @@ import { auditService } from "../services/audit.service";
 import { userHasFolderAccess } from "../utils/folder-access";
 
 const VALID_NOTE_NUMBERS = [
-  "1", "2", "3A", "3B", "3C", "3D", "3E", "3F",
+  "1", "2", "3A", "3B", "3C", "3C_C01", "3D", "3E", "3F",
   "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
   "15A", "15B", "16A", "16B", "16B bis", "16C",
-  "17", "C1/17", "18", "19", "20",
+  "17", "C1/17", "18", "19", "20", "21", "22",
   "23", "24", "25", "C1/25", "C2/25", "26",
+  "27A", "C1/27A", "27B",
   "28", "C1/28", "C2/28",
-  "29", "30", "31", "32", "33", "34",
+  "29", "30", "31", "32", "33", "34", "35",
+  "cf1", "cf1bis", "cf1ter", "cf1quater", "cf2", "cf2bis", "cf2ter",
+  "bilan-paysage", "compte-resultat", "flux-tresorerie",
+  "grille-analyse-notes", "R2", "R3",
+  // "3SMT" (Note3Smt.tsx) volontairement absent : le modèle DSF n'a aucune
+  // colonne dédiée aux notes SMT/Assurance (cf. schema.prisma) — l'ajouter
+  // ici ferait planter getNotesForFolder() pour TOUS les dossiers dès que
+  // son résultat est bouclé, exactement comme "compte-resultat" vient de le
+  // faire. Nécessite une migration Prisma avant de pouvoir être activé.
 ];
 
 export class NotesController {

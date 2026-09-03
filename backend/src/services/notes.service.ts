@@ -59,6 +59,7 @@ const NOTE_NUMBER_TO_FIELD: Record<string, string> = {
   "34": "note34",
   "35": "note35",
   "flux-tresorerie": "tableau_des_flux_tresorerie",
+  "compte-resultat": "compte_de_resultat",
   "cf1": "cf1",
   "cf1bis": "cf1_bis",
   "cf1ter": "cf1_ter",

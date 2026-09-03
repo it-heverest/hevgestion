@@ -42,4 +42,17 @@ export interface ConfigurationMapping {
             rows: { [key: string]: MappingCellule };
         };
     };
+    /**
+     * Cellules de sous-total / total du template, calculées à l'export en
+     * sommant un ou plusieurs champs de section(s) — ces totaux n'existent
+     * nulle part dans les données de la note (seulement calculés à
+     * l'affichage, côté composant React). Voir `collectWrites` dans
+     * `dsf-filler.service.ts`.
+     */
+    totals?: Array<{
+        /** Cellule où écrire le total. */
+        cell: string;
+        /** Champs à sommer, un ou plusieurs (ex: total croisé de 3 sections). */
+        sumOf: Array<{ section: string; field: string }>;
+    }>;
 }

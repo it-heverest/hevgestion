@@ -142,12 +142,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Combine extracted results with additional reports, sorted into the
   // canonical DSF document order rather than backend/insertion order.
-  const allReports = useMemo(() => [
-    ...extractionResults,
-    ...additionalReports
-  ].sort(
-    (a, b) => getReportOrderIndex(a.noteName) - getReportOrderIndex(b.noteName)
-  ), [extractionResults, additionalReports]);
+  // `additionalReports` always lists FICHE R3/BILAN PAYSAGE/etc. regardless
+  // of whether the DSF was already generated with those same notes — dedupe
+  // by name here so a note that exists in both isn't shown twice.
+  const allReports = useMemo(() => {
+    const existingNames = new Set(
+      extractionResults.map((r) => r.noteName.toUpperCase().trim()),
+    );
+    const dedupedAdditional = additionalReports.filter(
+      (r) => !existingNames.has(r.noteName.toUpperCase().trim()),
+    );
+    return [...extractionResults, ...dedupedAdditional].sort(
+      (a, b) => getReportOrderIndex(a.noteName) - getReportOrderIndex(b.noteName),
+    );
+  }, [extractionResults, additionalReports]);
 
   const successCount = allReports.filter((r) => r.success).length;
   const totalPages = Math.ceil(allReports.length / itemsPerPage);
