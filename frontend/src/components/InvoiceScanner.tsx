@@ -116,7 +116,7 @@ export function InvoiceScanner() {
   );
 
   const fmt = (v: number | null | undefined) =>
-    v === null || v === undefined ? "—" : v.toLocaleString("fr-FR");
+    v === null || v === undefined ? "—" : v.toLocaleString("fr-FR").replace(/\u202F/g, " ");
 
   const field = (label: string, value: React.ReactNode, missing?: boolean) => (
     <div className="flex justify-between gap-4 py-1.5 border-b border-gray-100 last:border-0">
@@ -217,11 +217,11 @@ export function InvoiceScanner() {
             <div className="mt-3 pt-3 border-t border-orange-200 flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <span>
                 Total débit :{" "}
-                <strong>{journalTotals.debit.toLocaleString("fr-FR")}</strong>
+                <strong>{journalTotals.debit.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</strong>
               </span>
               <span>
                 Total crédit :{" "}
-                <strong>{journalTotals.credit.toLocaleString("fr-FR")}</strong>
+                <strong>{journalTotals.credit.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</strong>
               </span>
               {journalTotals.nonConformes > 0 && (
                 <span className="text-red-700">

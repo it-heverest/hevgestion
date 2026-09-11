@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, FileSpreadsheet, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
+import { dsfService } from "../../services/dsf.service";
+import { dsfTemplateService } from "../../services/dsf-template.service";
+import { Modal } from "../ui/modal";
 
 // --- Interfaces ---
 interface DebtRow {
@@ -37,6 +41,7 @@ const Note1: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder, selectedClient } = useApp();
+  const { hasFormula } = useFormulaPanel();
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
@@ -311,6 +316,41 @@ const Note1: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Télécharge UNIQUEMENT la feuille Excel de cette note (pas tout le
+  // classeur DSF) — voir NOTE_EXPORT_MAP côté backend.
+  const downloadExcel = async () => {
+    if (!folderId) return;
+    try {
+      setIsExportingExcel(true);
+      await dsfTemplateService.exportNoteSheet(folderId, "1");
+    } catch (error: any) {
+      alert(error?.message || "Erreur lors de l'export Excel");
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -349,7 +389,7 @@ const Note1: React.FC = () => {
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
+        {isEditing && !hasFormula(`note1.${arrayField}.${row.id}`) ? (
           <input
             type="number"
             value={row.grossAmount}
@@ -363,7 +403,7 @@ const Note1: React.FC = () => {
             formulaKey={`note1.${arrayField}.${row.id}`}
             label={typeof row.label === "string" ? row.label : String(row.label)}
           >
-            {row.grossAmount.toLocaleString("fr-FR")}
+            {row.grossAmount.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
           </FormulaValue>
         )}
       </td>
@@ -378,7 +418,7 @@ const Note1: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.mortgages.toLocaleString("fr-FR")
+          row.mortgages.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -392,7 +432,7 @@ const Note1: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.pledges.toLocaleString("fr-FR")
+          row.pledges.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
@@ -406,7 +446,7 @@ const Note1: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.others.toLocaleString("fr-FR")
+          row.others.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
     </tr>
@@ -418,16 +458,16 @@ const Note1: React.FC = () => {
         {title}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {calculateSum(data, "grossAmount").toLocaleString("fr-FR")}
+        {calculateSum(data, "grossAmount").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {calculateSum(data, "mortgages").toLocaleString("fr-FR")}
+        {calculateSum(data, "mortgages").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {calculateSum(data, "pledges").toLocaleString("fr-FR")}
+        {calculateSum(data, "pledges").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {calculateSum(data, "others").toLocaleString("fr-FR")}
+        {calculateSum(data, "others").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
     </tr>
   );
@@ -476,47 +516,89 @@ const Note1: React.FC = () => {
             {selectedClient?.name} - Exercice {selectedFolder?.fiscalYear}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-1">
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
+              title="Éditer"
+              className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors"
             >
-              <Pencil size={18} /> Éditer
+              <Pencil size={18} />
             </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <Save size={18} /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
                 onClick={() => setIsEditing(false)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                title="Annuler"
+                className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors"
               >
-                Annuler
+                <X size={18} />
               </button>
             </>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={() => setShowExportMenu(true)}
+            disabled={isExportingExcel}
+            title="Exporter"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <Download size={18} className={isExportingExcel ? "animate-pulse" : ""} />
+          </button>
+          <button
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
+
+      <Modal
+        open={showExportMenu}
+        onClose={() => setShowExportMenu(false)}
+        size="sm"
+        title="Exporter"
+        description="Choisissez un format"
+      >
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => {
+              setShowExportMenu(false);
+              downloadPDF();
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+          >
+            <Download size={20} className="text-gray-500" />
+            <div>
+              <div className="text-sm font-medium text-gray-900">PDF</div>
+              <div className="text-xs text-gray-500">Cette note, mise en page pour impression</div>
+            </div>
+          </button>
+          <button
+            onClick={() => {
+              setShowExportMenu(false);
+              downloadExcel();
+            }}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+          >
+            <FileSpreadsheet size={20} className="text-gray-500" />
+            <div>
+              <div className="text-sm font-medium text-gray-900">Excel</div>
+              <div className="text-xs text-gray-500">Feuille de cette note uniquement</div>
+            </div>
+          </button>
+        </div>
+      </Modal>
 
       <div
         ref={reportRef}
@@ -533,7 +615,12 @@ const Note1: React.FC = () => {
           </div>
         )}
 
-        <div className="text-center font-bold mb-2 text-lg">8</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            8
+          </span>
+        </div>
 
         {/* En-tête */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
@@ -672,16 +759,16 @@ const Note1: React.FC = () => {
                 TOTAL (1)+(2)+(3)
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalGross.toLocaleString("fr-FR")}
+                {totalGross.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalMortgages.toLocaleString("fr-FR")}
+                {totalMortgages.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalPledges.toLocaleString("fr-FR")}
+                {totalPledges.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalOthers.toLocaleString("fr-FR")}
+                {totalOthers.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
             </tr>
           </tbody>
@@ -722,7 +809,7 @@ const Note1: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.given.toLocaleString("fr-FR")
+                    row.given.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -740,7 +827,7 @@ const Note1: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.received.toLocaleString("fr-FR")
+                    row.received.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>

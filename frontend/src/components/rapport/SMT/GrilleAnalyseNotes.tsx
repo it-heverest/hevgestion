@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const GrilleAnalyseNotes: React.FC = () => {

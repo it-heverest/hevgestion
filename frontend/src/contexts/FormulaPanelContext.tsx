@@ -15,6 +15,10 @@ interface FormulaPanelContextType {
   activeLabel: string | null;
   activeFormula: string | null;
   openFormula: (key: string, label: string) => void;
+  /** Ouvre le panneau avec un texte de formule fourni directement par la
+   * note (calcul local en JS), pour les notes non encore connectées au
+   * catalogue backend — pas de lookup, toujours affiché. */
+  openLocalFormula: (formula: string, label: string) => void;
   close: () => void;
   hasFormula: (key: string) => boolean;
 }
@@ -41,6 +45,7 @@ function flattenCatalog(catalog: FormulaCatalog): Map<string, string> {
 export const FormulaPanelProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [localFormula, setLocalFormula] = useState<string | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   // État (pas une ref): le catalogue arrive de façon asynchrone après le
   // premier rendu des cases du rapport — il faut redéclencher un rendu pour
@@ -69,6 +74,7 @@ export const FormulaPanelProvider: React.FC<{ children: ReactNode }> = ({ childr
   const openFormula = useCallback(
     (key: string, label: string) => {
       if (!flatCatalog.has(key)) return;
+      setLocalFormula(null);
       setActiveKey(key);
       setActiveLabel(label);
       setIsOpen(true);
@@ -76,13 +82,29 @@ export const FormulaPanelProvider: React.FC<{ children: ReactNode }> = ({ childr
     [flatCatalog],
   );
 
+  const openLocalFormula = useCallback((formula: string, label: string) => {
+    setActiveKey(null);
+    setLocalFormula(formula);
+    setActiveLabel(label);
+    setIsOpen(true);
+  }, []);
+
   const close = useCallback(() => setIsOpen(false), []);
 
-  const activeFormula = activeKey ? flatCatalog.get(activeKey) ?? null : null;
+  const activeFormula =
+    localFormula ?? (activeKey ? flatCatalog.get(activeKey) ?? null : null);
 
   return (
     <FormulaPanelContext.Provider
-      value={{ isOpen, activeLabel, activeFormula, openFormula, close, hasFormula }}
+      value={{
+        isOpen,
+        activeLabel,
+        activeFormula,
+        openFormula,
+        openLocalFormula,
+        close,
+        hasFormula,
+      }}
     >
       {children}
     </FormulaPanelContext.Provider>

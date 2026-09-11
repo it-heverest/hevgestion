@@ -3,7 +3,8 @@ import { DSF, Folder, Balance, Client } from "@prisma/client";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import { config } from "../config";
-import { getMappingLine, getMappingLines } from "./dsf/account-mapping.data";
+import { getMappingLine, getMappingLines, MappingLine } from "./dsf/account-mapping.data";
+import { resolveAllMappingLines } from "./dsf/mapping-resolver";
 import { sumMappingLine, sumBySide, sumMovement } from "./dsf/account-sum.util";
 import { evaluateFormulaSource } from "./dsf/formula-engine";
 import { TFT_LINES } from "./dsf/tft-mapping.data";
@@ -60,6 +61,13 @@ interface CoherenceResult {
 type FolderWithRelations = Folder & {
   client: Client & { clientType?: string };
   balances: (Balance & { fixedAssets?: any[]; equilibrium?: any })[];
+  /** Formules effectives (défaut statique ou surcharge admin/comptable en
+   * base) pour toutes les notes couvertes par ACCOUNT_MAPPING, résolues une
+   * seule fois en tête de generateAllNotes() et relues de façon synchrone
+   * partout ailleurs — voir dsf/mapping-resolver.ts. `folder` est propre à
+   * la requête en cours (jamais partagé entre requêtes concurrentes), le
+   * muter ici est donc sans risque. */
+  resolvedMappings?: Map<string, MappingLine[]>;
 };
 
 export class DSFGenerator {
@@ -458,7 +466,7 @@ export class DSFGenerator {
     folder: FolderWithRelations
   ): any {
     const findLine = (code: string, needle: string) =>
-      getMappingLines(code).find((l) =>
+      this.linesFor(code, folder).find((l) =>
         l.label.toLowerCase().includes(needle.toLowerCase())
       );
     const sum = (rows: any[], code: string, needle: string): number => {
@@ -1349,6 +1357,15 @@ export class DSFGenerator {
     const n1 = n1Data?.rows || [];
     const clientType = folder.client.clientType || "NORMAL";
 
+    // Un seul aller-retour DB pour toutes les notes couvertes par
+    // ACCOUNT_MAPPING (défauts + éventuelles surcharges du dossier/client).
+    // Attaché sur `folder` pour rester synchrone partout en aval (voir le
+    // commentaire sur FolderWithRelations.resolvedMappings plus haut).
+    folder.resolvedMappings = await resolveAllMappingLines({
+      id: folder.id,
+      clientId: folder.clientId,
+    });
+
     const notes: any = {};
 
     // Chaque note est isolée dans son propre try/catch: avant ce
@@ -1396,7 +1413,7 @@ export class DSFGenerator {
       await safeAsync("note3A", () => this.generateNote3A(n, n1, folder));
       safe("note3B", () => this.generateNote3B(n, n1, folder));
       safe("note3C", () => this.generateNote3C(n, n1, folder));
-      safe("c1Note3C", () => this.generateC1Note3C(n));
+      safe("c1Note3C", () => this.generateC1Note3C(folder));
       safe("note3D", () => this.generateNote3D(n, folder));
       safe("note3E", () => this.generateNote3E(n, folder));
       safe("note3F", () => this.generateNote3F(n1, folder));
@@ -1427,22 +1444,22 @@ export class DSFGenerator {
       safe("note23", () => this.generateNote23(n, n1, folder));
       safe("note24", () => this.generateNote24(n, n1, folder));
       safe("note25", () => this.generateNote25(n, n1, folder));
-      safe("c1Note25", () => this.generateC1Note25(n));
-      safe("c2Note25", () => this.generateC2Note25(n));
+      safe("c1Note25", () => this.generateC1Note25(n, folder));
+      safe("c2Note25", () => this.generateC2Note25(n, folder));
       safe("note26", () => this.generateNote26(n, n1, folder));
       safe("note27A", () => this.generateNote27A(n, n1, folder));
-      safe("c1Note27A", () => this.generateC1Note27A(n));
+      safe("c1Note27A", () => this.generateC1Note27A(n, folder));
       safe("note27B", () => this.generateNote27B(folder));
       safe("note28", () => this.generateNote28(n, n1, folder));
-      safe("c1Note28", () => this.generateC1Note28(n));
-      safe("c2Note28", () => this.generateC2Note28(n));
+      safe("c1Note28", () => this.generateC1Note28(n, folder));
+      safe("c2Note28", () => this.generateC2Note28(n, folder));
       safe("note29", () => this.generateNote29(n, n1, folder));
       safe("note30", () => this.generateNote30(n, n1, folder));
       safe("note31", () => this.generateNote31(n, n1, folder));
       safe("note32", () => this.generateNote32(folder));
       safe("note33", () => this.generateNote33(folder));
       safe("note34", () => this.generateNote34(n, n1, folder));
-      safe("note35", () => this.generateNote35());
+      safe("note35", () => this.generateNote35(folder));
       await safeAsync("cf1", () => this.generateCF1(n, folder));
       safe("cf1Bis", () => this.generateCF1Bis(n));
       safe("cf1Ter", () => this.generateCF1Ter(n));
@@ -1507,6 +1524,30 @@ export class DSFGenerator {
    * `indexes` permet de ne retenir qu'un sous-ensemble ordonné de lignes
    * (ex. séparer charges et produits d'une même note).
    */
+  /** Lignes de mapping effectives (surcharge DB si résolue sur `folder`,
+   * sinon fallback statique) — remplacement direct de getMappingLines(). */
+  private linesFor(noteCode: string, folder?: FolderWithRelations): MappingLine[] {
+    return folder?.resolvedMappings?.get(noteCode) ?? getMappingLines(noteCode);
+  }
+
+  /** Équivalent config-aware de getMappingLine() (recherche par fragment de
+   * libellé, insensible à la casse). */
+  private lineFor(
+    noteCode: string,
+    labelIncludes: string,
+    folder?: FolderWithRelations
+  ): MappingLine {
+    const lines = this.linesFor(noteCode, folder);
+    const needle = labelIncludes.toLowerCase();
+    const found = lines.find((l) => l.label.toLowerCase().includes(needle));
+    if (!found) {
+      throw new Error(
+        `[dsf-generator] Aucune ligne trouvée pour note "${noteCode}" avec libellé contenant "${labelIncludes}"`
+      );
+    }
+    return found;
+  }
+
   private buildNoteRows(
     noteCode: string,
     n: any[],
@@ -1514,9 +1555,10 @@ export class DSFGenerator {
     options: {
       indexes?: number[];
       extra?: (valueN: number, valueN1: number, index: number) => any;
-    } = {}
+    } = {},
+    folder?: FolderWithRelations
   ): any[] {
-    const lines = getMappingLines(noteCode);
+    const lines = this.linesFor(noteCode, folder);
     const picked =
       options.indexes !== undefined
         ? options.indexes.map((i) => lines[i]).filter(Boolean)
@@ -1565,7 +1607,7 @@ export class DSFGenerator {
       others: 0,
     });
 
-    const lines = getMappingLines("1");
+    const lines = this.linesFor("1", folder);
     const pick = (indexes: number[]) =>
       indexes.map((idx, i) => toDebtRow(lines[idx], i));
 
@@ -1616,7 +1658,7 @@ export class DSFGenerator {
     // de la période sont lues sur les mouvements du compte (débit =
     // acquisition, crédit = cession/sortie). Les virements de poste à poste
     // et les réévaluations ne sont pas isolables dans la balance: à 0.
-    const lines = getMappingLines("3A");
+    const lines = this.linesFor("3A", folder);
     const buildMovementRows = (indexes: number[]) =>
       indexes.map((idx, i) => {
         const line = lines[idx];
@@ -1694,7 +1736,7 @@ export class DSFGenerator {
     // (2811-2818), 4-8 = corporelles (282-2845).
     // Ouverture = cumul N-1, augmentations = dotations (mouvement créditeur),
     // diminutions = reprises/sorties (mouvement débiteur).
-    const lines = getMappingLines("3C");
+    const lines = this.linesFor("3C", folder);
     const buildRows = (indexes: number[]) =>
       indexes.map((idx, i) => {
         const line = lines[idx];
@@ -1715,11 +1757,30 @@ export class DSFGenerator {
     };
   }
 
-  private generateC1Note3C(n: any[]): any {
+  private generateC1Note3C(folder: FolderWithRelations): any {
+    // Table C1/Note3C (suivi des amortissements différés en période
+    // déficitaire): mécanisme purement fiscal — report d'un exercice
+    // déficitaire à imputer sur les exercices bénéficiaires suivants. Comme
+    // Note3D/Note3F, ce n'est pas déductible de la seule balance (c'est un
+    // suivi de déclaration fiscale, pas un solde de compte) — lignes toujours
+    // émises avec l'entête pour que le tableau s'affiche complet et soit
+    // éditable par le comptable, plutôt qu'un tableau vide.
+    const toRow = (label: string) => ({
+      libelle: label,
+      reportAmortissementsAnterieurs: 0,
+      amortissementsDifferesExercice: 0,
+      imputationExercice: 0,
+      totalReportNonImputes: 0,
+    });
+
     return {
+      entete: this.buildEntete(folder),
       title:
         "TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN PERIODE DEFICITAIRE",
-      amortissementsDifferes: [],
+      amortissementsDifferes: [
+        "Immobilisations corporelles",
+        "Immobilisations incorporelles",
+      ].map(toRow),
       total: 0,
     };
   }
@@ -1767,7 +1828,7 @@ export class DSFGenerator {
   }
 
   private generateNote3E(n: any[], folder: FolderWithRelations): any {
-    const total = sumMappingLine(n, getMappingLine("3E", "écart incorporé"));
+    const total = sumMappingLine(n, this.lineFor("3E", "écart incorporé", folder));
     return {
       entete: this.buildEntete(folder),
       title: "INFORMATIONS SUR LES REEVALUATIONS EFFECTUEES PAR L'ENTITE",
@@ -1845,7 +1906,7 @@ export class DSFGenerator {
           twoYearsPlus: 0,
           fourYearsPlus: 0,
         }),
-      }),
+      }, folder),
       depreciations: this.buildNoteRows("4", n, n1, {
         indexes: [8, 9],
         extra: (yearN, yearN1) => ({
@@ -1854,7 +1915,7 @@ export class DSFGenerator {
           twoYearsPlus: 0,
           fourYearsPlus: 0,
         }),
-      }),
+      }, folder),
       // Détail des filiales/participations: information juridique non
       // déductible de la balance, à saisir par le comptable.
       subsidiaries: [],
@@ -1875,13 +1936,13 @@ export class DSFGenerator {
       assetsData: this.buildNoteRows("5", n, n1, {
         indexes: [0, 1, 2],
         extra: () => ({ isTotal: false }),
-      }),
+      }, folder),
       liabilitiesData: this.buildNoteRows("5", n, n1, {
         indexes: [3, 4, 5, 6],
         extra: () => ({ isTotal: false }),
-      }),
-      actifCirculantHAO: this.buildNoteRows("5", n, n1, { indexes: [0, 1, 2] }),
-      dettesHAO: this.buildNoteRows("5", n, n1, { indexes: [3, 4, 5, 6] }),
+      }, folder),
+      actifCirculantHAO: this.buildNoteRows("5", n, n1, { indexes: [0, 1, 2] }, folder),
+      dettesHAO: this.buildNoteRows("5", n, n1, { indexes: [3, 4, 5, 6] }, folder),
     };
   }
 
@@ -1895,8 +1956,8 @@ export class DSFGenerator {
     const stocks = this.buildNoteRows("6", n, n1, {
       indexes: [0, 1, 2, 3, 4, 5, 6, 7],
       extra: () => ({ isTotal: false }),
-    });
-    const depreciations = this.buildNoteRows("6", n, n1, { indexes: [8] });
+    }, folder);
+    const depreciations = this.buildNoteRows("6", n, n1, { indexes: [8] }, folder);
     const totalBrutN = stocks.reduce((t, r) => t + r.yearN, 0);
     const totalBrutN1 = stocks.reduce((t, r) => t + r.yearN1, 0);
     const depN = depreciations.reduce((t, r) => t + r.yearN, 0);
@@ -1931,7 +1992,7 @@ export class DSFGenerator {
         oneToTwoYears: 0,
         moreThanTwoYears: 0,
       }),
-    });
+    }, folder);
 
     return {
       entete: this.buildEntete(folder),
@@ -1945,8 +2006,8 @@ export class DSFGenerator {
           oneToTwoYears: 0,
           moreThanTwoYears: 0,
         }),
-      }),
-      clientCreditors: getMappingLines("7")
+      }, folder),
+      clientCreditors: this.linesFor("7", folder)
         .slice(10, 13)
         .map((line, i) => ({
           id: String(i + 1),
@@ -1975,12 +2036,12 @@ export class DSFGenerator {
       autresCreances: this.buildNoteRows("8", n, n1, {
         indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         extra: (yearN) => withAging(yearN),
-      }),
+      }, folder),
       // Ligne 11 de la table ("Dépréciations des autres créances", 492-497):
       // une seule valeur (exercice courant), pas un tableau — l'imprimé
       // n'a qu'une colonne pour cette ligne, contrairement aux créances
       // elle-mêmes qui ont Année N/N-1/échéancier.
-      depreciations: sumMappingLine(n, getMappingLines("8")[10]),
+      depreciations: sumMappingLine(n, this.linesFor("8", folder)[10]),
       justifications: {
         variation: "",
         montant: "",
@@ -2001,11 +2062,11 @@ export class DSFGenerator {
     const titres = this.buildNoteRows("9", n, n1, {
       indexes: [0, 1, 2, 3, 4, 5, 6],
       extra: () => ({ isTotal: false }),
-    });
+    }, folder);
     const depreciations = this.buildNoteRows("9", n, n1, {
       indexes: [7],
       extra: () => ({ isTotal: false }),
-    });
+    }, folder);
 
     return {
       entete: this.buildEntete(folder),
@@ -2029,10 +2090,10 @@ export class DSFGenerator {
     // que de recevoir un écart absolu sous une étiquette de pourcentage.
     const valeursAEncaisser = this.buildNoteRows("10", n, n1, {
       indexes: [0, 1, 2, 3, 4, 5],
-    });
+    }, folder);
     const depreciations = this.buildNoteRows("10", n, n1, {
       indexes: [6],
-    });
+    }, folder);
     const brutN = valeursAEncaisser.reduce((t, r) => t + r.yearN, 0);
     const brutN1 = valeursAEncaisser.reduce((t, r) => t + r.yearN1, 0);
     const depN = depreciations.reduce((t, r) => t + r.yearN, 0);
@@ -2061,13 +2122,13 @@ export class DSFGenerator {
     // liste de détail mais comme une ligne dédiée après le TOTAL BRUT.
     const rows = this.buildNoteRows("11", n, n1, {
       indexes: [7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5],
-    });
+    }, folder);
 
     return {
       entete: this.buildEntete(folder),
       title: "DISPONIBILITES",
       disponibilites: rows,
-      depreciations: sumMappingLine(n, getMappingLines("11")[6]),
+      depreciations: sumMappingLine(n, this.linesFor("11", folder)[6]),
     };
   }
 
@@ -2119,20 +2180,20 @@ export class DSFGenerator {
       shareholders: [
         {
           id: "1",
-          name: "Mme. PIGLA Ernestine Destinée",
-          nationality: "Camerounaise",
-          shareType: "Ordinaire",
-          number: 80,
-          totalAmount: 800000,
+          name: "",
+          nationality: "",
+          shareType: "",
+          number: 0,
+          totalAmount: 0,
           repayments: 0,
         },
         {
           id: "2",
-          name: "M. NDJONGAG Jude Franclin",
-          nationality: "Camerounaise",
-          shareType: "Ordinaire",
-          number: 20,
-          totalAmount: 200000,
+          name: "",
+          nationality: "",
+          shareType: "",
+          number: 0,
+          totalAmount: 0,
           repayments: 0,
         },
         {
@@ -2223,7 +2284,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "PRIMES ET RESERVES",
-      rows: this.buildNoteRows("14", n, n1),
+      rows: this.buildNoteRows("14", n, n1, {}, folder),
     };
   }
 
@@ -2237,9 +2298,13 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "SUBVENTIONS ET PROVISIONS REGLEMENTEES",
+      // `echeancier` (date d'échéance) n'est déductible d'aucune balance —
+      // saisie manuelle par le comptable dans le composant (champ texte,
+      // voir Note15A.tsx). Laissé vide plutôt qu'à 0: une valeur numérique
+      // 0 dans une cellule Excel formatée en date s'affiche "00/01/1900".
       rows: this.buildNoteRows("15A", n, n1, {
-        extra: () => ({ fiscalAdjustment: 0, echeancier: 0 }),
-      }),
+        extra: () => ({ fiscalAdjustment: 0, echeancier: "" }),
+      }, folder),
     };
   }
 
@@ -2251,7 +2316,7 @@ export class DSFGenerator {
     // Pas de section "15B" dans la table OHADA fournie: les autres fonds
     // propres (comptes 166/167/168) sont dérivés de la note "16A" qui les
     // porte. Les lignes sont toujours émises pour que le tableau s'affiche.
-    const lines = getMappingLines("16A");
+    const lines = this.linesFor("16A", folder);
     const rows = [
       { idx: 5, label: "Intérêts courus" }, // 166
       { idx: 6, label: "Avances assorties de conditions particulières" }, // 167
@@ -2292,7 +2357,7 @@ export class DSFGenerator {
       title: "DETTES FINANCIERES ET RESSOURCES ASSIMILEES",
       rows: this.buildNoteRows("16A", n, n1, {
         extra: (yearN) => this.agingLong(yearN),
-      }),
+      }, folder),
     };
   }
 
@@ -2440,7 +2505,7 @@ export class DSFGenerator {
       title: "FOURNISSEURS D'EXPLOITATION",
       rows: this.buildNoteRows("17", n, n1, {
         extra: (yearN) => this.agingLong(yearN),
-      }),
+      }, folder),
     };
   }
 
@@ -2483,7 +2548,7 @@ export class DSFGenerator {
       title: "DETTES FISCALES ET SOCIALES",
       rows: this.buildNoteRows("18", n, n1, {
         extra: (yearN) => this.agingShort(yearN),
-      }),
+      }, folder),
     };
   }
 
@@ -2498,7 +2563,7 @@ export class DSFGenerator {
     // couverte par cette table — laissée à 0). Pas de donnée d'échéancier
     // dans la balance: par défaut on classe tout en "moins d'un an" (cohérent
     // avec le titre "à court terme" de la note).
-    const lines = getMappingLines("19");
+    const lines = this.linesFor("19", folder);
     const toRow = (id: string, label: string, line?: (typeof lines)[number]) => {
       const yearN = line ? sumMappingLine(n, line) : 0;
       const yearN1 = line ? sumMappingLine(n1, line) : 0;
@@ -2571,7 +2636,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "BANQUES, CREDIT D'ESCOMPTE ET DE TRESORERIE",
-      rows: this.buildNoteRows("20", n, n1),
+      rows: this.buildNoteRows("20", n, n1, {}, folder),
     };
   }
 
@@ -2587,7 +2652,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "CHIFFRE D'AFFAIRES ET AUTRES PRODUITS",
-      rows: this.buildNoteRows("21", n, n1),
+      rows: this.buildNoteRows("21", n, n1, {}, folder),
     };
   }
 
@@ -2602,7 +2667,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "ACHATS",
-      rows: this.buildNoteRows("22", n, n1),
+      rows: this.buildNoteRows("22", n, n1, {}, folder),
     };
   }
 
@@ -2616,7 +2681,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "TRANSPORTS",
-      rows: this.buildNoteRows("23", n, n1),
+      rows: this.buildNoteRows("23", n, n1, {}, folder),
     };
   }
 
@@ -2630,7 +2695,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "SERVICES EXTERIEURS",
-      rows: this.buildNoteRows("24", n, n1),
+      rows: this.buildNoteRows("24", n, n1, {}, folder),
     };
   }
 
@@ -2645,12 +2710,13 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "IMPOTS ET TAXES",
-      rows: this.buildNoteRows("25", n, n1),
+      rows: this.buildNoteRows("25", n, n1, {}, folder),
     };
   }
 
-  private generateC1Note25(n: any[]): any {
+  private generateC1Note25(n: any[], folder: FolderWithRelations): any {
     return {
+      entete: this.buildEntete(folder),
       title: "SYNTHESE DES IMPOTS ET TAXES VERSES",
       impotsVersesExploitation: this.sumAccounts(n, ["64"]),
       impotsHAO: this.sumAccounts(n, ["848"]),
@@ -2658,8 +2724,9 @@ export class DSFGenerator {
     };
   }
 
-  private generateC2Note25(n: any[]): any {
+  private generateC2Note25(n: any[], folder: FolderWithRelations): any {
     return {
+      entete: this.buildEntete(folder),
       title:
         "TABLEAU DE LA REGULARISATION ANNUELLE DES DROITS D'ACCISES: DETERMINATION DES DROITS D'ACCISES A REVERSER",
       baseImposable: 0,
@@ -2682,7 +2749,7 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "AUTRES CHARGES",
-      rows: this.buildNoteRows("26", n, n1),
+      rows: this.buildNoteRows("26", n, n1, {}, folder),
     };
   }
 
@@ -2698,12 +2765,13 @@ export class DSFGenerator {
     return {
       entete: this.buildEntete(folder),
       title: "CHARGES DE PERSONNEL",
-      rows: this.buildNoteRows("27A", n, n1),
+      rows: this.buildNoteRows("27A", n, n1, {}, folder),
     };
   }
 
-  private generateC1Note27A(n: any[]): any {
+  private generateC1Note27A(n: any[], folder: FolderWithRelations): any {
     return {
+      entete: this.buildEntete(folder),
       title:
         "TABLEAU DE REGULARISATION ANNUELLE DES IMPOTS ET TAXES SUR SALAIRES",
       masseSalariale: this.sumAccounts(n, ["661", "662", "663", "664"]),
@@ -2777,7 +2845,7 @@ export class DSFGenerator {
       12: "exploitation", // dépréciation des immobilisations (29)
     };
 
-    const rows = getMappingLines("28").map((line, i) => {
+    const rows = this.linesFor("28", folder).map((line, i) => {
       const category = CATEGORY[i] || "exploitation";
       const dotation = sumMovement(n, line.accounts, "MC", line.excludedAccounts);
       const reprise = sumMovement(n, line.accounts, "MD", line.excludedAccounts);
@@ -2803,8 +2871,9 @@ export class DSFGenerator {
     };
   }
 
-  private generateC1Note28(n: any[]): any {
+  private generateC1Note28(n: any[], folder: FolderWithRelations): any {
     return {
+      entete: this.buildEntete(folder),
       title:
         "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE: LES REPRISES",
       reprisesExploitation: this.sumAccounts(n, ["791"]),
@@ -2814,8 +2883,9 @@ export class DSFGenerator {
     };
   }
 
-  private generateC2Note28(n: any[]): any {
+  private generateC2Note28(n: any[], folder: FolderWithRelations): any {
     return {
+      entete: this.buildEntete(folder),
       title:
         "TABLEAU RECAPITULATIF DU TRAITEMENT FISCAL DES PROVISIONS DE L'EXERCICE: LES DOTATIONS",
       dotationsExploitation: this.sumAccounts(n, ["691"]),
@@ -2837,10 +2907,10 @@ export class DSFGenerator {
       title: "CHARGES ET REVENUS FINANCIERS",
       charges: this.buildNoteRows("29", n, n1, {
         indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-      }),
+      }, folder),
       revenus: this.buildNoteRows("29", n, n1, {
         indexes: [10, 11, 12, 13, 14, 15, 16, 17, 18],
-      }),
+      }, folder),
     };
   }
 
@@ -2858,10 +2928,10 @@ export class DSFGenerator {
       title: "AUTRES CHARGES ET PRODUITS HAO",
       charges: this.buildNoteRows("30", n, n1, {
         indexes: [0, 1, 2, 3, 4, 5, 13, 14],
-      }),
+      }, folder),
       produits: this.buildNoteRows("30", n, n1, {
         indexes: [6, 7, 8, 9, 10, 11, 12],
-      }),
+      }, folder),
     };
   }
 
@@ -2875,7 +2945,7 @@ export class DSFGenerator {
     // restent à 0, à compléter par le comptable.
     const capitalN = sumBySide(n, ["10"], "SC", ["109"]);
     const capitalN1 = sumBySide(n1, ["10"], "SC", ["109"]);
-    const lines = getMappingLines("31");
+    const lines = this.linesFor("31", folder);
 
     const rows = [
       { label: "Capital social", yearN: capitalN, yearN1: capitalN1 },
@@ -2982,7 +3052,7 @@ export class DSFGenerator {
     // Fiche de synthèse: soldes intermédiaires de gestion, CAFG et éléments
     // du fonds de roulement. Les lignes calculables le sont depuis la
     // balance; les lignes issues d'autres états (TFT, bilan) restent à 0.
-    const lines = getMappingLines("34");
+    const lines = this.linesFor("34", folder);
     const line = (i: number, rows: any[]) =>
       lines[i] ? sumMappingLine(rows, lines[i]) : 0;
 
@@ -3012,7 +3082,39 @@ export class DSFGenerator {
     const sN = sig(n);
     const sN1 = sig(n1);
 
-    const spec: { label: string; n: number; n1: number; bold?: boolean; gray?: boolean }[] = [
+    // Nuances de fond du vrai template (dsf_complet.xlsx, feuille "NOTE 34"):
+    // bleu pour le grand titre de section "ANALYSE DE ...", gris moyen pour
+    // les jalons de la CAFG, gris clair pour les autres bandeaux "ANALYSE DE
+    // ...". Trois teintes distinctes dans le fichier source — reproduites
+    // telles quelles, pas de couleur inventée.
+    const BLUE = "#DCE6F1";
+    const GRAY_MEDIUM = "#AEAAAA";
+    const GRAY_LIGHT = "#D0CECE";
+
+    const spec: {
+      label: string;
+      n: number;
+      n1: number;
+      bold?: boolean;
+      bg?: string;
+      gray?: boolean;
+      header?: boolean; // ligne de titre pure: pas de saisie, pas de %variation
+    }[] = [
+      {
+        label: "ANALYSE DE L'ACTIVITE",
+        n: 0,
+        n1: 0,
+        bold: true,
+        bg: BLUE,
+        header: true,
+      },
+      {
+        label: "SOLDE INTERMEDIAIRES DE GESTION",
+        n: 0,
+        n1: 0,
+        bold: true,
+        header: true,
+      },
       { label: "CHIFFRE D'AFFAIRES", n: sN.ca, n1: sN1.ca, bold: true },
       {
         label: "MARGE COMMERCIALE",
@@ -3046,11 +3148,29 @@ export class DSFGenerator {
         label: "DETERMINATION DE LA CAPACITE D'AUTOFINANCEMENT",
         n: 0,
         n1: 0,
-        gray: true,
+        bold: true,
+        bg: GRAY_MEDIUM,
+        header: true,
       },
-      { label: "EBE", n: sN.ebe, n1: sN1.ebe },
+      { label: "EBE", n: sN.ebe, n1: sN1.ebe, bold: true },
       { label: lines[0]?.label || "+ Valeurs comptables des cessions courantes", n: line(0, n), n1: line(0, n1) },
       { label: lines[1]?.label || "- Produits des cessions courantes", n: line(1, n), n1: line(1, n1) },
+    ];
+
+    // CAFE = EBE + valeur comptable des cessions - produits des cessions.
+    // Sous-total intermédiaire du vrai template, distinct de la CAFG finale
+    // (qui inclut en plus tous les éléments financiers/H.A.O. ci-dessous) —
+    // entièrement dérivable des lignes déjà calculées ci-dessus.
+    const cafeN = sN.ebe + line(0, n) - line(1, n);
+    const cafeN1 = sN1.ebe + line(0, n1) - line(1, n1);
+    spec.push(
+      {
+        label: "CAPACITE D'AUTOFINANCEMENT D'EXPLOITATION",
+        n: cafeN,
+        n1: cafeN1,
+        bold: true,
+        bg: GRAY_MEDIUM,
+      },
       { label: lines[2]?.label || "+ Revenus financiers", n: line(2, n), n1: line(2, n1) },
       { label: lines[3]?.label || "+ Gains de change", n: line(3, n), n1: line(3, n1) },
       { label: lines[4]?.label || "+ Transferts de charges financières", n: line(4, n), n1: line(4, n1) },
@@ -3060,8 +3180,8 @@ export class DSFGenerator {
       { label: lines[8]?.label || "- Pertes de change", n: line(8, n), n1: line(8, n1) },
       { label: lines[9]?.label || "- Charges H.A.O.", n: line(9, n), n1: line(9, n1) },
       { label: lines[10]?.label || "- Participation", n: line(10, n), n1: line(10, n1) },
-      { label: lines[11]?.label || "- Impôts sur le résultat", n: line(11, n), n1: line(11, n1) },
-    ];
+      { label: lines[11]?.label || "- Impôts sur le résultat", n: line(11, n), n1: line(11, n1) }
+    );
 
     // CAFG = EBE + éléments encaissables/décaissables ci-dessus.
     const cafg = (rows: any[], s: ReturnType<typeof sig>) =>
@@ -3081,7 +3201,13 @@ export class DSFGenerator {
 
     const cafgN = cafg(n, sN);
     const cafgN1 = cafg(n1, sN1);
-    spec.push({ label: "CAFG", n: cafgN, n1: cafgN1, bold: true });
+    spec.push({
+      label: "CAPACITE D'AUTOFINANCEMENT GLOBAL",
+      n: cafgN,
+      n1: cafgN1,
+      bold: true,
+      bg: GRAY_MEDIUM,
+    });
 
     const dividendes = Math.max(
       sumBySide(n1, ["11", "12", "13"], "SC") - sumBySide(n, ["11", "12", "13"], "SC"),
@@ -3097,6 +3223,7 @@ export class DSFGenerator {
       n: cafgN - dividendes,
       n1: cafgN1,
       bold: true,
+      bg: GRAY_MEDIUM,
     });
 
     // Éléments de structure financière (fonds de roulement / BFE / trésorerie).
@@ -3125,7 +3252,41 @@ export class DSFGenerator {
     const stN = structure(n);
     const stN1 = structure(n1);
 
+    // Rentabilité économique = résultat d'exploitation / (capitaux propres +
+    // dettes financières). Rentabilité financière = résultat net / capitaux
+    // propres. Entièrement dérivables des agrégats déjà calculés ci-dessus.
+    const rentabiliteEco = (s: ReturnType<typeof sig>, st: ReturnType<typeof structure>) =>
+      st.cp + st.dettesFin === 0 ? 0 : s.resultatExploitation / (st.cp + st.dettesFin);
+    const rentabiliteFin = (s: ReturnType<typeof sig>, st: ReturnType<typeof structure>) =>
+      st.cp === 0 ? 0 : s.resultatNet / st.cp;
+
     spec.push(
+      {
+        label: "ANALYSE DE LA RENTABILITE",
+        n: 0,
+        n1: 0,
+        bold: true,
+        bg: GRAY_LIGHT,
+        header: true,
+      },
+      {
+        label: "Rentabilité économique = résultat d'exploitation / (capitaux propres + dettes financières)",
+        n: rentabiliteEco(sN, stN),
+        n1: rentabiliteEco(sN1, stN1),
+      },
+      {
+        label: "Rentabilité financière = résultat net / capitaux propres",
+        n: rentabiliteFin(sN, stN),
+        n1: rentabiliteFin(sN1, stN1),
+      },
+      {
+        label: "ANALYSE DE LA STRUCTURE FINANCIERE",
+        n: 0,
+        n1: 0,
+        bold: true,
+        bg: GRAY_LIGHT,
+        header: true,
+      },
       { label: "Capitaux propres et ressources assimilées", n: stN.cp, n1: stN1.cp },
       {
         label: "+ Dettes financières et autres ressources assimilées",
@@ -3142,7 +3303,13 @@ export class DSFGenerator {
         n: actifImmobilise(n),
         n1: actifImmobilise(n1),
       },
-      { label: "= FONDS DE ROULEMENT (1)", n: stN.fdr, n1: stN1.fdr, bold: true },
+      {
+        label: "= FONDS DE ROULEMENT (1)",
+        n: stN.fdr,
+        n1: stN1.fdr,
+        bold: true,
+        bg: GRAY_LIGHT,
+      },
       {
         label: "Actif circulant d'exploitation",
         n: actifCirculantExpl(n),
@@ -3179,19 +3346,64 @@ export class DSFGenerator {
         n: stN.bfg,
         n1: stN1.bfg,
         bold: true,
+        bg: GRAY_LIGHT,
       },
       {
         label: "TRESORERIE NETTE (5) = (1) - (4)",
         n: stN.fdr - stN.bfg,
         n1: stN1.fdr - stN1.bfg,
         bold: true,
+        bg: GRAY_LIGHT,
+      },
+      {
+        // Ligne de contrôle du vrai template (trésorerie nette recalculée
+        // depuis le bilan): trésorerie-passif n'est pas disponible dans
+        // cette fonction — comme les lignes issues du TFT ci-dessous, elle
+        // reste à 0 plutôt que d'être approximée.
+        label: "CONTROLE TRESORERIE NETTE = (TRESORERIE-ACTIF) - (TRESORERIE-PASSIF)",
+        n: 0,
+        n1: 0,
+      },
+      {
+        label: "ANALYSE DE LA VARIATION DE LA TRESORERIE",
+        n: 0,
+        n1: 0,
+        bg: GRAY_LIGHT,
+        header: true,
+      },
+      // Flux issus du TFT (tableau des flux de trésorerie): non recalculés
+      // ici pour ne pas dupliquer sa logique — restent à 0, à consulter sur
+      // la note TFT elle-même.
+      { label: "Flux de trésorerie des activités opérationnelles", n: 0, n1: 0, bold: true },
+      { label: "- Flux de trésorerie des activités d'investissement", n: 0, n1: 0, bold: true },
+      { label: "+ Flux de trésorerie des activités de financement", n: 0, n1: 0, bold: true },
+      {
+        label: "= VARIATION DE LA TRESORERIE NETTE DE LA PERIODE",
+        n: 0,
+        n1: 0,
+        bold: true,
+        bg: GRAY_LIGHT,
+      },
+      {
+        label: "ANALYSE DE LA VARIATION DE L'ENDETTEMENT FINANCIERE NET",
+        n: 0,
+        n1: 0,
+        bold: true,
+        bg: GRAY_LIGHT,
+        header: true,
       },
       {
         label: "Endettement financier brut",
         n: endettementBrut(n),
         n1: endettementBrut(n1),
+        bold: true,
       },
-      { label: "- Trésorerie Actif", n: tresorerieActif(n), n1: tresorerieActif(n1) },
+      {
+        label: "- Trésorerie Actif",
+        n: tresorerieActif(n),
+        n1: tresorerieActif(n1),
+        bold: true,
+      },
       {
         label: "= ENDETTEMENT FINANCIER NET",
         n: endettementBrut(n) - tresorerieActif(n),
@@ -3209,18 +3421,115 @@ export class DSFGenerator {
         yearN: r.n,
         yearN1: r.n1,
         bold: r.bold || false,
-        gray: r.gray || false,
+        bg: r.bg || null,
+        header: r.header || false,
       })),
     };
   }
 
-  private generateNote35(): any {
+  private generateNote35(folder: FolderWithRelations): any {
+    // Note purement déclarative (checklist OHADA), obligatoire pour les
+    // entités de plus de 250 salariés — aucune donnée dérivable de la
+    // balance. Structure et libellés repris à l'identique de la feuille
+    // "NOTE 35" du vrai template (dsf_complet.xlsx); `reponse` est laissé
+    // vide, à saisir par le comptable.
+    const bullet = (id: string, prompt: string) => ({ id, prompt, reponse: "" });
+
     return {
-      title:
-        "LISTE DES INFORMATIONS SOCIALES, ENVIRONNEMENTALES ET SOCIETALES A FOURNIR",
-      informationsSociales: [],
-      informationsEnvironnementales: [],
-      informationsSocietales: [],
+      entete: this.buildEntete(folder),
+      title: "LISTE DES INFORMATIONS SOCIALES, ENVIRONNEMENTALES ET SOCIALES A FOURNIR",
+      subtitle: "Note obligatoire pour les entités ayant un effectif de plus de 250 salariés",
+      informationsSociales: [
+        {
+          subtitle: "Emploi :",
+          bullets: [
+            bullet("soc-1", "L'effectif total et la répartition des salariés par sexe, âge et zone géographique :"),
+            bullet("soc-2", "Les embauches et les licenciements ;"),
+            bullet("soc-3", "Les rémunérations et leur évolution."),
+          ],
+        },
+        {
+          subtitle: "Relations sociales :",
+          bullets: [
+            bullet("soc-4", "L'organisation du dialogue social"),
+            bullet("soc-5", "Le bilan des accords collectifs"),
+          ],
+        },
+        {
+          subtitle: "Santé et sécurité :",
+          bullets: [
+            bullet("soc-6", "Les conditions de santé et de sécurité au travail :"),
+            bullet("soc-7", "Le bilan des accords signés avec les organisations syndicales ou les représentants du personnel en matière de santé et de sécurité au travail"),
+          ],
+        },
+        {
+          subtitle: "Formation :",
+          bullets: [
+            bullet("soc-8", "Les politiques mises en œuvre en matière de formation ;"),
+            bullet("soc-9", "Le nombre total de formation."),
+          ],
+        },
+        {
+          subtitle: "Egalités de traitement :",
+          bullets: [
+            bullet("soc-10", "Les mesures prises en faveur de l'égalité entre les femmes et les hommes ;"),
+            bullet("soc-11", "Les mesures prises en faveur de l'emploi et de l'insertion des personnes handicapées ;"),
+          ],
+        },
+      ],
+      informationsEnvironnementales: [
+        {
+          subtitle: "Politique générale en matière environnementale :",
+          bullets: [
+            bullet("env-1", "L'organisation de la société pour prendre en compte les questions environnementales et, le cas échéant, les démarches d'évaluation ou de certification en matière d'environnement ;"),
+            bullet("env-2", "Les actions de formation et d'information des salariés menées en matière de protection de l'environnement ;"),
+            bullet("env-3", "Les moyens consacrés à la prévention des risques environnementaux et des pollutions."),
+          ],
+        },
+        {
+          subtitle: "Pollution et gestion des déchets",
+          bullets: [
+            bullet("env-4", "Les mesures de prévention, de réduction ou de réparation de rejets dans l'air, l'eau et le sol affectant gravement l'environnement ;"),
+            bullet("env-5", "Les mesures de prévention, de recyclage et d'élimination des déchets ;"),
+            bullet("env-6", "La prise en compte des nuisances sonores et de toute autre forme de pollution spécifique à une activité"),
+          ],
+        },
+        {
+          subtitle: "Utilisation durable des ressources :",
+          bullets: [
+            bullet("env-7", "La consommation d'eau et l'approvisionnement en eau en fonction des contraintes locales ;"),
+            bullet("env-8", "La consommation d'énergie, les mesures prises pour améliorer l'efficacité énergétique et le recours aux énergies renouvelables."),
+          ],
+        },
+        {
+          subtitle: "Changement climatique :",
+          bullets: [bullet("env-9", "Les rejets de gaz à effet de serre.")],
+        },
+        {
+          subtitle: "Protection de la biodiversité :",
+          bullets: [bullet("env-10", "Les mesures prises pour préserver ou développer la biodiversité.")],
+        },
+      ],
+      informationsSocietales: [
+        {
+          subtitle: "Impact territorial, économique et social de l'activité de la société :",
+          bullets: [
+            bullet("soct-1", "En matière d'emploi et de développement régional ;"),
+            bullet("soct-2", "Sur les populations riveraines ou locales."),
+          ],
+        },
+        {
+          subtitle: "Relations entretenues avec les personnes ou les organisations intéressées par l'activité de la société (association d'insertion, établissement d'enseignement …) :",
+          bullets: [
+            bullet("soct-3", "Les conditions du dialogue avec ces personnes ou organisations ;"),
+            bullet("soct-4", "Les actions de partenariat ou de mécénat."),
+          ],
+        },
+        {
+          subtitle: "Sous-traitance et fournisseurs :",
+          bullets: [bullet("soct-5", "La prise en compte dans la politique d'achat des enjeux sociaux et environnementaux.")],
+        },
+      ],
     };
   }
 

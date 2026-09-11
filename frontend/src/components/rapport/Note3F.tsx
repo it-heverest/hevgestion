@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useApp } from "../../contexts/AppContext";
 import { notesService } from "../../services/notes.service";
+import { dsfService } from "../../services/dsf.service";
 
 interface HeaderData {
   entityName: string;
@@ -30,10 +31,21 @@ interface ChargeCategory {
   totalExerciceN4: number;
 }
 
+// Comptes indicatifs pré-remplis dans le modèle Excel (60..., 61..., 62...,
+// 63..., ...) — de simples repères de plan comptable, modifiables par
+// l'utilisateur, pas des valeurs figées.
+const DEFAULT_ROWS = (): ExerciceNRow[] => [
+  { compte: "60...", montant: 0 },
+  { compte: "61...", montant: 0 },
+  { compte: "62...", montant: 0 },
+  { compte: "63...", montant: 0 },
+  { compte: "...", montant: 0 },
+];
+
 const EMPTY_CATEGORIES: ChargeCategory[] = [
-  { key: "fraisEtablissement", label: "Frais d'établissement", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
-  { key: "chargesARepartir", label: "Charges à répartir sur plusieurs exercice", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
-  { key: "primesRemboursement", label: "Primes de remboursement des obligations", montantGlobal: 0, dureeEtalement: "", exerciceNRows: [], totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+  { key: "fraisEtablissement", label: "Frais d'établissement", montantGlobal: 0, dureeEtalement: "", exerciceNRows: DEFAULT_ROWS(), totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+  { key: "chargesARepartir", label: "Charges à répartir sur plusieurs exercice", montantGlobal: 0, dureeEtalement: "", exerciceNRows: DEFAULT_ROWS(), totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
+  { key: "primesRemboursement", label: "Primes de remboursement des obligations", montantGlobal: 0, dureeEtalement: "", exerciceNRows: DEFAULT_ROWS(), totalExerciceN1: 0, totalExerciceN2: 0, totalExerciceN3: 0, totalExerciceN4: 0 },
 ];
 
 const Note3F: React.FC = () => {
@@ -178,6 +190,25 @@ const Note3F: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -262,7 +293,7 @@ const Note3F: React.FC = () => {
         className="w-full h-full px-1 text-right bg-orange-50 border-none focus:outline-none"
       />
     ) : (
-      <span>{value.toLocaleString("fr-FR")}</span>
+      <span>{value.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</span>
     );
 
   return (
@@ -281,44 +312,48 @@ const Note3F: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -357,7 +392,12 @@ const Note3F: React.FC = () => {
         )}
 
         {/* En-tête du document */}
-        <div className="text-center font-bold mb-2 text-lg">16</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            16
+          </span>
+        </div>
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
@@ -449,21 +489,13 @@ const Note3F: React.FC = () => {
         <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
           <thead>
             <tr className="bg-gray-300">
-              <th rowSpan={2} className="border border-gray-400 p-2 text-left font-bold w-[22%]">
+              <th className="border border-gray-400 p-2 text-left font-bold w-[22%]">
                 Libellés
               </th>
               {categories.map((c) => (
                 <th key={c.key} colSpan={2} className="border border-gray-400 p-2 font-bold w-[26%]">
                   {c.label}
                 </th>
-              ))}
-            </tr>
-            <tr className="bg-gray-300">
-              {categories.map((c) => (
-                <React.Fragment key={c.key}>
-                  <th className="border border-gray-400 p-1 font-normal">Comptes</th>
-                  <th className="border border-gray-400 p-1 font-normal">Montants</th>
-                </React.Fragment>
               ))}
             </tr>
           </thead>
@@ -497,6 +529,17 @@ const Note3F: React.FC = () => {
               ))}
             </tr>
 
+            {/* Sous-en-tête Comptes/Montants, juste avant le détail par compte */}
+            <tr className="bg-gray-300">
+              <td className="border border-gray-400 p-1" />
+              {categories.map((c) => (
+                <React.Fragment key={c.key}>
+                  <td className="border border-gray-400 p-1 font-bold text-center">Comptes</td>
+                  <td className="border border-gray-400 p-1 font-bold text-center">Montants</td>
+                </React.Fragment>
+              ))}
+            </tr>
+
             {/* Exercice N: détail par compte, une ligne par catégorie */}
             {Array.from({ length: rowCount }).map((_, i) => (
               <tr key={`ex-n-${i}`}>
@@ -527,7 +570,7 @@ const Note3F: React.FC = () => {
               <td className="border border-gray-400 p-1">Total exercice N</td>
               {categories.map((c) => (
                 <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-right">
-                  {totalExerciceN(c).toLocaleString("fr-FR")}
+                  {totalExerciceN(c).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               ))}
             </tr>
@@ -535,7 +578,7 @@ const Note3F: React.FC = () => {
             {/* Total exercice N-1 à N-4 */}
             {(["totalExerciceN1", "totalExerciceN2", "totalExerciceN3", "totalExerciceN4"] as const).map(
               (field, idx) => (
-                <tr key={field} className="bg-gray-300 font-bold">
+                <tr key={field} className="font-bold">
                   <td className="border border-gray-400 p-1">Total exercice N-{idx + 1}</td>
                   {categories.map((c) => (
                     <td key={c.key} colSpan={2} className="border border-gray-400 p-1 text-right">
@@ -549,11 +592,11 @@ const Note3F: React.FC = () => {
             )}
 
             {/* TOTAL GENERAL (calculé, non éditable) */}
-            <tr className="bg-gray-500 font-bold">
+            <tr className="font-bold">
               <td className="border border-gray-400 p-2">TOTAL GENERAL</td>
               {categories.map((c) => (
                 <td key={c.key} colSpan={2} className="border border-gray-400 p-2 text-right">
-                  {totalGeneral(c).toLocaleString("fr-FR")}
+                  {totalGeneral(c).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               ))}
             </tr>

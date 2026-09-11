@@ -227,6 +227,12 @@ export function BalanceImporter() {
   const [importBalanceType, setImportBalanceType] = useState<
     "current" | "previous"
   >("current");
+  // Balance à archiver une fois qu'un remplacement a été importé avec succès
+  // (voir onReimport) — jamais avant, pour ne pas perdre l'ancienne balance
+  // si l'utilisateur annule ou que le nouvel import échoue.
+  const [balanceToArchiveOnSuccess, setBalanceToArchiveOnSuccess] = useState<
+    string | null
+  >(null);
   const [selectedBalance, setSelectedBalance] = useState<BalanceData | null>(
     null,
   );
@@ -323,9 +329,26 @@ export function BalanceImporter() {
     }
   };
 
-  const handleBalanceImported = (balance: BalanceData) => {
+  const handleBalanceImported = async (balance: BalanceData) => {
     setShowImportDialog(false);
     setPendingUpload(false);
+
+    // Le remplacement n'a réussi que maintenant: on peut archiver l'ancienne
+    // balance sans risque de la perdre pour rien.
+    if (balanceToArchiveOnSuccess) {
+      const oldBalanceId = balanceToArchiveOnSuccess;
+      setBalanceToArchiveOnSuccess(null);
+      try {
+        await clientService.archiveBalance(oldBalanceId);
+      } catch (err: any) {
+        console.error("Error archiving replaced balance:", err);
+        alert(
+          err.message ||
+            "La nouvelle balance a été importée, mais l'archivage de l'ancienne a échoué."
+        );
+      }
+    }
+
     loadBalances();
   };
 
@@ -337,17 +360,6 @@ export function BalanceImporter() {
     } catch (err: any) {
       console.error("Error deleting balance:", err);
       alert(err.message || "Erreur lors de la suppression de la balance");
-    }
-  };
-
-  const handleBalanceArchived = async (balanceId: string) => {
-    try {
-      await clientService.archiveBalance(balanceId);
-      setSelectedBalance(null);
-      await loadBalances();
-    } catch (err: any) {
-      console.error("Error archiving balance:", err);
-      alert(err.message || "Erreur lors de l'archivage de la balance");
     }
   };
 
@@ -469,12 +481,15 @@ export function BalanceImporter() {
                   onRefresh={refreshCurrentBalance}
                   isRefreshing={isRefreshing}
                   isClosed={isClosed}
-                  onReimport={async () => {
+                  onReimport={() => {
                     const type =
                       selectedBalance.type === "PREVIOUS_YEAR"
                         ? "previous"
                         : "current";
-                    await handleBalanceArchived(selectedBalance.id);
+                    // L'ancienne balance n'est archivée qu'une fois le nouvel
+                    // import confirmé réussi (voir handleBalanceImported) —
+                    // pas avant, pour ne rien perdre si l'utilisateur annule.
+                    setBalanceToArchiveOnSuccess(selectedBalance.id);
                     openImportDialog(type);
                   }}
                 />
@@ -535,7 +550,12 @@ export function BalanceImporter() {
       {/* Import Dialog */}
       <Dialog
         open={showImportDialog}
-        onOpenChange={setShowImportDialog}
+        onOpenChange={(open) => {
+          setShowImportDialog(open);
+          // Fermeture sans import réussi (croix, clic hors modale, échap):
+          // on annule le remplacement en attente pour ne rien archiver.
+          if (!open) setBalanceToArchiveOnSuccess(null);
+        }}
       >
         <DialogContent className="w-[60vw] max-w-[60vw]">
           <DialogHeader>
@@ -553,7 +573,10 @@ export function BalanceImporter() {
             folderId={effectiveFolderId || ""}
             balanceType={importBalanceType}
             onSuccess={handleBalanceImported}
-            onCancel={() => setShowImportDialog(false)}
+            onCancel={() => {
+              setShowImportDialog(false);
+              setBalanceToArchiveOnSuccess(null);
+            }}
           />
         </DialogContent>
       </Dialog>

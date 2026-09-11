@@ -90,13 +90,14 @@ export class DsfFillerService {
             // données de la note (calculés seulement à l'affichage côté
             // frontend), donc recalculés ici à partir des lignes déjà lues.
             if (mapping.totals) {
-                for (const total of mapping.totals as any[]) {
+                const sumFields = (fields: Array<{ section: string; field: string; onlyIds?: string[] }>) => {
                     let sum = 0;
                     let any = false;
-                    for (const { section, field } of total.sumOf) {
+                    for (const { section, field, onlyIds } of fields) {
                         const arr = noteData[section];
                         if (!Array.isArray(arr)) continue;
                         for (const row of arr) {
+                            if (onlyIds && !onlyIds.includes(String(row?.id))) continue;
                             let value = row?.[field];
                             if (value === undefined || value === null) {
                                 const camelField = field.charAt(0).toLowerCase() + field.slice(1);
@@ -108,7 +109,15 @@ export class DsfFillerService {
                             }
                         }
                     }
-                    if (any) writes.push({ sheetName, ref: total.cell, value: sum });
+                    return { sum, any };
+                };
+
+                for (const total of mapping.totals as any[]) {
+                    const plus = sumFields(total.sumOf);
+                    const minus = total.subtractOf ? sumFields(total.subtractOf) : { sum: 0, any: false };
+                    if (plus.any || minus.any) {
+                        writes.push({ sheetName, ref: total.cell, value: plus.sum - minus.sum });
+                    }
                 }
             }
 

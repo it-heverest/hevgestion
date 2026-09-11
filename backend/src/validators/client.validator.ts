@@ -1,6 +1,6 @@
 // src/validators/client.validator.ts
 import { z } from "zod";
-import { CountrySelection } from "@prisma/client";
+import { CountrySelection, ClientType } from "@prisma/client";
 
 // Common country validation
 const countrySchema = z.nativeEnum(CountrySelection, {
@@ -12,10 +12,16 @@ const legalFormSchema = z.enum(["SARL", "SA", "SUARL", "INDIVIDUAL", "OTHER"], {
   errorMap: () => ({ message: "Invalid legal form" }),
 });
 
+// Client type validation (NORMAL / ASSURANCE / SMT — détermine la variante de DSF générée)
+const clientTypeSchema = z.nativeEnum(ClientType, {
+  errorMap: () => ({ message: "Invalid client type" }),
+});
+
 // Base client schema
 const clientBaseSchema = z.object({
   name: z.string().min(1, "Name is required").max(255, "Name too long"),
   legalForm: legalFormSchema,
+  clientType: clientTypeSchema.optional(),
   taxNumber: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
@@ -43,6 +49,7 @@ export const updateClientSchema = z.object({
         .max(255, "Name too long")
         .optional(),
       legalForm: legalFormSchema.optional(),
+      clientType: clientTypeSchema.optional(),
       taxNumber: z.string().optional().nullable(),
       address: z.string().optional().nullable(),
       city: z.string().optional().nullable(),

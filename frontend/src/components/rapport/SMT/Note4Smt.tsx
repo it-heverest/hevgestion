@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, Plus, Trash2, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface TresoLine {
@@ -389,7 +389,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.recettes).toLocaleString("fr-FR")
+                      Number(line.recettes).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -403,7 +403,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.depenses).toLocaleString("fr-FR")
+                      Number(line.depenses).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right font-medium">
@@ -417,7 +417,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.solde).toLocaleString("fr-FR")
+                      Number(line.solde).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
 
@@ -432,7 +432,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.vente).toLocaleString("fr-FR")
+                      Number(line.vente).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -446,7 +446,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.autresRecettes).toLocaleString("fr-FR")
+                      Number(line.autresRecettes).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
 
@@ -465,7 +465,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.materielMobilier).toLocaleString("fr-FR")
+                      Number(line.materielMobilier).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -483,7 +483,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.achatsMarchandises).toLocaleString("fr-FR")
+                      Number(line.achatsMarchandises).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -518,7 +518,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.loyer).toLocaleString("fr-FR")
+                      Number(line.loyer).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -532,7 +532,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.salaires).toLocaleString("fr-FR")
+                      Number(line.salaires).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -546,7 +546,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.impotsTaxes).toLocaleString("fr-FR")
+                      Number(line.impotsTaxes).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -560,7 +560,7 @@ const Note4Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(line.autresDepenses).toLocaleString("fr-FR")
+                      Number(line.autresDepenses).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
 
@@ -589,17 +589,17 @@ const Note4Smt: React.FC = () => {
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
                   {/* Solde final recettes */}
-                  {calculateTotal(lines, "recettes").toLocaleString("fr-FR")}
+                  {calculateTotal(lines, "recettes").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal(lines, "depenses").toLocaleString("fr-FR")}
+                  {calculateTotal(lines, "depenses").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
                   {/* Solde = Recettes - Dépenses */}
                   {(
                     calculateTotal(lines, "recettes") -
                     calculateTotal(lines, "depenses")
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td colSpan={10} className="border border-gray-600 p-2"></td>
                 {isEditing && <td className="border border-gray-600 p-2"></td>}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
@@ -134,23 +134,17 @@ const CF2Ter: React.FC = () => {
               setIsEditing(!isEditing);
             }}
             disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? (
-              <> <Save size={18} /> Sauvegarde... </>
-            ) : isEditing ? (
-              <> <Save size={18} /> Sauvegarder </>
-            ) : (
-              <> <Pencil size={18} /> Éditer </>
-            )}
+            {isEditing ? <Save size={18} className={saving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -164,8 +158,12 @@ const CF2Ter: React.FC = () => {
           .dark-gray-header { background-color: #a9a9a9; }
         `}</style>
 
-        {/* Page number */}
-        <div className="text-center font-bold mb-4 text-lg">66</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            66
+          </span>
+        </div>
 
         {/* Standard header */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1">
@@ -249,7 +247,7 @@ const CF2Ter: React.FC = () => {
                       className="w-full text-right bg-orange-50 border border-orange-300"
                     />
                   ) : (
-                    row.amount.toLocaleString("fr-FR")
+                    row.amount.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>

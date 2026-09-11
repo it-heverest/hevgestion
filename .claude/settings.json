@@ -1,11 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep -l \"dgiConfig\\\\|DGI.*config\")",
-      "Bash(mkdir -p /c/Users/nash/AppData/Local/Temp/claude/c--Users-nash-Documents-HevGestion-HevGestion-Financial-Dashboard/54932ae7-f947-4ac1-b87b-7e4467f0027b/scratchpad)",
-      "Bash(python3 -c ' *)",
-      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\nash\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-nash-Documents-HevGestion-HevGestion-Financial-Dashboard\\\\54932ae7-f947-4ac1-b87b-7e4467f0027b\\\\scratchpad\")",
-      "PowerShell(python -c \"import openpyxl; print\\(openpyxl.__version__\\)\")"
-    ]
+      "Bash(*)",
+      "PowerShell(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)"
+    ],
+    "additionalDirectories": ["\\tmp"]
   }
 }

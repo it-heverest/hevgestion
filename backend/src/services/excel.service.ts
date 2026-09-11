@@ -722,6 +722,7 @@ export class ExcelService {
 
     let headerRowIndex = 0;
     let bestScore = 0;
+    let headerFound = false;
 
     // Scan first 10 rows for the best header candidate
     for (let r = 0; r < Math.min(10, jsonData.length); r++) {
@@ -736,14 +737,22 @@ export class ExcelService {
       if (score > bestScore && score >= 3) {
         bestScore = score;
         headerRowIndex = r;
+        headerFound = true;
       }
     }
 
-    const headers = (jsonData[headerRowIndex] as any[]).map((h, idx) => ({
-      index: idx,
-      original: h ?? "",
-      normalized: this.normalizeHeader((h ?? "").toString()),
-    }));
+    // Some balance files have no header row at all — data starts on row 1.
+    // Only skip a row as "header" when we actually found one that looks like
+    // accounting column titles; otherwise every row (including row 0) is data.
+    const dataStartIndex = headerFound ? headerRowIndex + 1 : 0;
+
+    const headers = headerFound
+      ? (jsonData[headerRowIndex] as any[]).map((h, idx) => ({
+          index: idx,
+          original: h ?? "",
+          normalized: this.normalizeHeader((h ?? "").toString()),
+        }))
+      : [];
 
     // If user provided explicit mapping, try to resolve mapping into column references early
     const resolveMappingToCol = (mapVal: number | string | undefined) => {
@@ -794,27 +803,34 @@ export class ExcelService {
 
     const mapped = (headers as any)._mapped || {};
 
-    // Use index-based mapping if requested
-    if (options?.useIndexMapping && headers.length >= 8) {
+    // Use index-based mapping if requested. The "header" row is only used for
+    // logging here — many balance files have no real header row (data starts
+    // on row 1), in which case the auto-detected row can be short (trailing
+    // empty cells get dropped by the Excel parser), so we build placeholders
+    // for any missing index instead of requiring headers.length >= 8.
+    if (options?.useIndexMapping) {
       console.log("🔢 Using index-based mapping");
-      accountCol = headers[0]; // Column 0: Account number
-      nameCol = headers[1];    // Column 1: Account name
-      openDebitCol = headers[2];   // Column 2: Opening debit
-      openCreditCol = headers[3];  // Column 3: Opening credit
-      moveDebitCol = headers[4];   // Column 4: Movement debit
-      moveCreditCol = headers[5];  // Column 5: Movement credit
-      closeDebitCol = headers[6];  // Column 6: Closing debit
-      closeCreditCol = headers[7];  // Column 7: Closing credit
+      const colAt = (idx: number) =>
+        headers[idx] || { index: idx, original: "", normalized: "" };
+      accountCol = colAt(0); // Column 0: Account number
+      nameCol = colAt(1);    // Column 1: Account name
+      openDebitCol = colAt(2);   // Column 2: Opening debit
+      openCreditCol = colAt(3);  // Column 3: Opening credit
+      moveDebitCol = colAt(4);   // Column 4: Movement debit
+      moveCreditCol = colAt(5);  // Column 5: Movement credit
+      closeDebitCol = colAt(6);  // Column 6: Closing debit
+      closeCreditCol = colAt(7);  // Column 7: Closing credit
     } else {
       console.log("🔤 Using keyword-based mapping");
       // Try keyword-based mapping first
 
       const colMatches = (header: any, patterns: string[]): boolean => {
         if (!header) return false;
-        const normalized = this.normalizeHeader(header.original || "").toLowerCase();
+        const originalStr = String(header.original ?? "");
+        const normalized = this.normalizeHeader(originalStr).toLowerCase();
         return patterns.some(pattern => {
           const re = new RegExp(pattern.replace(/\s+/g, '\\s*').toLowerCase());
-          return re.test(normalized) || re.test((header.original || "").toLowerCase());
+          return re.test(normalized) || re.test(originalStr.toLowerCase());
         });
       };
 
@@ -1060,7 +1076,7 @@ export class ExcelService {
     console.log("Closing Debit:", closeDebitCol ? `✓ ${closeDebitCol.original} (col ${closeDebitCol.index})` : "✗ Not found");
     console.log("Closing Credit:", closeCreditCol ? `✓ ${closeCreditCol.original} (col ${closeCreditCol.index})` : "✗ Not found");
 
-    for (let i = 1; i < jsonData.length; i++) {
+    for (let i = dataStartIndex; i < jsonData.length; i++) {
       const row = jsonData[i] as any[];
       if (!row) continue;
 

@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 interface HeaderData {
   entityName: string;
@@ -65,7 +68,7 @@ const calcVariation = (yearN: string, yearN1: string): string => {
   const n = parseFloat(yearN) || 0;
   const n1 = parseFloat(yearN1) || 0;
   if (!n1) return "";
-  return (((n - n1) / Math.abs(n1)) * 100).toFixed(2);
+  return (((n - n1) / Math.abs(n1)) * 100).toFixed(0);
 };
 
 const sumField = (
@@ -75,6 +78,7 @@ const sumField = (
 
 const Note4: React.FC = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const { hasFormula } = useFormulaPanel();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,30 +153,34 @@ const Note4: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "4") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Le backend stocke les 11 lignes (7 immobilisations + TOTAL BRUT +
-        // 2 dépréciations + TOTAL NET) dans un seul tableau, dans cet ordre
-        // exact (cf. CONFIG_NOTE4.sections.immobilisationsFinancieres) —
-        // les lignes TOTAL sont ignorées ici car recalculées côté client.
-        const rows = noteData.immobilisationsFinancieres;
-        if (Array.isArray(rows) && rows.length > 0) {
-          const toRow = (id: string, label: string, r: any): ImmobilisationRow => ({
-            id,
-            label,
-            yearN: String(r?.anneeN ?? ""),
-            yearN1: String(r?.anneeN1 ?? ""),
-            variation: "",
-            oneYearPlus: String(r?.creancesUnAnAuPlus ?? ""),
-            twoYearsPlus: String(r?.creancesPlusUnAnDeuxAns ?? ""),
-            fourYearsPlus: String(r?.creancesPlusDeuxAns ?? ""),
-          });
+        // generateNote4 (backend) renvoie `immobilisations` (8 lignes,
+        // buildNoteRows) et `depreciations` (2 lignes) séparément, avec les
+        // clés yearN/yearN1/oneYearPlus/twoYearsPlus/fourYearsPlus — pas un
+        // tableau fusionné de 11 lignes avec des clés françaises. Le 8e
+        // élément d'`immobilisations` ("Immobilisations financières
+        // diverses") n'a pas de ligne dédiée dans le vrai template: ignoré
+        // ici comme à l'export.
+        const toRow = (id: string, label: string, r: any): ImmobilisationRow => ({
+          id,
+          label,
+          yearN: r?.yearN != null ? String(r.yearN) : "",
+          yearN1: r?.yearN1 != null ? String(r.yearN1) : "",
+          variation: "",
+          oneYearPlus: r?.oneYearPlus != null ? String(r.oneYearPlus) : "",
+          twoYearsPlus: r?.twoYearsPlus != null ? String(r.twoYearsPlus) : "",
+          fourYearsPlus: r?.fourYearsPlus != null ? String(r.fourYearsPlus) : "",
+        });
+        if (Array.isArray(noteData.immobilisations) && noteData.immobilisations.length > 0) {
           setImmobilisations(
             IMMOBILISATION_LABELS.map((label, i) =>
-              toRow(String(i + 1), label, rows[i]),
+              toRow(String(i + 1), label, noteData.immobilisations[i]),
             ),
           );
+        }
+        if (Array.isArray(noteData.depreciations) && noteData.depreciations.length > 0) {
           setDepreciations(
             DEPRECIATION_LABELS.map((label, i) =>
-              toRow(`d${i + 1}`, label, rows[8 + i]),
+              toRow(`d${i + 1}`, label, noteData.depreciations[i]),
             ),
           );
         }
@@ -203,37 +211,33 @@ const Note4: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Le backend attend un seul tableau de 11 lignes, dans l'ordre exact
-      // du template (7 immobilisations + TOTAL BRUT + 2 dépréciations +
-      // TOTAL NET), cf. CONFIG_NOTE4 côté backend.
+      // Mêmes clés qu'à la génération (buildNoteRows: id/label/yearN/yearN1/
+      // oneYearPlus/twoYearsPlus/fourYearsPlus), pour que loadNoteData
+      // relise correctement ce qui vient d'être sauvegardé.
       const toApiRow = (
+        id: string,
         label: string,
         r: {
           yearN: string | number;
           yearN1: string | number;
-          variation: string;
           oneYearPlus: string | number;
           twoYearsPlus: string | number;
           fourYearsPlus: string | number;
         },
       ) => ({
-        libelle: label,
-        anneeN: parseFloat(String(r.yearN)) || null,
-        anneeN1: parseFloat(String(r.yearN1)) || null,
-        variationPourcentage: parseFloat(r.variation) || null,
-        creancesUnAnAuPlus: parseFloat(String(r.oneYearPlus)) || null,
-        creancesPlusUnAnDeuxAns: parseFloat(String(r.twoYearsPlus)) || null,
-        creancesPlusDeuxAns: parseFloat(String(r.fourYearsPlus)) || null,
+        id,
+        label,
+        yearN: parseFloat(String(r.yearN)) || 0,
+        yearN1: parseFloat(String(r.yearN1)) || 0,
+        oneYearPlus: parseFloat(String(r.oneYearPlus)) || 0,
+        twoYearsPlus: parseFloat(String(r.twoYearsPlus)) || 0,
+        fourYearsPlus: parseFloat(String(r.fourYearsPlus)) || 0,
       });
 
       const noteData = {
         entete,
-        immobilisationsFinancieres: [
-          ...immobilisations.map((r) => toApiRow(r.label, r)),
-          toApiRow("TOTAL BRUT", totalBrut),
-          ...depreciations.map((r) => toApiRow(r.label, r)),
-          toApiRow("TOTAL NET DE DEPRECIATION", totalNet),
-        ],
+        immobilisations: immobilisations.map((r) => toApiRow(r.id, r.label, r)),
+        depreciations: depreciations.map((r) => toApiRow(r.id, r.label, r)),
         filialesParticipations: subsidiaries.map((r) => ({
           denominationSociale: r.denomination || null,
           localisation: r.location || null,
@@ -293,6 +297,25 @@ const Note4: React.FC = () => {
     setSubsidiaries((prev) => prev.filter((row) => row.id !== id));
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -322,12 +345,49 @@ const Note4: React.FC = () => {
   ) => {
     return isEditing ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
     ) : (
-      <span className="px-1">{value || ""}</span>
+      <span className="px-1">
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+  };
+
+  // Ann\u00E9e N / Ann\u00E9e N-1 des lignes immobilisations/d\u00E9pr\u00E9ciations sont
+  // calcul\u00E9es depuis la balance (CONFIG_NOTE4 c\u00F4t\u00E9 backend) \u2014 verrouill\u00E9es
+  // en \u00E9dition et cliquables (FormulaValue) quand le catalogue a une entr\u00E9e
+  // pour cette ligne, comme renderEditableCell sinon (colonnes d'\u00E9ch\u00E9ancier
+  // toujours manuelles, non concern\u00E9es ici).
+  const renderYearCell = (
+    row: ImmobilisationRow,
+    field: "yearN" | "yearN1",
+    formulaKey: string,
+    onChange: (val: string) => void
+  ) => {
+    const hasValue = row[field] !== "" && row[field] !== null && row[field] !== undefined;
+    const display = hasValue
+      ? Number(row[field]).toLocaleString("fr-FR").replace(/\u202F/g, " ")
+      : "";
+
+    return isEditing && !hasFormula(formulaKey) ? (
+      <input
+        value={hasValue ? Number(row[field]).toLocaleString("fr-FR").replace(/ /g, " ") : ""}
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
+        className="w-full h-full px-1 bg-orange-50 border-none focus:outline-none"
+      />
+    ) : (
+      <FormulaValue formulaKey={formulaKey} label={row.label}>
+        <span className="px-1">{display}</span>
+      </FormulaValue>
     );
   };
 
@@ -361,44 +421,48 @@ const Note4: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -516,8 +580,8 @@ const Note4: React.FC = () => {
             {immobilisations.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-1 pl-2 font-medium text-orange-700">{row.label}</td>
-                <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN, (val) => handleImmobilisationChange(row.id, "yearN", val))}</td>
-                <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN1, (val) => handleImmobilisationChange(row.id, "yearN1", val))}</td>
+                <td className="border border-gray-600 p-1 text-right">{renderYearCell(row, "yearN", `note4.immobilisations.${row.id}`, (val) => handleImmobilisationChange(row.id, "yearN", val))}</td>
+                <td className="border border-gray-600 p-1 text-right">{renderYearCell(row, "yearN1", `note4.immobilisations.${row.id}`, (val) => handleImmobilisationChange(row.id, "yearN1", val))}</td>
                 <td className="border border-gray-600 p-1 text-center text-gray-500">
                   {calcVariation(row.yearN, row.yearN1) && `${calcVariation(row.yearN, row.yearN1)}%`}
                 </td>
@@ -528,18 +592,18 @@ const Note4: React.FC = () => {
             ))}
             <tr className="bg-[#e6e6e6] font-bold text-center">
               <td className="border border-gray-600 p-1 pl-2 text-left">TOTAL BRUT</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.yearN.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.yearN1.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="Somme de la colonne pour toutes les lignes d'immobilisations ci-dessus" label="TOTAL BRUT">{totalBrut.yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="Somme de la colonne pour toutes les lignes d'immobilisations ci-dessus" label="TOTAL BRUT">{totalBrut.yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
               <td className="border border-gray-600 p-1">{totalBrut.variation && `${totalBrut.variation}%`}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.oneYearPlus.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.twoYearsPlus.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.fourYearsPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="Somme de la colonne pour toutes les lignes d'immobilisations ci-dessus" label="TOTAL BRUT">{totalBrut.oneYearPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="Somme de la colonne pour toutes les lignes d'immobilisations ci-dessus" label="TOTAL BRUT">{totalBrut.twoYearsPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="Somme de la colonne pour toutes les lignes d'immobilisations ci-dessus" label="TOTAL BRUT">{totalBrut.fourYearsPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
             </tr>
-            {depreciations.map((row) => (
+            {depreciations.map((row, depIndex) => (
               <tr key={row.id} className="hover:bg-gray-50 italic">
                 <td className="border border-gray-600 p-1 pl-2 text-orange-700">{row.label}</td>
-                <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN, (val) => handleDepreciationChange(row.id, "yearN", val))}</td>
-                <td className="border border-gray-600 p-1 text-right">{renderEditableCell(row.yearN1, (val) => handleDepreciationChange(row.id, "yearN1", val))}</td>
+                <td className="border border-gray-600 p-1 text-right">{renderYearCell(row, "yearN", `note4.depreciations.${depIndex + 1}`, (val) => handleDepreciationChange(row.id, "yearN", val))}</td>
+                <td className="border border-gray-600 p-1 text-right">{renderYearCell(row, "yearN1", `note4.depreciations.${depIndex + 1}`, (val) => handleDepreciationChange(row.id, "yearN1", val))}</td>
                 <td className="border border-gray-600 p-1 text-center text-gray-500">
                   {calcVariation(row.yearN, row.yearN1) && `${calcVariation(row.yearN, row.yearN1)}%`}
                 </td>
@@ -550,12 +614,12 @@ const Note4: React.FC = () => {
             ))}
             <tr className="bg-[#e6e6e6] font-bold text-center">
               <td className="border border-gray-600 p-1 pl-2 text-left">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.yearN.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.yearN1.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="TOTAL BRUT \u2212 Somme des amortissements de la colonne ci-dessous" label="TOTAL NET DE DEPRECIATION">{totalNet.yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="TOTAL BRUT \u2212 Somme des amortissements de la colonne ci-dessous" label="TOTAL NET DE DEPRECIATION">{totalNet.yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
               <td className="border border-gray-600 p-1">{totalNet.variation && `${totalNet.variation}%`}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.oneYearPlus.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.twoYearsPlus.toLocaleString("fr-FR")}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.fourYearsPlus.toLocaleString("fr-FR")}</td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="TOTAL BRUT \u2212 Somme des amortissements de la colonne ci-dessous" label="TOTAL NET DE DEPRECIATION">{totalNet.oneYearPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="TOTAL BRUT \u2212 Somme des amortissements de la colonne ci-dessous" label="TOTAL NET DE DEPRECIATION">{totalNet.twoYearsPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
+              <td className="border border-gray-600 p-1 text-right"><FormulaValue formula="TOTAL BRUT \u2212 Somme des amortissements de la colonne ci-dessous" label="TOTAL NET DE DEPRECIATION">{totalNet.fourYearsPlus.toLocaleString("fr-FR").replace(/\u202F/g, " ")}</FormulaValue></td>
             </tr>
           </tbody>
         </table>

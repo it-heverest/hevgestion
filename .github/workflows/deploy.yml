@@ -1,3 +1,88 @@
+# name: Deploy Fullstack HevGestion
+
+# on:
+#   push:
+#     branches: [prod]
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "20"
+
+#       # --- 1. BUILD FRONTEND ---
+#       - name: Install & Build Frontend
+#         run: |
+#           cd frontend
+#           npm install
+#           npm run build
+#         env:
+#           VITE_API_BASE_URL: /api
+#           # Ajoute tes secrets ici (ex: VITE_FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }})
+
+#       - name: Deploy Frontend to Nginx
+#         uses: appleboy/scp-action@master
+#         with:
+#           host: ${{ secrets.REMOTE_HOST }}
+#           username: ${{ secrets.REMOTE_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           source: "frontend/build/*"
+#           target: "/var/www/hevgestion/"
+#           strip_components: 2 # Enlève 'frontend/' et 'dist/' pour ne garder que le contenu
+#           rm: false
+#           pre_shell: |
+#             # On vide le contenu manuellement avant le transfert
+#             rm -rf /var/www/hevgestion/*
+
+#       # --- 2. BUILD BACKEND ---
+#       - name: Install & Build Backend
+#         run: |
+#           cd backend
+#           npm install
+#           npm run build # Génère le dossier dist/ dans backend/
+
+#       - name: Deploy Backend Files
+#         uses: appleboy/scp-action@master
+#         with:
+#           host: ${{ secrets.REMOTE_HOST }}
+#           username: ${{ secrets.REMOTE_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           # On envoie le dossier dist et le package.json pour le npm install sur le serveur
+#           source: "backend/dist/*,backend/package.json,backend/prisma"
+#           target: "/home/it/backend_utils"
+#           strip_components: 1 # Enlève 'backend/' mais garde 'dist/'
+
+#       # --- 3. RESTART SERVICES ---
+#       - name: Restart Services on VPS
+#         uses: appleboy/ssh-action@master
+#         with:
+#           host: ${{ secrets.REMOTE_HOST }}
+#           username: ${{ secrets.REMOTE_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             # 1. Recharger Nginx pour le nouveau Frontend
+#             sudo systemctl reload nginx
+
+#             # 2. Configurer le Backend
+#             cd ~/backend_utils
+#             # Installer toutes les dépendances (y compris prisma CLI en devDep)
+#             npm install
+
+#             # 3. Prisma — générer le client et synchroniser le schéma
+#             npx prisma generate
+#             npx prisma db push --accept-data-loss
+
+#             # 4. Redémarrer l'API avec PM2
+#             # On essaie de restart, sinon on start le fichier principal dans dist/
+#             pm2 restart hevgestion-api || pm2 start dist/index.js --name hevgestion-api
+#             pm2 save
+
 name: Deploy Fullstack HevGestion
 
 on:
@@ -5,80 +90,21 @@ on:
     branches: [prod]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20"
-
-      # --- 1. BUILD FRONTEND ---
-      - name: Install & Build Frontend
-        run: |
-          cd frontend
-          npm install
-          npm run build
-        env:
-          VITE_API_BASE_URL: /api
-          # Ajoute tes secrets ici (ex: VITE_FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }})
-
-      - name: Deploy Frontend to Nginx
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "frontend/build/*"
-          target: "/var/www/hevgestion/"
-          strip_components: 2 # Enlève 'frontend/' et 'dist/' pour ne garder que le contenu
-          rm: false
-          pre_shell: |
-            # On vide le contenu manuellement avant le transfert
-            rm -rf /var/www/hevgestion/*
-
-      # --- 2. BUILD BACKEND ---
-      - name: Install & Build Backend
-        run: |
-          cd backend
-          npm install
-          npm run build # Génère le dossier dist/ dans backend/
-
-      - name: Deploy Backend Files
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # On envoie le dossier dist et le package.json pour le npm install sur le serveur
-          source: "backend/dist/*,backend/package.json,backend/prisma"
-          target: "/home/it/backend_utils"
-          strip_components: 1 # Enlève 'backend/' mais garde 'dist/'
-
-      # --- 3. RESTART SERVICES ---
-      - name: Restart Services on VPS
+      - name: Deploy via Docker Compose
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # 1. Recharger Nginx pour le nouveau Frontend
-            sudo systemctl reload nginx
-
-            # 2. Configurer le Backend
-            cd ~/backend_utils
-            # Installer toutes les dépendances (y compris prisma CLI en devDep)
-            npm install
-
-            # 3. Prisma — générer le client et synchroniser le schéma
-            npx prisma generate
-            npx prisma db push --accept-data-loss
-
-            # 4. Redémarrer l'API avec PM2
-            # On essaie de restart, sinon on start le fichier principal dans dist/
-            pm2 restart hevgestion-api || pm2 start dist/index.js --name hevgestion-api
-            pm2 save
+            set -e
+            cd ~/hevgestion
+            git fetch origin prod
+            git reset --hard origin/prod
+            docker compose build
+            docker compose up -d
+            docker compose exec -T backend npx prisma db push --accept-data-loss
+            docker image prune -f

@@ -1,1867 +1,475 @@
-// DSFConfigInterface.tsx - UNIFIED ACCOUNT MAPPING INTERFACE
-import React, { useState, useEffect, useCallback, useRef } from "react";
+// DSFConfigInterface.tsx - Configuration des formules DSF (comptes → cellules calculées)
+//
+// Chaque ligne représente UNE cellule calculée d'une note (un "mapping"),
+// définie par : le rapport (catégorie), la cellule de destination, et la
+// liste des comptes qui l'alimentent (signe + numéro de compte + source).
+// C'est le format réel stocké par le backend (DSFComptableConfig.operations,
+// ex: ["+20MD", "-30MC"]) — voir dsfConfigValidators.ts pour le format exact.
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Download,
-  Upload,
-  X,
-  Edit3,
+  RefreshCw,
   Trash2,
   Copy,
+  Pencil,
   AlertTriangle,
   Settings,
-  FileText,
+  Sparkles,
+  X,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { useAuth } from "../contexts/AuthContext";
 import { useApp } from "../contexts/AppContext";
+import { dsfConfigService, DSFConfig } from "../services/dsf-config.service";
+import { Modal } from "./ui/modal";
 
-import axios from "axios";
-import { API_CONFIG } from "../config/api";
-import { folderService } from "../services/folder.service";
-import { dsfConfigService } from "../services/dsf-config.service";
+const SOURCES = ["MD", "MC", "OD", "OC", "SD", "SC"] as const;
+type Source = (typeof SOURCES)[number];
 
-const SOURCES = ["OC", "OD", "MC", "MD", "SD", "SC", "MCD", "SCD"];
-const REPORT_TYPES = [
-  // Notes (1-34)
-  "note1",
-  "note2",
-  "note3A",
-  "note3B",
-  "note3C",
-  "note3D",
-  "note3F",
-  "note4",
-  "note5",
-  "note6",
-  "note7",
-  "note8",
-  "note9",
-  "note10",
-  "note11",
-  "note12",
-  "note13",
-  "note14",
-  "note15A",
-  "note15B",
-  "note16A",
-  "note16B",
-  "note16Bbis",
-  "note16C",
-  "note17",
-  "note18",
-  "note19",
-  "note20",
-  "note21",
-  "note22",
-  "note23",
-  "note24",
-  "note25",
-  "note26",
-  "note27A",
-  "note27B",
-  "note28",
-  "note29",
-  "note30",
-  "note31",
-  "note32",
-  "note33",
-  "note34",
+const SOURCE_LABELS: Record<Source, string> = {
+  OC: "Ouverture Crédit",
+  OD: "Ouverture Débit",
+  MC: "Mouvement Crédit",
+  MD: "Mouvement Débit",
+  SC: "Solde Crédit",
+  SD: "Solde Débit",
+};
 
-  // CF reports
-  "cf1",
-  "cf1Bis",
-  "cf1Quater",
-  "cf1Ter",
-  "cf2",
-  "cf2Bis",
-  "cf2Ter",
-
-  // C reports
-  "c01Note3C",
-  "c1Note17",
-  "c1Note25",
-  "c1Note27A",
-  "c1Note28",
-  "c2Note25",
-  "c2Note28",
-
-  // Other main reports
-  "bilanPaysage",
-  "compteResultat",
-  "ficheR3",
-  "grilleAnalyseNotes",
-  "pageDeGarde",
-  "sommaire",
-  "tableauFluxTresorerie",
-
-  // Assurance reports
-  "assuranceBilanActif",
-  "assuranceBilanPassif",
-  "assuranceCharges",
-  "assuranceCompteGeneralPertesProfits",
-  "assuranceEtatC4",
-  "assuranceEtatC11",
-  "assuranceEtatC11Vie",
-  "assuranceFiche1",
-  "assuranceFiche2",
-  "assuranceFiche3",
-  "assuranceFiche4",
-  "assuranceFiche5",
-  "assuranceImpot21",
-  "assuranceImpot22",
-  "assuranceProduits",
+// Catégories réelles lues par les notes (cf. Note11/Note27A qui appellent
+// dsfConfigService.getConfigsByFolder(folderId, "note11") — toujours en
+// minuscules, préfixées "note" pour les notes numérotées).
+const CATEGORIES = [
+  "note1", "note2", "note3a", "note3b", "note3c", "note3d", "note3e", "note3f",
+  "note4", "note5", "note6", "note7", "note8", "note9", "note10", "note11",
+  "note12", "note13", "note14", "note15a", "note15b", "note16a", "note16b",
+  "note16c", "note17", "note18", "note19", "note20", "note21", "note22",
+  "note23", "note24", "note25", "note26", "note27a", "note27b", "note28",
+  "note29", "note30", "note31", "note32", "note33", "note34", "note35",
+  "cf1", "cf1bis", "cf1ter", "cf1quater", "cf2", "cf2bis", "cf2ter",
+  "bilan-paysage", "compte-resultat", "flux-tresorerie", "grille-analyse-notes",
 ];
 
-// Comprehensive DSF Template with all reports
-const DSF_TEMPLATE = [
-  // ===== NOTES =====
-  // Note 1 - Guaranteed Debts
-  {
-    accountNumber: "411",
-    libelle: "Clients ordinaires",
-    source: "SC",
-    destination: "hypotheque",
-    reportType: "note1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "201",
-    libelle: "Charges immobilisées",
-    source: "SD",
-    destination: "gage",
-    reportType: "note1",
-    status: "active",
-    scope: "EXERCISE",
-  },
+// Catégories dont le calcul réel (dsf-generator.service.ts) consulte
+// effectivement ces mappings (via resolveAllMappingLines / linesFor) —
+// les éditer change vraiment les chiffres de la DSF générée. Pour toutes
+// les autres catégories listées ci-dessus, la note est calculée par une
+// logique différente (comptes en dur, formule TFT, ou contenu statique) et
+// modifier un mapping ici n'a aucun effet sur elle pour l'instant.
+// Bilan Paysage n'a pas sa propre catégorie: son calcul relit les mappings
+// d'autres notes (note3a, note4, ... note28) — les modifier là les affecte
+// aussi, mais il n'y a rien à seeder/éditer sous "bilan-paysage" lui-même.
+const WIRED_CATEGORIES = new Set([
+  "note1", "note3a", "note3c", "note3e", "note4", "note5", "note6", "note7",
+  "note8", "note9", "note10", "note11", "note14", "note15a", "note16a",
+  "note17", "note18", "note19", "note20", "note21", "note22", "note23",
+  "note24", "note25", "note26", "note27a", "note28", "note29", "note30",
+  "note31", "note34",
+]);
 
-  // Note 3A - Fixed Assets Gross
-  {
-    accountNumber: "211",
-    libelle: "Immobilisations incorporelles - Frais de constitution",
-    source: "SD",
-    destination: "immobilisationsIncorporelles",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "212",
-    libelle: "Immobilisations incorporelles - Frais de développement",
-    source: "SD",
-    destination: "immobilisationsIncorporelles",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "221",
-    libelle: "Terrains",
-    source: "SD",
-    destination: "immobilisationsCorporelles",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "231",
-    libelle: "Bâtiments industriels",
-    source: "SD",
-    destination: "immobilisationsCorporelles",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "232",
-    libelle: "Bâtiments administratifs",
-    source: "SD",
-    destination: "immobilisationsCorporelles",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "261",
-    libelle: "Titres de participation",
-    source: "SD",
-    destination: "immobilisationsFinancieres",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "262",
-    libelle: "Autres titres immobilisés",
-    source: "SD",
-    destination: "immobilisationsFinancieres",
-    reportType: "note3A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 4 - Financial Investments
-  {
-    accountNumber: "261",
-    libelle: "Titres de participation",
-    source: "SD",
-    destination: "titresDeParticipation",
-    reportType: "note4",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "262",
-    libelle: "Autres titres immobilisés",
-    source: "SD",
-    destination: "autresTitres",
-    reportType: "note4",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "274",
-    libelle: "Prêts participatifs",
-    source: "SD",
-    destination: "pretsEtCreances",
-    reportType: "note4",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 6 - Stocks and Work in Progress
-  {
-    accountNumber: "31",
-    libelle: "Marchandises A",
-    source: "SD",
-    destination: "marchandises",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "32",
-    libelle: "Matières premières A",
-    source: "SD",
-    destination: "matieresPremieres",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "33",
-    libelle: "Autres approvisionnements",
-    source: "SD",
-    destination: "autresApprovisionnements",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "34",
-    libelle: "Produits en cours",
-    source: "SD",
-    destination: "enCours",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "35",
-    libelle: "Travaux en cours",
-    source: "SD",
-    destination: "enCours",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "36",
-    libelle: "Produits finis",
-    source: "SD",
-    destination: "produitsFinis",
-    reportType: "note6",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 7 - Clients
-  {
-    accountNumber: "411",
-    libelle: "Clients ordinaires",
-    source: "SC",
-    destination: "clientsOrdinaires",
-    reportType: "note7",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "416",
-    libelle: "Clients douteux",
-    source: "SC",
-    destination: "clientsDouteux",
-    reportType: "note7",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "4651",
-    libelle: "Créances sur cessions d'immobilisations",
-    source: "SC",
-    destination: "creancesSurCessions",
-    reportType: "note7",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "491",
-    libelle: "Provisions pour clients douteux",
-    source: "SC",
-    destination: "provisionsClients",
-    reportType: "note7",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 8 - Other Receivables
-  {
-    accountNumber: "4091",
-    libelle: "Fournisseurs débiteurs",
-    source: "SC",
-    destination: "fournisseursDebiteurs",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "421",
-    libelle: "Personnel - Avances et acomptes",
-    source: "SC",
-    destination: "personnel",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "422",
-    libelle: "Personnel - Oppositions",
-    source: "SC",
-    destination: "personnel",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "441",
-    libelle: "État - Impôts sur les bénéfices",
-    source: "SC",
-    destination: "etat",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "442",
-    libelle: "État - Impôts sur les salaires",
-    source: "SC",
-    destination: "etat",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "45",
-    libelle: "Comptes de liaison des établissements",
-    source: "SC",
-    destination: "comptesDeLiaison",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "46",
-    libelle: "Autres créances",
-    source: "SC",
-    destination: "autresCreances",
-    reportType: "note8",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 11 - Availability
-  {
-    accountNumber: "521",
-    libelle: "Banques locales - Comptes en devises",
-    source: "SD",
-    destination: "1",
-    reportType: "note11",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "522",
-    libelle: "Banques locales - Comptes en monnaie nationale",
-    source: "SD",
-    destination: "2",
-    reportType: "note11",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "531",
-    libelle: "Chèques postaux",
-    source: "SD",
-    destination: "6",
-    reportType: "note11",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "57",
-    libelle: "Caisse",
-    source: "SD",
-    destination: "10",
-    reportType: "note11",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 17 - Suppliers
-  {
-    accountNumber: "401",
-    libelle: "Fournisseurs ordinaires",
-    source: "SD",
-    destination: "fournisseursOrdinaires",
-    reportType: "note17",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "402",
-    libelle: "Fournisseurs - Retenues de garantie",
-    source: "SD",
-    destination: "fournisseursOrdinaires",
-    reportType: "note17",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "403",
-    libelle: "Fournisseurs d'immobilisations",
-    source: "SD",
-    destination: "fournisseursEffetsAPayer",
-    reportType: "note17",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "408",
-    libelle: "Fournisseurs - Factures non parvenues",
-    source: "SD",
-    destination: "fournisseursRetenues",
-    reportType: "note17",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 18 - Tax and Social Debts
-  {
-    accountNumber: "4431",
-    libelle: "TVA à décaisser",
-    source: "SD",
-    destination: "tva",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "4471",
-    libelle: "Personnel - IRPP",
-    source: "SD",
-    destination: "impotsSurSalaires",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "444",
-    libelle: "Impôts sur les résultats",
-    source: "SD",
-    destination: "impotsSurResultat",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "441",
-    libelle: "Autres impôts",
-    source: "SD",
-    destination: "autresImpots",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "431",
-    libelle: "CNPS - Cotisations",
-    source: "SD",
-    destination: "cnps",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "421",
-    libelle: "Personnel - Avances",
-    source: "SD",
-    destination: "personnel",
-    reportType: "note18",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 21 - Turnover and Other Products
-  {
-    accountNumber: "701",
-    libelle: "Ventes de marchandises",
-    source: "SC",
-    destination: "ventesMarchandises",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "702",
-    libelle: "Ventes de produits finis",
-    source: "SC",
-    destination: "ventesProduits",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "705",
-    libelle: "Travaux",
-    source: "SC",
-    destination: "travaux",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "706",
-    libelle: "Services",
-    source: "SC",
-    destination: "services",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "708",
-    libelle: "Produits divers",
-    source: "SC",
-    destination: "produitsDivers",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "709",
-    libelle: "Rabais, remises, ristournes",
-    source: "SC",
-    destination: "rabaisRemises",
-    reportType: "note21",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 22 - Purchases
-  {
-    accountNumber: "601",
-    libelle: "Achats de marchandises",
-    source: "SD",
-    destination: "marchandises",
-    reportType: "note22",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "602",
-    libelle: "Achats de matières premières",
-    source: "SD",
-    destination: "matieresPremieres",
-    reportType: "note22",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "604",
-    libelle: "Achats d'autres approvisionnements",
-    source: "SD",
-    destination: "autresApprovisionnements",
-    reportType: "note22",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "609",
-    libelle: "Rabais, remises, ristournes obtenus",
-    source: "SC",
-    destination: "rabaisRemises",
-    reportType: "note22",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 23 - Transportation
-  {
-    accountNumber: "611",
-    libelle: "Transports sur achats",
-    source: "SD",
-    destination: "transportsAchats",
-    reportType: "note23",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "613",
-    libelle: "Transports sur ventes",
-    source: "SD",
-    destination: "transportsVentes",
-    reportType: "note23",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "615",
-    libelle: "Transports du personnel",
-    source: "SD",
-    destination: "transportsPersonnel",
-    reportType: "note23",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "616",
-    libelle: "Autres transports",
-    source: "SD",
-    destination: "autresTransports",
-    reportType: "note23",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 24 - External Services
-  {
-    accountNumber: "622",
-    libelle: "Rémunérations d'intermédiaires",
-    source: "SD",
-    destination: "loyers",
-    reportType: "note24",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "624",
-    libelle: "Entretien et réparations",
-    source: "SD",
-    destination: "entretien",
-    reportType: "note24",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "627",
-    libelle: "Publicité, publications, relations publiques",
-    source: "SD",
-    destination: "primes",
-    reportType: "note24",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "628",
-    libelle: "Documentation générale",
-    source: "SD",
-    destination: "documentation",
-    reportType: "note24",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "63",
-    libelle: "Autres services extérieurs",
-    source: "SD",
-    destination: "autresServices",
-    reportType: "note24",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 25 - Taxes and Duties
-  {
-    accountNumber: "444",
-    libelle: "Impôts sur les bénéfices",
-    source: "SD",
-    destination: "impotsSurBenefices",
-    reportType: "note25",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "641",
-    libelle: "Impôts, taxes et versements assimilés",
-    source: "SD",
-    destination: "autresImpots",
-    reportType: "note25",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "642",
-    libelle: "Patente",
-    source: "SD",
-    destination: "patente",
-    reportType: "note25",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "643",
-    libelle: "Contribution foncière",
-    source: "SD",
-    destination: "foncier",
-    reportType: "note25",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "644",
-    libelle: "Taxe sur véhicules",
-    source: "SD",
-    destination: "taxesVehicules",
-    reportType: "note25",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 27A - Personnel Charges
-  {
-    accountNumber: "6611",
-    libelle: "Rémunérations directes versées au personnel",
-    source: "SD",
-    destination: "remunerationsPersonnel",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "6613",
-    libelle: "Indemnités forfaitaire versées au personnel",
-    source: "SD",
-    destination: "indemnitesPersonnel",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "664",
-    libelle: "Charges sociales sur rémunérations",
-    source: "SD",
-    destination: "chargesSociales",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "6612",
-    libelle: "Rémunérations de l'exploitant individuel",
-    source: "SD",
-    destination: "remunerationsExploitant",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "667",
-    libelle: "Rémunération du personnel extérieur",
-    source: "SD",
-    destination: "personnelExterieur",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "668",
-    libelle: "Autres charges sociales",
-    source: "SD",
-    destination: "autresChargesSociales",
-    reportType: "note27A",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Note 27B - Personnel Headcount
-  {
-    accountNumber: "661",
-    libelle: "Masse salariale / Cadres (pour réf)",
-    source: "SD",
-    destination: "cadres",
-    reportType: "note27B",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "662",
-    libelle: "Masse salariale / Employés (pour réf)",
-    source: "SD",
-    destination: "employes",
-    reportType: "note27B",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // ===== CF REPORTS =====
-  // CF1 - Tax Table 1
-  {
-    accountNumber: "13",
-    libelle: "Résultat de l'exercice",
-    source: "SC",
-    destination: "1",
-    reportType: "cf1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "201",
-    libelle: "Charges immobilisées",
-    source: "SCD",
-    destination: "2",
-    reportType: "cf1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "601",
-    libelle: "Achats de marchandises",
-    source: "SCD",
-    destination: "6",
-    reportType: "cf1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "602",
-    libelle: "Achats de matières premières",
-    source: "SCD",
-    destination: "7",
-    reportType: "cf1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "701",
-    libelle: "Ventes de marchandises",
-    source: "SD",
-    destination: "1",
-    reportType: "cf1",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // CF2 - Annual VAT Regularization
-  {
-    accountNumber: "70",
-    libelle: "Ventes totales",
-    source: "SC",
-    destination: "chiffreAffairesHT",
-    reportType: "cf2",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "4452",
-    libelle: "TVA déductible",
-    source: "SC",
-    destination: "tvaDeductible",
-    reportType: "cf2",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // ===== ASSURANCE REPORTS =====
-  // Assurance Balance Sheet Assets
-  {
-    accountNumber: "211",
-    libelle: "Immobilisations incorporelles",
-    source: "SD",
-    destination: "immobilisationsIncorporelles",
-    reportType: "assuranceBilanActif",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "22",
-    libelle: "Immobilisations corporelles",
-    source: "SD",
-    destination: "immobilisationsCorporelles",
-    reportType: "assuranceBilanActif",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Assurance Balance Sheet Liabilities
-  {
-    accountNumber: "101",
-    libelle: "Capital social",
-    source: "SC",
-    destination: "capitalSocial",
-    reportType: "assuranceBilanPassif",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "16",
-    libelle: "Emprunts",
-    source: "SC",
-    destination: "emprunts",
-    reportType: "assuranceBilanPassif",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Assurance Products
-  {
-    accountNumber: "701",
-    libelle: "Primes d'assurance",
-    source: "SC",
-    destination: "primesAssurance",
-    reportType: "assuranceProduits",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "702",
-    libelle: "Commissions reçues",
-    source: "SC",
-    destination: "commissionsRecues",
-    reportType: "assuranceProduits",
-    status: "active",
-    scope: "EXERCISE",
-  },
-
-  // Assurance Charges
-  {
-    accountNumber: "661",
-    libelle: "Salaires du personnel",
-    source: "SD",
-    destination: "salairesPersonnel",
-    reportType: "assuranceCharges",
-    status: "active",
-    scope: "EXERCISE",
-  },
-  {
-    accountNumber: "665",
-    libelle: "Charges sociales",
-    source: "SD",
-    destination: "chargesSociales",
-    reportType: "assuranceCharges",
-    status: "active",
-    scope: "EXERCISE",
-  },
-];
-
-interface AccountMapping {
-  id: string;
-  accountNumber: string;
-  libelle?: string;
-  source: string;
-  destination: string;
-  reportType: string;
-  configId: string;
-  isActive: boolean;
-  status: string;
-  scope: string;
-  clientId?: string;
+interface OperationRow {
+  sign: "+" | "-";
+  account: string;
+  source: Source;
 }
+
+const parseOperations = (ops: string[]): OperationRow[] =>
+  ops
+    .map((op) => {
+      const sign: "+" | "-" = op.startsWith("-") ? "-" : "+";
+      const rest = op.replace(/^[+-]/, "");
+      const source = rest.slice(-2) as Source;
+      const account = rest.slice(0, -2);
+      return { sign, account, source };
+    })
+    .filter((row) => row.account.length > 0);
+
+const formatOperations = (rows: OperationRow[]): string[] =>
+  rows
+    .filter((r) => r.account.trim().length > 0)
+    .map((r) => `${r.sign}${r.account.trim()}${r.source}`);
+
+const emptyOperationRow = (): OperationRow => ({ sign: "+", account: "", source: "MD" });
+
+interface FormState {
+  id: string | null;
+  category: string;
+  codeDsf: string;
+  libelle: string;
+  destinationCell: string;
+  operations: OperationRow[];
+}
+
+const emptyForm = (category: string): FormState => ({
+  id: null,
+  category,
+  codeDsf: "",
+  libelle: "",
+  destinationCell: "",
+  operations: [emptyOperationRow()],
+});
+
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400";
 
 export default function DSFConfigInterface() {
   const { user } = useAuth();
   const { selectedFolder } = useApp();
-  const [mappings, setMappings] = useState<AccountMapping[]>([]);
+  const [configs, setConfigs] = useState<DSFConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingCell, setEditingCell] = useState<{
-    rowIndex: number;
-    field: string;
-  } | null>(null);
-  const [selectedReportType, setSelectedReportType] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm(CATEGORIES[0]));
+  const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
-  const currentUser = user
-    ? {
-        id: user.id,
-        name: `${user.firstName} ${user.lastName}`,
-        type: user.role,
-      }
-    : null;
+  const isAdmin = user?.role === "ADMIN";
 
-  // Filter mappings based on selected report type
-  const filteredMappings =
-    selectedReportType === "all"
-      ? mappings
-      : mappings.filter((mapping) => mapping.reportType === selectedReportType);
-
-  // Load all account mappings
-  const loadMappings = useCallback(async () => {
-    if (!currentUser) return;
-
+  const loadConfigs = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // Get all configs with their account mappings
-      const allConfigs = await Promise.all(
-        REPORT_TYPES.map(async (reportType) => {
-          const params: any = { category: reportType };
-          if (selectedFolder?.clientId) {
-            params.clientId = selectedFolder.clientId;
-          }
-          if (selectedFolder?.id) {
-            params.exerciseId = selectedFolder.id;
-          }
-          return await dsfConfigService.getConfigs(params);
-        }),
-      );
-
-      // Flatten and transform to account mappings
-      const allMappings: AccountMapping[] = [];
-      allConfigs.forEach((configs, index) => {
-        const reportType = REPORT_TYPES[index];
-        configs.forEach((config: any) => {
-          // Load existing account mappings if available
-          if (
-            config.config?.accountMappings &&
-            config.config.accountMappings.length > 0
-          ) {
-            config.config.accountMappings.forEach((mapping: any) => {
-              // Find libelle from template
-              const templateItem = DSF_TEMPLATE.find(
-                (t) =>
-                  t.accountNumber === mapping.accountNumber &&
-                  t.reportType === reportType,
-              );
-
-              allMappings.push({
-                id: mapping.id,
-                accountNumber: mapping.accountNumber,
-                libelle: templateItem?.libelle || "",
-                source: mapping.source,
-                destination: mapping.destination,
-                reportType,
-                configId: config.id,
-                isActive: mapping.isActive !== false,
-                status: mapping.isActive !== false ? "active" : "inactive",
-                scope: config.scope || "GLOBAL",
-                clientId: config.clientId,
-              });
-            });
-          } else {
-            // Create empty mapping for editing
-            allMappings.push({
-              id: `${config.id}_${reportType}`,
-              accountNumber: "",
-              libelle: "",
-              source: "MC" as any,
-              destination: "",
-              reportType,
-              configId: config.id,
-              isActive: true,
-              status: "active",
-              scope: "EXERCISE",
-              clientId: selectedFolder?.clientId,
-            });
-          }
-        });
-      });
-
-      setMappings(allMappings);
-    } catch (err: any) {
-      console.error("Error loading mappings:", err);
-      setError("Erreur lors du chargement des mappings");
+      const data = selectedFolder?.id
+        ? await dsfConfigService.getConfigsByFolder(selectedFolder.id)
+        : await dsfConfigService.getConfigs();
+      setConfigs(data);
+    } catch (err) {
+      console.error("Error loading DSF configs:", err);
+      setError("Erreur lors du chargement des configurations");
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, selectedFolder?.id, selectedFolder?.clientId]);
+  }, [selectedFolder?.id]);
 
   useEffect(() => {
-    loadMappings();
-  }, [loadMappings]);
+    loadConfigs();
+  }, [loadConfigs]);
 
-  const startEditing = (rowIndex: number, field: string) => {
-    setEditingCell({ rowIndex, field });
+  const filteredConfigs =
+    categoryFilter === "all"
+      ? configs
+      : configs.filter((c) => c.category === categoryFilter);
+
+  const openNewForm = () => {
+    setForm(emptyForm(categoryFilter !== "all" ? categoryFilter : CATEGORIES[0]));
+    setFormOpen(true);
   };
 
-  const stopEditing = () => {
-    setEditingCell(null);
+  const openEditForm = (config: DSFConfig) => {
+    const rows = parseOperations(config.operations || []);
+    setForm({
+      id: config.id,
+      category: config.category,
+      codeDsf: config.codeDsf,
+      libelle: config.libelle,
+      destinationCell: config.destinationCell || "",
+      operations: rows.length > 0 ? rows : [emptyOperationRow()],
+    });
+    setFormOpen(true);
   };
 
-  const updateMapping = async (rowIndex: number, field: string, value: any) => {
-    const mapping = mappings[rowIndex];
-    try {
-      // Get all mappings for this config and update the specific one
-      const configMappings = mappings
-        .filter((m) => m.configId === mapping.configId)
-        .map((m) => ({
-          accountNumber:
-            m.id === mapping.id && field === "accountNumber"
-              ? value
-              : m.accountNumber,
-          source: m.id === mapping.id && field === "source" ? value : m.source,
-          destination:
-            m.id === mapping.id && field === "destination"
-              ? value
-              : m.destination,
-        }));
+  const closeForm = () => setFormOpen(false);
 
-      const updateData = {
-        config: { accountMappings: configMappings },
-      };
-
-      await dsfConfigService.updateConfig(mapping.configId, updateData);
-      await loadMappings();
-      stopEditing();
-    } catch (err: any) {
-      console.error("Error updating mapping:", err);
-      setError("Erreur lors de la mise à jour");
-    }
+  const updateOperationRow = (index: number, patch: Partial<OperationRow>) => {
+    setForm((prev) => ({
+      ...prev,
+      operations: prev.operations.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    }));
   };
 
-  const addMapping = async () => {
-    // For simplicity, add to the first available config or create new one
-    // This would need proper implementation based on your requirements
-    alert("Fonctionnalité à implémenter");
+  const addOperationRow = () => {
+    setForm((prev) => ({ ...prev, operations: [...prev.operations, emptyOperationRow()] }));
   };
 
-  const deleteMapping = async (rowIndex: number) => {
-    const mapping = mappings[rowIndex];
-    if (confirm("Supprimer ce mapping ?")) {
-      try {
-        // Remove from accountMappings array
-        const updateData = {
-          config: {
-            accountMappings: mappings
-              .filter((_, i) => i !== rowIndex)
-              .map((m) => ({
-                accountNumber: m.accountNumber,
-                source: m.source,
-                destination: m.destination,
-              })),
-          },
-        };
-
-        await dsfConfigService.updateConfig(mapping.configId, updateData);
-        await loadMappings();
-      } catch (err: any) {
-        console.error("Error deleting mapping:", err);
-        setError("Erreur lors de la suppression");
-      }
-    }
+  const removeOperationRow = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      operations: prev.operations.filter((_, i) => i !== index),
+    }));
   };
 
-  const handleExport = async () => {
-    try {
-      // Create export data
-      const exportData = mappings.map((mapping) => ({
-        "N° Compte": mapping.accountNumber,
-        Source: mapping.source,
-        Destination: mapping.destination,
-        Rapport: mapping.reportType,
-        "Config ID": mapping.configId,
-        Actif: mapping.isActive ? "Oui" : "Non",
-      }));
-
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Account_Mappings");
-
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `dsf_account_mappings_${timestamp}.xlsx`;
-
-      // Download file
-      XLSX.writeFile(workbook, filename);
-    } catch (err: any) {
-      console.error("Export error:", err);
-      setError("Erreur lors de l'exportation");
-    }
-  };
-
-  const handleDownloadTemplate = async () => {
-    try {
-      // Get unique account numbers
-      const uniqueAccounts = [
-        ...new Set(DSF_TEMPLATE.map((item) => item.accountNumber)),
-      ];
-
-      // Create template data with fixed columns
-      const templateData = uniqueAccounts.map((accountNumber) => {
-        // Find all items for this account
-        const accountItems = DSF_TEMPLATE.filter(
-          (item) => item.accountNumber === accountNumber,
-        );
-        const firstItem = accountItems[0];
-
-        // Create base object
-        const row: any = {
-          "account number(index)": accountNumber,
-          libelle: firstItem.libelle,
-          source: firstItem.source,
-          status: firstItem.status,
-          scope: firstItem.scope,
-          clientID: selectedFolder?.clientId || "",
-        };
-
-        // Add destination columns for all report types
-        REPORT_TYPES.forEach((reportType) => {
-          const item = accountItems.find((i) => i.reportType === reportType);
-          row[reportType] = item ? item.destination : "";
-        });
-
-        return row;
-      });
-
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(templateData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "DSF_Template");
-
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().split("T")[0];
-      const filename = `dsf_template_${timestamp}.xlsx`;
-
-      // Download file
-      XLSX.writeFile(workbook, filename);
-    } catch (err: any) {
-      console.error("Template download error:", err);
-      setError("Erreur lors du téléchargement du template");
-    }
-  };
-
-  const handleImport = () => {
-    // Create hidden file input
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".xlsx,.xls";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      try {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        // Process import data
-        const importedMappings = jsonData as any[];
-
-        // Group by report type
-        const mappingsByReport: Record<string, any[]> = {};
-        importedMappings.forEach((row) => {
-          const reportType = row["Rapport"];
-          if (!mappingsByReport[reportType]) {
-            mappingsByReport[reportType] = [];
-          }
-          mappingsByReport[reportType].push({
-            accountNumber: row["N° Compte"],
-            source: row["Source"],
-            destination: row["Destination"],
-          });
-        });
-
-        // Update configs for each report type
-        for (const [reportType, mappings] of Object.entries(mappingsByReport)) {
-          try {
-            // Find existing config or create new one
-            const existingConfigs = await dsfConfigService.getConfigs({
-              category: reportType,
-              clientId: selectedFolder?.clientId,
-              exerciseId: selectedFolder?.id,
-            });
-
-            if (existingConfigs.length > 0) {
-              // Update existing config
-              await dsfConfigService.updateConfig(existingConfigs[0].id, {
-                config: { accountMappings: mappings },
-              });
-            } else {
-              // Create new config
-              await dsfConfigService.createConfig({
-                category: reportType,
-                codeDsf: `${reportType}_001`,
-                libelle: `Configuration ${reportType}`,
-                config: { accountMappings: mappings },
-                clientId: selectedFolder?.clientId,
-                exerciseId: selectedFolder?.id,
-              });
-            }
-          } catch (err) {
-            console.error(`Error importing ${reportType}:`, err);
-          }
-        }
-
-        await loadMappings();
-        alert("Importation terminée avec succès!");
-      } catch (err: any) {
-        console.error("Import error:", err);
-        setError("Erreur lors de l'importation");
-      }
-    };
-    input.click();
-  };
-
-  const loadTemplate = async () => {
-    if (!currentUser) return;
-
-    const confirmLoad = confirm(
-      `Êtes-vous sûr de vouloir charger le modèle complet DSF ?\n\nCela va créer ${DSF_TEMPLATE.length} mappings de comptes pour tous les rapports.\n\nCette action va remplacer toutes les configurations existantes.`,
-    );
-
-    if (!confirmLoad) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Group template by report type
-      const templateByReport: Record<string, any[]> = {};
-      DSF_TEMPLATE.forEach((item) => {
-        if (!templateByReport[item.reportType]) {
-          templateByReport[item.reportType] = [];
-        }
-        templateByReport[item.reportType].push({
-          accountNumber: item.accountNumber,
-          source: item.source,
-          destination: item.destination,
-        });
-      });
-
-      // Create/update configs for each report type
-      const promises = Object.entries(templateByReport).map(
-        async ([reportType, mappings]) => {
-          try {
-            // Check if config already exists
-            const existingConfigs = await dsfConfigService.getConfigs({
-              category: reportType,
-              clientId: selectedFolder?.clientId,
-              exerciseId: selectedFolder?.id,
-            });
-
-            if (existingConfigs.length > 0) {
-              // Update existing config
-              await dsfConfigService.updateConfig(existingConfigs[0].id, {
-                config: { accountMappings: mappings },
-              });
-            } else {
-              // Create new config
-              await dsfConfigService.createConfig({
-                category: reportType,
-                codeDsf: `${reportType}_template`,
-                libelle: `Configuration ${reportType} - Modèle`,
-                config: { accountMappings: mappings },
-                clientId: selectedFolder?.clientId,
-                exerciseId: selectedFolder?.id,
-              });
-            }
-          } catch (err) {
-            console.error(`Error loading template for ${reportType}:`, err);
-          }
-        },
-      );
-
-      await Promise.all(promises);
-      await loadMappings();
-
-      alert(
-        `Modèle DSF chargé avec succès!\n\n${
-          DSF_TEMPLATE.length
-        } mappings créés pour ${Object.keys(templateByReport).length} rapports.`,
-      );
-    } catch (err: any) {
-      console.error("Template load error:", err);
-      setError("Erreur lors du chargement du modèle");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testConfig = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Test configuration by validating mappings
-      const testResults = {
-        totalMappings: filteredMappings.length,
-        validMappings: 0,
-        invalidMappings: 0,
-        issues: [] as string[],
-      };
-
-      filteredMappings.forEach((mapping, index) => {
-        let isValid = true;
-
-        // Check account number
-        if (
-          !mapping.accountNumber ||
-          mapping.accountNumber.trim().length === 0
-        ) {
-          testResults.issues.push(
-            `Ligne ${index + 1}: Numéro de compte manquant`,
-          );
-          isValid = false;
-        }
-
-        // Check source
-        if (!mapping.source || !SOURCES.includes(mapping.source as any)) {
-          testResults.issues.push(
-            `Ligne ${index + 1}: Source invalide (${mapping.source})`,
-          );
-          isValid = false;
-        }
-
-        // Check destination
-        if (!mapping.destination || mapping.destination.trim().length === 0) {
-          testResults.issues.push(`Ligne ${index + 1}: Destination manquante`);
-          isValid = false;
-        }
-
-        if (isValid) {
-          testResults.validMappings++;
-        } else {
-          testResults.invalidMappings++;
-        }
-      });
-
-      // Show test results
-      const message = `
-Test de Configuration ${
-        selectedReportType === "all" ? "Tous les rapports" : selectedReportType
-      }:
-
-✅ Mappings valides: ${testResults.validMappings}
-❌ Mappings invalides: ${testResults.invalidMappings}
-📊 Total: ${testResults.totalMappings}
-
-${
-  testResults.issues.length > 0
-    ? `Problèmes détectés:\n${testResults.issues.join("\n")}`
-    : "Aucun problème détecté!"
-}
-      `;
-
-      alert(message);
-    } catch (err: any) {
-      console.error("Test error:", err);
-      setError("Erreur lors du test de configuration");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testNote1Generation = async () => {
-    if (!selectedFolder) {
-      alert("Veuillez sélectionner un dossier d'abord.");
+  const saveForm = async () => {
+    if (!form.codeDsf.trim() || !form.libelle.trim() || !form.destinationCell.trim()) {
+      alert("Code DSF, libellé et cellule de destination sont requis.");
       return;
     }
-
+    setSaving(true);
     try {
-      setLoading(true);
-      setError(null);
-
-      // Simulate Note 1 generation on frontend using mock data
-      const mockNote1Data = {
-        header: {
-          raisonSociale: "Entreprise Test SA",
-          exerciceClos: "31/12/2024",
-        },
-        dettes: {
-          sousTotaux: {
-            dettesFinancieres: { montantBrut: 1500000 },
-            dettesLocationAcquisition: { montantBrut: 500000 },
-            dettesPassifCirculant: { montantBrut: 300000 },
-            total: { montantBrut: 2300000 },
-          },
-        },
-        totalEngagements: {
-          engagementsDonnes: 200000,
-          engagementsRecus: 150000,
-        },
+      const payload: Partial<DSFConfig> & Record<string, unknown> = {
+        category: form.category,
+        codeDsf: form.codeDsf.trim(),
+        libelle: form.libelle.trim(),
+        destinationCell: form.destinationCell.trim(),
+        operations: formatOperations(form.operations),
+        clientId: selectedFolder?.clientId,
+        exerciseId: selectedFolder?.id,
       };
-
-      const mockConfigUsed = {
-        category: "note1",
-        accountMappings: DSF_TEMPLATE.filter(
-          (item) => item.reportType === "note1",
-        ),
-      };
-
-      // Show test results
-      const message = `
-🧪 Test de Génération Note 1 (Frontend Simulation):
-
-📁 Dossier: ${selectedFolder.name}
-📊 Balance: ✅ Simulation (Données mockées)
-⚙️ Configuration: ✅ Template DSF utilisé
-
-✅ Génération réussie!
-
-📋 Données générées:
-- Société: ${mockNote1Data.header.raisonSociale}
-- Exercice: ${mockNote1Data.header.exerciceClos}
-- Dette financière totale: ${mockNote1Data.dettes.sousTotaux.dettesFinancieres.montantBrut}
-- Dette location-acquisition totale: ${mockNote1Data.dettes.sousTotaux.dettesLocationAcquisition.montantBrut}
-- Dette passif circulant totale: ${mockNote1Data.dettes.sousTotaux.dettesPassifCirculant.montantBrut}
-- TOTAL DETTES: ${mockNote1Data.dettes.sousTotaux.total.montantBrut}
-
-💰 Engagements financiers:
-- Engagements donnés: ${mockNote1Data.totalEngagements.engagementsDonnes}
-- Engagements reçus: ${mockNote1Data.totalEngagements.engagementsRecus}
-
-🔧 Configuration utilisée:
-- Mappings: ${mockConfigUsed.accountMappings.length}
-- Catégorie: ${mockConfigUsed.category}
-      `;
-
-      alert(message);
+      if (form.id) {
+        await dsfConfigService.updateConfig(form.id, payload);
+      } else {
+        await dsfConfigService.createConfig(payload);
+      }
+      await loadConfigs();
+      setFormOpen(false);
     } catch (err: any) {
-      console.error("Test Note 1 error:", err);
-      setError("Erreur lors du test de génération Note 1");
-      alert(`❌ Erreur lors du test: ${err.message}`);
+      console.error("Error saving DSF config:", err);
+      alert(err?.message || "Erreur lors de l'enregistrement");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
+  };
+
+  const handleDuplicate = async (config: DSFConfig) => {
+    try {
+      await dsfConfigService.duplicateConfig(config.id);
+      await loadConfigs();
+    } catch (err) {
+      console.error("Error duplicating config:", err);
+      alert("Erreur lors de la duplication");
+    }
+  };
+
+  const handleDelete = async (config: DSFConfig) => {
+    if (!confirm(`Supprimer la configuration « ${config.libelle} » ?`)) return;
+    try {
+      await dsfConfigService.deleteConfig(config.id);
+      await loadConfigs();
+    } catch (err) {
+      console.error("Error deleting config:", err);
+      alert("Erreur lors de la suppression");
+    }
+  };
+
+  const handleSeedDefaults = async () => {
+    setSeeding(true);
+    try {
+      const result = await dsfConfigService.createDefaultConfigs();
+      await loadConfigs();
+      alert(
+        `Mappings par défaut créés/mis à jour pour ${result.categoriesSeeded} catégorie(s), ${result.linesUpserted} ligne(s).`
+      );
+    } catch (err: any) {
+      console.error("Error seeding default configs:", err);
+      alert(err?.message || "Erreur lors de la génération des mappings par défaut");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleExport = () => {
+    const rows = filteredConfigs.map((c) => ({
+      category: c.category,
+      codeDsf: c.codeDsf,
+      libelle: c.libelle,
+      destinationCell: c.destinationCell,
+      operations: (c.operations || []).join(","),
+      scope: c.scope,
+      ownerType: c.ownerType,
+    }));
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dsf-mappings-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* En-tête */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <Settings className="w-8 h-8 text-orange-600" />
+        <div className="max-w-6xl mx-auto px-6 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Settings className="w-6 h-6 text-gray-400" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Configuration DSF - Mappings Comptes
-                </h1>
+                <h1 className="text-lg font-semibold text-gray-900">Mapping comptable</h1>
                 <p className="text-sm text-gray-500">
-                  {selectedFolder
-                    ? `Dossier: ${selectedFolder.name}`
-                    : "Sélectionnez un dossier"}
+                  {selectedFolder ? `Dossier : ${selectedFolder.name}` : "Aucun dossier sélectionné"}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                {currentUser?.name} ({currentUser?.type})
-              </span>
-
-              {/* Report Type Filter */}
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-700">Rapport:</label>
-                <select
-                  value={selectedReportType}
-                  onChange={(e) => setSelectedReportType(e.target.value)}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 max-w-xs"
-                >
-                  <option value="all">
-                    Tous les rapports ({REPORT_TYPES.length})
-                  </option>
-                  <optgroup label="Notes">
-                    {REPORT_TYPES.filter((r) => r.startsWith("note")).map(
-                      (report) => (
-                        <option key={report} value={report}>
-                          {report.charAt(0).toUpperCase() + report.slice(1)}
-                        </option>
-                      ),
-                    )}
-                  </optgroup>
-                  <optgroup label="Comptes Financiers">
-                    {REPORT_TYPES.filter((r) => r.startsWith("cf")).map(
-                      (report) => (
-                        <option key={report} value={report}>
-                          {report.toUpperCase()}
-                        </option>
-                      ),
-                    )}
-                  </optgroup>
-                  <optgroup label="Rapports C">
-                    {REPORT_TYPES.filter((r) => r.startsWith("c")).map(
-                      (report) => (
-                        <option key={report} value={report}>
-                          {report}
-                        </option>
-                      ),
-                    )}
-                  </optgroup>
-                  <optgroup label="Autres Rapports">
-                    {REPORT_TYPES.filter(
-                      (r) =>
-                        !r.startsWith("note") &&
-                        !r.startsWith("cf") &&
-                        !r.startsWith("c") &&
-                        !r.startsWith("assurance"),
-                    ).map((report) => (
-                      <option key={report} value={report}>
-                        {report.charAt(0).toUpperCase() + report.slice(1)}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Assurance">
-                    {REPORT_TYPES.filter((r) => r.startsWith("assurance")).map(
-                      (report) => (
-                        <option key={report} value={report}>
-                          {report
-                            .replace("assurance", "")
-                            .charAt(0)
-                            .toUpperCase() +
-                            report.replace("assurance", "").slice(1)}
-                        </option>
-                      ),
-                    )}
-                  </optgroup>
-                </select>
-              </div>
-
-              <div className="flex space-x-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadConfigs}
+                title="Actualiser"
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              >
+                <Download className="w-4 h-4" /> Exporter
+              </button>
+              {isAdmin && (
                 <button
-                  onClick={handleDownloadTemplate}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
+                  onClick={handleSeedDefaults}
+                  disabled={seeding}
+                  title="Recrée/rafraîchit les mappings par défaut de chaque note depuis le moteur de calcul (account-mapping.data.ts) — sans effet sur les surcharges déjà créées manuellement"
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Télécharger Template Excel
+                  <Sparkles className={`w-4 h-4 ${seeding ? "animate-pulse" : ""}`} />
+                  {seeding ? "Génération..." : "Générer les défauts"}
                 </button>
-
+              )}
+              {isAdmin && (
                 <button
-                  onClick={loadTemplate}
-                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded text-sm font-medium hover:bg-orange-700"
+                  onClick={openNewForm}
+                  className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition"
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Modèle complet
+                  <Plus className="w-4 h-4" /> Nouveau mapping
                 </button>
-
-                <button
-                  onClick={handleImport}
-                  className="flex items-center px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importer
-                </button>
-
-                <button
-                  onClick={handleExport}
-                  className="flex items-center px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Exporter
-                </button>
-
-                {currentUser?.type === "ADMIN" && (
-                  <button
-                    onClick={addMapping}
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nouveau mapping
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-            <span className="ml-3 text-gray-600">
-              Chargement des mappings...
-            </span>
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        {/* Filtre */}
+        <div className="flex items-center gap-2 mb-4">
+          <label className="text-sm text-gray-600">Rapport :</label>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+          >
+            <option value="all">Tous les rapports ({configs.length})</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error && (
+          <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
           </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
-              <span className="text-red-800">{error}</span>
+        )}
+
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-3 py-16 text-sm text-gray-500">
+              <RefreshCw className="w-4 h-4 animate-spin" /> Chargement...
             </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          ) : filteredConfigs.length === 0 ? (
+            <div className="py-16 text-center text-sm text-gray-500">
+              <p>Aucun mapping configuré{categoryFilter !== "all" ? ` pour ${categoryFilter}` : ""}.</p>
+              {categoryFilter !== "all" && !WIRED_CATEGORIES.has(categoryFilter) ? (
+                <p className="mt-2 text-xs text-gray-400 max-w-md mx-auto">
+                  Cette note n'est pas encore branchée sur ce système de configuration —
+                  son calcul vient d'une autre logique (comptes en dur, formule TFT, ou
+                  contenu statique). Un mapping créé ici resterait sans effet.
+                </p>
+              ) : (
+                isAdmin && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    Cliquez sur « Générer les défauts » pour pré-remplir depuis le moteur de calcul.
+                  </p>
+                )
+              )}
+            </div>
+          ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      N° Compte (Index)
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Rapport
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Libellé
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Source
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Destination
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Statut
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Opérations
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Portée
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Origine
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredMappings.map((mapping, index) => (
-                    <tr key={mapping.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-mono text-gray-900">
-                        {editingCell?.rowIndex === index &&
-                        editingCell?.field === "accountNumber" ? (
-                          <input
-                            type="text"
-                            value={mapping.accountNumber}
-                            onChange={(e) =>
-                              updateMapping(
-                                mappings.indexOf(mapping), // Use original index
-                                "accountNumber",
-                                e.target.value,
-                              )
-                            }
-                            onBlur={stopEditing}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && stopEditing()
-                            }
-                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            onDoubleClick={() =>
-                              startEditing(index, "accountNumber")
-                            }
+                <tbody className="divide-y divide-gray-100">
+                  {filteredConfigs.map((config) => (
+                    <tr key={config.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {config.category}
+                        {!WIRED_CATEGORIES.has(config.category) && (
+                          <div
+                            className="text-xs text-amber-600 mt-0.5"
+                            title="Cette note n'est pas branchée sur ce système de configuration — modifier ce mapping n'affecte pas encore son calcul."
                           >
-                            {mapping.accountNumber}
-                          </span>
+                            hors périmètre
+                          </div>
                         )}
                       </td>
-
-                      {selectedReportType === "all" ? (
-                        REPORT_TYPES.map((report) => (
-                          <td
-                            key={report}
-                            className="px-4 py-3 text-sm text-center"
-                          >
-                            {mapping.reportType === report ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                ✓
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                        ))
-                      ) : (
-                        <td className="px-4 py-3 text-sm text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            ✓
-                          </span>
-                        </td>
-                      )}
-
-                      <td className="px-4 py-3 text-sm font-mono text-blue-600">
-                        {editingCell?.rowIndex === index &&
-                        editingCell?.field === "source" ? (
-                          <select
-                            value={mapping.source}
-                            onChange={(e) =>
-                              updateMapping(
-                                mappings.indexOf(mapping),
-                                "source",
-                                e.target.value,
-                              )
-                            }
-                            onBlur={stopEditing}
-                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
-                            autoFocus
-                          >
-                            {SOURCES.map((source) => (
-                              <option key={source} value={source}>
-                                {source}
-                              </option>
-                            ))}
-                          </select>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {config.libelle}
+                        <div className="text-xs text-gray-400 font-mono">{config.codeDsf}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-700">
+                        {config.destinationCell || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-700">
+                        {config.operations?.length ? (
+                          config.operations.join(", ")
                         ) : (
-                          <span
-                            onDoubleClick={() => startEditing(index, "source")}
-                          >
-                            {mapping.source}
-                          </span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
-
-                      <td className="px-4 py-3 text-sm font-mono text-green-600">
-                        {editingCell?.rowIndex === index &&
-                        editingCell?.field === "destination" ? (
-                          <input
-                            type="text"
-                            value={mapping.destination}
-                            onChange={(e) =>
-                              updateMapping(
-                                mappings.indexOf(mapping),
-                                "destination",
-                                e.target.value,
-                              )
-                            }
-                            onBlur={stopEditing}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && stopEditing()
-                            }
-                            className="w-full px-2 py-1 border border-orange-500 rounded text-sm focus:outline-none"
-                            autoFocus
-                          />
-                        ) : (
-                          <span
-                            onDoubleClick={() =>
-                              startEditing(index, "destination")
-                            }
-                          >
-                            {mapping.destination}
-                          </span>
-                        )}
-                      </td>
-
+                      <td className="px-4 py-3 text-sm text-gray-500">{config.scope}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center space-x-1">
-                          {currentUser?.type === "ADMIN" && (
-                            <>
-                              <button
-                                onClick={() =>
-                                  deleteMapping(mappings.indexOf(mapping))
-                                }
-                                className="p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            config.ownerType === "SYSTEM"
+                              ? "bg-gray-100 text-gray-600"
+                              : "bg-blue-50 text-blue-700"
+                          }`}
+                          title={
+                            config.ownerType === "SYSTEM"
+                              ? "Valeur par défaut du moteur de calcul — verrouillée, éditable par un admin uniquement"
+                              : "Surcharge créée par un comptable pour ce dossier/client"
+                          }
+                        >
+                          {config.ownerType === "SYSTEM" ? "Défaut" : "Surcharge"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEditForm(config)}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                            title="Éditer"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(config)}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded"
+                            title="Dupliquer"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(config)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1869,66 +477,149 @@ ${
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
 
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">
-                  {filteredMappings.length} mapping(s) affiché(s)
-                  {selectedReportType !== "all" &&
-                    ` pour ${selectedReportType}`}
-                </span>
-                <button
-                  onClick={testConfig}
-                  className="px-4 py-2 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700"
-                >
-                  Tester Configuration
-                </button>
-
-                <button
-                  onClick={testNote1Generation}
-                  className="px-4 py-2 bg-orange-600 text-white rounded text-sm font-medium hover:bg-orange-700"
-                  disabled={!selectedFolder}
-                >
-                  🧪 Tester Note 1
-                </button>
+        {/* Légende */}
+        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Légende des sources</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-gray-600">
+            {SOURCES.map((code) => (
+              <div key={code}>
+                <strong className="text-gray-800">{code} :</strong> {SOURCE_LABELS[code]}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Legend */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 mb-2">
-            Légende des Sources:
-          </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-blue-800">
-            <div>
-              <strong>OC:</strong> Ouverture Crédit
-            </div>
-            <div>
-              <strong>OD:</strong> Ouverture Débit
-            </div>
-            <div>
-              <strong>MC:</strong> Mouvement Crédit
-            </div>
-            <div>
-              <strong>MD:</strong> Mouvement Débit
-            </div>
-            <div>
-              <strong>SC:</strong> Solde Crédit
-            </div>
-            <div>
-              <strong>SD:</strong> Solde Débit
-            </div>
-            <div>
-              <strong>MCD:</strong> Mouvement Net
-            </div>
-            <div>
-              <strong>SCD:</strong> Solde Net
-            </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Formulaire nouveau / éditer */}
+      <Modal
+        open={formOpen}
+        onClose={closeForm}
+        title={form.id ? "Modifier le mapping" : "Nouveau mapping"}
+        description="Choisissez les comptes qui alimentent cette cellule calculée."
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={closeForm}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={saveForm}
+              disabled={saving}
+              className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50 transition"
+            >
+              {saving ? "Enregistrement..." : "Enregistrer"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rapport</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className={inputClass}
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cellule de destination
+              </label>
+              <input
+                value={form.destinationCell}
+                onChange={(e) => setForm({ ...form, destinationCell: e.target.value })}
+                placeholder="ex : B14"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Code DSF</label>
+            <input
+              value={form.codeDsf}
+              onChange={(e) => setForm({ ...form, codeDsf: e.target.value })}
+              placeholder="ex : NOTE11_CAISSE"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Libellé</label>
+            <input
+              value={form.libelle}
+              onChange={(e) => setForm({ ...form, libelle: e.target.value })}
+              placeholder="ex : Caisse"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Comptes utilisés dans le calcul
+            </label>
+            <div className="space-y-2">
+              {form.operations.map((row, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <select
+                    value={row.sign}
+                    onChange={(e) =>
+                      updateOperationRow(index, { sign: e.target.value as "+" | "-" })
+                    }
+                    className="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  >
+                    <option value="+">+</option>
+                    <option value="-">−</option>
+                  </select>
+                  <input
+                    value={row.account}
+                    onChange={(e) =>
+                      updateOperationRow(index, { account: e.target.value.replace(/\D/g, "") })
+                    }
+                    placeholder="N° compte"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  />
+                  <select
+                    value={row.source}
+                    onChange={(e) => updateOperationRow(index, { source: e.target.value as Source })}
+                    className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200"
+                  >
+                    {SOURCES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => removeOperationRow(index)}
+                    disabled={form.operations.length === 1}
+                    className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Retirer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addOperationRow}
+              className="mt-2 text-sm text-orange-600 hover:text-orange-700 font-medium"
+            >
+              + Ajouter un compte
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

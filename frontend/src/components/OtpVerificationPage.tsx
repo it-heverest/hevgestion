@@ -59,14 +59,6 @@ export function OtpVerificationPage() {
   }, []);
 
   const handleInputChange = (index: number, value: string) => {
-    // Handle paste - if 6 digits are pasted at once
-    if (value.length === 6 && /^\d{6}$/.test(value)) {
-      setOtpCode(value.split(""));
-      setError(null);
-      inputRefs.current[5]?.focus();
-      return;
-    }
-
     if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otpCode];
@@ -77,6 +69,25 @@ export function OtpVerificationPage() {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+  };
+
+  const handlePaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "");
+    if (!digits) return;
+    e.preventDefault();
+
+    setOtpCode((prev) => {
+      const newOtp = [...prev];
+      let cursor = index;
+      for (let i = 0; i < digits.length && cursor < 6; i++, cursor++) {
+        newOtp[cursor] = digits[i];
+      }
+      return newOtp;
+    });
+    setError(null);
+
+    const nextIndex = Math.min(index + digits.length, 5);
+    inputRefs.current[nextIndex]?.focus();
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -98,15 +109,7 @@ export function OtpVerificationPage() {
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = otpCode.join("");
-    
-    if (code.length !== 6) {
-      setError("Veuillez entrer le code à 6 chiffres");
-      return;
-    }
-
+  const verifyCode = async (code: string) => {
     setIsVerifying(true);
     setError(null);
 
@@ -121,6 +124,27 @@ export function OtpVerificationPage() {
       setIsVerifying(false);
     }
   };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otpCode.join("");
+
+    if (code.length !== 6) {
+      setError("Veuillez entrer le code à 6 chiffres");
+      return;
+    }
+
+    await verifyCode(code);
+  };
+
+  // Auto-vérification dès que les 6 chiffres sont saisis (saisie manuelle ou collage)
+  useEffect(() => {
+    const code = otpCode.join("");
+    if (code.length === 6 && !isVerifying) {
+      verifyCode(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otpCode]);
 
   const handleResend = async () => {
     if (isResending) return;
@@ -263,6 +287,7 @@ export function OtpVerificationPage() {
                       value={digit}
                       onChange={(e) => handleInputChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
+                      onPaste={(e) => handlePaste(index, e)}
                       className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 rounded-xl transition-all"
                       disabled={isVerifying}
                       autoFocus={index === 0}

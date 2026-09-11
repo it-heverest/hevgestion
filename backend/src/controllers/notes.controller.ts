@@ -17,7 +17,8 @@ const VALID_NOTE_NUMBERS = [
   "29", "30", "31", "32", "33", "34", "35",
   "cf1", "cf1bis", "cf1ter", "cf1quater", "cf2", "cf2bis", "cf2ter",
   "bilan-paysage", "compte-resultat", "flux-tresorerie",
-  "grille-analyse-notes", "R2", "R3",
+  "grille-analyse-notes", "R1", "R2", "R3",
+  "entete", "sommaire", "page-de-garde", "informations-generales",
   // "3SMT" (Note3Smt.tsx) volontairement absent : le modèle DSF n'a aucune
   // colonne dédiée aux notes SMT/Assurance (cf. schema.prisma) — l'ajouter
   // ici ferait planter getNotesForFolder() pour TOUS les dossiers dès que

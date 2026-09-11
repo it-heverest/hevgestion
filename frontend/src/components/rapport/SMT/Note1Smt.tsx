@@ -74,7 +74,7 @@ const NoteSmt: React.FC = () => {
       );
     }
     return type === "number" && row[field] !== 0
-      ? (row[field] as number).toLocaleString("fr-FR")
+      ? (row[field] as number).toLocaleString("fr-FR").replace(/\u202F/g, " ")
       : row[field];
   };
 
@@ -109,23 +109,12 @@ const NoteSmt: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            {isEditing ? <Save size={18} /> : <Pencil size={18} />}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">
+          <button className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <Download size={18} /> Télécharger PDF
           </button>
         </div>
@@ -260,11 +249,11 @@ const NoteSmt: React.FC = () => {
                 TOTAL
               </td>
               <td className="p-2 text-right font-bold">
-                {totalMontant.toLocaleString("fr-FR")}
+                {totalMontant.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="p-2"></td>
               <td className="p-2 text-right font-bold">
-                {totalPrixCession.toLocaleString("fr-FR")}
+                {totalPrixCession.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
             </tr>
           </tbody>

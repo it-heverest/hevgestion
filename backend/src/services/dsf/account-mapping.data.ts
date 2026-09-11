@@ -57,12 +57,12 @@ export const ACCOUNT_MAPPING: Record<string, MappingLine[]> = {
     { label: 'Frais de développement et de prospection', accounts: ['2811'], side: 'SC' },
     { label: 'Brevets, licences, logiciels et droits similaires', accounts: ['2812', '2813', '2814'], side: 'SC' },
     { label: 'Fonds commercial et droit au bail', accounts: ['2815', '2816'], side: 'SC' },
-    { label: 'Autres immobilisations incorporelles', accounts: ['2817', '2818'], side: 'SD' },
+    { label: 'Autres immobilisations incorporelles', accounts: ['2817', '2818'], side: 'SC' },
     { label: 'Terrains hors immeuble de placement', accounts: ['282'], side: 'SC' },
     { label: 'Bâtiments hors immeuble de placement', accounts: ['2831', '2832', '2837'], side: 'SC' },
     { label: 'Aménagements, agencements et installations', accounts: ['2833', '2834', '2835', '2838'], side: 'SC' },
     { label: 'Matériel, mobilier et actifs biologiques', accounts: ['2841', '2842', '2843', '2844', '2847', '2848'], side: 'SC' },
-    { label: 'Matériel de transport', accounts: ['2845'], side: 'SD' },
+    { label: 'Matériel de transport', accounts: ['2845'], side: 'SC' },
   ],
   '3D': [
     { label: 'S/T IMMOBILISATIONS INCORPORELLES', accounts: ['821'], side: 'SD' },
@@ -479,4 +479,37 @@ export function getMappingLine(noteCode: string, labelIncludes: string): Mapping
 
 export function getMappingLines(noteCode: string): MappingLine[] {
   return ACCOUNT_MAPPING[noteCode] || [];
+}
+
+/** Toutes les clés de notes couvertes par le mapping statique. */
+export function getAllMappingNoteCodes(): string[] {
+  return Object.keys(ACCOUNT_MAPPING);
+}
+
+/**
+ * Convertit un code de note du moteur statique ("3A", "4", "16A"...) vers
+ * la catégorie DSFConfig correspondante ("note3a", "note4", "note16a") —
+ * convention déjà utilisée par la page admin "Mapping comptable"
+ * (DSFConfigInterface.tsx, tableau CATEGORIES) et par les configs créées
+ * manuellement avant ce changement. À utiliser pour toute lecture/écriture
+ * DSFConfig depuis ce module — le code de note lui-même (sans préfixe)
+ * reste la clé utilisée par les appelants de dsf-generator.service.ts.
+ */
+export function noteCodeToCategory(noteCode: string): string {
+  return `note${noteCode.toLowerCase()}`;
+}
+
+/**
+ * Convertit une MappingLine statique en opérations signées au format
+ * `DSFComptableConfig.operations` ("+compteSOURCE"/"-compteSOURCE"), pour
+ * seeder les configurations par défaut en base. Les comptes inclus
+ * deviennent des additions, les comptes exclus des soustractions sur la
+ * même source — `sumOperations` (account-sum.util.ts) les fait s'annuler
+ * exactement comme `sumBySide` le fait aujourd'hui pour les exclusions.
+ */
+export function mappingLineToOperations(line: MappingLine): string[] {
+  return [
+    ...line.accounts.map((a) => `+${a}${line.side}`),
+    ...(line.excludedAccounts || []).map((a) => `-${a}${line.side}`),
+  ];
 }

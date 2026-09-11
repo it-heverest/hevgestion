@@ -53,6 +53,11 @@ export interface ConfigurationMapping {
         /** Cellule où écrire le total. */
         cell: string;
         /** Champs à sommer, un ou plusieurs (ex: total croisé de 3 sections). */
-        sumOf: Array<{ section: string; field: string }>;
+        sumOf: Array<{ section: string; field: string; onlyIds?: string[] }>;
+        /**
+         * Champs à soustraire du total ci-dessus (ex: "TOTAL NET DE
+         * DEPRECIATION" = somme(brut) - somme(dépréciations)).
+         */
+        subtractOf?: Array<{ section: string; field: string; onlyIds?: string[] }>;
     }>;
 }

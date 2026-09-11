@@ -1,8 +1,15 @@
 import { Response } from "express";
+import { AuditAction, EntityType } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { ResponseBuilder } from "../utils/response-builder";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { auditService } from "../services/audit.service";
+import {
+  getAllMappingNoteCodes,
+  getMappingLines,
+  mappingLineToOperations,
+  noteCodeToCategory,
+} from "../services/dsf/account-mapping.data";
 
 interface AuthenticatedRequest extends AuthRequest {}
 
@@ -90,16 +97,16 @@ export class DSFConfigController {
       );
 
       // Récupérer les configurations comptables
+      // Note: pas de relation `accountMappings` sur DSFConfig — les
+      // opérations vivent directement sur DSFComptableConfig.operations
+      // (voir schema.prisma). Un include imbriqué dessus fait planter
+      // Prisma (modèle inexistant), d'où le simple `config: true` ici.
       const comptableConfigs = await (
         prisma as any
       ).DSFComptableConfig.findMany({
         where: whereClause,
         include: {
-          config: {
-            include: {
-              accountMappings: true, // Include account mappings
-            },
-          },
+          config: true,
         },
         orderBy: [{ ownerType: "asc" }, { codeDsf: "asc" }],
       });
@@ -184,7 +191,8 @@ export class DSFConfigController {
         category,
         codeDsf,
         libelle,
-        accountMappings = [], // New structure: array of {accountNumber, source, destination}
+        operations = [], // ex: ["+20MD", "+30MC"] ou "+20MD,+30MC" — voir DSFComptableConfig.operations
+        destinationCell = null,
         clientId = null,
         exerciseId = null,
         ownerType = "SYSTEM",
@@ -197,7 +205,8 @@ export class DSFConfigController {
         category,
         codeDsf,
         libelle,
-        accountMappings,
+        operations,
+        destinationCell,
         clientId,
         exerciseId,
         ownerType,
@@ -254,33 +263,24 @@ export class DSFConfigController {
       const finalClientId = finalOwnerType === "SYSTEM" ? null : clientId;
       const finalExerciseId = finalOwnerType === "SYSTEM" ? null : exerciseId;
 
-      // Validation des account mappings
-      let finalAccountMappings: Array<{
-        accountNumber: string;
-        source: string;
-        destination: string;
-      }> = [];
+      // Normaliser les opérations — accepte un tableau ou une chaîne
+      // "+20MD,+30MC" (format validé côté front par dsfConfigValidators.ts:
+      // chaque op = signe + numéro de compte + source 2 lettres MD/MC/OD/OC/SD/SC).
+      const OPERATION_PATTERN = /^[+-]\d+[A-Z]{2}$/;
+      let finalOperations: string[] = [];
       try {
-        if (Array.isArray(accountMappings)) {
-          finalAccountMappings = accountMappings
-            .map((mapping: any) => ({
-              accountNumber: String(mapping.accountNumber).trim(),
-              source: String(mapping.source).trim(),
-              destination: String(mapping.destination).trim(),
-            }))
-            .filter(
-              (mapping) =>
-                mapping.accountNumber.length > 0 &&
-                mapping.source.length > 0 &&
-                mapping.destination.length > 0
-            );
-        }
-      } catch (mappingError) {
-        console.error("❌ Error processing account mappings:", mappingError);
-        finalAccountMappings = [];
+        const rawOps = Array.isArray(operations)
+          ? operations
+          : String(operations || "").split(",");
+        finalOperations = rawOps
+          .map((op: any) => String(op).trim())
+          .filter((op: string) => op.length > 0 && OPERATION_PATTERN.test(op));
+      } catch (opError) {
+        console.error("❌ Error processing operations:", opError);
+        finalOperations = [];
       }
 
-      console.log("✅ Account mappings processed:", finalAccountMappings);
+      console.log("✅ Operations processed:", finalOperations);
 
       // Chercher ou créer la DSFConfig de base
       console.log("🔍 Looking for base config with category:", cleanedCategory);
@@ -355,6 +355,8 @@ export class DSFConfigController {
         ownerType: finalOwnerType,
         codeDsf: cleanedCodeDsf,
         libelle: cleanedLibelle,
+        operations: finalOperations,
+        destinationCell: destinationCell ? String(destinationCell).trim() : null,
         scope,
         isActive,
         isLocked: finalOwnerType === "SYSTEM" ? true : isLocked,
@@ -385,23 +387,6 @@ export class DSFConfigController {
         comptableConfig.id
       );
 
-      // Create account mappings
-      if (finalAccountMappings.length > 0) {
-        const mappingPromises = finalAccountMappings.map((mapping) =>
-          (prisma as any).DSFAccountMapping.create({
-            data: {
-              configId: baseConfig.id,
-              accountNumber: mapping.accountNumber,
-              source: mapping.source,
-              destination: mapping.destination,
-              createdBy: userId,
-              updatedBy: userId,
-            },
-          })
-        );
-        await Promise.all(mappingPromises);
-      }
-
       // Log audit event
       await auditService.logDSFConfigCreated(
         userId,
@@ -409,7 +394,8 @@ export class DSFConfigController {
           category: baseConfig.category,
           codeDsf: cleanedCodeDsf,
           libelle: cleanedLibelle,
-          accountMappings: finalAccountMappings,
+          operations: finalOperations,
+          destinationCell: comptableConfigData.destinationCell,
           scope,
           ownerType: finalOwnerType,
           clientId: finalClientId,
@@ -523,46 +509,17 @@ export class DSFConfigController {
         updatedAt: new Date(),
       };
 
-      // Traiter les opérations si fournies
+      // Traiter les opérations si fournies — format "+20MD"/"-30MC" (signe +
+      // numéro de compte + source 2 lettres), validé côté front par
+      // dsfConfigValidators.ts.
       if (updates.operations !== undefined) {
-        if (Array.isArray(updates.operations)) {
-          updateData.operations = updates.operations
-            .map((op: string) => String(op).trim())
-            .filter((op: string) => op.length > 0);
-        } else if (typeof updates.operations === "string") {
-          updateData.operations = updates.operations
-            .split(",")
-            .map((op: string) => op.trim())
-            .filter((op: string) => op.length > 0);
-        }
-      }
-
-      // Handle accountMappings updates
-      if (updates.accountMappings !== undefined) {
-        if (Array.isArray(updates.accountMappings)) {
-          // Delete existing mappings
-          await (prisma as any).DSFAccountMapping.deleteMany({
-            where: { configId: existingConfig.configId },
-          });
-
-          // Create new mappings
-          if (updates.accountMappings.length > 0) {
-            const mappingPromises = updates.accountMappings.map(
-              (mapping: any) =>
-                (prisma as any).DSFAccountMapping.create({
-                  data: {
-                    configId: existingConfig.configId,
-                    accountNumber: String(mapping.accountNumber).trim(),
-                    source: String(mapping.source).trim(),
-                    destination: String(mapping.destination).trim(),
-                    createdBy: userId,
-                    updatedBy: userId,
-                  },
-                })
-            );
-            await Promise.all(mappingPromises);
-          }
-        }
+        const OPERATION_PATTERN = /^[+-]\d+[A-Z]{2}$/;
+        const rawOps = Array.isArray(updates.operations)
+          ? updates.operations
+          : String(updates.operations || "").split(",");
+        updateData.operations = rawOps
+          .map((op: string) => String(op).trim())
+          .filter((op: string) => op.length > 0 && OPERATION_PATTERN.test(op));
       }
 
       // Autres champs pouvant être mis à jour
@@ -877,19 +834,22 @@ export class DSFConfigController {
   /**
    * Create default configs with scope
    */
+  /**
+   * Seed/rafraîchit les configs SYSTEM (portée GLOBAL) depuis le moteur de
+   * mapping statique (ACCOUNT_MAPPING, account-mapping.data.ts) : une
+   * DSFComptableConfig par ligne de mapping, pour que "Mapping comptable"
+   * affiche les formules par défaut réelles de chaque note au lieu de rien.
+   * Idempotent (upsert sur la contrainte unique) — relancer ne duplique pas
+   * et met à jour le libellé/les opérations si le fichier statique a changé.
+   * `clientId`/`folderId` du body sont ignorés ici : les défauts sont
+   * globaux par nature (ce sont ceux du moteur statique, pas une surcharge
+   * par client — celles-ci se créent via createConfig avec ownerType
+   * ACCOUNTANT).
+   */
   async createDefaultConfigs(req: AuthenticatedRequest, res: Response) {
     try {
-      const { scope, clientId, folderId } = req.body;
-      const createdBy = req.user?.userId;
+      const userId = req.user?.userId;
       const userRole = req.user?.role;
-
-      console.log("🔍 Create default configs - Params:", {
-        scope,
-        clientId,
-        folderId,
-        createdBy,
-        userRole,
-      });
 
       // Seuls les admins peuvent créer des configs par défaut
       if (userRole !== "ADMIN") {
@@ -899,18 +859,86 @@ export class DSFConfigController {
           403
         );
       }
-
-      if (!scope) {
-        return ResponseBuilder.error(res, "Scope requis", 400);
+      if (!userId) {
+        return ResponseBuilder.error(res, "Utilisateur non authentifié", 401);
       }
 
-      // Logique simplifiée pour créer des configs par défaut
-      // Dans une implémentation réelle, vous auriez des templates prédéfinis
+      let categoriesSeeded = 0;
+      let linesUpserted = 0;
+
+      for (const noteCode of getAllMappingNoteCodes()) {
+        const lines = getMappingLines(noteCode);
+        if (lines.length === 0) continue;
+
+        const category = noteCodeToCategory(noteCode);
+        const dsfConfig = await (prisma as any).DSFConfig.upsert({
+          where: { category },
+          update: {},
+          create: { category },
+        });
+        categoriesSeeded++;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const codeDsf = `${noteCode}.${i}`;
+          const operations = mappingLineToOperations(line);
+
+          // Prisma (5.22) refuse `null` dans un sélecteur `where` de clé
+          // composite pour upsert ("Argument clientId must not be null") —
+          // findFirst + create/update séparés contourne la limite, `null`
+          // y est parfaitement supporté.
+          const existing = await (prisma as any).DSFComptableConfig.findFirst({
+            where: {
+              configId: dsfConfig.id,
+              ownerId: userId,
+              ownerType: "SYSTEM",
+              codeDsf,
+              scope: "GLOBAL",
+              clientId: null,
+              exerciseId: null,
+            },
+            select: { id: true },
+          });
+
+          if (existing) {
+            await (prisma as any).DSFComptableConfig.update({
+              where: { id: existing.id },
+              data: { libelle: line.label, operations },
+            });
+          } else {
+            await (prisma as any).DSFComptableConfig.create({
+              data: {
+                configId: dsfConfig.id,
+                ownerId: userId,
+                ownerType: "SYSTEM",
+                codeDsf,
+                libelle: line.label,
+                operations,
+                destinationCell: null,
+                scope: "GLOBAL",
+                clientId: null,
+                exerciseId: null,
+                isActive: true,
+                isLocked: true,
+              },
+            });
+          }
+          linesUpserted++;
+        }
+      }
+
+      await auditService.logAction({
+        userId,
+        action: AuditAction.DSF_CONFIG_CREATED,
+        entityType: EntityType.DSF_CONFIG,
+        description: `Seed des mappings par défaut: ${categoriesSeeded} catégorie(s), ${linesUpserted} ligne(s)`,
+        newValue: { categoriesSeeded, linesUpserted },
+      });
 
       return ResponseBuilder.success(
         res,
-        { success: true, message: "Fonctionnalité à implémenter" },
-        "Création de configurations par défaut à implémenter"
+        { categoriesSeeded, linesUpserted },
+        `Mappings par défaut créés/mis à jour pour ${categoriesSeeded} catégorie(s), ${linesUpserted} ligne(s).`
       );
     } catch (error) {
       console.error("❌ Error creating default configs:", error);

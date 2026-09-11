@@ -127,8 +127,13 @@ import {
   Note32,
   Note33,
   Note34,
+  SectionDividerII,
+  SectionDividerIII,
+  Entete,
+  FicheR1,
   FicheR2,
   FicheR3,
+  InformationsGenerales,
   PageDeGarde,
   Sommaire,
   BilanPaysage,
@@ -243,13 +248,13 @@ const NOTE_NUMBER_DISPLAY_OVERRIDES: Record<string, string> = {
   "C1/28": "C1 NOTE 28",
   "C2/28": "C2 NOTE 28",
   "flux-tresorerie": "TABLEAU FLUX TRESORERIE",
-  "cf1": "CF1",
-  "cf1bis": "CF1 BIS",
-  "cf1ter": "CF1 TER",
-  "cf1quater": "CF1 QUATER",
-  "cf2": "CF2",
-  "cf2bis": "CF2 BIS",
-  "cf2ter": "CF2 TER",
+  cf1: "CF1",
+  cf1bis: "CF1 BIS",
+  cf1ter: "CF1 TER",
+  cf1quater: "CF1 QUATER",
+  cf2: "CF2",
+  cf2bis: "CF2 BIS",
+  cf2ter: "CF2 TER",
   "bilan-paysage": "BILAN PAYSAGE",
   "grille-analyse-notes": "GRILLE ANALYSE NOTES",
   R2: "FICHE R2",
@@ -528,7 +533,7 @@ export function ProtectedLayout({
                 <BarChart3 className="h-4 w-4 text-white" />
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-white leading-tight tracking-tight">
+                <p className="text-[13px] font-semibold text-white leading-tight tracking-tight">
                   HevGestion
                 </p>
                 <p className="text-[10px] tracking-widest text-sidebar-foreground/60 uppercase leading-tight">
@@ -1021,12 +1026,32 @@ function AppRoutes() {
               element={<Note34 />}
             />
             <Route
+              path="reports/:userId/reports/rapport/section-ii"
+              element={<SectionDividerII />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/section-iii"
+              element={<SectionDividerIII />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/entete"
+              element={<Entete />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/ficher1"
+              element={<FicheR1 />}
+            />
+            <Route
               path="reports/:userId/reports/rapport/ficher2"
               element={<FicheR2 />}
             />
             <Route
               path="reports/:userId/reports/rapport/ficher3"
               element={<FicheR3 />}
+            />
+            <Route
+              path="reports/:userId/reports/rapport/informationsgenerales"
+              element={<InformationsGenerales />}
             />
             <Route
               path="reports/:userId/reports/rapport/pagedegarde"
@@ -1407,10 +1432,7 @@ function AppRoutes() {
               path="settings/:userId/:actionId?"
               element={<SimpleSettings />}
             />
-            <Route
-              path="trash/:userId/:actionId?"
-              element={<TrashManager />}
-            />
+            <Route path="trash/:userId/:actionId?" element={<TrashManager />} />
             <Route
               path="televersion/:userId/:actionId?"
               element={

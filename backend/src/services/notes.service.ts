@@ -69,6 +69,10 @@ const NOTE_NUMBER_TO_FIELD: Record<string, string> = {
   "cf2ter": "cf2_ter",
   "bilan-paysage": "bilan_paysage",
   "grille-analyse-notes": "grille_analyse_des_notes",
+  entete: "entete",
+  sommaire: "sommaire",
+  "page-de-garde": "page_de_garde",
+  "informations-generales": "informations_generales",
   // Fiches d'identification du régime normal. La DSF officielle en compte
   // exactement trois (onglets « Fiche R1 », « Fiche R2 », « Fiche R3 »): les
   // colonnes fiche1/fiche2/fiche3 du modèle DSF, jusque-là jamais écrites,

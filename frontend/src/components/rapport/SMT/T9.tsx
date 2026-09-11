@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const T9: React.FC = () => {
@@ -404,7 +404,7 @@ const T9: React.FC = () => {
                     </td>
                   ))}
                   <td className="border border-gray-600 p-2 text-right font-medium">
-                    {calculateTotalForRow(index).toLocaleString("fr-FR")}
+                    {calculateTotalForRow(index).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                   </td>
                 </tr>
               ))}
@@ -416,13 +416,13 @@ const T9: React.FC = () => {
                 </td>
                 <td className="border border-gray-600 p-2 text-center">13</td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {calculateTotal("precomptesAchats").toLocaleString("fr-FR")}
+                  {calculateTotal("precomptesAchats").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {calculateTotal("principal").toLocaleString("fr-FR")}
+                  {calculateTotal("principal").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {calculateTotal("ccx").toLocaleString("fr-FR")}
+                  {calculateTotal("ccx").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
                   {calculateTotal("retenuesCASubsidies").toLocaleString(
@@ -430,10 +430,10 @@ const T9: React.FC = () => {
                   )}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {calculateTotal("autresPrelevements").toLocaleString("fr-FR")}
+                  {calculateTotal("autresPrelevements").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-extrabold">
-                  {calculateGrandTotal().toLocaleString("fr-FR")}
+                  {calculateGrandTotal().toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             </tbody>

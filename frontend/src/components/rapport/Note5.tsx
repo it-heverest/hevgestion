@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Types et Interfaces ---
 
@@ -30,6 +33,7 @@ const Note5: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // État pour l'en-tête (Standardized)
   const [entete, setEntete] = useState<HeaderData>({
@@ -98,37 +102,29 @@ const Note5: React.FC = () => {
     }
   }, [folderId]);
 
-  const fromBackendRows = (
-    backendRows: any[],
-    defaultRows: RowData[],
-  ): RowData[] => {
-    if (!backendRows || backendRows.length === 0) return defaultRows;
-    return backendRows.map((r: any, i: number) => ({
-      id: String(i + 1),
-      label: r.libelle || defaultRows[i]?.label || "",
-      yearN: String(r.anneeN ?? ""),
-      yearN1: String(r.anneeN1 ?? ""),
-      isTotal: defaultRows[i]?.isTotal,
-    }));
-  };
-
-  // Legacy save format (pre-mapping): rows saved as-is, possibly with numeric
-  // yearN/yearN1 — coerce so calculateVariation's .replace() never crashes.
+  // generateNote5 (backend) construit `assetsData`/`actifCirculantHAO` (même
+  // données, buildNoteRows) et `liabilitiesData`/`dettesHAO` — toujours avec
+  // les clés yearN/yearN1, jamais anneeN/anneeN1 malgré les noms de champs à
+  // consonance française. `actifCirculantHAO`/`dettesHAO` sont toujours
+  // présents dans une note fraîchement générée: les préférer sans passer par
+  // un parseur anneeN qui ne correspondrait à aucune donnée réelle.
   const coerceRows = (rows: any[] | undefined, defaultRows: RowData[]): RowData[] =>
     !rows || rows.length === 0
       ? defaultRows
-      : rows.map((r) => ({
-          ...r,
+      : rows.map((r, i) => ({
+          id: r.id ?? String(i + 1),
+          label: r.label ?? defaultRows[i]?.label ?? "",
           yearN: r.yearN != null ? String(r.yearN) : "",
           yearN1: r.yearN1 != null ? String(r.yearN1) : "",
+          isTotal: defaultRows[i]?.isTotal,
         }));
 
   const toBackendRows = (rows: RowData[]) =>
     rows.map((r) => ({
-      libelle: r.label,
-      anneeN: parseFloat(r.yearN) || null,
-      anneeN1: parseFloat(r.yearN1) || null,
-      variationPourcentage: null,
+      id: r.id,
+      label: r.label,
+      yearN: parseFloat(r.yearN) || 0,
+      yearN1: parseFloat(r.yearN1) || 0,
     }));
 
   const loadNoteData = async () => {
@@ -139,14 +135,10 @@ const Note5: React.FC = () => {
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
         setAssetsData(
-          noteData.actifCirculantHAO
-            ? fromBackendRows(noteData.actifCirculantHAO, assetsData)
-            : coerceRows(noteData.assetsData, assetsData),
+          coerceRows(noteData.assetsData ?? noteData.actifCirculantHAO, assetsData),
         );
         setLiabilitiesData(
-          noteData.dettesHAO
-            ? fromBackendRows(noteData.dettesHAO, liabilitiesData)
-            : coerceRows(noteData.liabilitiesData, liabilitiesData),
+          coerceRows(noteData.liabilitiesData ?? noteData.dettesHAO, liabilitiesData),
         );
         setComment(noteData.comment || "");
       }
@@ -163,7 +155,9 @@ const Note5: React.FC = () => {
       setIsSaving(true);
       const noteData = {
         entete,
+        assetsData: toBackendRows(assetsData),
         actifCirculantHAO: toBackendRows(assetsData),
+        liabilitiesData: toBackendRows(liabilitiesData),
         dettesHAO: toBackendRows(liabilitiesData),
         comment,
       };
@@ -196,6 +190,25 @@ const Note5: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -221,16 +234,28 @@ const Note5: React.FC = () => {
   const renderEditableCell = (
     value: string,
     onChange: (val: string) => void,
+    formulaKey: string,
+    label: string,
     className: string = "",
   ) => {
-    return isEditing ? (
+    return isEditing && !hasFormula(formulaKey) ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
     ) : (
-      <span className="px-1">{value || ""}</span>
+      <FormulaValue formulaKey={formulaKey} label={label}>
+        <span className="px-1">
+          {value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+        </span>
+      </FormulaValue>
     );
   };
 
@@ -241,7 +266,7 @@ const Note5: React.FC = () => {
       typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
-    return variation.toFixed(2) + "%";
+    return variation.toFixed(0) + "%";
   };
 
   const isHeaderIncomplete =
@@ -277,44 +302,48 @@ const Note5: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -470,11 +499,15 @@ const Note5: React.FC = () => {
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN, (val) =>
                     handleInputChange(row.id, "yearN", val, true),
+                    `note5.assetsData.${row.id}`,
+                    row.label,
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN1, (val) =>
                     handleInputChange(row.id, "yearN1", val, true),
+                    `note5.assetsData.${row.id}`,
+                    row.label,
                   )}
                 </td>
                 <td className="border border-gray-600 p-2 text-center bg-gray-50">
@@ -537,11 +570,15 @@ const Note5: React.FC = () => {
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN, (val) =>
                     handleInputChange(row.id, "yearN", val, false),
+                    `note5.liabilitiesData.${row.id}`,
+                    row.label,
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
                   {renderEditableCell(row.yearN1, (val) =>
                     handleInputChange(row.id, "yearN1", val, false),
+                    `note5.liabilitiesData.${row.id}`,
+                    row.label,
                   )}
                 </td>
                 <td className="border border-gray-600 p-2 text-center bg-gray-50">

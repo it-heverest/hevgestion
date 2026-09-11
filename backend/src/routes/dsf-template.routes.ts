@@ -15,6 +15,8 @@ import { dsfFillerService } from "../services/dsf-filler.service";
 import { NotesService } from "../services/notes.service";
 import { prisma } from "../lib/prisma";
 import { userHasFolderAccess } from "../utils/folder-access";
+import { NOTE_EXPORT_MAP } from "../services/excel/export-map";
+import { extractSingleSheet } from "../services/excel/xlsx-patcher";
 
 const notesService = new NotesService();
 
@@ -324,6 +326,71 @@ router.get(
             return res.send(buffer);
         } catch (error: any) {
             console.error("Error exporting DSF template:", error);
+            return res
+                .status(500)
+                .json({ success: false, message: error.message || "Erreur interne" });
+        }
+    }
+);
+
+// GET /api/dsf-template/export-sheet/:folderId/:noteCode — Export a SINGLE
+// sheet of the filled Excel template (e.g. just "NOTE 17"), not the whole
+// workbook. `noteCode` is the same identifier the note pages already use
+// (notesService.getNoteData(folderId, noteCode)) — see NOTE_EXPORT_MAP for
+// the note-code -> sheet-name table and which notes are covered.
+router.get(
+    "/export-sheet/:folderId/:noteCode",
+    authenticate,
+    async (req: Request, res: Response) => {
+        try {
+            const userId = (req as any).user?.userId;
+            if (!userId) {
+                return res.status(401).json({ success: false, message: "Non authentifié" });
+            }
+
+            const { folderId, noteCode } = req.params;
+            if (!folderId) {
+                return res.status(400).json({ success: false, message: "folderId requis" });
+            }
+            if (!(await userHasFolderAccess(userId, folderId, (req as any).user?.role))) {
+                return res.status(403).json({ success: false, message: "Accès refusé à ce dossier" });
+            }
+
+            const entry = NOTE_EXPORT_MAP[noteCode];
+            if (!entry) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Export "une seule feuille" non disponible pour la note "${noteCode}" (pas de correspondance d'onglet dans le template).`,
+                });
+            }
+
+            const folder = await getFolderInfo(folderId);
+            if (!folder) {
+                return res.status(404).json({ success: false, message: "Dossier non trouvé" });
+            }
+
+            const clientName = folder.client?.name || "Client";
+            const { buffer: fullBuffer } = await dsfFillerService.fillTemplate(
+                folderId,
+                clientName,
+                [folder.ownerId, userId]
+            );
+
+            const sheetBuffer = await extractSingleSheet(fullBuffer, entry.sheetName);
+
+            const sanitizedName = clientName.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+            const sanitizedSheet = entry.sheetName.trim().replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_");
+            const fileName = `${sanitizedSheet}_${sanitizedName}.xlsx`;
+
+            res.setHeader(
+                "Content-Type",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            );
+            res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+            return res.send(sheetBuffer);
+        } catch (error: any) {
+            console.error("Error exporting single sheet:", error);
             return res
                 .status(500)
                 .json({ success: false, message: error.message || "Erreur interne" });

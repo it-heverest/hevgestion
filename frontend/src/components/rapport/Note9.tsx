@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Types et Interfaces ---
 
@@ -34,6 +37,7 @@ const Note9: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // État pour l'en-tête
   const [entete, setEntete] = useState<HeaderData>({
@@ -75,30 +79,26 @@ const Note9: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "9") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Map backend keys → frontend state
-        if (noteData.titresPlacement) {
+        // generateNote9 (backend) renvoie `titresPlacement`/`rows` (mêmes
+        // données, buildNoteRows) avec les clés yearN/yearN1 — pas anneeN.
+        const titres = noteData.titresPlacement ?? noteData.rows;
+        if (Array.isArray(titres) && titres.length > 0) {
           setRows(
-            noteData.titresPlacement.map((r: any, i: number) => ({
+            titres.map((r: any, i: number) => ({
               id: String(i + 1),
-              label: r.libelle || rows[i]?.label || "",
-              yearN: String(r.anneeN ?? ""),
-              yearN1: String(r.anneeN1 ?? ""),
+              label: r.label ?? rows[i]?.label ?? "",
+              yearN: r.yearN != null ? String(r.yearN) : "",
+              yearN1: r.yearN1 != null ? String(r.yearN1) : "",
             }))
           );
-        } else if (noteData.rows) {
-          setRows(noteData.rows);
         }
-        if (noteData.depreciations)
-          setDepreciations({
-            yearN:
-              noteData.depreciations.yearN != null
-                ? String(noteData.depreciations.yearN)
-                : "",
-            yearN1:
-              noteData.depreciations.yearN1 != null
-                ? String(noteData.depreciations.yearN1)
-                : "",
-          });
+        // `depreciations` est un tableau d'une ligne (buildNoteRows), pas un
+        // objet scalaire — la valeur est dans depreciations[0].
+        const depRow = Array.isArray(noteData.depreciations) ? noteData.depreciations[0] : undefined;
+        setDepreciations({
+          yearN: depRow?.yearN != null ? String(depRow.yearN) : "",
+          yearN1: depRow?.yearN1 != null ? String(depRow.yearN1) : "",
+        });
         setComment(noteData.comment || "");
       }
     } catch (error) {
@@ -112,15 +112,27 @@ const Note9: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Mêmes clés qu'à la génération (buildNoteRows: id/label/yearN/yearN1),
+      // pour que loadNoteData relise correctement ce qui vient d'être
+      // sauvegardé.
+      const titres = rows.map((r) => ({
+        id: r.id,
+        label: r.label,
+        yearN: parseFloat(r.yearN) || 0,
+        yearN1: parseFloat(r.yearN1) || 0,
+      }));
       const noteData = {
         entete,
-        titresPlacement: rows.map((r) => ({
-          libelle: r.label,
-          anneeN: parseFloat(r.yearN) || null,
-          anneeN1: parseFloat(r.yearN1) || null,
-          variationPourcentage: null,
-        })),
+        rows: titres,
+        titresPlacement: titres,
+        depreciations: [
+          {
+            id: "1",
+            label: "Dépréciations",
+            yearN: parseFloat(depreciations.yearN) || 0,
+            yearN1: parseFloat(depreciations.yearN1) || 0,
+          },
+        ],
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "9", noteData as any);
@@ -140,6 +152,25 @@ const Note9: React.FC = () => {
     setRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+  };
+
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -167,16 +198,34 @@ const Note9: React.FC = () => {
   const renderEditableCell = (
     value: string,
     onChange: (val: string) => void,
-    className: string = ""
+    className: string = "",
+    formulaKey?: string,
+    label?: string
   ) => {
-    return isEditing ? (
+    const display = (
+      <span className="px-1">
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+
+    return isEditing && !(formulaKey && hasFormula(formulaKey)) ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
+    ) : formulaKey && hasFormula(formulaKey) ? (
+      <FormulaValue formulaKey={formulaKey} label={label || ""}>
+        {display}
+      </FormulaValue>
     ) : (
-      <span className="px-1">{value || ""}</span>
+      display
     );
   };
 
@@ -189,7 +238,7 @@ const Note9: React.FC = () => {
     const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
-    return variation.toFixed(2) + "%";
+    return variation.toFixed(0) + "%";
   };
 
   const totalBrut = useMemo(() => calculateTotal(rows, "yearN"), [rows]);
@@ -225,37 +274,48 @@ const Note9: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                Sauvegarder
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -281,7 +341,9 @@ const Note9: React.FC = () => {
 
         {/* Numéro de page */}
         <div className="flex justify-center mb-4">
-          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">22</span>
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            22
+          </span>
         </div>
 
         {/* En-tête */}
@@ -356,10 +418,10 @@ const Note9: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleRowChange(row.id, "yearN", val))}
+                  {renderEditableCell(row.yearN, (val) => handleRowChange(row.id, "yearN", val), "", `note9.rows.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleRowChange(row.id, "yearN1", val))}
+                  {renderEditableCell(row.yearN1, (val) => handleRowChange(row.id, "yearN1", val), "", `note9.rows.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-1 text-center bg-gray-50 font-bold">
                   {calculateVariation(row.yearN, row.yearN1)}
@@ -370,8 +432,8 @@ const Note9: React.FC = () => {
             {/* TOTAL BRUT */}
             <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL BRUT TITRES</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalBrut, totalN1)}
               </td>
@@ -381,10 +443,10 @@ const Note9: React.FC = () => {
             <tr>
               <td className="border border-gray-600 p-2 text-blue-700 italic">Dépréciations des titres</td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(depreciations.yearN, (val) => setDepreciations({ ...depreciations, yearN: val }))}
+                {renderEditableCell(depreciations.yearN, (val) => setDepreciations({ ...depreciations, yearN: val }), "", "note9.depreciations.1", "Dépréciations des titres")}
               </td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(depreciations.yearN1, (val) => setDepreciations({ ...depreciations, yearN1: val }))}
+                {renderEditableCell(depreciations.yearN1, (val) => setDepreciations({ ...depreciations, yearN1: val }), "", "note9.depreciations.1", "Dépréciations des titres")}
               </td>
               <td className="border border-gray-600"></td>
             </tr>
@@ -397,8 +459,8 @@ const Note9: React.FC = () => {
             {/* TOTAL NET */}
             <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNetN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNetN1.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalNet, totalNetN1)}
               </td>

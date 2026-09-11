@@ -20,9 +20,6 @@ export interface DSFConfig {
   category: string;
   createdAt: string;
   updatedAt: string;
-  config?: {
-    accountMappings: any[];
-  };
 }
 
 export interface DSFConfigFilters {
@@ -191,6 +188,26 @@ class DSFConfigService {
       }
     } catch (error) {
       console.error("Error duplicating DSF config:", error);
+      throw error;
+    }
+  }
+
+  /** Seed/rafraîchit les configs SYSTEM depuis le moteur de mapping
+   * statique (ADMIN only) — voir POST /api/dsf-configs/create-defaults. */
+  async createDefaultConfigs(): Promise<{ categoriesSeeded: number; linesUpserted: number }> {
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/create-defaults`,
+        { scope: "GLOBAL" },
+        { withCredentials: true }
+      );
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || "Failed to create default configs");
+      }
+    } catch (error) {
+      console.error("Error creating default DSF configs:", error);
       throw error;
     }
   }

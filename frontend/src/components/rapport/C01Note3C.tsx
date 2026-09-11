@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useApp } from "../../contexts/AppContext";
 import { notesService } from "../../services/notes.service";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces ---
 
@@ -168,16 +169,34 @@ const C01Note3C: React.FC = () => {
   };
 
   // Handler PDF (réutilisation du code précédent)
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
       setIsEditing(false);
 
       setTimeout(async () => {
-        // Le tableau est petit, on peut rester en portrait
         const canvas = await html2canvas(reportRef.current!, { scale: 2 });
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
+        const pdf = new jsPDF("l", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -199,7 +218,7 @@ const C01Note3C: React.FC = () => {
 
     // Champs numériques éditables
     return (
-      <td className={`border border-gray-400 p-1 text-right`}>
+      <td className="border border-gray-400 p-1 text-right w-[20%]">
         {isEditing ? (
           <input
             type="number"
@@ -209,7 +228,7 @@ const C01Note3C: React.FC = () => {
             className="w-full text-right bg-orange-50 px-1 focus:outline-none"
           />
         ) : (
-          value.toLocaleString("fr-FR")
+          value.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
     );
@@ -224,13 +243,13 @@ const C01Note3C: React.FC = () => {
 
     return (
       <tr key={row.id}>
-        <td className="border border-gray-400 p-1 pl-2 w-[25%]">
+        <td className="border border-gray-400 p-1 pl-2 w-[20%]">
           {row.label}
         </td>
         {fields.map((field) => renderDataCell(row, field))}
         {/* Colonne Total Calculée */}
-        <td className="border border-gray-400 p-1 text-right font-bold bg-gray-100 w-[25%]">
-          {calculateTotalClosing(row).toLocaleString("fr-FR")}
+        <td className="border border-gray-400 p-1 text-right w-[20%]">
+          {calculateTotalClosing(row).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
         </td>
       </tr>
     );
@@ -239,7 +258,7 @@ const C01Note3C: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'outils */}
-      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-600" />
           C01/NOTE 3C - Amortissements Différés
@@ -254,37 +273,32 @@ const C01Note3C: React.FC = () => {
               }
             }}
             disabled={isSaving || isLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-orange-600 hover:bg-orange-700"
-              } ${(isSaving || isLoading) ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-              </>
-            ) : isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving || isLoading ? "animate-pulse" : ""} /> : <Pencil size={18} />}
+          </button>
+          <button
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
           </button>
           <button
             onClick={handleDownloadPDF}
             disabled={isSaving || isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition disabled:opacity-50"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
 
       {isLoading && (
-        <div className="max-w-[210mm] mx-auto mb-6 bg-orange-50 p-4 rounded border border-orange-200 text-orange-700 flex items-center gap-2">
+        <div className="max-w-[297mm] mx-auto mb-6 bg-orange-50 p-4 rounded border border-orange-200 text-orange-700 flex items-center gap-2">
           <RefreshCw className="w-4 h-4 animate-spin" />
           Chargement des données...
         </div>
@@ -293,10 +307,15 @@ const C01Note3C: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className="max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
+        className="max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* En-tête */}
-        <div className="text-center font-bold text-lg mb-2">13</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            13
+          </span>
+        </div>
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1">
           <div className="flex gap-2 items-end">
             <span className="font-bold whitespace-nowrap">
@@ -382,7 +401,7 @@ const C01Note3C: React.FC = () => {
         </div>
 
         {/* Titre répété, en clair (comme dans le vrai template) */}
-        <div className="text-center font-bold text-sm mb-3">
+        <div className="border border-gray-400 text-center font-bold text-sm py-1 mb-3">
           TABLEAU DE SUIVI DES AMORTISSEMENTS DEDUCTIBLES REPUTES DIFFERES EN
           PERIODE DEFICITAIRE
         </div>
@@ -391,20 +410,20 @@ const C01Note3C: React.FC = () => {
         <table className="w-full border-collapse border border-gray-400 text-[10px] table-fixed">
           <thead>
             <tr className="bg-gray-300 font-bold">
-              <th rowSpan={2} className="border border-gray-400 p-2 w-[25%]">
+              <th rowSpan={2} className="border border-gray-400 p-2 w-[20%]">
                 Rubriques
               </th>
-              <th className="border border-gray-400 p-1 w-[25%]">
+              <th className="border border-gray-400 p-1 w-[20%]">
                 Report des amortissements antérieurement différés à l'ouverture
               </th>
-              <th className="border border-gray-400 p-1 w-[25%]">
+              <th className="border border-gray-400 p-1 w-[20%]">
                 Amortissements différés de l'exercice
               </th>
-              <th className="border border-gray-400 p-1 w-[25%]">
+              <th className="border border-gray-400 p-1 w-[20%]">
                 Imputation sur l'exercice d'amortissements antérieurement
                 différés
               </th>
-              <th className="border border-gray-400 p-1 w-[25%]">
+              <th className="border border-gray-400 p-1 w-[20%]">
                 Total du report des amortissements antérieurement différés non
                 imputés
               </th>
@@ -419,16 +438,16 @@ const C01Note3C: React.FC = () => {
                 TOTAL
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalReportOpening.toLocaleString("fr-FR")}
+                {totalReportOpening.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalDeferredAmortization.toLocaleString("fr-FR")}
+                {totalDeferredAmortization.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalImputation.toLocaleString("fr-FR")}
+                {totalImputation.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-2 text-right">
-                {totalClosing.toLocaleString("fr-FR")}
+                {totalClosing.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
             </tr>
           </tbody>

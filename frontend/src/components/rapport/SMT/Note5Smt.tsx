@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, Plus, Trash2, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface CreanceImpItem {
@@ -323,7 +323,7 @@ const Note5Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montant).toLocaleString("fr-FR")
+                      Number(item.montant).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-center">
@@ -344,7 +344,7 @@ const Note5Smt: React.FC = () => {
                     <td className="border border-gray-600 p-2 text-center">
                       <button
                         onClick={() => removeRow(item.id)}
-                        className="delete-btn text-red-600 hover:text-red-800"
+                        className="delete-btn text-red-600 hover:text-gray-700"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -362,7 +362,7 @@ const Note5Smt: React.FC = () => {
                   TOTAL
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal().toLocaleString("fr-FR")}
+                  {calculateTotal().toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-center"></td>
                 {isEditing && <td className="border border-gray-600 p-2"></td>}

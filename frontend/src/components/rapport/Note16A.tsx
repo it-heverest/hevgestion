@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces ---
 interface DebtRow {
@@ -31,6 +34,7 @@ const Note16A: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -391,7 +395,7 @@ const Note16A: React.FC = () => {
   const variationPercent =
     totalYearN1 === 0
       ? "-"
-      : (((totalYearN - totalYearN1) / totalYearN1) * 100).toFixed(2) + "%";
+      : (((totalYearN - totalYearN1) / totalYearN1) * 100).toFixed(0) + "%";
 
   // Handler
   const handleChange = (id: string, field: keyof DebtRow, value: string) => {
@@ -400,6 +404,25 @@ const Note16A: React.FC = () => {
         row.id === id ? { ...row, [field]: Number(value) || 0 } : row
       )
     );
+  };
+
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
   };
 
   const downloadPDF = async () => {
@@ -419,11 +442,27 @@ const Note16A: React.FC = () => {
     }
   };
 
-  const renderRow = (row: DebtRow, bgClass = "") => (
-    <tr key={row.id} className={bgClass}>
-      <td className="border border-gray-400 p-1 pl-2 text-left">{row.label}</td>
+  // Cellules "non applicable" (échéancier de dette) pour les lignes de
+  // provisions — hachures diagonales comme dans le modèle Excel, sans saisie.
+  const hatchStyle: React.CSSProperties = {
+    backgroundImage:
+      "repeating-linear-gradient(135deg, #9ca3af 0, #9ca3af 1px, transparent 1px, transparent 8px)",
+  };
+  const renderHatchedCell = (key: string) => (
+    <td key={key} className="border border-gray-400 p-1" style={hatchStyle} />
+  );
+
+  const renderRow = (row: DebtRow, isProvision = false) => (
+    <tr key={row.id}>
+      <td
+        className={`border border-gray-400 p-1 pl-2 text-left ${
+          row.id === "16" ? "text-red-600" : ""
+        }`}
+      >
+        {row.label}
+      </td>
       <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
+        {isEditing && !hasFormula(`note16a.rows.${row.id}`) ? (
           <input
             type="number"
             value={row.yearN}
@@ -431,11 +470,13 @@ const Note16A: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note16a.rows.${row.id}`} label={String(row.label)}>
+            {row.yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
+        {isEditing && !hasFormula(`note16a.rows.${row.id}`) ? (
           <input
             type="number"
             value={row.yearN1}
@@ -443,84 +484,117 @@ const Note16A: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN1.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note16a.rows.${row.id}`} label={String(row.label)}>
+            {row.yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {(((row.yearN - row.yearN1) / (row.yearN1 || 1)) * 100).toFixed(2)}%
+        {(((row.yearN - row.yearN1) / (row.yearN1 || 1)) * 100).toFixed(0)}%
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {(row.yearN - row.yearN1).toLocaleString("fr-FR")}
+        {(row.yearN - row.yearN1).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.lessThan1Year}
-            onChange={(e) =>
-              handleChange(row.id, "lessThan1Year", e.target.value)
-            }
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.lessThan1Year.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.oneToFiveYears}
-            onChange={(e) =>
-              handleChange(row.id, "oneToFiveYears", e.target.value)
-            }
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.oneToFiveYears.toLocaleString("fr-FR")
-        )}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
-          <input
-            type="number"
-            value={row.moreThanFiveYears}
-            onChange={(e) =>
-              handleChange(row.id, "moreThanFiveYears", e.target.value)
-            }
-            className="w-full text-right bg-orange-50"
-          />
-        ) : (
-          row.moreThanFiveYears.toLocaleString("fr-FR")
-        )}
-      </td>
+      {isProvision ? (
+        <>
+          {renderHatchedCell("h1")}
+          {renderHatchedCell("h2")}
+          {renderHatchedCell("h3")}
+        </>
+      ) : (
+        <>
+          <td className="border border-gray-400 p-1 text-right">
+            {isEditing ? (
+              <input
+                type="number"
+                value={row.lessThan1Year}
+                onChange={(e) =>
+                  handleChange(row.id, "lessThan1Year", e.target.value)
+                }
+                className="w-full text-right bg-orange-50"
+              />
+            ) : (
+              row.lessThan1Year.toLocaleString("fr-FR").replace(/\u202F/g, " ")
+            )}
+          </td>
+          <td className="border border-gray-400 p-1 text-right">
+            {isEditing ? (
+              <input
+                type="number"
+                value={row.oneToFiveYears}
+                onChange={(e) =>
+                  handleChange(row.id, "oneToFiveYears", e.target.value)
+                }
+                className="w-full text-right bg-orange-50"
+              />
+            ) : (
+              row.oneToFiveYears.toLocaleString("fr-FR").replace(/\u202F/g, " ")
+            )}
+          </td>
+          <td className="border border-gray-400 p-1 text-right">
+            {isEditing ? (
+              <input
+                type="number"
+                value={row.moreThanFiveYears}
+                onChange={(e) =>
+                  handleChange(row.id, "moreThanFiveYears", e.target.value)
+                }
+                className="w-full text-right bg-orange-50"
+              />
+            ) : (
+              row.moreThanFiveYears.toLocaleString("fr-FR").replace(/\u202F/g, " ")
+            )}
+          </td>
+        </>
+      )}
     </tr>
   );
 
-  const renderTotal = (label: string, sum: any, bgClass: string) => (
+  const renderSpacerRow = (key: string) => (
+    <tr key={key}>
+      <td colSpan={8} className="p-1 border-0">&nbsp;</td>
+    </tr>
+  );
+
+  const renderTotal = (
+    label: string,
+    sum: any,
+    bgClass: string,
+    isProvision = false,
+  ) => (
     <tr className={bgClass + " font-bold"}>
       <td className="border border-gray-400 p-1 pl-2">{label}</td>
       <td className="border border-gray-400 p-1 text-right">
-        {sum.yearN.toLocaleString("fr-FR")}
+        {sum.yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {sum.yearN1.toLocaleString("fr-FR")}
+        {sum.yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {(((sum.yearN - sum.yearN1) / (sum.yearN1 || 1)) * 100).toFixed(2)}%
+        {(((sum.yearN - sum.yearN1) / (sum.yearN1 || 1)) * 100).toFixed(0)}%
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {(sum.yearN - sum.yearN1).toLocaleString("fr-FR")}
+        {(sum.yearN - sum.yearN1).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {sum.lessThan1Year.toLocaleString("fr-FR")}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {sum.oneToFiveYears.toLocaleString("fr-FR")}
-      </td>
-      <td className="border border-gray-400 p-1 text-right">
-        {sum.moreThanFiveYears.toLocaleString("fr-FR")}
-      </td>
+      {isProvision ? (
+        <>
+          {renderHatchedCell("th1")}
+          {renderHatchedCell("th2")}
+          {renderHatchedCell("th3")}
+        </>
+      ) : (
+        <>
+          <td className="border border-gray-400 p-1 text-right">
+            {sum.lessThan1Year.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </td>
+          <td className="border border-gray-400 p-1 text-right">
+            {sum.oneToFiveYears.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </td>
+          <td className="border border-gray-400 p-1 text-right">
+            {sum.moreThanFiveYears.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </td>
+        </>
+      )}
     </tr>
   );
 
@@ -542,44 +616,37 @@ const Note16A: React.FC = () => {
               }
             }}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarde...{" "}
-              </>
-            ) : isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           {isEditing && (
             <button
-              onClick={() => {
+            onClick={() => {
                 setIsEditing(false);
                 loadNoteData();
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-            >
-              Annuler
-            </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -590,7 +657,11 @@ const Note16A: React.FC = () => {
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
-        <div className="text-center font-bold mb-2 text-lg">30</div>
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            30
+          </span>
+        </div>
 
         {/* En-tête */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
@@ -671,27 +742,15 @@ const Note16A: React.FC = () => {
         <table className="w-full border-collapse border border-gray-400 text-[11px]">
           <thead>
             <tr className="bg-gray-300">
-              <th
-                rowSpan={2}
-                className="border border-gray-400 p-1 pl-2 w-[30%] text-left"
-              >
+              <th className="border border-gray-400 p-1 pl-2 w-[26%] text-left">
                 Libellés
               </th>
-              <th colSpan={2} className="border border-gray-400 p-1">
-                Année N
-              </th>
-              <th colSpan={2} className="border border-gray-400 p-1">
-                Variation
-              </th>
-              <th colSpan={3} className="border border-gray-400 p-1">
-                Dettes à ...
-              </th>
-            </tr>
-            <tr className="bg-gray-300">
               <th className="border border-gray-400 p-1">Année N</th>
               <th className="border border-gray-400 p-1">Année N-1</th>
-              <th className="border border-gray-400 p-1">en %</th>
-              <th className="border border-gray-400 p-1">en valeur absolue</th>
+              <th className="border border-gray-400 p-1">Variation en %</th>
+              <th className="border border-gray-400 p-1">
+                Variation en valeur absolue
+              </th>
               <th className="border border-gray-400 p-1">
                 Dettes à un an au plus
               </th>
@@ -706,33 +765,28 @@ const Note16A: React.FC = () => {
           <tbody>
             {/* Emprunts et dettes financières */}
             {rows.slice(0, 10).map((row) => renderRow(row))}
-            {renderTotal(
-              "TOTAL EMPRUNTS ET DETTES FINANCIERES",
-              sumFinancial,
-              "bg-gray-300"
-            )}
+            {renderTotal("TOTAL EMPRUNTS ET DETTES", sumFinancial, "bg-gray-300")}
+            {renderSpacerRow("spacer-1")}
 
             {/* Dettes de location acquisition */}
             {rows.slice(10, 15).map((row) => renderRow(row))}
-            {renderTotal(
-              "TOTAL DETTES DE LOCATION ACQUISITION",
-              sumLeasing,
-              "bg-gray-300"
-            )}
+            {renderTotal("TOTAL DETTES DE LOCATION", sumLeasing, "bg-gray-300")}
+            {renderSpacerRow("spacer-2")}
 
-            {/* Provisions pour risques et charges */}
-            {rows.slice(15, 28).map((row) => renderRow(row))}
+            {/* Provisions pour risques et charges — échéancier de dette non applicable */}
+            {rows.slice(15, 28).map((row) => renderRow(row, true))}
             {renderTotal(
               "TOTAL PROVISIONS POUR RISQUES ET CHARGES",
               sumProvisions,
-              "bg-gray-500 text-white"
+              "bg-gray-300",
+              true,
             )}
           </tbody>
         </table>
 
         {/* Commentaire (optionnel, non visible dans l'image mais ajouté pour cohérence) */}
         <div className="mt-8 border border-gray-400 p-2 bg-white flex flex-col gap-2">
-          <div className="font-bold underline">Commentaire :</div>
+          <div className="font-bold underline">Commentaire</div>
           {isEditing ? (
             <textarea
               className="w-full h-32 p-1 border border-orange-300 bg-orange-50 focus:outline-none resize-none"

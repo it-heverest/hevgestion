@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const T7DeterminationImpots: React.FC = () => {
@@ -274,7 +274,7 @@ const T7DeterminationImpots: React.FC = () => {
                       }
                     />
                   ) : (
-                    Number(values.reportBeneficeFiscal).toLocaleString("fr-FR")
+                    Number(values.reportBeneficeFiscal).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>
@@ -399,7 +399,7 @@ const T7DeterminationImpots: React.FC = () => {
                       }
                     />
                   ) : (
-                    Number(values.reinvestExercice).toLocaleString("fr-FR")
+                    Number(values.reinvestExercice).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>
@@ -420,7 +420,7 @@ const T7DeterminationImpots: React.FC = () => {
                       }
                     />
                   ) : (
-                    Number(values.baseReduction50).toLocaleString("fr-FR")
+                    Number(values.baseReduction50).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>
@@ -441,7 +441,7 @@ const T7DeterminationImpots: React.FC = () => {
                       }
                     />
                   ) : (
-                    Number(values.reinvestReportable).toLocaleString("fr-FR")
+                    Number(values.reinvestReportable).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>
@@ -529,7 +529,7 @@ const T7DeterminationImpots: React.FC = () => {
                       }
                     />
                   ) : (
-                    Number(values.impotsSocietesMontant).toLocaleString("fr-FR")
+                    Number(values.impotsSocietesMontant).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
               </tr>
@@ -541,7 +541,7 @@ const T7DeterminationImpots: React.FC = () => {
                 <td className="border border-gray-600 p-2 pl-8">TOTAL</td>
                 <td className="border border-gray-600 p-2 text-center">38</td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {Number(values.totalCompte89).toLocaleString("fr-FR")}
+                  {Number(values.totalCompte89).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             </tbody>

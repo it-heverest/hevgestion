@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
@@ -110,7 +110,7 @@ const CF1Bis: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
-      <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="w-full max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-600" />
           CF1 Bis - Détermination de l'Impôt sur le Bénéfice Fiscal
@@ -119,37 +119,24 @@ const CF1Bis: React.FC = () => {
           <button
             onClick={isEditing ? saveNoteData : () => setIsEditing(true)}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-              isEditing ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Sauvegarde...
-              </>
-            ) : isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
 
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-full max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         <style>{`
           .light-gray {
@@ -163,8 +150,12 @@ const CF1Bis: React.FC = () => {
           }
         `}</style>
 
-        {/* Page number */}
-        <div className="text-center font-bold mb-4 text-lg">61</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            61
+          </span>
+        </div>
 
         {/* Standard header */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
@@ -252,16 +243,18 @@ const CF1Bis: React.FC = () => {
         </div>
 
         {/* Report du bénéfice fiscal */}
-        <div className="medium-gray py-1 text-center font-bold mb-2">
-          REPORT DU BENEFICE FISCAL DE L'EXERCICE
-        </div>
         <table className="w-full border-collapse border border-gray-400 text-[11px] mb-6">
           <thead>
             <tr className="medium-gray">
               <th
                 className="border border-gray-400 p-1 text-center"
-                colSpan={5}
-              ></th>
+                colSpan={4}
+              >
+                RUBRIQUES
+              </th>
+              <th className="border border-gray-400 p-1 text-center">
+                ligne
+              </th>
               <th className="border border-gray-400 p-1 text-center">
                 MONTANT
               </th>
@@ -269,10 +262,11 @@ const CF1Bis: React.FC = () => {
           </thead>
           <tbody>
             <tr>
-              <td className="border border-gray-400 p-1 pl-2" colSpan={5}>
-                Intitulés
+              <td className="border border-gray-400 p-1 pl-2" colSpan={4}>
+                REPORT DU BENEFICE FISCAL DE L'EXERCICE
               </td>
               <td className="border border-gray-400 p-1 text-center">1</td>
+              <td className="border border-gray-400 p-1 text-right"></td>
             </tr>
           </tbody>
         </table>

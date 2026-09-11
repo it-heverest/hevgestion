@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Interfaces ---
 interface PurchaseRow {
@@ -28,6 +31,7 @@ const Note22: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -168,7 +172,7 @@ const Note22: React.FC = () => {
   const totalYearN1 = marchandisesYearN1 + matieresYearN1 + autresYearN1;
 
   const variationPercent = (n: number, n1: number) =>
-    n1 === 0 ? "-" : (((n - n1) / n1) * 100).toFixed(2) + "%";
+    n1 === 0 ? "-" : (((n - n1) / n1) * 100).toFixed(0) + "%";
 
   // Handler
   const handleChange = (
@@ -181,6 +185,25 @@ const Note22: React.FC = () => {
         row.id === id ? { ...row, [field]: Number(value) || 0 } : row
       )
     );
+  };
+
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
   };
 
   const downloadPDF = async () => {
@@ -200,11 +223,13 @@ const Note22: React.FC = () => {
     }
   };
 
-  const renderRow = (row: PurchaseRow, bgClass = "") => (
+  const renderRow = (row: PurchaseRow, bgClass = "") => {
+    const labelText = typeof row.label === "string" ? row.label : `Ligne ${row.id}`;
+    return (
     <tr key={row.id} className={bgClass}>
       <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
       <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
+        {isEditing && !hasFormula(`note22.rows.${row.id}`) ? (
           <input
             type="number"
             value={row.yearN}
@@ -212,11 +237,13 @@ const Note22: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note22.rows.${row.id}`} label={labelText}>
+            {row.yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {isEditing ? (
+        {isEditing && !hasFormula(`note22.rows.${row.id}`) ? (
           <input
             type="number"
             value={row.yearN1}
@@ -224,14 +251,17 @@ const Note22: React.FC = () => {
             className="w-full text-right bg-orange-50"
           />
         ) : (
-          row.yearN1.toLocaleString("fr-FR")
+          <FormulaValue formulaKey={`note22.rows.${row.id}`} label={labelText}>
+            {row.yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+          </FormulaValue>
         )}
       </td>
       <td className="border border-gray-400 p-1 text-right">
         {variationPercent(row.yearN, row.yearN1)}
       </td>
     </tr>
-  );
+    );
+  };
 
   const renderTotal = (
     label: string,
@@ -242,10 +272,10 @@ const Note22: React.FC = () => {
     <tr className={bgClass}>
       <td className="border border-gray-400 p-1 pl-2 font-bold">{label}</td>
       <td className="border border-gray-400 p-1 text-right font-bold">
-        {yearN.toLocaleString("fr-FR")}
+        {yearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right font-bold">
-        {yearN1.toLocaleString("fr-FR")}
+        {yearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right font-bold">
         {variationPercent(yearN, yearN1)}
@@ -271,44 +301,37 @@ const Note22: React.FC = () => {
               }
             }}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-              } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarde...{" "}
-              </>
-            ) : isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           {isEditing && (
             <button
-              onClick={() => {
+            onClick={() => {
                 setIsEditing(false);
                 loadNoteData();
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-            >
-              Annuler
-            </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -319,7 +342,11 @@ const Note22: React.FC = () => {
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
-        <div className="text-center font-bold mb-2 text-lg">59</div>
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            59
+          </span>
+        </div>
 
         {/* En-tête */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
@@ -415,10 +442,10 @@ const Note22: React.FC = () => {
                 TOTAL : ACHATS DE MARCHANDISES
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {marchandisesYearN.toLocaleString("fr-FR")}
+                {marchandisesYearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {marchandisesYearN1.toLocaleString("fr-FR")}
+                {marchandisesYearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
                 {variationPercent(marchandisesYearN, marchandisesYearN1)}
@@ -432,10 +459,10 @@ const Note22: React.FC = () => {
                 TOTAL: ACHATS MATIERES PREMIERES ET FOURNITURES LIEES
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {matieresYearN.toLocaleString("fr-FR")}
+                {matieresYearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {matieresYearN1.toLocaleString("fr-FR")}
+                {matieresYearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
                 {variationPercent(matieresYearN, matieresYearN1)}
@@ -450,10 +477,10 @@ const Note22: React.FC = () => {
                 TOTAL : AUTRES ACHATS
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {autresYearN.toLocaleString("fr-FR")}
+                {autresYearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {autresYearN1.toLocaleString("fr-FR")}
+                {autresYearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
                 {variationPercent(autresYearN, autresYearN1)}
@@ -464,10 +491,10 @@ const Note22: React.FC = () => {
             <tr className="bg-gray-500 text-white font-bold">
               <td className="border border-gray-400 p-1 pl-2">TOTAL</td>
               <td className="border border-gray-400 p-1 text-right">
-                {totalYearN.toLocaleString("fr-FR")}
+                {totalYearN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
-                {totalYearN1.toLocaleString("fr-FR")}
+                {totalYearN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="border border-gray-400 p-1 text-right">
                 {variationPercent(totalYearN, totalYearN1)}

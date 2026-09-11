@@ -51,7 +51,7 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "noEmit": true
   },
   "include": ["src"]

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X, Trash2, Plus } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface T3Row {
@@ -382,7 +382,7 @@ const T3: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.anneeN).toLocaleString("fr-FR")
+                      Number(item.anneeN).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -396,7 +396,7 @@ const T3: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.anneeN1).toLocaleString("fr-FR")
+                      Number(item.anneeN1).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-center">
@@ -424,7 +424,7 @@ const T3: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.creances1an).toLocaleString("fr-FR")
+                      Number(item.creances1an).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -438,7 +438,7 @@ const T3: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.creances1a2ans).toLocaleString("fr-FR")
+                      Number(item.creances1a2ans).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -456,7 +456,7 @@ const T3: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.creancesPlus2ans).toLocaleString("fr-FR")
+                      Number(item.creancesPlus2ans).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 </tr>
@@ -468,20 +468,20 @@ const T3: React.FC = () => {
                   TOTAL BRUT
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal("anneeN").toLocaleString("fr-FR")}
+                  {calculateTotal("anneeN").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal("anneeN1").toLocaleString("fr-FR")}
+                  {calculateTotal("anneeN1").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-center">—</td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal("creances1an").toLocaleString("fr-FR")}
+                  {calculateTotal("creances1an").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal("creances1a2ans").toLocaleString("fr-FR")}
+                  {calculateTotal("creances1a2ans").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotal("creancesPlus2ans").toLocaleString("fr-FR")}
+                  {calculateTotal("creancesPlus2ans").toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
 
@@ -601,7 +601,7 @@ const T3: React.FC = () => {
                           }
                         />
                       ) : (
-                        Number(f.valeurAcquisition).toLocaleString("fr-FR")
+                        Number(f.valeurAcquisition).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                       )}
                     </td>
                     <td className="border border-gray-600 p-2 text-center">
@@ -637,7 +637,7 @@ const T3: React.FC = () => {
                           }
                         />
                       ) : (
-                        Number(f.montantCapitauxPropres).toLocaleString("fr-FR")
+                        Number(f.montantCapitauxPropres).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                       )}
                     </td>
                     <td className="border border-gray-600 p-2 text-right">
@@ -664,7 +664,7 @@ const T3: React.FC = () => {
                       <td className="border border-gray-600 p-2 text-center">
                         <button
                           onClick={() => removeFiliale(f.id)}
-                          className="delete-btn text-red-600 hover:text-red-800"
+                          className="delete-btn text-red-600 hover:text-gray-700"
                         >
                           <Trash2 size={16} />
                         </button>

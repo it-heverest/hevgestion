@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Interfaces ---
 interface BalanceRow {
@@ -33,6 +34,7 @@ const BilanPaysage: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
@@ -276,8 +278,8 @@ const BilanPaysage: React.FC = () => {
     field: "brutN" | "amortN" | "netN" | "netN1",
     extraClassName = ""
   ) => (
-    <td className={`border border-gray-400 p-1 text-right ${extraClassName}`}>
-      {isEditing ? (
+    <td className={`border border-gray-400 p-1 text-right whitespace-nowrap ${extraClassName}`}>
+      {isEditing && !hasFormula(`bilan_paysage.${side}Rows.${row.id}`) ? (
         <input
           type="number"
           value={row[field]}
@@ -289,7 +291,7 @@ const BilanPaysage: React.FC = () => {
           formulaKey={`bilan_paysage.${side}Rows.${row.id}`}
           label={typeof row.label === "string" ? row.label : row.ref}
         >
-          {row[field].toLocaleString("fr-FR")}
+          {row[field].toLocaleString("fr-FR").replace(/\u202F/g, " ")}
         </FormulaValue>
       )}
     </td>
@@ -297,7 +299,7 @@ const BilanPaysage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
-      <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="w-full max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-600" />
           Bilan Paysage
@@ -308,36 +310,31 @@ const BilanPaysage: React.FC = () => {
               if (isEditing) saveToBackend();
               setIsEditing(!isEditing);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-orange-600"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} /> : <Pencil size={18} />}
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
 
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-full max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <div className="text-center font-bold mb-2 text-lg">5</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            5
+          </span>
+        </div>
 
         <div className="bg-gray-300 border border-gray-400 py-2 text-center font-bold mb-4 text-xl">
           BILAN PAYSAGE
@@ -414,7 +411,7 @@ const BilanPaysage: React.FC = () => {
               </th>
               <th
                 rowSpan={2}
-                className="border border-gray-400 p-1 pl-2 w-[25%]"
+                className="border border-gray-400 p-1 pl-2 w-[18%]"
               >
                 ACTIF
               </th>
@@ -438,7 +435,7 @@ const BilanPaysage: React.FC = () => {
               </th>
               <th
                 rowSpan={2}
-                className="border border-gray-400 p-1 pl-2 w-[25%]"
+                className="border border-gray-400 p-1 pl-2 w-[18%]"
               >
                 PASSIF
               </th>

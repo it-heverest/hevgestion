@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { useApp } from "../../contexts/AppContext";
 import { notesService } from "../../services/notes.service";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces ---
 
@@ -285,6 +286,25 @@ const Note3D: React.FC = () => {
 
   // --- Actions ---
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -292,7 +312,7 @@ const Note3D: React.FC = () => {
       setTimeout(async () => {
         const canvas = await html2canvas(reportRef.current!, { scale: 2 });
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
+        const pdf = new jsPDF("l", "mm", "a4");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
@@ -357,7 +377,7 @@ const Note3D: React.FC = () => {
             className="w-full text-right bg-orange-50 focus:outline-none"
           />
         ) : (
-          row.grossAmount.toLocaleString("fr-FR")
+          row.grossAmount.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
       {/* Amortissements Pratiques */}
@@ -372,12 +392,12 @@ const Note3D: React.FC = () => {
             className="w-full text-right bg-orange-50 focus:outline-none"
           />
         ) : (
-          row.amortizations.toLocaleString("fr-FR")
+          row.amortizations.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
       {/* Valeur Comptable Nette (C = A - B) */}
       <td className="border border-gray-400 p-1 text-right bg-gray-100 font-medium">
-        {row.netValue.toLocaleString("fr-FR")}
+        {row.netValue.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       {/* Prix de Cession (D) */}
       <td className="border border-gray-400 p-1 text-right">
@@ -391,7 +411,7 @@ const Note3D: React.FC = () => {
             className="w-full text-right bg-orange-50 focus:outline-none"
           />
         ) : (
-          row.sellingPrice.toLocaleString("fr-FR")
+          row.sellingPrice.toLocaleString("fr-FR").replace(/\u202F/g, " ")
         )}
       </td>
       {/* Plus-Values ou Moins-Values (E = D - C) */}
@@ -403,7 +423,7 @@ const Note3D: React.FC = () => {
             : ""
           }`}
       >
-        {row.gainsLosses.toLocaleString("fr-FR")}
+        {row.gainsLosses.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
     </tr>
   );
@@ -417,22 +437,22 @@ const Note3D: React.FC = () => {
         {title}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {data.grossAmount?.toLocaleString("fr-FR")}
+        {data.grossAmount?.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {data.amortizations?.toLocaleString("fr-FR")}
+        {data.amortizations?.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right bg-gray-400">
-        {data.netValue?.toLocaleString("fr-FR")}
+        {data.netValue?.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td className="border border-gray-400 p-1 text-right">
-        {data.sellingPrice?.toLocaleString("fr-FR")}
+        {data.sellingPrice?.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
       <td
         className={`border border-gray-400 p-1 text-right ${(data.gainsLosses || 0) > 0 ? "text-green-800" : ""
           }`}
       >
-        {data.gainsLosses?.toLocaleString("fr-FR")}
+        {data.gainsLosses?.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
       </td>
     </tr>
   );
@@ -440,7 +460,7 @@ const Note3D: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
       {/* Barre d'actions */}
-      <div className="max-w-[210mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <div>
           <h1 className="text-xl font-bold text-black flex items-center gap-2">
             <FileText className="w-6 h-6 text-orange-600" />
@@ -453,44 +473,48 @@ const Note3D: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <Save size={18} /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -498,7 +522,7 @@ const Note3D: React.FC = () => {
       {/* Feuille A4 */}
       <div
         ref={reportRef}
-        className={`max-w-[210mm] mx-auto min-height-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
+        className={`max-w-[297mm] mx-auto min-height-[297mm] bg-white shadow-2xl p-8 border-2 ${isEditing ? "border-orange-500" : "border-gray-200"
           }`}
       >
         {isEditing && (
@@ -526,6 +550,13 @@ const Note3D: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            14
+          </span>
+        </div>
 
         {/* En-tête du document */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b-2 border-transparent pb-4 text-[10px]">
@@ -663,19 +694,19 @@ const Note3D: React.FC = () => {
                   TOTAL GENERAL
                 </td>
                 <td className="border border-gray-400 p-2 text-right">
-                  {totalGeneral.grossAmount.toLocaleString("fr-FR")}
+                  {totalGeneral.grossAmount.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-2 text-right">
-                  {totalGeneral.amortizations.toLocaleString("fr-FR")}
+                  {totalGeneral.amortizations.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-2 text-right">
-                  {totalGeneral.netValue.toLocaleString("fr-FR")}
+                  {totalGeneral.netValue.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-2 text-right">
-                  {totalGeneral.sellingPrice.toLocaleString("fr-FR")}
+                  {totalGeneral.sellingPrice.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-2 text-right">
-                  {totalGeneral.gainsLosses.toLocaleString("fr-FR")}
+                  {totalGeneral.gainsLosses.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             </tbody>

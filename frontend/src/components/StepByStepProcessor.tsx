@@ -251,7 +251,7 @@ export function StepByStepProcessor({
                   }}
                 >
                   {field.includes("debit") || field.includes("credit")
-                    ? Number(row[field as Exclude<keyof BalanceRow, "sous_comptes">] || 0).toLocaleString("fr-FR")
+                    ? Number(row[field as Exclude<keyof BalanceRow, "sous_comptes">] || 0).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     : field === "traitement"
                     ? getStatusBadge(row.traitement || "")
                     : field === "libelle" && level > 0
@@ -412,7 +412,7 @@ export function StepByStepProcessor({
           <Alert className="bg-orange-50 border-orange-200">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800 text-sm">
-              Balance déséquilibrée: {totals.difference.toLocaleString("fr-FR")}{" "}
+              Balance déséquilibrée: {totals.difference.toLocaleString("fr-FR").replace(/\u202F/g, " ")}{" "}
               - Utilisez l'éditeur Excel pour corriger avant de continuer
             </AlertDescription>
           </Alert>

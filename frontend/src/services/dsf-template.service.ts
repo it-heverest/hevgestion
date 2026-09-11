@@ -106,7 +106,7 @@ class DsfTemplateService {
             const contentDisposition = response.headers["content-disposition"];
             let fileName = `DSF_Export_${folderId.substring(0, 8)}.xlsx`;
             if (contentDisposition) {
-                const match = contentDisposition.match(/filename="?(.+)"?/);
+                const match = contentDisposition.match(/filename="?([^"]+)"?/);
                 if (match) {
                     fileName = match[1];
                 }
@@ -123,6 +123,52 @@ class DsfTemplateService {
             window.URL.revokeObjectURL(url);
         } catch (error: any) {
             console.error("Error exporting DSF:", error);
+            if (error.response?.data instanceof Blob) {
+                const text = await error.response.data.text();
+                let message = "Erreur lors de l'export";
+                try {
+                    const json = JSON.parse(text);
+                    message = json.message || message;
+                } catch {
+                    // JSON parse failed, use default message
+                }
+                throw new Error(message);
+            }
+            throw new Error(error.message || "Erreur lors de l'export");
+        }
+    }
+
+    /**
+     * Export d'une seule feuille du classeur Excel rempli (celle de la note
+     * affichée), pas tout le classeur DSF. `noteCode` est le même
+     * identifiant déjà utilisé par notesService.getNoteData (ex. "1",
+     * "17", "3A") — voir NOTE_EXPORT_MAP côté backend pour la couverture.
+     */
+    async exportNoteSheet(folderId: string, noteCode: string): Promise<void> {
+        try {
+            const response = await this.api.get(`/export-sheet/${folderId}/${encodeURIComponent(noteCode)}`, {
+                responseType: "blob",
+            });
+
+            const contentDisposition = response.headers["content-disposition"];
+            let fileName = `Note_${noteCode}_${folderId.substring(0, 8)}.xlsx`;
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (match) {
+                    fileName = match[1];
+                }
+            }
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error: any) {
+            console.error("Error exporting note sheet:", error);
             if (error.response?.data instanceof Blob) {
                 const text = await error.response.data.text();
                 let message = "Erreur lors de l'export";

@@ -12,6 +12,7 @@ export interface DSFConfigMapping {
   accountNumber: string;
   source: "OD" | "OC" | "MD" | "MC" | "SD" | "SC" | "MCD" | "SCD";
   destination: string;
+  sign: 1 | -1;
 }
 
 export interface DSFConfig {
@@ -33,9 +34,6 @@ export interface DSFConfig {
   category: string;
   createdAt: string;
   updatedAt: string;
-  config?: {
-    accountMappings: DSFConfigMapping[];
-  };
 }
 
 export interface ReportCalculationsInput {
@@ -106,12 +104,35 @@ export class ReportCalculationsService {
   }
 
   /**
-   * Get config mappings for a specific category
+   * Get config mappings for a specific category. Parses the real stored
+   * format (DSFComptableConfig.operations, ex: ["+20MD", "-30MC"] — signe +
+   * numéro de compte + source 2 lettres, cf. dsfConfigValidators.ts) plutôt
+   * que l'ancienne forme `config.config.accountMappings` qui n'existe pas
+   * réellement sur les lignes renvoyées par le backend.
    */
   private getConfigMappings(category: string): DSFConfigMapping[] {
     if (!this.input?.dsfConfigs) return [];
-    const config = this.input.dsfConfigs.find((c) => c.category === category);
-    return config?.config?.accountMappings || [];
+    const OP_PATTERN = /^([+-])(\d+)([A-Z]{2})$/;
+    const mappings: DSFConfigMapping[] = [];
+
+    this.input.dsfConfigs
+      .filter((c) => c.category === category)
+      .forEach((config) => {
+        const destination = config.destinationCell || config.codeDsf;
+        (config.operations || []).forEach((op) => {
+          const match = OP_PATTERN.exec(op);
+          if (!match) return;
+          const [, signChar, accountNumber, source] = match;
+          mappings.push({
+            accountNumber,
+            source: source as DSFConfigMapping["source"],
+            destination,
+            sign: signChar === "-" ? -1 : 1,
+          });
+        });
+      });
+
+    return mappings;
   }
 
   /**
@@ -125,8 +146,9 @@ export class ReportCalculationsService {
 
     mappings.forEach((mapping) => {
       const value = this.getAccountValue(mapping.accountNumber, mapping.source, balanceType);
+      const signedValue = value * mapping.sign;
       const currentSum = destinationMap.get(mapping.destination) || 0;
-      destinationMap.set(mapping.destination, currentSum + value);
+      destinationMap.set(mapping.destination, currentSum + signedValue);
     });
 
     return destinationMap;

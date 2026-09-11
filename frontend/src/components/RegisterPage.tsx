@@ -237,7 +237,11 @@ export function RegisterPage({
         <div className="space-y-2">
           <Label htmlFor="maxAssistants">Nombre d'assistants *</Label>
           <Select
-            value={registerForm.maxAssistants?.toString() || "1"}
+            value={
+              registerForm.maxAssistants === 50
+                ? "many"
+                : registerForm.maxAssistants?.toString() || "1"
+            }
             onValueChange={(value) => {
               const numValue = value === "many" ? 50 : parseInt(value);
               onRegisterChange("maxAssistants", numValue);

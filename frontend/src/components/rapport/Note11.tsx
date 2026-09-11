@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
@@ -11,6 +11,9 @@ import {
 } from "../../services/report-calculations.service";
 import { clientService } from "../../services/client.service";
 import { dsfConfigService } from "../../services/dsf-config.service";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Types et Interfaces ---
 
@@ -35,10 +38,12 @@ const Note11: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
     const [searchParams] = useSearchParams();
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder, selectedClient } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // État pour l'en-tête
   const [entete, setEntete] = useState<HeaderData>({
@@ -154,6 +159,25 @@ const Note11: React.FC = () => {
     }
   };
 
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs — utile après une modification des
+  // formules dans "Mapping comptable", contrairement à "Actualiser" qui ne
+  // recalcule que cette note à partir de la balance déjà chargée côté client.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const saveNoteData = async () => {
     if (!folderId) return;
     try {
@@ -218,12 +242,49 @@ const Note11: React.FC = () => {
   ) => {
     return isEditing ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
     ) : (
-      <span className="px-1">{value || ""}</span>
+      <span className="px-1">
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+  };
+
+  // Comme renderEditableCell, mais pour les cases pilotées par le catalogue
+  // de formules (note11.disponibilites / note11.depreciations): verrouillée
+  // en édition et cliquable dès que le catalogue expose une formule.
+  const renderFormulaCell = (
+    value: string,
+    onChange: (val: string) => void,
+    formulaKey: string,
+    label: string,
+    className: string = ""
+  ) => {
+    return isEditing && !hasFormula(formulaKey) ? (
+      <input
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
+        className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
+      />
+    ) : (
+      <FormulaValue formulaKey={formulaKey} label={label}>
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </FormulaValue>
     );
   };
 
@@ -236,7 +297,7 @@ const Note11: React.FC = () => {
     const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
-    return variation.toFixed(2) + "%";
+    return variation.toFixed(0) + "%";
   };
 
   const totalN = useMemo(() => calculateTotal(availabilities, "yearN"), [availabilities]);
@@ -274,45 +335,56 @@ const Note11: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save size={18} />}
-                Sauvegarder
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
             onClick={refreshCalculations}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+            className="flex items-center justify-center p-2.5 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition disabled:opacity-50"
             title="Recalculer à partir de la balance"
           >
-            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} /> Actualiser
+            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -338,7 +410,9 @@ const Note11: React.FC = () => {
 
         {/* Numéro de page */}
         <div className="flex justify-center mb-4">
-          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">24</span>
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            24
+          </span>
         </div>
 
         {/* En-tête */}
@@ -413,10 +487,20 @@ const Note11: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-1 pl-2">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleAvailabilityChange(row.id, "yearN", val))}
+                  {renderFormulaCell(
+                    row.yearN,
+                    (val) => handleAvailabilityChange(row.id, "yearN", val),
+                    `note11.disponibilites.${row.id}`,
+                    row.label
+                  )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleAvailabilityChange(row.id, "yearN1", val))}
+                  {renderFormulaCell(
+                    row.yearN1,
+                    (val) => handleAvailabilityChange(row.id, "yearN1", val),
+                    `note11.disponibilites.${row.id}`,
+                    row.label
+                  )}
                 </td>
                 <td className="border border-gray-600 p-1 text-center bg-gray-50 font-bold">
                   {calculateVariation(row.yearN, row.yearN1)}
@@ -427,8 +511,8 @@ const Note11: React.FC = () => {
             {/* TOTAL BRUT */}
             <tr className="bg-[#e6e6e6] font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL BRUT DISPONIBILITES</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td className="border border-gray-600 p-1 text-center bg-gray-200">
                 {calculateVariation(totalN, totalN1)}
               </td>
@@ -438,7 +522,7 @@ const Note11: React.FC = () => {
             <tr>
               <td className="border border-gray-600 p-2 italic">Dépréciations</td>
               <td className="border border-gray-600 p-1 text-right bg-red-50">
-                {renderEditableCell(depreciations, setDepreciations)}
+                {renderFormulaCell(depreciations, setDepreciations, "note11.depreciations", "Dépréciations")}
               </td>
               <td colSpan={2} className="border border-gray-600 bg-gray-100"></td>
             </tr>
@@ -446,7 +530,7 @@ const Note11: React.FC = () => {
             {/* TOTAL NET */}
             <tr className="bg-[#bfbfbf] font-bold text-[11px]">
               <td className="border border-gray-600 p-2 font-bold">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td colSpan={2} className="border border-gray-600 bg-gray-200"></td>
             </tr>
           </tbody>

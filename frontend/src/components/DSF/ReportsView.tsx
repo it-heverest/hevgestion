@@ -1,5 +1,5 @@
 // components/reports/ReportsView.tsx - Simple reports display with DSF check
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import {
   FileText,
   Eye,
@@ -10,6 +10,7 @@ import {
   FileEdit,
   Loader2,
   FileSpreadsheet,
+  Download,
   UploadCloud,
   Trash2,
   AlertCircle,
@@ -18,9 +19,13 @@ import type { ExtractionResult } from "./uploadSteps";
 import { useNavigate, useLocation } from "react-router-dom";
 import { dsfTemplateService } from "../../services/dsf-template.service";
 import { notesService } from "../../services/notes.service";
+import { useApp } from "../../contexts/AppContext";
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
 import {
   REPORT_CATEGORIES,
   getNoteRoute,
+  getReportByName,
   getReportOrderIndex,
   ALL_REPORTS,
   AllReportsGrid,
@@ -94,6 +99,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     component: React.ComponentType<any>;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showExportFormatDialog, setShowExportFormatDialog] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const [pdfCaptureReport, setPdfCaptureReport] = useState<{
+    name: string;
+    component: React.ComponentType<any>;
+  } | null>(null);
+  const pdfCaptureRef = useRef<HTMLDivElement>(null);
+  const { selectedClient } = useApp();
 
   // Check for existing DSF on mount
   useEffect(() => {
@@ -124,13 +141,21 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     checkForExistingDSF();
   }, [folderId, checkExistingDSF, initialResults]);
 
-  // Define additional reports to include in the display
+  // Define additional reports to include in the display. The whole
+  // "Structure Documentaire" section (cover/summary/identification pages)
+  // is regime-agnostic and always shown, since the DSF extraction/
+  // generation pipeline doesn't always produce an entry for these on its
+  // own; `allReports` below dedupes by name so a note that IS also present
+  // in `extractionResults` isn't shown twice. Assurance notes stay narrowly
+  // filtered — showing the full Assurance set to every client regardless of
+  // regime would undo the normal/SMT/Assurance separation.
   const additionalReports = useMemo(() => {
     const docsSpeciaux = REPORT_CATEGORIES["Structure Documentaire"] || [];
     const assuranceBase = REPORT_CATEGORIES["Assurance - Base"] || [];
-    const toInclude = [...docsSpeciaux, ...assuranceBase].filter(name =>
-      ["FICHE R3", "BILAN PAYSAGE", "BILAN ACTIF", "BILAN PASSIF", "COMPTE RESULTAT", "TABLEAU FLUX TRESORERIE"].includes(name.toUpperCase())
+    const assuranceToInclude = assuranceBase.filter(name =>
+      ["BILAN ACTIF", "BILAN PASSIF"].includes(name.toUpperCase())
     );
+    const toInclude = [...docsSpeciaux, ...assuranceToInclude];
 
     return toInclude.map(name => ({
       noteName: name,
@@ -205,6 +230,85 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       alert(message);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleChooseExportFormat = (format: "pdf" | "excel") => {
+    setShowExportFormatDialog(false);
+    if (format === "excel") {
+      handleExportExcel();
+    } else {
+      handleExportPDF();
+    }
+  };
+
+  // Combined PDF export: renders every note that applies to this client's
+  // DSF regime (allReports already reflects that — see the comment above
+  // its definition) off-screen, one at a time, captures each with
+  // html2canvas the same way each note's own "Télécharger PDF" button does,
+  // and stitches the pages into a single jsPDF document.
+  const handleExportPDF = async () => {
+    if (!folderId) {
+      alert("Veuillez d'abord sélectionner un dossier.");
+      return;
+    }
+
+    const reportsToExport: {
+      noteName: string;
+      def: NonNullable<ReturnType<typeof getReportByName>>;
+    }[] = [];
+    for (const r of allReports) {
+      const def = getReportByName(r.noteName);
+      if (def) reportsToExport.push({ noteName: r.noteName, def });
+    }
+
+    if (reportsToExport.length === 0) {
+      alert("Aucune note à exporter.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    setPdfProgress({ current: 0, total: reportsToExport.length });
+
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+
+      for (let i = 0; i < reportsToExport.length; i++) {
+        const { def } = reportsToExport[i];
+        setPdfProgress({ current: i + 1, total: reportsToExport.length });
+        setPdfCaptureReport({ name: def.name, component: def.component });
+
+        // Let the (possibly lazy-loaded) component mount and fetch its own
+        // note data, same as when a user opens it directly.
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+
+        const node = pdfCaptureRef.current;
+        if (node) {
+          const canvas = await html2canvas(node, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+          });
+          const imgData = canvas.toDataURL("image/png");
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        }
+      }
+
+      const sanitizedName = (selectedClient?.name || "Client")
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+      const date = new Date().toISOString().split("T")[0];
+      pdf.save(`DSF_${sanitizedName}_${date}.pdf`);
+    } catch (error: any) {
+      console.error("Error exporting DSF PDF:", error);
+      alert(error?.message || "Erreur lors de l'export PDF");
+    } finally {
+      setPdfCaptureReport(null);
+      setPdfProgress(null);
+      setIsExportingPdf(false);
     }
   };
 
@@ -460,21 +564,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </label>
 
             <button
-              onClick={handleExportExcel}
-              disabled={isExporting || !templateStatus?.hasTemplate}
-              title={
-                !templateStatus?.hasTemplate
-                  ? "Importez d'abord un template Excel via le bouton « Template »"
-                  : "Exporter les données DSF vers Excel"
-              }
+              onClick={() => setShowExportFormatDialog(true)}
+              disabled={isExporting || isExportingPdf}
+              title="Exporter la DSF"
               className="inline-flex h-9 items-center px-3.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isExporting ? (
+              {isExporting || isExportingPdf ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-2" />
               )}
-              Exporter
+              {isExportingPdf && pdfProgress
+                ? `PDF ${pdfProgress.current}/${pdfProgress.total}`
+                : "Exporter"}
             </button>
 
             <button
@@ -550,6 +652,49 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         onClose={() => setSelectedReport(null)}
         folderId={folderId}
       />
+
+      <Modal
+        open={showExportFormatDialog}
+        onClose={() => setShowExportFormatDialog(false)}
+        size="sm"
+        title="Exporter la DSF"
+        description="Choisissez un format d'export"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => handleChooseExportFormat("pdf")}
+            className="flex flex-col items-center gap-2 rounded-lg border border-border p-5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <FileText className="h-6 w-6 text-gray-500" />
+            PDF
+          </button>
+          <button
+            onClick={() => handleChooseExportFormat("excel")}
+            disabled={!templateStatus?.hasTemplate}
+            title={
+              !templateStatus?.hasTemplate
+                ? "Importez d'abord un template Excel via le bouton « Template »"
+                : undefined
+            }
+            className="flex flex-col items-center gap-2 rounded-lg border border-border p-5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
+            <FileSpreadsheet className="h-6 w-6 text-gray-500" />
+            Excel
+          </button>
+        </div>
+      </Modal>
+
+      {/* Off-screen render target used to capture each note as a PDF page.
+          Buttons are hidden so only the report content is captured. */}
+      {pdfCaptureReport && (
+        <div style={{ position: "fixed", top: 0, left: "-10000px", zIndex: -1 }}>
+          <div ref={pdfCaptureRef} className="bg-white [&_button]:hidden">
+            <Suspense fallback={<div style={{ padding: 40 }}>Chargement…</div>}>
+              <pdfCaptureReport.component folderId={folderId} />
+            </Suspense>
+          </div>
+        </div>
+      )}
 
       <AlertDialog
         open={showDeleteConfirm}

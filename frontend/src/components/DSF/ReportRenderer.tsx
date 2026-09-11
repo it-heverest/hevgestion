@@ -51,6 +51,14 @@ interface AllReportsGridProps {
 //   3. Régime SMT (simplifié): bilan, notes et tableaux SMT.
 export const ALL_REPORTS: ReportDefinition[] = [
   // ── Structure Documentaire Principale ──────────────────────────────────────
+  // Ordre officiel du dossier: Entête, Sommaire, Page de garde, Informations
+  // générales, puis les fiches d'identification et états financiers.
+  {
+    name: "ENTETE",
+    route: "rapport/entete",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/Entete")),
+  },
   {
     name: "SOMMAIRE",
     route: "rapport/sommaire",
@@ -64,6 +72,18 @@ export const ALL_REPORTS: ReportDefinition[] = [
     component: React.lazy(() => import("../rapport/PageDeGarde")),
   },
   {
+    name: "INFORMATIONS GENERALES",
+    route: "rapport/informationsgenerales",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/InformationsGenerales")),
+  },
+  {
+    name: "FICHE R1",
+    route: "rapport/ficher1",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/FicheR1")),
+  },
+  {
     name: "FICHE R2",
     route: "rapport/ficher2",
     category: "Structure Documentaire",
@@ -74,6 +94,18 @@ export const ALL_REPORTS: ReportDefinition[] = [
     route: "rapport/ficher3",
     category: "Structure Documentaire",
     component: React.lazy(() => import("../rapport/FicheR3")),
+  },
+  {
+    name: "II. NOTES STATISTIQUES ET DE SYNTHESES",
+    route: "rapport/section-ii",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/SectionDividerII")),
+  },
+  {
+    name: "GRILLE ANALYSE NOTES",
+    route: "rapport/grilleanalysenotes",
+    category: "Structure Documentaire",
+    component: React.lazy(() => import("../rapport/GrilleAnalyseNotes")),
   },
   {
     name: "BILAN PAYSAGE",
@@ -236,24 +268,6 @@ export const ALL_REPORTS: ReportDefinition[] = [
     component: React.lazy(() => import("../rapport/Note16A")),
   },
   {
-    name: "NOTE 16B",
-    route: "rapport/note16b",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note16B")),
-  },
-  {
-    name: "NOTE 16B BIS",
-    route: "rapport/note16bbis",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note16Bbis")),
-  },
-  {
-    name: "NOTE 16C",
-    route: "rapport/note16c",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note16C")),
-  },
-  {
     name: "NOTE 17",
     route: "rapport/note17",
     category: "Notes Additionnelles",
@@ -266,12 +280,6 @@ export const ALL_REPORTS: ReportDefinition[] = [
     component: React.lazy(() => import("../rapport/C1Note17")),
   },
   {
-    name: "NOTE 18",
-    route: "rapport/note18",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note18")),
-  },
-  {
     name: "NOTE 19",
     route: "rapport/note19",
     category: "Notes Additionnelles",
@@ -282,18 +290,6 @@ export const ALL_REPORTS: ReportDefinition[] = [
     route: "rapport/note20",
     category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note20")),
-  },
-  {
-    name: "NOTE 21",
-    route: "rapport/note21",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note21")),
-  },
-  {
-    name: "NOTE 22",
-    route: "rapport/note22",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note22")),
   },
   {
     name: "NOTE 23",
@@ -330,24 +326,6 @@ export const ALL_REPORTS: ReportDefinition[] = [
     route: "rapport/note26",
     category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note26")),
-  },
-  {
-    name: "NOTE 27A",
-    route: "rapport/note27a",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note27A")),
-  },
-  {
-    name: "C1 NOTE 27A",
-    route: "rapport/c1note27a",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/C1Note27A")),
-  },
-  {
-    name: "NOTE 27B",
-    route: "rapport/note27b",
-    category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/Note27B")),
   },
   {
     name: "NOTE 28",
@@ -404,16 +382,75 @@ export const ALL_REPORTS: ReportDefinition[] = [
     component: React.lazy(() => import("../rapport/Note34")),
   },
   {
+    name: "III. NOTES STATISTIQUES A CARACTERE SOCIAL ET ENVIRONNEMENTAL",
+    route: "rapport/section-iii",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/SectionDividerIII")),
+  },
+  {
+    name: "NOTE 16B",
+    route: "rapport/note16b",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note16B")),
+  },
+  {
+    name: "NOTE 16B BIS",
+    route: "rapport/note16bbis",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note16Bbis")),
+  },
+  {
+    name: "NOTE 16C",
+    route: "rapport/note16c",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note16C")),
+  },
+  {
+    name: "NOTE 18",
+    route: "rapport/note18",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note18")),
+  },
+  {
+    name: "NOTE 27A",
+    route: "rapport/note27a",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note27A")),
+  },
+  {
+    name: "C1 NOTE 27A",
+    route: "rapport/c1note27a",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/C1Note27A")),
+  },
+  {
+    name: "NOTE 27B",
+    route: "rapport/note27b",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note27B")),
+  },
+  {
     name: "NOTE 35",
     route: "rapport/note35",
     category: "Notes Additionnelles",
     component: React.lazy(() => import("../rapport/Note35")),
   },
+  // Le vrai template place ensuite un onglet diviseur "NOTES STAT A
+  // CARACTERE COMMERCIALE" avant NOTE 21/22, puis "AUTRES ANNEXES
+  // FISCALES" avant la série CF — pas encore de page dédiée pour ces deux
+  // diviseurs (nécessite de nouvelles routes dans App.tsx), donc NOTE 21/22
+  // sont placées ici directement, au bon endroit dans l'ordre des notes.
   {
-    name: "GRILLE ANALYSE NOTES",
-    route: "rapport/grilleanalysenotes",
+    name: "NOTE 21",
+    route: "rapport/note21",
     category: "Notes Additionnelles",
-    component: React.lazy(() => import("../rapport/GrilleAnalyseNotes")),
+    component: React.lazy(() => import("../rapport/Note21")),
+  },
+  {
+    name: "NOTE 22",
+    route: "rapport/note22",
+    category: "Notes Additionnelles",
+    component: React.lazy(() => import("../rapport/Note22")),
   },
 
   // ── Série CF ──────────────────────────────────────────────────────────────
@@ -903,10 +940,15 @@ export const getReportOrderIndex = (name: string): number => {
 // Build category map for quick lookup
 export const REPORT_CATEGORIES = {
   "Structure Documentaire": [
-    "PAGE DE GARDE",
+    "ENTETE",
     "SOMMAIRE",
+    "PAGE DE GARDE",
+    "INFORMATIONS GENERALES",
+    "FICHE R1",
     "FICHE R2",
     "FICHE R3",
+    "II. NOTES STATISTIQUES ET DE SYNTHESES",
+    "GRILLE ANALYSE NOTES",
     "BILAN PAYSAGE",
     "COMPTE RESULTAT",
     "TABLEAU FLUX TRESORERIE",
@@ -937,25 +979,16 @@ export const REPORT_CATEGORIES = {
     "NOTE 15A",
     "NOTE 15B",
     "NOTE 16A",
-    "NOTE 16B",
-    "NOTE 16B BIS",
-    "NOTE 16C",
     "NOTE 17",
     "C1 NOTE 17",
-    "NOTE 18",
     "NOTE 19",
     "NOTE 20",
-    "NOTE 21",
-    "NOTE 22",
     "NOTE 23",
     "NOTE 24",
     "NOTE 25",
     "C1 NOTE 25",
     "C2 NOTE 25",
     "NOTE 26",
-    "NOTE 27A",
-    "C1 NOTE 27A",
-    "NOTE 27B",
     "NOTE 28",
     "C1 NOTE 28",
     "C2 NOTE 28",
@@ -965,8 +998,16 @@ export const REPORT_CATEGORIES = {
     "NOTE 32",
     "NOTE 33",
     "NOTE 34",
+    "NOTE 16B",
+    "NOTE 16B BIS",
+    "NOTE 16C",
+    "NOTE 18",
+    "NOTE 27A",
+    "C1 NOTE 27A",
+    "NOTE 27B",
     "NOTE 35",
-    "GRILLE ANALYSE NOTES",
+    "NOTE 21",
+    "NOTE 22",
   ],
   "Série CF": [
     "CF1",

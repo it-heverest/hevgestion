@@ -7,6 +7,7 @@ export interface TranslationKeys {
   reports: string;
   settings: string;
   exercise: string;
+  clientInfo: string;
   importBalance: string;
   traitement: string;
   dsf: string;
@@ -189,6 +190,7 @@ export const translations: Record<string, TranslationKeys> = {
     reports: "Reports",
     settings: "Settings",
     exercise: "Exercise",
+    clientInfo: "Client information",
     importBalance: "Balance",
     traitement: "Processing",
     dsf: "DSF",
@@ -369,6 +371,7 @@ export const translations: Record<string, TranslationKeys> = {
     reports: "Rapports",
     settings: "Paramètres",
     exercise: "Exercice",
+    clientInfo: "Informations sur le client",
     importBalance: "Balance",
     traitement: "Traitement",
     dsf: "DSF",

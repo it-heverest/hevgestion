@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Types et Interfaces ---
 
@@ -34,6 +37,7 @@ const Note6: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // État pour l'en-tête
   const [entete, setEntete] = useState<HeaderData>({
@@ -102,8 +106,10 @@ const Note6: React.FC = () => {
           yearN1: v?.yearN1 != null ? String(v.yearN1) : "",
         });
         if (noteData.totalBrut) setTotalBrut(asYearPair(noteData.totalBrut));
-        if (noteData.depreciations)
-          setDepreciations(asYearPair(noteData.depreciations));
+        // `depreciations` est un tableau d'une ligne (buildNoteRows), pas un
+        // objet scalaire — la valeur est dans depreciations[0].
+        if (Array.isArray(noteData.depreciations))
+          setDepreciations(asYearPair(noteData.depreciations[0]));
         if (noteData.totalNet) setTotalNet(asYearPair(noteData.totalNet));
         setComment(noteData.comment || "");
       }
@@ -118,7 +124,10 @@ const Note6: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Map frontend state → backend keys
+      // Écrit à la fois l'alias français `stocksEnCours` (rétrocompatibilité)
+      // et les champs réels de generateNote6 (stocks/depreciations/totalBrut/
+      // totalNet) — sinon un enregistrement manuel efface ces champs du DSF
+      // persisté, puisque saveNoteData remplace le blob JSON de la note.
       const noteData = {
         entete,
         stocksEnCours: stocks.map((r) => ({
@@ -127,6 +136,28 @@ const Note6: React.FC = () => {
           anneeN1: parseFloat(r.yearN1) || null,
           variationPourcentage: null,
         })),
+        stocks: stocks.map((r) => ({
+          id: r.id,
+          label: r.label,
+          yearN: parseFloat(r.yearN) || 0,
+          yearN1: parseFloat(r.yearN1) || 0,
+        })),
+        depreciations: [
+          {
+            id: "1",
+            label: "Dépréciations stocks",
+            yearN: parseFloat(depreciations.yearN) || 0,
+            yearN1: parseFloat(depreciations.yearN1) || 0,
+          },
+        ],
+        totalBrut: {
+          yearN: parseFloat(totalBrut.yearN) || 0,
+          yearN1: parseFloat(totalBrut.yearN1) || 0,
+        },
+        totalNet: {
+          yearN: parseFloat(totalNet.yearN) || 0,
+          yearN1: parseFloat(totalNet.yearN1) || 0,
+        },
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "6", noteData as any);
@@ -146,6 +177,25 @@ const Note6: React.FC = () => {
     setStocks((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+  };
+
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -173,16 +223,37 @@ const Note6: React.FC = () => {
   const renderEditableCell = (
     value: string,
     onChange: (val: string) => void,
-    className: string = ""
+    className: string = "",
+    formulaKey?: string,
+    label?: string,
+    readOnly?: boolean
   ) => {
-    return isEditing ? (
+    const display = (
+      <span className="px-1">
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+
+    if (readOnly) return display;
+
+    return isEditing && !(formulaKey && hasFormula(formulaKey)) ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
+    ) : formulaKey && hasFormula(formulaKey) ? (
+      <FormulaValue formulaKey={formulaKey} label={label || ""}>
+        {display}
+      </FormulaValue>
     ) : (
-      <span className="px-1">{value || ""}</span>
+      display
     );
   };
 
@@ -193,7 +264,7 @@ const Note6: React.FC = () => {
       typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
-    return variation.toFixed(2) + "%";
+    return variation.toFixed(0) + "%";
   };
 
   const isHeaderIncomplete =
@@ -226,44 +297,48 @@ const Note6: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -378,10 +453,10 @@ const Note6: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-2">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleStockChange(row.id, "yearN", val))}
+                  {renderEditableCell(row.yearN, (val) => handleStockChange(row.id, "yearN", val), "", `note6.stocks.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleStockChange(row.id, "yearN1", val))}
+                  {renderEditableCell(row.yearN1, (val) => handleStockChange(row.id, "yearN1", val), "", `note6.stocks.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-2 text-center bg-gray-50">
                   {calculateVariation(row.yearN, row.yearN1)}
@@ -393,10 +468,10 @@ const Note6: React.FC = () => {
             <tr className="bg-[#e6e6e6] font-bold">
               <td className="border border-gray-600 p-2">TOTAL BRUT STOCKS ET EN COURS</td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(totalBrut.yearN, (val) => setTotalBrut({ ...totalBrut, yearN: val }))}
+                {renderEditableCell(totalBrut.yearN, (val) => setTotalBrut({ ...totalBrut, yearN: val }), "", undefined, undefined, true)}
               </td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(totalBrut.yearN1, (val) => setTotalBrut({ ...totalBrut, yearN1: val }))}
+                {renderEditableCell(totalBrut.yearN1, (val) => setTotalBrut({ ...totalBrut, yearN1: val }), "", undefined, undefined, true)}
               </td>
               <td className="border border-gray-600 p-2 text-center bg-gray-200">
                 {calculateVariation(totalBrut.yearN, totalBrut.yearN1)}
@@ -411,10 +486,10 @@ const Note6: React.FC = () => {
             <tr>
               <td className="border border-gray-600 p-2">Dépréciation stocks</td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(depreciations.yearN, (val) => setDepreciations({ ...depreciations, yearN: val }))}
+                {renderEditableCell(depreciations.yearN, (val) => setDepreciations({ ...depreciations, yearN: val }), "", "note6.depreciations.1", "Dépréciation stocks")}
               </td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(depreciations.yearN1, (val) => setDepreciations({ ...depreciations, yearN1: val }))}
+                {renderEditableCell(depreciations.yearN1, (val) => setDepreciations({ ...depreciations, yearN1: val }), "", "note6.depreciations.1", "Dépréciation stocks")}
               </td>
               <td className="border border-gray-600 p-2 text-center bg-gray-50">
                 {calculateVariation(depreciations.yearN, depreciations.yearN1)}
@@ -429,10 +504,10 @@ const Note6: React.FC = () => {
             <tr className="bg-[#e6e6e6] font-bold">
               <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(totalNet.yearN, (val) => setTotalNet({ ...totalNet, yearN: val }))}
+                {renderEditableCell(totalNet.yearN, (val) => setTotalNet({ ...totalNet, yearN: val }), "", undefined, undefined, true)}
               </td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(totalNet.yearN1, (val) => setTotalNet({ ...totalNet, yearN1: val }))}
+                {renderEditableCell(totalNet.yearN1, (val) => setTotalNet({ ...totalNet, yearN1: val }), "", undefined, undefined, true)}
               </td>
               <td className="border border-gray-600 p-2 text-center bg-gray-200">
                 {calculateVariation(totalNet.yearN, totalNet.yearN1)}

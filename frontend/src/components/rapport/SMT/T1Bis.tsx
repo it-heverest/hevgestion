@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface AmortissementItem {
@@ -390,7 +390,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantOuverture).toLocaleString("fr-FR")
+                      Number(item.montantOuverture).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -404,7 +404,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.dotations).toLocaleString("fr-FR")
+                      Number(item.dotations).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -418,7 +418,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.diminutions).toLocaleString("fr-FR")
+                      Number(item.diminutions).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right font-medium">
@@ -432,7 +432,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantCloture).toLocaleString("fr-FR")
+                      Number(item.montantCloture).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 </tr>
@@ -444,16 +444,16 @@ const T1Bis: React.FC = () => {
                   SOUS TOTAL : IMMOBILISATIONS INCORPORELLES
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.montantOuverture.toLocaleString("fr-FR")}
+                  {totalIncorporelles.montantOuverture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.dotations.toLocaleString("fr-FR")}
+                  {totalIncorporelles.dotations.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.diminutions.toLocaleString("fr-FR")}
+                  {totalIncorporelles.diminutions.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.montantCloture.toLocaleString("fr-FR")}
+                  {totalIncorporelles.montantCloture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
 
@@ -494,7 +494,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantOuverture).toLocaleString("fr-FR")
+                      Number(item.montantOuverture).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -508,7 +508,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.dotations).toLocaleString("fr-FR")
+                      Number(item.dotations).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -522,7 +522,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.diminutions).toLocaleString("fr-FR")
+                      Number(item.diminutions).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right font-medium">
@@ -536,7 +536,7 @@ const T1Bis: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantCloture).toLocaleString("fr-FR")
+                      Number(item.montantCloture).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 </tr>
@@ -548,16 +548,16 @@ const T1Bis: React.FC = () => {
                   SOUS TOTAL : IMMOBILISATIONS CORPORELLES
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalCorporelles.montantOuverture.toLocaleString("fr-FR")}
+                  {totalCorporelles.montantOuverture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalCorporelles.dotations.toLocaleString("fr-FR")}
+                  {totalCorporelles.dotations.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalCorporelles.diminutions.toLocaleString("fr-FR")}
+                  {totalCorporelles.diminutions.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalCorporelles.montantCloture.toLocaleString("fr-FR")}
+                  {totalCorporelles.montantCloture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
 
@@ -567,16 +567,16 @@ const T1Bis: React.FC = () => {
                   TOTAL GÉNÉRAL
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.montantOuverture.toLocaleString("fr-FR")}
+                  {grandTotal.montantOuverture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.dotations.toLocaleString("fr-FR")}
+                  {grandTotal.dotations.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.diminutions.toLocaleString("fr-FR")}
+                  {grandTotal.diminutions.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.montantCloture.toLocaleString("fr-FR")}
+                  {grandTotal.montantCloture.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             </tbody>

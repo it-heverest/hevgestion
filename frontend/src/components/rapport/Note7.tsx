@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 // --- Types et Interfaces ---
 
@@ -31,11 +34,12 @@ interface HeaderData {
   duration: string;
 }
 
-// Le backend (CONFIG_NOTE7) stocke tout dans UN SEUL tableau `creancesClients`
-// de 15 lignes, dans cet ordre exact : 8 créances clients, TOTAL BRUT
-// CLIENTS, Dépréciations, TOTAL NET DE DEPRECIATION, 3 créditeurs, TOTAL
-// CLIENTS CREDITEURS. Les index ci-dessous servent à découper/reconstituer
-// ce tableau au chargement/à la sauvegarde.
+// generateNote7 (backend) renvoie 3 champs SÉPARÉS — `clientReceivables`
+// (9 lignes, yearN/yearN1/oneYearOrLess/oneToTwoYears/moreThanTwoYears),
+// `depreciations` (1 ligne, même forme) et `clientCreditors` (3 lignes,
+// {id,label,amount}) — pas un tableau fusionné de 15 lignes avec des clés
+// françaises (anneeN...). Les libellés ci-dessous ne servent plus qu'à
+// initialiser l'état par défaut avant chargement.
 const CLIENT_LABELS = [
   "Clients (hors réserves de propriété Groupe)",
   "Clients effets à recevoir (hors réserves de propriété Groupe)",
@@ -51,8 +55,6 @@ const CREDITOR_LABELS = [
   "Clients, avances reçues groupe",
   "Autres clients créditeurs",
 ];
-const DEPRECIATION_INDEX = CLIENT_LABELS.length + 1; // après TOTAL BRUT CLIENTS
-const CREDITORS_START_INDEX = DEPRECIATION_INDEX + 2; // après TOTAL NET DE DEPRECIATION
 
 // --- Composant Principal ---
 
@@ -65,6 +67,7 @@ const Note7: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // État pour l'en-tête (Standardized)
   const [entete, setEntete] = useState<HeaderData>({
@@ -80,7 +83,7 @@ const Note7: React.FC = () => {
   // État pour les Créances Clients
   const [clientReceivables, setClientReceivables] = useState<ClientRow[]>(
     CLIENT_LABELS.map((label, i) => ({
-      id: String(14 + i),
+      id: String(i + 1),
       label,
       yearN: "",
       yearN1: "",
@@ -95,7 +98,7 @@ const Note7: React.FC = () => {
 
   // Clients Créditeurs
   const [clientCreditors, setClientCreditors] = useState<CreditorRow[]>(
-    CREDITOR_LABELS.map((label, i) => ({ id: `c${i + 1}`, label, amount: "" })),
+    CREDITOR_LABELS.map((label, i) => ({ id: String(i + 1), label, amount: "" })),
   );
 
   // Use folderId from URL params, fallback to selectedFolder
@@ -114,39 +117,35 @@ const Note7: React.FC = () => {
       const noteData = await notesService.getNoteData(folderId, "7") as any;
       if (noteData) {
         setEntete(noteData.entete || noteData.headerInfo || entete);
-        // Le backend stocke les 15 lignes (8 créances + TOTAL BRUT +
-        // Dépréciations + TOTAL NET + 3 créditeurs + TOTAL CREDITEURS) dans
-        // un seul tableau, dans cet ordre exact (cf. CONFIG_NOTE7) — les
-        // lignes TOTAL sont ignorées ici car recalculées côté client.
-        const rows = noteData.creancesClients;
-        if (Array.isArray(rows) && rows.length > 0) {
+
+        const receivables = noteData.clientReceivables ?? noteData.creancesClients;
+        if (Array.isArray(receivables) && receivables.length > 0) {
           setClientReceivables(
-            CLIENT_LABELS.map((label, i) => {
-              const r = rows[i];
-              return {
-                id: String(14 + i),
-                label,
-                yearN: String(r?.anneeN ?? ""),
-                yearN1: String(r?.anneeN1 ?? ""),
-                oneYearOrLess: String(r?.creancesUnAnAuPlus ?? ""),
-                oneToTwoYears: String(r?.creancesPlusUnAnDeuxAns ?? ""),
-                moreThanTwoYears: String(r?.creancesPlusDeuxAns ?? ""),
-              };
-            }),
-          );
-          const depRow = rows[DEPRECIATION_INDEX];
-          setDepreciations(depRow?.anneeN != null ? String(depRow.anneeN) : "");
-          setClientCreditors(
-            CREDITOR_LABELS.map((label, i) => {
-              const r = rows[CREDITORS_START_INDEX + i];
-              return {
-                id: `c${i + 1}`,
-                label,
-                amount: r?.anneeN != null ? String(r.anneeN) : "",
-              };
-            }),
+            receivables.map((r: any, i: number) => ({
+              id: String(i + 1),
+              label: r?.label ?? CLIENT_LABELS[i] ?? `Ligne ${i + 1}`,
+              yearN: r?.yearN != null ? String(r.yearN) : "",
+              yearN1: r?.yearN1 != null ? String(r.yearN1) : "",
+              oneYearOrLess: r?.oneYearOrLess != null ? String(r.oneYearOrLess) : "",
+              oneToTwoYears: r?.oneToTwoYears != null ? String(r.oneToTwoYears) : "",
+              moreThanTwoYears: r?.moreThanTwoYears != null ? String(r.moreThanTwoYears) : "",
+            })),
           );
         }
+
+        const depRow = Array.isArray(noteData.depreciations) ? noteData.depreciations[0] : undefined;
+        setDepreciations(depRow?.yearN != null ? String(depRow.yearN) : "");
+
+        if (Array.isArray(noteData.clientCreditors) && noteData.clientCreditors.length > 0) {
+          setClientCreditors(
+            noteData.clientCreditors.map((r: any, i: number) => ({
+              id: String(i + 1),
+              label: r?.label ?? CREDITOR_LABELS[i] ?? `Ligne ${i + 1}`,
+              amount: r?.amount != null ? String(r.amount) : "",
+            })),
+          );
+        }
+
         setComment(noteData.comment || "");
       }
     } catch (error) {
@@ -160,10 +159,10 @@ const Note7: React.FC = () => {
     if (!folderId) return;
     try {
       setIsSaving(true);
-      // Le backend attend un seul tableau de 15 lignes, dans l'ordre exact
-      // du template (8 créances + TOTAL BRUT + Dépréciations + TOTAL NET +
-      // 3 créditeurs + TOTAL CREDITEURS), cf. CONFIG_NOTE7 côté backend.
-      const toApiRow = (
+      // generateNote7 (backend) attend 3 champs séparés — voir loadNoteData
+      // ci-dessus pour la forme exacte (yearN/yearN1/... par ligne).
+      const toRow = (
+        id: string,
         label: string,
         r: {
           yearN?: string | number;
@@ -173,25 +172,26 @@ const Note7: React.FC = () => {
           moreThanTwoYears?: string | number;
         },
       ) => ({
-        libelle: label,
-        anneeN: parseFloat(String(r.yearN ?? "")) || null,
-        anneeN1: parseFloat(String(r.yearN1 ?? "")) || null,
-        variationPourcentage: calculateVariationNumber(r.yearN ?? "", r.yearN1 ?? ""),
-        creancesUnAnAuPlus: parseFloat(String(r.oneYearOrLess ?? "")) || null,
-        creancesPlusUnAnDeuxAns: parseFloat(String(r.oneToTwoYears ?? "")) || null,
-        creancesPlusDeuxAns: parseFloat(String(r.moreThanTwoYears ?? "")) || null,
+        id,
+        label,
+        yearN: parseFloat(String(r.yearN ?? "")) || 0,
+        yearN1: parseFloat(String(r.yearN1 ?? "")) || 0,
+        oneYearOrLess: parseFloat(String(r.oneYearOrLess ?? "")) || 0,
+        oneToTwoYears: parseFloat(String(r.oneToTwoYears ?? "")) || 0,
+        moreThanTwoYears: parseFloat(String(r.moreThanTwoYears ?? "")) || 0,
       });
 
+      const receivables = clientReceivables.map((r) => toRow(r.id, r.label, r));
       const noteData = {
         entete,
-        creancesClients: [
-          ...clientReceivables.map((r) => toApiRow(r.label, r)),
-          toApiRow("TOTAL BRUT CLIENTS", { yearN: totalBrut, yearN1: totalN1, oneYearOrLess: totalOneYear, oneToTwoYears: totalOneTwoYears, moreThanTwoYears: totalMoreTwoYears }),
-          toApiRow("Dépréciations des comptes clients", { yearN: depreciations }),
-          toApiRow("TOTAL NET DE DEPRECIATION", { yearN: totalNet }),
-          ...clientCreditors.map((r) => toApiRow(r.label, { yearN: r.amount })),
-          toApiRow("TOTAL CLIENTS CREDITEURS", { yearN: totalCreditors }),
-        ],
+        clientReceivables: receivables,
+        creancesClients: receivables,
+        depreciations: [toRow("1", "Dépréciations des comptes clients", { yearN: depreciations })],
+        clientCreditors: clientCreditors.map((r) => ({
+          id: r.id,
+          label: r.label,
+          amount: parseFloat(String(r.amount ?? "")) || 0,
+        })),
         comment,
       };
       const success = await notesService.saveNoteData(folderId, "7", noteData as any);
@@ -219,6 +219,25 @@ const Note7: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -244,16 +263,34 @@ const Note7: React.FC = () => {
   const renderEditableCell = (
     value: string | number,
     onChange: (val: string) => void,
-    className: string = ""
+    className: string = "",
+    formulaKey?: string,
+    label?: string
   ) => {
-    return isEditing ? (
+    const display = (
+      <span className="px-1">
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+
+    return isEditing && !(formulaKey && hasFormula(formulaKey)) ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
+    ) : formulaKey && hasFormula(formulaKey) ? (
+      <FormulaValue formulaKey={formulaKey} label={label || ""}>
+        {display}
+      </FormulaValue>
     ) : (
-      <span className="px-1">{value?.toLocaleString() || ""}</span>
+      display
     );
   };
 
@@ -266,17 +303,7 @@ const Note7: React.FC = () => {
     const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
     if (valN1 === 0) return "-";
     const variation = ((valN - valN1) / valN1) * 100;
-    return variation.toFixed(2) + "%";
-  };
-
-  const calculateVariationNumber = (
-    n: string | number,
-    n1: string | number,
-  ): number | null => {
-    const valN = typeof n === "string" ? parseFloat(n.replace(/\s/g, "")) || 0 : n;
-    const valN1 = typeof n1 === "string" ? parseFloat(n1.replace(/\s/g, "")) || 0 : n1;
-    if (!valN1) return null;
-    return Number((((valN - valN1) / valN1) * 100).toFixed(2));
+    return variation.toFixed(0) + "%";
   };
 
   const totalBrut = useMemo(() => calculateTotal(clientReceivables, "yearN"), [clientReceivables]);
@@ -315,41 +342,48 @@ const Note7: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save size={18} />
-                )}
-                Sauvegarder
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -375,7 +409,9 @@ const Note7: React.FC = () => {
 
         {/* Numéro de page */}
         <div className="flex justify-center mb-4">
-          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">20</span>
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            20
+          </span>
         </div>
 
         {/* En-tête */}
@@ -455,10 +491,10 @@ const Note7: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN, (val) => handleClientChange(row.id, "yearN", val))}
+                  {renderEditableCell(row.yearN, (val) => handleClientChange(row.id, "yearN", val), "", `note7.clientReceivables.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.yearN1, (val) => handleClientChange(row.id, "yearN1", val))}
+                  {renderEditableCell(row.yearN1, (val) => handleClientChange(row.id, "yearN1", val), "", `note7.clientReceivables.${row.id}`, row.label)}
                 </td>
                 <td className="border border-gray-600 p-1 text-center bg-gray-50 font-bold">
                   {calculateVariation(row.yearN, row.yearN1)}
@@ -478,21 +514,21 @@ const Note7: React.FC = () => {
             {/* TOTAL BRUT */}
             <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL BRUT CLIENTS</td>
-              <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalBrut.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalN1.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td className="border border-gray-600 p-1 text-center">
                 {calculateVariation(totalBrut, totalN1)}
               </td>
-              <td className="border border-gray-600 p-1 text-right">{totalOneYear.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalOneTwoYears.toLocaleString()}</td>
-              <td className="border border-gray-600 p-1 text-right">{totalMoreTwoYears.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalOneYear.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalOneTwoYears.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalMoreTwoYears.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
             </tr>
 
             {/* DEPRECIATIONS */}
             <tr>
               <td className="border border-gray-600 p-2 text-blue-700 italic">Dépréciations des comptes clients</td>
               <td className="border border-gray-600 p-1 text-right">
-                {renderEditableCell(depreciations, (val) => setDepreciations(val))}
+                {renderEditableCell(depreciations, (val) => setDepreciations(val), "", "note7.depreciations.1", "Dépréciations des comptes clients")}
               </td>
               <td colSpan={5} className="border border-gray-600"></td>
             </tr>
@@ -500,7 +536,7 @@ const Note7: React.FC = () => {
             {/* TOTAL NET */}
             <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL NET DE DEPRECIATION</td>
-              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalNet.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td colSpan={5} className="border border-gray-600"></td>
             </tr>
 
@@ -509,14 +545,14 @@ const Note7: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-1 pl-2 text-blue-700">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(row.amount, (val) => handleCreditorChange(row.id, "amount", val))}
+                  {renderEditableCell(row.amount, (val) => handleCreditorChange(row.id, "amount", val), "", `note7.clientCreditors.${row.id}`, row.label)}
                 </td>
                 <td colSpan={5} className="border border-gray-600"></td>
               </tr>
             ))}
             <tr className="bg-gray-300 font-bold text-[11px]">
               <td className="border border-gray-600 p-2">TOTAL CLIENTS CREDITEURS</td>
-              <td className="border border-gray-600 p-1 text-right">{totalCreditors.toLocaleString()}</td>
+              <td className="border border-gray-600 p-1 text-right">{totalCreditors.toLocaleString("fr-FR").replace(/ /g, " ")}</td>
               <td colSpan={5} className="border border-gray-600"></td>
             </tr>
           </tbody>

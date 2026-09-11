@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const T1Ter: React.FC = () => {
@@ -289,7 +289,7 @@ const T1Ter: React.FC = () => {
                         data.incorporelles[
                           field as keyof typeof data.incorporelles
                         ]
-                      ).toLocaleString("fr-FR")
+                      ).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 ))}
@@ -330,7 +330,7 @@ const T1Ter: React.FC = () => {
                     ) : (
                       Number(
                         data.corporelles[field as keyof typeof data.corporelles]
-                      ).toLocaleString("fr-FR")
+                      ).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 ))}
@@ -351,7 +351,7 @@ const T1Ter: React.FC = () => {
                   >
                     {Number(
                       data.total[field as keyof typeof data.total]
-                    ).toLocaleString("fr-FR")}
+                    ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                   </td>
                 ))}
               </tr>

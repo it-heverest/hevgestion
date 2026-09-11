@@ -423,7 +423,7 @@ const T5: React.FC = () => {
   const totalAnneeN1 = rows.reduce((acc, r) => acc + r.anneeN1, 0);
 
   const variationPercent = (n: number, n1: number) =>
-    n1 === 0 ? "-" : (((n - n1) / Math.abs(n1)) * 100).toFixed(2) + "%";
+    n1 === 0 ? "-" : (((n - n1) / Math.abs(n1)) * 100).toFixed(0) + "%";
 
   const handleRowChange = (
     id: string,
@@ -451,7 +451,7 @@ const T5: React.FC = () => {
         />
       );
     }
-    return row[field] !== 0 ? row[field].toLocaleString("fr-FR") : "";
+    return row[field] !== 0 ? row[field].toLocaleString("fr-FR").replace(/\u202F/g, " ") : "";
   };
 
   return (
@@ -494,23 +494,12 @@ const T5: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                <Save size={18} /> Sauvegarder
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            {isEditing ? <Save size={18} /> : <Pencil size={18} />}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">
+          <button className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <Download size={18} /> Télécharger PDF
           </button>
         </div>
@@ -653,13 +642,13 @@ const T5: React.FC = () => {
             <tr className="total-row">
               <td className="p-2 text-center font-bold">Total</td>
               <td className="p-2 text-right font-bold">
-                {totalAnneeN.toLocaleString("fr-FR")}
+                {totalAnneeN.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="p-2 text-right font-bold">
-                {totalRegularisation.toLocaleString("fr-FR")}
+                {totalRegularisation.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="p-2 text-right font-bold">
-                {totalAnneeN1.toLocaleString("fr-FR")}
+                {totalAnneeN1.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
               <td className="p-2 text-right font-bold">
                 {variationPercent(totalAnneeN, totalAnneeN1)}

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces pour la FICHE R3 (Basé sur l'image) ---
 
@@ -231,6 +232,25 @@ const FicheR3: React.FC = () => {
 
   // --- Fonction de téléchargement PDF ---
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -258,7 +278,7 @@ const FicheR3: React.FC = () => {
 
   const renderDirigeantRow = (row: DirigeantRow) => (
     <tr key={row.id}>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.nom}
@@ -271,7 +291,7 @@ const FicheR3: React.FC = () => {
           row.nom
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.prenom}
@@ -284,7 +304,7 @@ const FicheR3: React.FC = () => {
           row.prenom
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.qualite}
@@ -297,7 +317,7 @@ const FicheR3: React.FC = () => {
           row.qualite
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.nIdFiscale}
@@ -310,7 +330,7 @@ const FicheR3: React.FC = () => {
           row.nIdFiscale
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.adresse}
@@ -330,7 +350,7 @@ const FicheR3: React.FC = () => {
 
   const renderConseilRow = (row: ConseilRow) => (
     <tr key={row.id}>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.nom}
@@ -341,7 +361,7 @@ const FicheR3: React.FC = () => {
           row.nom
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.prenom}
@@ -354,7 +374,7 @@ const FicheR3: React.FC = () => {
           row.prenom
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.qualite}
@@ -367,7 +387,7 @@ const FicheR3: React.FC = () => {
           row.qualite
         )}
       </td>
-      <td className="border border-black p-1">
+      <td className="border border-black px-1 py-2">
         {isEditing ? (
           <input
             value={row.adresse}
@@ -406,33 +426,34 @@ const FicheR3: React.FC = () => {
           <button
             onClick={isEditing ? saveNoteData : () => setIsEditing(true)}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition disabled:opacity-60 ${
-              isEditing ? "bg-green-600" : "bg-orange-600"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                <Save size={18} /> {isSaving ? "Sauvegarde..." : "Sauvegarder"}
-              </>
-            ) : (
-              <>
-                <Pencil size={18} /> Éditer
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           {isEditing && (
             <button
-              onClick={() => setIsEditing(false)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-            >
-              Annuler
-            </button>
+            onClick={() => setIsEditing(false)}
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -443,10 +464,16 @@ const FicheR3: React.FC = () => {
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 text-[10px] border border-black"
       >
         {/* Numéro de page */}
-        <div className="text-center font-bold text-lg mb-1">3</div>
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            3
+          </span>
+        </div>
 
         {/* En-tête (Lignes 1-7) */}
-        <div className="text-center font-bold text-lg mb-4">FICHE R3</div>
+        <div className="bg-gray-300 border border-black py-1 text-center font-bold mb-3">
+          FICHE R3
+        </div>
 
         {/* Champs d'en-tête */}
         <div className="space-y-2 mb-4">
@@ -530,7 +557,10 @@ const FicheR3: React.FC = () => {
 
         {/* Titre Dirigeants */}
         <div className="text-center font-bold text-sm mb-0">
-          FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 3 DIRIGEANTS (*)
+          FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 3
+        </div>
+        <div className="text-center font-bold text-sm mb-0">
+          DIRIGEANTS (1)
         </div>
 
         {/* Tableau Dirigeants (Lignes 9-23) */}
@@ -559,12 +589,12 @@ const FicheR3: React.FC = () => {
 
         {/* Légende Dirigeants (Ligne 24-25) */}
         <div className="mt-2 pl-1 mb-6">
-          (*) Dirigeant = Président Directeur Général, Directeur Général,
+          (1) Dirigeant = Président Directeur Général, Directeur Général,
           Administrateur Général, Gérant, Autres
         </div>
 
         {/* Titre Conseil d'Administration (Ligne 30) */}
-        <div className="text-center font-bold text-sm my-1 pt-1 border-t border-black">
+        <div className="text-center font-bold text-sm my-4">
           MEMBRE DU CONSEIL D'ADMINISTRATION
         </div>
 

@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface CessionItem {
@@ -418,7 +418,7 @@ const T2: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantBrut).toLocaleString("fr-FR")
+                      Number(item.montantBrut).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -452,7 +452,7 @@ const T2: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.valeurNette).toLocaleString("fr-FR")
+                      Number(item.valeurNette).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -466,7 +466,7 @@ const T2: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.prixCession).toLocaleString("fr-FR")
+                      Number(item.prixCession).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right font-medium">
@@ -480,7 +480,7 @@ const T2: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.plusMoinsValue).toLocaleString("fr-FR")
+                      Number(item.plusMoinsValue).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                 </tr>
@@ -492,7 +492,7 @@ const T2: React.FC = () => {
                   SOUS TOTAL : IMMOBILISATIONS INCORPORELLES
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.montantBrut.toLocaleString("fr-FR")}
+                  {totalIncorporelles.montantBrut.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
                   {totalIncorporelles.amortissementsPratiques.toLocaleString(
@@ -500,13 +500,13 @@ const T2: React.FC = () => {
                   )}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.valeurNette.toLocaleString("fr-FR")}
+                  {totalIncorporelles.valeurNette.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.prixCession.toLocaleString("fr-FR")}
+                  {totalIncorporelles.prixCession.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {totalIncorporelles.plusMoinsValue.toLocaleString("fr-FR")}
+                  {totalIncorporelles.plusMoinsValue.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
 
@@ -544,7 +544,7 @@ const T2: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montantBrut).toLocaleString("fr-FR")
+                      Number(item.montantBrut).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   {/* ... répéter pour les autres colonnes ... */}
@@ -583,19 +583,19 @@ const T2: React.FC = () => {
                   TOTAL GÉNÉRAL
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.montantBrut.toLocaleString("fr-FR")}
+                  {grandTotal.montantBrut.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.amortissementsPratiques.toLocaleString("fr-FR")}
+                  {grandTotal.amortissementsPratiques.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.valeurNette.toLocaleString("fr-FR")}
+                  {grandTotal.valeurNette.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.prixCession.toLocaleString("fr-FR")}
+                  {grandTotal.prixCession.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {grandTotal.plusMoinsValue.toLocaleString("fr-FR")}
+                  {grandTotal.plusMoinsValue.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             </tbody>

@@ -51,11 +51,16 @@ export { default as Note31 } from "../rapport/Note31";
 export { default as Note32 } from "../rapport/Note32";
 export { default as Note33 } from "../rapport/Note33";
 export { default as Note34 } from "../rapport/Note34";
+export { default as SectionDividerII } from "../rapport/SectionDividerII";
+export { default as SectionDividerIII } from "../rapport/SectionDividerIII";
 
 // ─── Documents Spéciaux ────────────────────────────────────────────────────
 
+export { default as Entete } from "../rapport/Entete";
+export { default as FicheR1 } from "../rapport/FicheR1";
 export { default as FicheR2 } from "../rapport/FicheR2";
 export { default as FicheR3 } from "../rapport/FicheR3";
+export { default as InformationsGenerales } from "../rapport/InformationsGenerales";
 export { default as PageDeGarde } from "../rapport/PageDeGarde";
 export { default as Sommaire } from "../rapport/Sommaire";
 export { default as BilanPaysage } from "../rapport/BilanPaysage";

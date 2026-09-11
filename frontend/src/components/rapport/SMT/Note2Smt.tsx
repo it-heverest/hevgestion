@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, Plus, Trash2, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 interface StockItem {
@@ -311,7 +311,7 @@ const Note2Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      item.quantite || "0"
+                      Number(item.quantite || 0).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
@@ -325,7 +325,7 @@ const Note2Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      item.prixUnitaire || "0"
+                      Number(item.prixUnitaire || 0).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right font-medium">
@@ -339,14 +339,14 @@ const Note2Smt: React.FC = () => {
                         }
                       />
                     ) : (
-                      Number(item.montant).toLocaleString("fr-FR")
+                      Number(item.montant).toLocaleString("fr-FR").replace(/\u202F/g, " ")
                     )}
                   </td>
                   {isEditing && (
                     <td className="border border-gray-600 p-2 text-center">
                       <button
                         onClick={() => removeRow(item.id)}
-                        className="text-red-600 hover:text-red-800 transition"
+                        className="text-red-600 hover:text-gray-700 transition"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -364,7 +364,7 @@ const Note2Smt: React.FC = () => {
                   TOTAL
                 </td>
                 <td className="border border-gray-600 p-2 text-right font-bold">
-                  {calculateTotalMontant().toLocaleString("fr-FR")}
+                  {calculateTotalMontant().toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 {isEditing && <td className="border border-gray-600 p-2"></td>}
               </tr>
@@ -398,7 +398,7 @@ const Note2Smt: React.FC = () => {
                 />
               ) : (
                 <div className="text-center font-medium">
-                  {Number(valeurStockFinal).toLocaleString("fr-FR")}
+                  {Number(valeurStockFinal).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </div>
               )}
             </div>
@@ -416,7 +416,7 @@ const Note2Smt: React.FC = () => {
                 />
               ) : (
                 <div className="text-center font-medium">
-                  {Number(valeurStockInitial).toLocaleString("fr-FR")}
+                  {Number(valeurStockInitial).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </div>
               )}
             </div>

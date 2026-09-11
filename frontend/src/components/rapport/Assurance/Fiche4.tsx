@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const Fiche4: React.FC = () => {
@@ -34,27 +34,17 @@ const Fiche4: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-orange-600"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} /> : <Pencil size={18} />}
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>

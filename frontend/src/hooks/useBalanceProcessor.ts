@@ -455,7 +455,7 @@ export function useBalanceProcessor(folderId?: string | null) {
     setBalanceData((prev) => [...prev, resultAccount]);
     updateStepStatus(3, "completed");
     setTreatmentCompleted(true);
-    addToHistory("Clôture", `Résultat: ${resultat.toLocaleString("fr-FR")}`);
+    addToHistory("Clôture", `Résultat: ${resultat.toLocaleString("fr-FR").replace(/\u202F/g, " ")}`);
   };
 
   const processCurrentStep = async () => {

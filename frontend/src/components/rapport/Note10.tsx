@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
+import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
 
 interface HeaderData {
   entityName: string;
@@ -29,6 +32,7 @@ const Note10: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
 
   // Standardized entete state
   const [entete, setEntete] = useState<HeaderData>({
@@ -49,7 +53,7 @@ const Note10: React.FC = () => {
 
   const [totalBrut, setTotalBrut] = useState({ yearN: "", yearN1: "" });
   const [depreciations, setDepreciations] = useState<ValeurRow[]>([
-    { id: "d1", label: "Dépréciations des valeurs à encaisser", yearN: "", yearN1: "" },
+    { id: "1", label: "Dépréciations des valeurs à encaisser", yearN: "", yearN1: "" },
   ]);
   const [totalNet, setTotalNet] = useState({ yearN: "", yearN1: "" });
   const [comment, setComment] = useState("");
@@ -62,7 +66,7 @@ const Note10: React.FC = () => {
     const n = parseFloat(yearN) || 0;
     const n1 = parseFloat(yearN1) || 0;
     if (n1 === 0) return "-";
-    return (((n - n1) / n1) * 100).toFixed(2) + "%";
+    return (((n - n1) / n1) * 100).toFixed(0) + "%";
   };
 
   // Use folderId from URL params, fallback to selectedFolder
@@ -102,7 +106,7 @@ const Note10: React.FC = () => {
         if (Array.isArray(noteData.depreciations) && noteData.depreciations[0]) {
           setDepreciations([
             {
-              id: "d1",
+              id: "1",
               label: noteData.depreciations[0].label || depreciations[0].label,
               yearN: String(noteData.depreciations[0].yearN ?? ""),
               yearN1: String(noteData.depreciations[0].yearN1 ?? ""),
@@ -178,6 +182,25 @@ const Note10: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -203,16 +226,54 @@ const Note10: React.FC = () => {
   const renderEditableCell = (
     value: string,
     onChange: (val: string) => void,
-    className: string = ""
+    className: string = "",
+    readOnly?: boolean
   ) => {
-    return isEditing ? (
+    return isEditing && !readOnly ? (
       <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
         className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
       />
     ) : (
-      <span>{value || ""}</span>
+      <span>
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </span>
+    );
+  };
+
+  // Comme renderEditableCell, mais pour les cases pilotées par le catalogue
+  // de formules (note10.valeursAEncaisser / note10.depreciations): verrouillée
+  // en édition et cliquable dès que le catalogue expose une formule.
+  const renderFormulaCell = (
+    value: string,
+    onChange: (val: string) => void,
+    formulaKey: string,
+    label: string,
+    className: string = ""
+  ) => {
+    return isEditing && !hasFormula(formulaKey) ? (
+      <input
+        value={
+          value === "" || value === null || value === undefined
+            ? ""
+            : Number(value).toLocaleString("fr-FR").replace(/ /g, " ")
+        }
+        onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
+        className={`w-full h-full px-1 bg-orange-50 border-none focus:outline-none ${className}`}
+      />
+    ) : (
+      <FormulaValue formulaKey={formulaKey} label={label}>
+        {value === "" || value === null || value === undefined
+          ? ""
+          : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
+      </FormulaValue>
     );
   };
 
@@ -246,44 +307,48 @@ const Note10: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Sauvegarde...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} /> Sauvegarder
-                  </>
-                )}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => {
+            onClick={() => {
                   setIsEditing(false);
                   loadNoteData();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -434,16 +499,20 @@ const Note10: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-2 pl-4 font-medium">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(
+                  {renderFormulaCell(
                     row.yearN,
                     (val) => handleValeurChange(row.id, "yearN", val),
+                    `note10.valeursAEncaisser.${row.id}`,
+                    row.label,
                     "pr-2"
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right">
-                  {renderEditableCell(
+                  {renderFormulaCell(
                     row.yearN1,
                     (val) => handleValeurChange(row.id, "yearN1", val),
+                    `note10.valeursAEncaisser.${row.id}`,
+                    row.label,
                     "pr-2"
                   )}
                 </td>
@@ -460,12 +529,12 @@ const Note10: React.FC = () => {
               </td>
               <td className="border border-gray-600 p-1 text-right pr-2">
                 {renderEditableCell(totalBrut.yearN, (val) =>
-                  setTotalBrut({ ...totalBrut, yearN: val })
+                  setTotalBrut({ ...totalBrut, yearN: val }), "", true
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-right pr-2">
                 {renderEditableCell(totalBrut.yearN1, (val) =>
-                  setTotalBrut({ ...totalBrut, yearN1: val })
+                  setTotalBrut({ ...totalBrut, yearN1: val }), "", true
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-center">
@@ -478,13 +547,19 @@ const Note10: React.FC = () => {
               <tr key={row.id} className="hover:bg-gray-50">
                 <td className="border border-gray-600 p-2 pl-4 italic">{row.label}</td>
                 <td className="border border-gray-600 p-1 text-right pr-2">
-                  {renderEditableCell(row.yearN, (val) =>
-                    handleDepreciationChange(row.id, "yearN", val)
+                  {renderFormulaCell(
+                    row.yearN,
+                    (val) => handleDepreciationChange(row.id, "yearN", val),
+                    `note10.depreciations.${row.id}`,
+                    row.label
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-right pr-2">
-                  {renderEditableCell(row.yearN1, (val) =>
-                    handleDepreciationChange(row.id, "yearN1", val)
+                  {renderFormulaCell(
+                    row.yearN1,
+                    (val) => handleDepreciationChange(row.id, "yearN1", val),
+                    `note10.depreciations.${row.id}`,
+                    row.label
                   )}
                 </td>
                 <td className="border border-gray-600 p-1 text-center">
@@ -500,12 +575,12 @@ const Note10: React.FC = () => {
               </td>
               <td className="border border-gray-600 p-1 text-right pr-2">
                 {renderEditableCell(totalNet.yearN, (val) =>
-                  setTotalNet({ ...totalNet, yearN: val })
+                  setTotalNet({ ...totalNet, yearN: val }), "", true
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-right pr-2">
                 {renderEditableCell(totalNet.yearN1, (val) =>
-                  setTotalNet({ ...totalNet, yearN1: val })
+                  setTotalNet({ ...totalNet, yearN1: val }), "", true
                 )}
               </td>
               <td className="border border-gray-600 p-1 text-center">

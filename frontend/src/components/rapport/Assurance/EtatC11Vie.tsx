@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const EtatC11Vie: React.FC = () => {
@@ -26,7 +26,7 @@ const EtatC11Vie: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
-      <div className="w-3/4 max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="w-full max-w-[297mm] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-600" />
           Etat C11 - Marge de Solvabilité Vie
@@ -34,34 +34,24 @@ const EtatC11Vie: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white ${
-              isEditing ? "bg-green-600" : "bg-orange-600"
-            }`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} /> : <Pencil size={18} />}
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
 
       <div
         ref={reportRef}
-        className="w-3/4 max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-full max-w-[297mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         <style>{`
           .dark-gray {

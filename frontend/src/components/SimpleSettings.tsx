@@ -62,6 +62,7 @@ import {
 } from "../services/folder.service";
 import { dsfTemplateService } from "../services/dsf-template.service";
 import { generateStrongPassword } from "../utils/passwordGeneration";
+import { ClientInfo } from "./ClientInfo";
 
 interface ProfileData {
   firstName: string;
@@ -450,11 +451,15 @@ export function SimpleSettings() {
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList
-          className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-3" : "grid-cols-2"}`}
+          className={`grid w-full ${user?.role === "COMPTABLE" ? "grid-cols-4" : "grid-cols-3"}`}
         >
           <TabsTrigger value="profile">
             <User className="h-4 w-4 mr-2" />
             Profil & Template
+          </TabsTrigger>
+          <TabsTrigger value="client-info">
+            <Building2 className="h-4 w-4 mr-2" />
+            Informations sur le client
           </TabsTrigger>
           {user?.role === "COMPTABLE" && (
             <TabsTrigger value="assistants">
@@ -467,6 +472,11 @@ export function SimpleSettings() {
             Données
           </TabsTrigger>
         </TabsList>
+
+        {/* Onglet Informations sur le client */}
+        <TabsContent value="client-info">
+          <ClientInfo />
+        </TabsContent>
 
         {/* Onglet Profil & Template */}
         <TabsContent value="profile" className="space-y-6">

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
@@ -26,18 +26,35 @@ interface ActivityRow {
 }
 
 /** Codes tels qu'imprimés sur la fiche, dans l'ordre du formulaire. */
-const RENSEIGNEMENTS: { code: string; label: string }[] = [
-  { code: "ZK", label: "Forme juridique (1) :" },
-  { code: "ZL", label: "Régistre fiscal (1) :" },
-  { code: "ZM", label: "Pays du siège social (1) :" },
-  { code: "ZN", label: "Nombre d'établissement dans le pays :" },
+const RENSEIGNEMENTS: { code: string; label: string; boxes: number }[] = [
+  { code: "ZK", label: "Forme juridique (1) :", boxes: 4 },
+  { code: "ZL", label: "Régistre fiscal (1) :", boxes: 4 },
+  { code: "ZM", label: "Pays du siège social (1) :", boxes: 4 },
+  { code: "ZN", label: "Nombre d'établissement dans le pays :", boxes: 4 },
   {
     code: "ZO",
     label:
       "Nombre d'établissement dans le pays hors du pays pour lesquels une comptabilité distincte est tenue",
+    boxes: 4,
   },
-  { code: "ZP", label: "Première année d'exercice dans le pays :" },
+  { code: "ZP", label: "Première année d'exercice dans le pays :", boxes: 8 },
 ];
+
+const CODE_NOMENCLATURE_BOXES = 6;
+
+/** Rendu "case par case" façon imprimé officiel, une case par caractère. */
+const renderBoxes = (value: string, count: number) => (
+  <div className="flex gap-0.5">
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        className="w-5 h-5 border border-gray-500 flex items-center justify-center text-[10px] shrink-0"
+      >
+        {value[i] || ""}
+      </div>
+    ))}
+  </div>
+);
 
 const CONTROLE: { code: string; label: string }[] = [
   { code: "ZQ", label: "Entreprise sous contrôle public" },
@@ -251,7 +268,7 @@ const FicheR2: React.FC = () => {
   const totalPourcentage =
     activities.reduce((sum, r) => sum + r.pourcentage, 0) + divers.pourcentage;
 
-  const fmt = (v: number) => (v === 0 ? "" : v.toLocaleString("fr-FR"));
+  const fmt = (v: number) => (v === 0 ? "" : v.toLocaleString("fr-FR").replace(/\u202F/g, " "));
 
   if (isLoading) {
     return (
@@ -283,33 +300,37 @@ const FicheR2: React.FC = () => {
         <div className="flex gap-3">
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition"
-            >
-              <Pencil size={18} /> Éditer
-            </button>
+            onClick={() => setIsEditing(true)}
+            title="Éditer"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Pencil size={18} />
+          </button>
           ) : (
             <>
               <button
-                onClick={saveNoteData}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-green-400 transition"
-              >
-                <Save size={18} /> {isSaving ? "Sauvegarde..." : "Sauvegarder"}
-              </button>
+            onClick={saveNoteData}
+            disabled={isSaving}
+            title="Sauvegarder"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={18} className={isSaving ? "animate-pulse" : ""} />
+          </button>
               <button
-                onClick={() => setIsEditing(false)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-              >
-                Annuler
-              </button>
+            onClick={() => setIsEditing(false)}
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
             </>
           )}
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -321,8 +342,15 @@ const FicheR2: React.FC = () => {
           isEditing ? "border-orange-500" : "border-gray-200"
         }`}
       >
-        <div className="text-center font-bold mb-1 text-lg">2</div>
-        <div className="text-center font-bold mb-3">FICHE R2</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            2
+          </span>
+        </div>
+        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-3">
+          FICHE R2
+        </div>
 
         {/* En-tête */}
         <div className="mb-3 grid grid-cols-2 gap-x-8 gap-y-1 text-[11px]">
@@ -392,16 +420,16 @@ const FicheR2: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-300 border border-gray-400 py-1 text-center font-bold mb-0">
+        <div className="text-center font-bold mb-2">
           FICHE D'IDENTIFICATION ET DE RENSEIGNEMENT DIVERS 2
         </div>
 
         {/* Renseignements + contrôle de l'entité */}
-        <div className="grid grid-cols-2 gap-0 border border-gray-400 border-t-0">
+        <div className="grid grid-cols-2 gap-0 border border-gray-400">
           <div className="border-r border-gray-400">
             <table className="w-full border-collapse text-[11px]">
               <tbody>
-                {RENSEIGNEMENTS.map(({ code, label }) => (
+                {RENSEIGNEMENTS.map(({ code, label, boxes }) => (
                   <tr key={code}>
                     <td className="border-b border-gray-300 p-1 w-8 text-center font-bold align-top">
                       {code}
@@ -409,7 +437,7 @@ const FicheR2: React.FC = () => {
                     <td className="border-b border-gray-300 p-1 align-top">
                       {label}
                     </td>
-                    <td className="border-b border-gray-300 p-1 w-24 align-top">
+                    <td className="border-b border-gray-300 p-1 align-top">
                       {isEditing ? (
                         <input
                           value={renseignements[code] ?? ""}
@@ -419,12 +447,11 @@ const FicheR2: React.FC = () => {
                               [code]: e.target.value,
                             }))
                           }
+                          maxLength={boxes}
                           className={inputCls}
                         />
                       ) : (
-                        <span className="border-b border-dotted border-gray-400 block min-h-[14px]">
-                          {renseignements[code] ?? ""}
-                        </span>
+                        renderBoxes(renseignements[code] ?? "", boxes)
                       )}
                     </td>
                   </tr>
@@ -470,13 +497,13 @@ const FicheR2: React.FC = () => {
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-gray-400 p-1 text-left w-[38%]">
-                Désignation de l'activité (²)
+                Désignation de l'activité (*)
               </th>
               <th className="border border-gray-400 p-1 w-[22%]">
-                Code nomenclature d'activité (¹)
+                Code nomenclature d'activité (*)
               </th>
               <th className="border border-gray-400 p-1 w-[25%]">
-                Chiffre d'Affaire HT (CA HT) ou valeur ajoutée (VA) (³)
+                Chiffre d'Affaire HT (CA HT) ou valeur ajoutée (VA) (*)
               </th>
               <th className="border border-gray-400 p-1 w-[15%]">
                 % activité dans le CA HT ou la VA
@@ -510,10 +537,13 @@ const FicheR2: React.FC = () => {
                           e.target.value
                         )
                       }
+                      maxLength={CODE_NOMENCLATURE_BOXES}
                       className={`${inputCls} text-center`}
                     />
                   ) : (
-                    row.codeNomenclature
+                    <div className="flex justify-center">
+                      {renderBoxes(row.codeNomenclature, CODE_NOMENCLATURE_BOXES)}
+                    </div>
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -599,12 +629,11 @@ const FicheR2: React.FC = () => {
 
         {/* Renvois de l'imprimé */}
         <div className="mt-2 text-[10px] italic space-y-0.5">
-          <div>(¹) Note 34</div>
+          <div>(*) Note 34</div>
           <div>
-            (²) lister de manière précise les entités dans l'ordre décroissant du
+            (*) lister de manière précise les entités dans l'ordre décroissant du
             CA HT, ou de la valeur ajoutée (VA)
           </div>
-          <div>(³) Rayer la mention nulle (utiliser le préfixe VA)</div>
         </div>
 
         {/* Commentaire */}

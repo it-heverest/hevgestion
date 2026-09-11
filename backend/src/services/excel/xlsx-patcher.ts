@@ -115,7 +115,7 @@ interface SheetEntry {
   path: string;
 }
 
-async function resolveSheets(zip: JSZip): Promise<SheetEntry[]> {
+export async function resolveSheets(zip: JSZip): Promise<SheetEntry[]> {
   const workbookFile = zip.file("xl/workbook.xml");
   if (!workbookFile) {
     throw new Error("Template invalide: xl/workbook.xml introuvable");
@@ -344,4 +344,121 @@ async function forceFullRecalc(zip: JSZip): Promise<void> {
     xml = xml.replace(/<\/workbook>/, '<calcPr fullCalcOnLoad="1"/></workbook>');
   }
   zip.file("xl/workbook.xml", xml);
+}
+
+// ─── Extraction d'un seul onglet ────────────────────────────────────────────
+
+/**
+ * Réduit un classeur .xlsx à un seul onglet (par nom, comparaison insensible
+ * à la casse), pour un export "cette note seulement" plutôt que tout le
+ * classeur DSF.
+ *
+ * Approche minimale-invasive, dans le même esprit que patchXlsx: on ne
+ * supprime PAS les fichiers XML des autres feuilles de l'archive (ça
+ * risquerait de casser des références croisées), on retire seulement leur
+ * déclaration dans `xl/workbook.xml` (<sheets>) et la relation
+ * correspondante dans `xl/_rels/workbook.xml.rels` — Excel n'affiche alors
+ * que l'onglet restant, les parties orphelines de l'archive sont ignorées.
+ * `<definedNames>` (zones d'impression, plages nommées) est retiré en bloc
+ * plutôt que filtré finement: elles référencent presque toujours plusieurs
+ * onglets par index, un filtrage partiel laisserait des références cassées.
+ * `xl/calcChain.xml` est supprimé (et sa déclaration dans
+ * `[Content_Types].xml`) car il référence les cellules de toutes les
+ * feuilles par index — laissé en place, désynchronisé, Excel peut proposer
+ * une réparation à l'ouverture; combiné à `fullCalcOnLoad`, il est
+ * simplement reconstruit.
+ */
+export async function extractSingleSheet(
+  templateBuffer: Buffer,
+  sheetName: string
+): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(templateBuffer);
+  const sheets = await resolveSheets(zip);
+
+  const needle = sheetName.trim().toLowerCase();
+  const target = sheets.find((s) => s.name.trim().toLowerCase() === needle);
+  if (!target) {
+    throw new Error(`Onglet "${sheetName}" introuvable dans le template`);
+  }
+
+  const workbookFile = zip.file("xl/workbook.xml");
+  if (!workbookFile) throw new Error("Template invalide: xl/workbook.xml introuvable");
+  let workbookXml = await workbookFile.async("string");
+
+  // Isole <sheets>...</sheets> et ne garde que le <sheet .../> de la cible.
+  const sheetsMatch = /<sheets>([\s\S]*?)<\/sheets>/.exec(workbookXml);
+  if (!sheetsMatch) throw new Error("Template invalide: balise <sheets> introuvable");
+
+  const sheetTagRe = /<sheet\b[^>]*\/>/g;
+  let targetSheetTag: string | null = null;
+  let targetRid: string | null = null;
+  for (let m = sheetTagRe.exec(sheetsMatch[1]); m; m = sheetTagRe.exec(sheetsMatch[1])) {
+    const tag = m[0];
+    const name = /\bname="([^"]*)"/.exec(tag)?.[1];
+    if (name && decodeXmlEntities(name).trim().toLowerCase() === needle) {
+      targetSheetTag = tag;
+      targetRid = /\br:id="([^"]+)"/.exec(tag)?.[1] ?? null;
+      break;
+    }
+  }
+  if (!targetSheetTag || !targetRid) {
+    throw new Error(`Onglet "${sheetName}" introuvable dans <sheets>`);
+  }
+
+  // La feuille restante doit être visible même si elle était masquée dans
+  // le template (sinon le classeur s'ouvrirait sans aucun onglet visible).
+  const visibleSheetTag = targetSheetTag.replace(/\sstate="[^"]*"/, "");
+
+  workbookXml =
+    workbookXml.slice(0, sheetsMatch.index) +
+    `<sheets>${visibleSheetTag}</sheets>` +
+    workbookXml.slice(sheetsMatch.index + sheetsMatch[0].length);
+
+  // Zones d'impression / plages nommées: quasi toujours multi-onglets par
+  // index, retirées en bloc plutôt que de risquer une référence cassée.
+  workbookXml = workbookXml.replace(/<definedNames>[\s\S]*?<\/definedNames>/, "");
+
+  // L'onglet actif (activeTab) référence les <sheet> par position dans la
+  // liste désormais réduite à un seul élément: toujours l'index 0.
+  workbookXml = workbookXml.replace(/\bactiveTab="\d+"/, 'activeTab="0"');
+
+  zip.file("xl/workbook.xml", workbookXml);
+
+  // Ne garde, dans workbook.xml.rels, que la relation de l'onglet cible et
+  // les relations non-feuille (styles, thème, chaînes partagées...).
+  const relsPath = "xl/_rels/workbook.xml.rels";
+  const relsFile = zip.file(relsPath);
+  if (relsFile) {
+    let relsXml = await relsFile.async("string");
+    const relRe = /<Relationship\b[^>]*\/>/g;
+    relsXml = relsXml.replace(relRe, (tag) => {
+      const id = /\bId="([^"]+)"/.exec(tag)?.[1];
+      const type = /\bType="([^"]+)"/.exec(tag)?.[1] ?? "";
+      const isWorksheetRel = /\/worksheet$/.test(type);
+      if (isWorksheetRel && id !== targetRid) return "";
+      return tag;
+    });
+    zip.file(relsPath, relsXml);
+  }
+
+  // xl/calcChain.xml référence les cellules de TOUTES les feuilles par
+  // index d'onglet — désynchronisé après cette réduction, autant le retirer
+  // (Excel le régénère à l'ouverture, avec fullCalcOnLoad ci-dessous).
+  if (zip.file("xl/calcChain.xml")) {
+    zip.remove("xl/calcChain.xml");
+    const contentTypesFile = zip.file("[Content_Types].xml");
+    if (contentTypesFile) {
+      let ctXml = await contentTypesFile.async("string");
+      ctXml = ctXml.replace(/<Override\b[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/, "");
+      zip.file("[Content_Types].xml", ctXml);
+    }
+  }
+
+  await forceFullRecalc(zip);
+
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
 }

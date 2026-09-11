@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw, X } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces ---
 interface AdValoremRow {
@@ -14,6 +15,11 @@ interface AdValoremRow {
   abatementRate: string;
   abatementAmount: number;
   baseNette: number;
+  // Certaines rubriques (Tabacs, Jeux de hasard, Communication) n'ont pas
+  // d'abattement au sens propre — le modèle DGI grise ces cellules en
+  // hachures plutôt que d'y laisser une valeur à saisir.
+  hatchedAbattement?: boolean;
+  baseNetteLabel?: string; // ex: "1000 tiges" pour les Tabacs
   taux: string;
   montantDroits: number;
   droitsPayes: number;
@@ -146,7 +152,7 @@ const C2Note25: React.FC = () => {
     },
     {
       id: "3",
-      natureProduit: "Bières ayant un degré d'alcool > 5,5",
+      natureProduit: "Bières ayant un dégré d'alcool ˃ 5,5",
       baseBrute: 0,
       abatementRate: "",
       abatementAmount: 0,
@@ -158,31 +164,47 @@ const C2Note25: React.FC = () => {
     },
     {
       id: "4",
-      natureProduit:
-        "Jeux de hasard et divertissement non soumis à la taxe sur les jeux",
+      natureProduit: "Tabacs*",
       baseBrute: 0,
       abatementRate: "",
       abatementAmount: 0,
       baseNette: 0,
-      taux: "5%",
+      hatchedAbattement: true,
+      baseNetteLabel: "1000 tiges",
+      taux: "25%",
       montantDroits: 0,
       droitsPayes: 0,
       solde: 0,
     },
     {
       id: "5",
-      natureProduit: "Communication téléphone mobile et de services internet",
+      natureProduit:
+        "Jeux de hasard et divertissement non soumis à la taxe sur les jeux",
       baseBrute: 0,
       abatementRate: "",
       abatementAmount: 0,
       baseNette: 0,
-      taux: "2%",
+      hatchedAbattement: true,
+      taux: "5%",
       montantDroits: 0,
       droitsPayes: 0,
       solde: 0,
     },
     {
       id: "6",
+      natureProduit: "Communication téléphonie mobile et de services internet",
+      baseBrute: 0,
+      abatementRate: "",
+      abatementAmount: 0,
+      baseNette: 0,
+      hatchedAbattement: true,
+      taux: "2%",
+      montantDroits: 0,
+      droitsPayes: 0,
+      solde: 0,
+    },
+    {
+      id: "7",
       natureProduit: "Sous total (a)",
       baseBrute: 0,
       abatementRate: "",
@@ -237,7 +259,7 @@ const C2Note25: React.FC = () => {
     },
     {
       id: "4",
-      natureProduit: "Spiritueux dits alcools mixtes produits localement",
+      natureProduit: "Spiritueux dits alcools mix produits localement",
       productionLocale: 0,
       importation: 0,
       exportation: 0,
@@ -251,7 +273,7 @@ const C2Note25: React.FC = () => {
     {
       id: "5",
       natureProduit:
-        "Spiritueux dits alcools mixtes de gamme inférieure importés",
+        "Spiritueux dits alcools mix de gamme inférieure importés",
       productionLocale: 0,
       importation: 0,
       exportation: 0,
@@ -265,7 +287,7 @@ const C2Note25: React.FC = () => {
     {
       id: "6",
       natureProduit:
-        "Spiritueux dits alcools mixtes de gamme supérieure importés",
+        "Spiritueux dits alcools mix de gamme supérieure importés",
       productionLocale: 0,
       importation: 0,
       exportation: 0,
@@ -423,7 +445,7 @@ const C2Note25: React.FC = () => {
     },
     {
       id: "18",
-      natureProduit: "Emballages non retournables autres produits*",
+      natureProduit: "Emballages non retournables autres produits**",
       productionLocale: 0,
       importation: 0,
       exportation: 0,
@@ -486,6 +508,25 @@ const C2Note25: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadNoteData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -505,7 +546,7 @@ const C2Note25: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans text-xs text-black">
-      <div className="w-full mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
+      <div className="w-full max-w-[1500px] mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded shadow">
         <h1 className="text-xl font-bold text-black flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-600" />
           C2'Note 25 - Tableau de Régularisation Annuelle des Droits d'Accises
@@ -520,53 +561,51 @@ const C2Note25: React.FC = () => {
               }
             }}
             disabled={isSaving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-              } ${isSaving ? "opacity-50" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarde...{" "}
-              </>
-            ) : isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} className={isSaving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
           </button>
           {isEditing && (
             <button
-              onClick={() => {
+            onClick={() => {
                 setIsEditing(false);
                 loadNoteData();
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-            >
-              Annuler
-            </button>
+            title="Annuler"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <X size={18} />
+          </button>
           )}
           <button
-            onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={downloadPDF}
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={18} />
           </button>
         </div>
       </div>
 
       <div
         ref={reportRef}
-        className="w-full mx-auto bg-white shadow-2xl p-6 border border-gray-200"
+        className="w-full max-w-[1500px] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
-        <div className="text-center font-bold mb-2 text-lg">39</div>
+        {/* Numéro de page */}
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            39
+          </span>
+        </div>
 
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
           <div className="flex gap-2">
@@ -687,7 +726,7 @@ const C2Note25: React.FC = () => {
             {adValoremRows.map((row) => (
               <tr
                 key={row.id}
-                className={row.id === "6" ? "bg-gray-300 font-bold" : ""}
+                className={row.id === "7" ? "bg-gray-300 font-bold" : ""}
               >
                 <td className="border border-gray-400 p-1 text-center">
                   {row.id}
@@ -710,34 +749,49 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.baseBrute.toLocaleString("fr-FR")
+                    row.baseBrute.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
-                <td className="border border-gray-400 p-1 text-center">
-                  {row.abatementRate}
-                </td>
+                {row.hatchedAbattement ? (
+                  <td
+                    colSpan={2}
+                    className="border border-gray-400 p-1"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(45deg, #9ca3af 0, #9ca3af 1px, transparent 1px, transparent 7px)",
+                    }}
+                  />
+                ) : (
+                  <>
+                    <td className="border border-gray-400 p-1 text-center">
+                      {row.abatementRate}
+                    </td>
+                    <td className="border border-gray-400 p-1 text-right">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          value={row.abatementAmount}
+                          onChange={(e) =>
+                            handleAdValoremChange(
+                              row.id,
+                              "abatementAmount",
+                              e.target.value
+                            )
+                          }
+                          className="w-full text-right bg-orange-50"
+                        />
+                      ) : (
+                        row.abatementAmount.toLocaleString("fr-FR").replace(/\u202F/g, " ")
+                      )}
+                    </td>
+                  </>
+                )}
                 <td className="border border-gray-400 p-1 text-right">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={row.abatementAmount}
-                      onChange={(e) =>
-                        handleAdValoremChange(
-                          row.id,
-                          "abatementAmount",
-                          e.target.value
-                        )
-                      }
-                      className="w-full text-right bg-orange-50"
-                    />
-                  ) : (
-                    row.abatementAmount.toLocaleString("fr-FR")
-                  )}
-                </td>
-                <td className="border border-gray-400 p-1 text-right">
-                  {(row.baseBrute - row.abatementAmount).toLocaleString(
-                    "fr-FR"
-                  )}
+                  {row.baseNetteLabel
+                    ? row.baseNetteLabel
+                    : (row.baseBrute - row.abatementAmount).toLocaleString(
+                        "fr-FR"
+                      )}
                 </td>
                 <td className="border border-gray-400 p-1 text-center">
                   {row.taux}
@@ -746,7 +800,7 @@ const C2Note25: React.FC = () => {
                   {(
                     (row.baseBrute - row.abatementAmount) *
                     (parseFloat(row.taux) / 100 || 0)
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
                   {isEditing ? (
@@ -763,7 +817,7 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.droitsPayes.toLocaleString("fr-FR")
+                    row.droitsPayes.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -771,7 +825,7 @@ const C2Note25: React.FC = () => {
                     (row.baseBrute - row.abatementAmount) *
                     (parseFloat(row.taux) / 100 || 0) -
                     row.droitsPayes
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             ))}
@@ -850,7 +904,7 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.productionLocale.toLocaleString("fr-FR")
+                    row.productionLocale.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -868,7 +922,7 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.importation.toLocaleString("fr-FR")
+                    row.importation.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -886,7 +940,7 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.exportation.toLocaleString("fr-FR")
+                    row.exportation.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -894,19 +948,19 @@ const C2Note25: React.FC = () => {
                     row.productionLocale +
                     row.importation -
                     row.exportation
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-1 text-center">
                   {row.unite}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
-                  {row.tarif.toLocaleString("fr-FR")}
+                  {row.tarif.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
                   {(
                     (row.productionLocale + row.importation - row.exportation) *
                     row.tarif
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
                   {isEditing ? (
@@ -923,7 +977,7 @@ const C2Note25: React.FC = () => {
                       className="w-full text-right bg-orange-50"
                     />
                   ) : (
-                    row.droitsPayes.toLocaleString("fr-FR")
+                    row.droitsPayes.toLocaleString("fr-FR").replace(/\u202F/g, " ")
                   )}
                 </td>
                 <td className="border border-gray-400 p-1 text-right">
@@ -931,7 +985,7 @@ const C2Note25: React.FC = () => {
                     (row.productionLocale + row.importation - row.exportation) *
                     row.tarif -
                     row.droitsPayes
-                  ).toLocaleString("fr-FR")}
+                  ).toLocaleString("fr-FR").replace(/\u202F/g, " ")}
                 </td>
               </tr>
             ))}

@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Pencil, Save, Download, FileText } from "lucide-react";
-import html2canvas from "html2canvas";
+import { Pencil, Save, Download, FileText, RefreshCw } from "lucide-react";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { notesService } from "../../services/notes.service";
 import { useApp } from "../../contexts/AppContext";
 import { FormulaValue } from "./shared/FormulaValue";
+import { useFormulaPanel } from "../../contexts/FormulaPanelContext";
+import { dsfService } from "../../services/dsf.service";
 
 // --- Interfaces ---
 interface CF1Row {
@@ -39,6 +41,7 @@ const CF1: React.FC = () => {
   const folderIdFromUrl = searchParams.get('folderId');
 
   const { selectedFolder } = useApp();
+  const { hasFormula } = useFormulaPanel();
   // Use folderId from URL params, fallback to selectedFolder
   const folderId = folderIdFromUrl || selectedFolder?.id;
 
@@ -356,6 +359,25 @@ const CF1: React.FC = () => {
     );
   };
 
+  const [isRegeneratingDSF, setIsRegeneratingDSF] = useState(false);
+
+  // Régénère la DSF côté backend (relance dsf-generator.service.ts avec le
+  // mapping comptable / les formules actuelles), puis recharge cette note
+  // pour refléter les nouvelles valeurs.
+  const regenerateDSF = async () => {
+    if (!folderId) return;
+    try {
+      setIsRegeneratingDSF(true);
+      await dsfService.generateDSF(folderId);
+      await loadDSFData();
+    } catch (error) {
+      console.error("Error regenerating DSF:", error);
+      alert("Erreur lors de la régénération de la DSF");
+    } finally {
+      setIsRegeneratingDSF(false);
+    }
+  };
+
   const downloadPDF = async () => {
     if (reportRef.current) {
       const wasEditing = isEditing;
@@ -382,7 +404,7 @@ const CF1: React.FC = () => {
         </td>
         <td className="border border-gray-400 p-1 pl-2">{row.label}</td>
         <td className="border border-gray-400 p-1 text-right">
-          {isEditing && !isCalculated ? (
+          {isEditing && !isCalculated && !hasFormula(`cf1.rows.${row.id}`) ? (
             <input
               type="number"
               value={row.amount}
@@ -394,7 +416,7 @@ const CF1: React.FC = () => {
               formulaKey={`cf1.rows.${row.id}`}
               label={typeof row.label === "string" ? row.label : String(row.id)}
             >
-              {row.amount.toLocaleString("fr-FR")}
+              {row.amount.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
             </FormulaValue>
           )}
         </td>
@@ -418,34 +440,25 @@ const CF1: React.FC = () => {
               setIsEditing(!isEditing);
             }}
             disabled={saving}
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white transition ${
-              isEditing
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-orange-600 hover:bg-orange-700"
-            } ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={isEditing ? "Sauvegarder" : "Éditer"}
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarde...{" "}
-              </>
-            ) : isEditing ? (
-              <>
-                {" "}
-                <Save size={18} /> Sauvegarder{" "}
-              </>
-            ) : (
-              <>
-                {" "}
-                <Pencil size={18} /> Éditer{" "}
-              </>
-            )}
+            {isEditing ? <Save size={18} className={saving ? "animate-pulse" : ""} /> : <Pencil size={18} />}
+          </button>
+          <button
+            onClick={regenerateDSF}
+            disabled={isRegeneratingDSF}
+            title="Recalculer la DSF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={18} className={isRegeneratingDSF ? "animate-spin" : ""} />
           </button>
           <button
             onClick={downloadPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-red-700 transition"
+            title="Télécharger PDF"
+            className="p-2 text-gray-700 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download size={18} /> Télécharger PDF
+            <Download size={18} />
           </button>
         </div>
       </div>
@@ -456,7 +469,11 @@ const CF1: React.FC = () => {
         className="w-3/4 max-w-[210mm] mx-auto bg-white shadow-2xl p-6 border border-gray-200"
       >
         {/* Numéro de page */}
-        <div className="text-center font-bold mb-2 text-lg">60</div>
+        <div className="flex justify-center mb-4">
+          <span className="font-bold text-base bg-gray-100 px-4 py-1 rounded-full border border-gray-300">
+            60
+          </span>
+        </div>
 
         {/* En-tête */}
         <div className="mb-4 grid grid-cols-2 gap-x-8 gap-y-1 border-b-2 border-transparent pb-2">
@@ -558,7 +575,7 @@ const CF1: React.FC = () => {
               </td>
               <td className="border border-gray-400 p-1 text-center">15</td>
               <td className="border border-gray-400 p-1 text-right">
-                {rows[12].amount.toLocaleString("fr-FR")}
+                {rows[12].amount.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
             </tr>
             {rows.slice(14, 24).map((row) => renderRow(row))}
@@ -568,7 +585,7 @@ const CF1: React.FC = () => {
               </td>
               <td className="border border-gray-400 p-1 text-center">27</td>
               <td className="border border-gray-400 p-1 text-right">
-                {rows[23].amount.toLocaleString("fr-FR")}
+                {rows[23].amount.toLocaleString("fr-FR").replace(/\u202F/g, " ")}
               </td>
             </tr>
             {rows.slice(24).map((row) => renderRow(row))}

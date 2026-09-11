@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Save, Download, FileText, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 
 const ModeBilan: React.FC = () => {
@@ -74,6 +74,9 @@ const ModeBilan: React.FC = () => {
       [key]: { ...prev[key], [year]: value },
     }));
   };
+
+  const fmt = (value: string) =>
+    value === "" ? "" : Number(value).toLocaleString("fr-FR").replace(/\u202F/g, " ");
 
   const downloadPDF = async () => {
     if (reportRef.current) {
@@ -336,11 +339,11 @@ const ModeBilan: React.FC = () => {
                         }
                       />
                     ) : (
-                      row.n
+                      fmt(row.n)
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {row.n1}
+                    {fmt(row.n1)}
                   </td>
                   <td className="border border-gray-600 p-2 pl-4">
                     {row.passif}
@@ -356,20 +359,20 @@ const ModeBilan: React.FC = () => {
                 <td className="border border-gray-600 p-2 pl-4">Total actif</td>
                 <td className="border border-gray-600 p-2"></td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {bilan.totalActif.n}
+                  {fmt(bilan.totalActif.n)}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {bilan.totalActif.n1}
+                  {fmt(bilan.totalActif.n1)}
                 </td>
                 <td className="border border-gray-600 p-2 pl-4">
                   Total passif
                 </td>
                 <td className="border border-gray-600 p-2"></td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {bilan.totalPassif.n}
+                  {fmt(bilan.totalPassif.n)}
                 </td>
                 <td className="border border-gray-600 p-2 text-right">
-                  {bilan.totalPassif.n1}
+                  {fmt(bilan.totalPassif.n1)}
                 </td>
               </tr>
             </tbody>
@@ -435,11 +438,11 @@ const ModeBilan: React.FC = () => {
                         }
                       />
                     ) : (
-                      compteResultat.recettesPrestations.n
+                      fmt(compteResultat.recettesPrestations.n)
                     )}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.recettesPrestations.n1}
+                    {fmt(compteResultat.recettesPrestations.n1)}
                   </td>
                 </tr>
                 {/* ... Ajouter toutes les autres lignes de la même façon ... */}
@@ -450,10 +453,10 @@ const ModeBilan: React.FC = () => {
                   </td>
                   <td className="border border-gray-600 p-2 text-center">A</td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.totalRecettes.n}
+                    {fmt(compteResultat.totalRecettes.n)}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.totalRecettes.n1}
+                    {fmt(compteResultat.totalRecettes.n1)}
                   </td>
                 </tr>
                 {/* TOTAL DEPENSES */}
@@ -463,10 +466,10 @@ const ModeBilan: React.FC = () => {
                   </td>
                   <td className="border border-gray-600 p-2 text-center">B</td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.totalDepenses.n}
+                    {fmt(compteResultat.totalDepenses.n)}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.totalDepenses.n1}
+                    {fmt(compteResultat.totalDepenses.n1)}
                   </td>
                 </tr>
                 {/* SOLDE */}
@@ -476,10 +479,10 @@ const ModeBilan: React.FC = () => {
                   </td>
                   <td className="border border-gray-600 p-2 text-center">C</td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.soldeC.n}
+                    {fmt(compteResultat.soldeC.n)}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.soldeC.n1}
+                    {fmt(compteResultat.soldeC.n1)}
                   </td>
                 </tr>
                 {/* RESULTAT */}
@@ -489,10 +492,10 @@ const ModeBilan: React.FC = () => {
                   </td>
                   <td className="border border-gray-600 p-2 text-center">G</td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.resultatExerciceG.n}
+                    {fmt(compteResultat.resultatExerciceG.n)}
                   </td>
                   <td className="border border-gray-600 p-2 text-right">
-                    {compteResultat.resultatExerciceG.n1}
+                    {fmt(compteResultat.resultatExerciceG.n1)}
                   </td>
                 </tr>
               </tbody>

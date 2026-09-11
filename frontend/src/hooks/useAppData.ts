@@ -451,6 +451,12 @@ export function useAppData() {
         async () => {
           const folders = await folderService.getFolders(clientId);
           return folders as Folder[];
+        },
+        (clientFolders) => {
+          setFolders((prev) => [
+            ...prev.filter((folder) => folder.clientId !== clientId),
+            ...clientFolders,
+          ]);
         }
       );
     },

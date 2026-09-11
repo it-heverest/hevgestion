@@ -327,16 +327,32 @@ class ClientController {
         throw new BadRequestError("Invalid country");
       }
 
+      // Validate client type if provided
+      if (
+        clientType &&
+        !Object.values(ClientType).includes(clientType as ClientType)
+      ) {
+        throw new BadRequestError("Invalid client type");
+      }
+
+      // La devise suit le pays (même règle qu'à la création) — si le pays
+      // change, la devise doit changer avec lui plutôt que rester périmée.
+      const currency = country
+        ? (country === "CM" ? "XAF" : "XOF")
+        : undefined;
+
       const updatedClient = await prisma.client.update({
         where: { id },
         data: {
           ...(name && { name }),
           ...(legalForm && { legalForm }),
+          ...(clientType && { clientType: clientType as ClientType }),
           ...(taxNumber && { taxNumber }),
           ...(address && { address }),
           ...(city && { city }),
           ...(phone && { phone }),
           ...(country && { country: country as CountrySelection }),
+          ...(currency && { currency }),
         },
       });
 
