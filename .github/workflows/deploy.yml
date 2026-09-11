@@ -101,7 +101,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd ~/hevgestion
+            cd ~/Docker/hevgestion
             git fetch origin prod
             git reset --hard origin/prod
             docker compose build
